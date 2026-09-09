@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AzureWebJobsStorage": "",
+    "ALLOWED_ORIGINS": "http://localhost:5173,https://www.zeninstaller.com",
+    "GITHUB_TOKEN": "",
+    "WEBPUBSUB_ENDPOINT": "<your-webpubsub-hostname>",
+    "HUB_NAME": "terminal",
+    "SESSION_TABLE_ACCOUNT_NAME": "<your-storage-account>",
+    "SESSION_TABLE_NAME": "sessions"
+  }
+}
