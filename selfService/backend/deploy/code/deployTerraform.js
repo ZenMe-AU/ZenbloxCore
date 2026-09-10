@@ -13,9 +13,8 @@
  * @license MIT
  */
 
-import { execSync } from "child_process";
+import { spawnSync } from "child_process";
 import fs from "fs";
-import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -31,18 +30,45 @@ const GRAPH_ROLE_IDS = [
   "5eb59dd3-1da2-4329-8733-9dabdc435916", // AdministrativeUnit.ReadWrite.All
 ];
 
-// Runs a shell command and returns its trimmed stdout
-function executeCommand(command, options = {}) {
-  return execSync(command, {
+// Runs an Azure CLI command and returns its trimmed output
+function runAzureCli(args) {
+  const isWindows = process.platform === "win32";
+  const executable = isWindows ? process.env.ComSpec || "cmd.exe" : "az";
+  const commandArgs = isWindows ? ["/d", "/s", "/c", "az.cmd", ...args] : args;
+  const result = spawnSync(executable, commandArgs, {
     encoding: "utf8",
-    stdio: ["pipe", "pipe", "pipe"],
-    ...options,
-  }).trim();
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    throw new Error(result.stderr.trim() || `Azure CLI exited with code ${result.status}`);
+  }
+
+  return result.stdout.trim();
 }
 
-// Runs a terraform command in the terraform directory, streaming output to the console
-function runTerraform(command) {
-  execSync(command, { stdio: "inherit", cwd: terraformDir });
+// Runs a Terraform command with optional output capture and failure handling
+function runTerraform(args, { captureOutput = false, allowFailure = false } = {}) {
+  const result = spawnSync("terraform", args, {
+    cwd: terraformDir,
+    encoding: "utf8",
+    stdio: captureOutput ? ["ignore", "pipe", "pipe"] : "inherit",
+    shell: false,
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0 && !allowFailure) {
+    const detail = captureOutput ? result.stderr.trim() : "";
+    throw new Error(detail || `Terraform exited with code ${result.status}`);
+  }
+
+  return result.status === 0 ? (result.stdout || "").trim() : null;
 }
 
 // Parses a simple KEY=VALUE .env file into an object
@@ -70,69 +96,94 @@ function readEnvFile(envFilePath) {
 // Confirms az cli is logged in, switching tenants if the current session doesn't match
 function ensureAzureAuth(tenantId) {
   console.log("Verifying Azure authentication...");
-  const accountInfo = JSON.parse(executeCommand("az account show --output json"));
+  const accountInfo = JSON.parse(runAzureCli(["account", "show", "--output", "json"]));
   console.log(`Currently authenticated to tenant: ${accountInfo.tenantId}`);
 
   if (accountInfo.tenantId !== tenantId) {
     console.log(`Switching to target tenant ${tenantId}...`);
-    executeCommand(`az login --tenant ${tenantId} --allow-no-subscriptions`);
+    runAzureCli(["login", "--tenant", tenantId, "--allow-no-subscriptions", "--output", "none"]);
   }
 }
 
 // Looks up the object ID of an existing app registration by display name, if any
 function findExistingAppObjectId() {
-  const listCommand = `az ad app list --filter "displayName eq '${APP_DISPLAY_NAME}'" --output json`;
-  const apps = JSON.parse(executeCommand(listCommand));
+  const apps = JSON.parse(
+    runAzureCli(["ad", "app", "list", "--filter", `displayName eq '${APP_DISPLAY_NAME}'`, "--output", "json"]),
+  );
   return apps?.[0]?.id ?? null;
 }
 
 // Looks up the object ID of an existing group by display name, if any
 function findExistingGroupObjectId() {
-  const listCommand = `az ad group list --filter "displayName eq '${GROUP_DISPLAY_NAME}'" --output json`;
-  const groups = JSON.parse(executeCommand(listCommand));
+  const groups = JSON.parse(
+    runAzureCli(["ad", "group", "list", "--filter", `displayName eq '${GROUP_DISPLAY_NAME}'`, "--output", "json"]),
+  );
   return groups?.[0]?.id ?? null;
 }
 
 // Looks up the object ID of an existing administrative unit by display name, if any
 function findExistingAdministrativeUnitObjectId() {
-  const listCommand = `az rest --method GET --uri "https://graph.microsoft.com/beta/directory/administrativeUnits?$filter=displayName eq '${ADMIN_UNIT_DISPLAY_NAME}'" --output json`;
-  const result = JSON.parse(executeCommand(listCommand));
+  const uri = `https://graph.microsoft.com/v1.0/directory/administrativeUnits?$filter=displayName eq '${ADMIN_UNIT_DISPLAY_NAME}'`;
+  const result = JSON.parse(runAzureCli(["rest", "--method", "GET", "--uri", uri, "--output", "json"]));
   return result?.value?.[0]?.id ?? null;
 }
 
 // Looks up the client (application) ID of an app registration from its object ID
 function findAppClientId(appObjectId) {
-  const appDetails = JSON.parse(executeCommand(`az ad app show --id ${appObjectId} --output json`));
+  const appDetails = JSON.parse(runAzureCli(["ad", "app", "show", "--id", appObjectId, "--output", "json"]));
   return appDetails?.appId ?? null;
 }
 
 // Looks up the object ID of an existing service principal for the given client ID, if any
 function findExistingServicePrincipalObjectId(clientId) {
-  const listCommand = `az ad sp list --filter "appId eq '${clientId}'" --output json`;
-  const servicePrincipals = JSON.parse(executeCommand(listCommand));
+  const servicePrincipals = JSON.parse(
+    runAzureCli(["ad", "sp", "list", "--filter", `appId eq '${clientId}'`, "--output", "json"]),
+  );
   return servicePrincipals?.[0]?.id ?? null;
 }
 
 // Returns the Microsoft Graph resource app ID if the app registration already has it assigned
 function findExistingGraphApiAccessId(appObjectId) {
-  const appDetails = JSON.parse(executeCommand(`az ad app show --id ${appObjectId} --output json`));
+  const appDetails = JSON.parse(runAzureCli(["ad", "app", "show", "--id", appObjectId, "--output", "json"]));
   const hasAccess = (appDetails.requiredResourceAccess || []).some((r) => r.resourceAppId === GRAPH_RESOURCE_APP_ID);
   return hasAccess ? GRAPH_RESOURCE_APP_ID : null;
 }
 
+// Looks up the object ID of the Microsoft Graph service principal
+function findGraphServicePrincipalObjectId() {
+  const servicePrincipal = JSON.parse(
+    runAzureCli(["ad", "sp", "show", "--id", GRAPH_RESOURCE_APP_ID, "--output", "json"]),
+  );
+  return servicePrincipal.id;
+}
+
+// Finds existing Microsoft Graph app role assignments for the application service principal
+function findExistingAppRoleAssignments(servicePrincipalObjectId, graphServicePrincipalObjectId) {
+  if (!servicePrincipalObjectId) {
+    return new Map();
+  }
+
+  const uri = `https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipalObjectId}/appRoleAssignments?$select=id,appRoleId,resourceId`;
+  const result = JSON.parse(runAzureCli(["rest", "--method", "GET", "--uri", uri, "--output", "json"]));
+  return new Map(
+    (result.value || [])
+      .filter((assignment) => assignment.resourceId === graphServicePrincipalObjectId)
+      .map((assignment) => [assignment.appRoleId, assignment.id]),
+  );
+}
+
 // Checks whether a resource address is already tracked in the terraform state
 function isAlreadyInState(resourceAddress) {
-  try {
-    const state = executeCommand("terraform state list", { cwd: terraformDir });
-    return state.split("\n").includes(resourceAddress);
-  } catch {
-    // "terraform state list" fails when no state file exists yet
-    return false;
-  }
+  return (
+    runTerraform(["state", "show", "-no-color", resourceAddress], {
+      captureOutput: true,
+      allowFailure: true,
+    }) !== null
+  );
 }
 
 // Imports a pre-existing Azure AD resource into terraform state so apply won't recreate it
-function importIfExists(resourceAddress, displayName, findObjectId, tenantId, formatImportId = (id) => id) {
+function importIfExists(resourceAddress, displayName, objectId, tenantId, formatImportId = (id) => id) {
   console.log(`\nChecking if "${displayName}" already exists...`);
 
   if (isAlreadyInState(resourceAddress)) {
@@ -140,58 +191,13 @@ function importIfExists(resourceAddress, displayName, findObjectId, tenantId, fo
     return;
   }
 
-  const objectId = findObjectId();
   if (!objectId) {
     console.log(`  Not found, terraform will create it`);
     return;
   }
 
   console.log(`  Found existing "${displayName}" (id: ${objectId}), importing into terraform state...`);
-  try {
-    runTerraform(`terraform import -var "tenant_id=${tenantId}" ${resourceAddress} "${formatImportId(objectId)}"`);
-  } catch {
-    // The lookup can be stale (eventual consistency) and report a match that no longer
-    // exists at the remote endpoint terraform checks; fall back to letting apply create it.
-    console.log(`  Import failed, letting terraform apply create/update it instead`);
-  }
-}
-
-// Looks up the object ID of the well-known Microsoft Graph service principal
-function findGraphServicePrincipalObjectId() {
-  const sp = JSON.parse(executeCommand(`az ad sp show --id ${GRAPH_RESOURCE_APP_ID} --output json`));
-  return sp.id;
-}
-
-// Grants admin consent by directly creating app role assignments on our service principal,
-// bypassing "az ad app permission admin-consent" which errors when the SP already exists.
-function grantAdminConsent(servicePrincipalObjectId) {
-  console.log("\nGranting admin consent for API permissions...");
-  const graphSpId = findGraphServicePrincipalObjectId();
-
-  for (const roleId of GRAPH_ROLE_IDS) {
-    const body = JSON.stringify({
-      principalId: servicePrincipalObjectId,
-      resourceId: graphSpId,
-      appRoleId: roleId,
-    });
-    const tempFile = path.join(os.tmpdir(), `role-assignment-${Date.now()}-${roleId}.json`);
-    fs.writeFileSync(tempFile, body);
-
-    try {
-      executeCommand(
-        `az rest --method POST --uri "https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipalObjectId}/appRoleAssignments" --headers Content-Type=application/json --body @${tempFile}`,
-      );
-      console.log(`  ✓ Granted role ${roleId}`);
-    } catch (error) {
-      if (error.message.includes("Permission being assigned already exists")) {
-        console.log(`  Role ${roleId} already granted, skipping`);
-      } else {
-        console.warn(`  ⚠ Could not grant role ${roleId}: ${error.message}`);
-      }
-    } finally {
-      fs.unlinkSync(tempFile);
-    }
-  }
+  runTerraform(["import", "-input=false", `-var=tenant_id=${tenantId}`, resourceAddress, formatImportId(objectId)]);
 }
 
 // Reads config, imports existing resources, and runs terraform init/apply
@@ -216,22 +222,23 @@ async function deployTerraform() {
   ensureAzureAuth(tenantId);
 
   console.log("\nRunning terraform init...");
-  runTerraform("terraform init");
+  runTerraform(["init", "-input=false"]);
 
   const appObjectId = findExistingAppObjectId();
   importIfExists(
     "azuread_application.access_pass_backend",
     APP_DISPLAY_NAME,
-    () => appObjectId,
+    appObjectId,
     tenantId,
     (id) => `/applications/${id}`,
   );
 
   const existingClientId = appObjectId ? findAppClientId(appObjectId) : null;
+  const servicePrincipalObjectId = existingClientId ? findExistingServicePrincipalObjectId(existingClientId) : null;
   importIfExists(
     "azuread_service_principal.access_pass_backend",
     "Service principal",
-    () => (existingClientId ? findExistingServicePrincipalObjectId(existingClientId) : null),
+    servicePrincipalObjectId,
     tenantId,
     (id) => `/servicePrincipals/${id}`,
   );
@@ -239,7 +246,7 @@ async function deployTerraform() {
   importIfExists(
     "azuread_application_api_access.msgraph",
     "Microsoft Graph API access",
-    () => (appObjectId ? findExistingGraphApiAccessId(appObjectId) : null),
+    appObjectId ? findExistingGraphApiAccessId(appObjectId) : null,
     tenantId,
     () => `/applications/${appObjectId}/apiAccess/${GRAPH_RESOURCE_APP_ID}`,
   );
@@ -247,25 +254,45 @@ async function deployTerraform() {
   importIfExists(
     "azuread_group.pass_reset_managers",
     GROUP_DISPLAY_NAME,
-    findExistingGroupObjectId,
+    findExistingGroupObjectId(),
     tenantId,
     (id) => `/groups/${id}`,
   );
   importIfExists(
     "azuread_administrative_unit.pass_reset_targets",
     ADMIN_UNIT_DISPLAY_NAME,
-    findExistingAdministrativeUnitObjectId,
+    findExistingAdministrativeUnitObjectId(),
     tenantId,
     (id) => `/directory/administrativeUnits/${id}`,
   );
 
-  console.log("\nRunning terraform apply...");
-  runTerraform(`terraform apply -var "tenant_id=${tenantId}"`);
+  const graphServicePrincipalObjectId = findGraphServicePrincipalObjectId();
+  const appRoleAssignments = findExistingAppRoleAssignments(servicePrincipalObjectId, graphServicePrincipalObjectId);
+  const roleResources = [
+    [
+      "azuread_app_role_assignment.group_member_read_write_all",
+      "GroupMember.ReadWrite.All admin consent",
+      GRAPH_ROLE_IDS[0],
+    ],
+    [
+      "azuread_app_role_assignment.administrative_unit_read_write_all",
+      "AdministrativeUnit.ReadWrite.All admin consent",
+      GRAPH_ROLE_IDS[1],
+    ],
+  ];
 
-  const servicePrincipalObjectId = executeCommand("terraform output -raw service_principal_object_id", {
-    cwd: terraformDir,
-  });
-  grantAdminConsent(servicePrincipalObjectId);
+  for (const [resourceAddress, displayName, roleId] of roleResources) {
+    importIfExists(
+      resourceAddress,
+      displayName,
+      appRoleAssignments.get(roleId),
+      tenantId,
+      (assignmentId) => `/servicePrincipals/${graphServicePrincipalObjectId}/appRoleAssignedTo/${assignmentId}`,
+    );
+  }
+
+  console.log("\nRunning terraform apply...");
+  runTerraform(["apply", `-var=tenant_id=${tenantId}`]);
 
   console.log("\n✓ Terraform apply completed successfully!");
 }

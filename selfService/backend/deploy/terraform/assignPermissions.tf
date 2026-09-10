@@ -20,3 +20,15 @@ resource "azuread_application_api_access" "msgraph" {
     data.azuread_service_principal.msgraph.app_role_ids["AdministrativeUnit.ReadWrite.All"],
   ]
 }
+
+resource "azuread_app_role_assignment" "group_member_read_write_all" {
+  app_role_id         = data.azuread_service_principal.msgraph.app_role_ids["GroupMember.ReadWrite.All"]
+  principal_object_id = azuread_service_principal.access_pass_backend.object_id
+  resource_object_id  = data.azuread_service_principal.msgraph.object_id
+}
+
+resource "azuread_app_role_assignment" "administrative_unit_read_write_all" {
+  app_role_id         = data.azuread_service_principal.msgraph.app_role_ids["AdministrativeUnit.ReadWrite.All"]
+  principal_object_id = azuread_service_principal.access_pass_backend.object_id
+  resource_object_id  = data.azuread_service_principal.msgraph.object_id
+}
