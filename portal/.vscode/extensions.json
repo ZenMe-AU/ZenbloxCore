@@ -1,0 +1,19 @@
+{
+  "recommendations": [
+    "ms-azuretools.vscode-azurefunctions",
+    "dbaeumer.vscode-eslint",
+    "azurite.azurite",
+    "ms-ossdata.vscode-pgsql",
+    "ms-playwright.playwright",
+    "vitest.explorer",
+       
+    "4ops.terraform",
+    "mhutchie.git-graph",
+    "ms-vscode.powershell",
+    "redhat.vscode-yaml",
+    "hcommand.run-runner",
+    "bierner.markdown-mermaid",
+    "gruntfuggly.todo-tree"
+
+  ]
+}

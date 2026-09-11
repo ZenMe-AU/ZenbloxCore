@@ -1,0 +1,10 @@
+{
+  "azureFunctions.deploySubpath": ".",
+  "azureFunctions.postDeployTask": "Install Dependencies",
+  "azureFunctions.projectLanguage": "JavaScript",
+  "azureFunctions.projectRuntime": "~4",
+  "debug.internalConsoleOptions": "neverOpen",
+  "azureFunctions.projectLanguageModel": 4,
+  "azureFunctions.preDeployTask": "prune (functions)",
+  "azureFunctions.functionAppName": "quest5Tier"
+}

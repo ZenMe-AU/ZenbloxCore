@@ -1,0 +1,24 @@
+<!--
+    APIM routes subdomains to the correct backend based on the host header passed from the reverse proxy.
+    Where possible, make the DNS name match the name of the backend service to enable this to be automated in future.
+-->
+<policies>
+    <!-- Inbound: Throttle, authorize, validate, cache, or transform the requests -->
+    <inbound>
+        <base />
+        <include-fragment fragment-id="backend-routing-fragment" />
+        <include-fragment fragment-id="transform-x-auth-token" />
+    </inbound>
+    <!-- Backend: Control if and how the requests are forwarded to services  -->
+    <backend>
+        <base />
+    </backend>
+    <!-- Outbound: Customize the responses -->
+    <outbound>
+        <base />
+    </outbound>
+    <!-- on-error: Handle exceptions and customize error responses  -->
+    <on-error>
+        <base />
+    </on-error>
+</policies>

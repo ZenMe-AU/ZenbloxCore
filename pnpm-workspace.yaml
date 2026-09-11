@@ -3,10 +3,15 @@ packages:
   - corpSetup/c25cloudfront/source/loginApp
   - selfService/web
   - selfService/backend
+  - portal/ui
+  - portal/module/*/ui
+  - portal/module/*/func
 injectWorkspacePackages: true
 allowBuilds:
   esbuild: true
   azure-functions-core-tools: true
+  '@scarf/scarf': true
+  protobufjs: true
 onlyBuiltDependencies:
   - esbuild
   - azure-functions-core-tools

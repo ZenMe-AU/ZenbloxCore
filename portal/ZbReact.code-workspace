@@ -1,0 +1,134 @@
+{
+  "folders": [
+    {
+      "name": "ROOT",
+      "path": "./",
+    },
+    {
+      "name": "Portal UI",
+      "path": "./ui",
+    },
+    {
+      "name": "Q5Eg UI",
+      "path": "./module/quest5TierEg/ui",
+    },
+    {
+      "name": "Q5Eg Func",
+      "path": "./module/quest5TierEg/func",
+    },
+    {
+      "name": "Q5 UI",
+      "path": "./module/quest5Tier/ui",
+    },
+    {
+      "name": "Q5 Func",
+      "path": "./module/quest5Tier/func",
+    },
+    {
+      "name": "Q3Cqrs UI",
+      "path": "./module/quest3TierCqrs/ui",
+    },
+    {
+      "name": "Q3Cqrs Func",
+      "path": "./module/quest3TierCqrs/func",
+    },
+    {
+      "name": "Q3 UI",
+      "path": "./module/quest3Tier/ui",
+    },
+    {
+      "name": "Q3 Func",
+      "path": "./module/quest3Tier/func",
+    },
+    {
+      "name": "AccessManager UI",
+      "path": "./module/accessManager/ui",
+    },
+    {
+      "name": "AccessManager Func",
+      "path": "./module/accessManager/func",
+    },
+    {
+      "name": "Profile Func",
+      "path": "./module/profile/func",
+    },
+    {
+      "name": "Coordinate Func",
+      "path": "./module/coordinate/func",
+    },
+  ],
+  "launch": {
+    "version": "0.2.0",
+    "compounds": [
+      {
+        "name": "Start Full Stack App",
+        "configurations": [
+          {
+            "name": "Start",
+            "folder": "Portal UI",
+          },
+          {
+            "name": "Start",
+            "folder": "Q3 UI",
+          },
+          {
+            "name": "Start",
+            "folder": "Q3 Func",
+          },       
+          {
+            "name": "Start",
+            "folder": "Profile Func"
+          }
+        ],
+      },
+    ],
+  },
+  "settings": {
+    // These settings apply to all workspaces.
+    "files.exclude": {
+      "node_modules/": false,
+    },
+    // Powershell settings
+    "powershell.cwd": "ROOT",
+    "powershell.scriptAnalysis.settingsPath": "PSScriptAnalyzerSettings.psd1",
+    "powershell.scriptAnalysis.enable": true,
+
+    "debug.internalConsoleOptions": "neverOpen",
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "[javascript]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[javascriptreact]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[typescript]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[typescriptreact]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit",
+    },
+    // ESLint settings
+    "eslint.enable": true,
+    "eslint.lintTask.enable": true,
+    "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+    "eslint.workingDirectories": [
+      "./",
+      "./ui",
+      "./module/*/ui",
+      "./module/*/func"
+    ],
+
+    // For Linux, set the NVM_DIR in VsCode to same NVM install dir as user shell
+    "terminal.integrated.automationProfile.linux": {
+      "path": "/bin/bash",
+      "args": ["-ic"],
+    },
+    "terminal.integrated.env.linux": {
+      "NVM_DIR": "${env:HOME}/.nvm",
+    },
+  },
+}
