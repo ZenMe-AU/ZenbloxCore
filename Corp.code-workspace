@@ -9,6 +9,10 @@
       "path": "./selfService/web",
     },
     {
+      "name": "selfService-backend",
+      "path": "./selfService/backend",
+    },
+    {
       "name": "authGuardLambdaEdge",
       "path": "./corpSetup/c25cloudfront/source/authGuardLambdaEdge",
     },
@@ -39,10 +43,13 @@
     "eslint.enable": true,
     "eslint.lintTask.enable": true,
     "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
-    "eslint.workingDirectories": ["./",  
-  "./corpSetup/c25cloudfront/source/authGuardLambdaEdge",
-  "./corpSetup/c25cloudfront/source/loginApp",
-  "./selfService/web"],
+    "eslint.workingDirectories": [
+      "./",
+      "./corpSetup/c25cloudfront/source/authGuardLambdaEdge",
+      "./corpSetup/c25cloudfront/source/loginApp",
+      "./selfService/web",
+      "./selfService/backend",
+    ],
 
     // For Linux, set the NVM_DIR in VsCode to same NVM install dir as user shell
     "terminal.integrated.automationProfile.linux": {

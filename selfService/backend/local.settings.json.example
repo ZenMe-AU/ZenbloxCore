@@ -1,0 +1,13 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "ACCESS_PASS_AAD_TENANT_ID": "",
+    "ACCESS_PASS_AAD_CLIENT_ID": "",
+    "ACCESS_PASS_AAD_CLIENT_SECRET": "",
+    "ACCESS_PASS_ALLOWED_ORIGIN": "http://localhost:5173",
+    "ACCESS_PASS_RESET_MANAGERS_GROUP_NAME": "Pass Reset Managers",
+    "ACCESS_PASS_RESET_TARGET_USERS_AU_NAME": "Pass Reset Targets"
+  }
+}

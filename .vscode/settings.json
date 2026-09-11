@@ -1,3 +1,6 @@
 {
-    "sarif-viewer.connectToGithubCodeScanning": "off"
+    "sarif-viewer.connectToGithubCodeScanning": "off",
+    "cSpell.language": "en-AU",
+    "cSpell.dictionaries": ["en-au"],
+    "cSpell.enabledLanguageIds": ["markdown", "plaintext", "javascript", "typescript", "typescriptreact"]
 }

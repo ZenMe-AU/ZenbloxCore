@@ -19,7 +19,7 @@
       "problemMatcher": {
         "owner": "custom",
         "pattern": {
-          "regexp": "."
+          "regexp": "^.*[Ee]rror.*$"
         },
         "background": {
           "activeOnStart": true,

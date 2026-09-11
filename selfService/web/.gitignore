@@ -18,6 +18,7 @@ docs/.vitepress/cache
 
 # Deploy secrets
 deploy/.env
+backend/local.settings.json
 
 # Editor directories and files
 .vscode/*

@@ -10,6 +10,8 @@ const createTemporaryAccessPassForUserMock = vi.fn();
 const removeNonPasswordAuthenticationMethodsMock = vi.fn();
 const resetUserPasswordMock = vi.fn();
 const temporaryAccessPassMethodExistsMock = vi.fn();
+const getSignedInUserObjectIdMock = vi.fn();
+const bootstrapPassResetGroupsMock = vi.fn();
 
 vi.mock("../../access-pass-src/api/accessPassMsal", () => ({
   getMsal: (...args: unknown[]) => getMsalMock(...args),
@@ -22,7 +24,12 @@ vi.mock("../../access-pass-src/api/accessPassGraph", () => ({
   removeNonPasswordAuthenticationMethods: (...args: unknown[]) => removeNonPasswordAuthenticationMethodsMock(...args),
   resetUserPassword: (...args: unknown[]) => resetUserPasswordMock(...args),
   temporaryAccessPassMethodExists: (...args: unknown[]) => temporaryAccessPassMethodExistsMock(...args),
+  getSignedInUserObjectId: (...args: unknown[]) => getSignedInUserObjectIdMock(...args),
   MSA_TENANT: "9188040d-6c67-4c5b-b112-36a304b66dad",
+}));
+
+vi.mock("../../access-pass-src/api/accessPassBackend", () => ({
+  bootstrapPassResetGroups: (...args: unknown[]) => bootstrapPassResetGroupsMock(...args),
 }));
 
 vi.mock("../monitor/telemetry", () => ({
@@ -121,6 +128,8 @@ describe("useAzureAccessPass", () => {
     removeNonPasswordAuthenticationMethodsMock.mockResolvedValue(2);
     resetUserPasswordMock.mockResolvedValue(undefined);
     temporaryAccessPassMethodExistsMock.mockResolvedValue(true);
+    getSignedInUserObjectIdMock.mockResolvedValue("manager-1");
+    bootstrapPassResetGroupsMock.mockResolvedValue(undefined);
   });
 
   it("stays signed out when no Azure account is present", async () => {
@@ -178,7 +187,7 @@ describe("useAzureAccessPass", () => {
       expect.objectContaining({
         authority: "https://login.microsoftonline.com/tenant-1",
         prompt: "consent",
-      }),
+      })
     );
     expect(harness.result.managerUsers).toEqual([]);
     expect(harness.result.selectedManagerUserId).toBe("");
@@ -206,8 +215,14 @@ describe("useAzureAccessPass", () => {
     expect(removeNonPasswordAuthenticationMethodsMock).toHaveBeenCalledWith(account, "user-1", undefined);
     expect(resetUserPasswordMock).toHaveBeenCalledWith(account, "user-1", "RANDOM_PASSWORD_123", undefined);
     expect(createTemporaryAccessPassForUserMock).toHaveBeenCalledWith(account, "user-1", undefined);
+    expect(getSignedInUserObjectIdMock).toHaveBeenCalledWith(account, undefined);
+    expect(bootstrapPassResetGroupsMock).toHaveBeenCalledWith({
+      tenantId: "tenant-1",
+      managerUserId: "manager-1",
+      targetUserId: "user-1",
+    });
 
-    expect(harness.result.steps.map((s) => s.status)).toEqual(["done", "done", "done"]);
+    expect(harness.result.steps.map((s) => s.status)).toEqual(["done", "done", "done", "done", "done"]);
     expect(harness.result.result).toMatchObject({
       accessPassValue: "TAP-123456",
       targetUserId: "user-1",
@@ -222,7 +237,10 @@ describe("useAzureAccessPass", () => {
   });
 
   it("sets tenant error when confirmTenantId is called without a tenant ID", async () => {
-    const tenantProfiles = new Map([["tenant-1", {}], ["tenant-2", {}]]);
+    const tenantProfiles = new Map([
+      ["tenant-1", {}],
+      ["tenant-2", {}],
+    ]);
     const account = createMockAccount("tenant-1", tenantProfiles);
     const msal = createMsalMock([account], account);
 
@@ -394,10 +412,7 @@ describe("useAzureAccessPass", () => {
 
   describe("validatePersistedTap", () => {
     it("clears a persisted result missing targetUserId or tapMethodId", async () => {
-      localStorage.setItem(
-        "zeninstaller_azure_access_result",
-        JSON.stringify({ accessPassValue: "TAP-OLD", tenantId: "tenant-1" }),
-      );
+      localStorage.setItem("zeninstaller_azure_access_result", JSON.stringify({ accessPassValue: "TAP-OLD", tenantId: "tenant-1" }));
       const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
       const msal = createMsalMock([account], account);
       getMsalMock.mockResolvedValue(msal);
@@ -414,7 +429,7 @@ describe("useAzureAccessPass", () => {
     it("clears a persisted result when the TAP method no longer exists", async () => {
       localStorage.setItem(
         "zeninstaller_azure_access_result",
-        JSON.stringify({ accessPassValue: "TAP-OLD", tenantId: "tenant-1", targetUserId: "user-1", tapMethodId: "tap-1" }),
+        JSON.stringify({ accessPassValue: "TAP-OLD", tenantId: "tenant-1", targetUserId: "user-1", tapMethodId: "tap-1" })
       );
       const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
       const msal = createMsalMock([account], account);
@@ -433,7 +448,7 @@ describe("useAzureAccessPass", () => {
     it("clears a persisted result when validation throws", async () => {
       localStorage.setItem(
         "zeninstaller_azure_access_result",
-        JSON.stringify({ accessPassValue: "TAP-OLD", tenantId: "tenant-1", targetUserId: "user-1", tapMethodId: "tap-1" }),
+        JSON.stringify({ accessPassValue: "TAP-OLD", tenantId: "tenant-1", targetUserId: "user-1", tapMethodId: "tap-1" })
       );
       const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
       const msal = createMsalMock([account], account);
@@ -452,7 +467,7 @@ describe("useAzureAccessPass", () => {
     it("keeps a persisted result when the TAP method still exists", async () => {
       localStorage.setItem(
         "zeninstaller_azure_access_result",
-        JSON.stringify({ accessPassValue: "TAP-OLD", tenantId: "tenant-1", targetUserId: "user-1", tapMethodId: "tap-1" }),
+        JSON.stringify({ accessPassValue: "TAP-OLD", tenantId: "tenant-1", targetUserId: "user-1", tapMethodId: "tap-1" })
       );
       const account = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
       const msal = createMsalMock([account], account);
@@ -493,10 +508,7 @@ describe("useAzureAccessPass", () => {
       const accountOne = createMockAccount("tenant-1", new Map([["tenant-1", {}]]));
       const accountTwo = createMockAccount("tenant-2", new Map([["tenant-2", {}]]));
       const msal = createMsalMock([accountOne, accountTwo]);
-      localStorage.setItem(
-        "zeninstaller_azure_access_result",
-        JSON.stringify({ accessPassValue: "TAP-OLD", tenantId: "tenant-2" }),
-      );
+      localStorage.setItem("zeninstaller_azure_access_result", JSON.stringify({ accessPassValue: "TAP-OLD", tenantId: "tenant-2" }));
       getMsalMock.mockResolvedValue(msal);
 
       const harness = renderUseAccessPassHook();
@@ -522,7 +534,7 @@ describe("useAzureAccessPass", () => {
       });
 
       expect(msal.loginRedirect).toHaveBeenCalledWith(
-        expect.objectContaining({ authority: "https://login.microsoftonline.com/common", prompt: "select_account" }),
+        expect.objectContaining({ authority: "https://login.microsoftonline.com/common", prompt: "select_account" })
       );
       expect(sessionStorage.getItem("zeninstaller_access_pass_login_intent")).toBe("1");
 
@@ -546,7 +558,7 @@ describe("useAzureAccessPass", () => {
       });
 
       expect(msal.loginRedirect).toHaveBeenCalledWith(
-        expect.objectContaining({ authority: "https://login.microsoftonline.com/tenant-9", prompt: "select_account" }),
+        expect.objectContaining({ authority: "https://login.microsoftonline.com/tenant-9", prompt: "select_account" })
       );
 
       harness.unmount();
@@ -571,8 +583,20 @@ describe("useAzureAccessPass", () => {
 
   describe("confirmTenantId", () => {
     it("adopts the tenant-scoped account and loads manager users when the silent token acquisition succeeds", async () => {
-      const account = createMockAccount("tenant-1", new Map([["tenant-1", {}], ["tenant-2", {}]]));
-      const tenantTwoAccount = createMockAccount("tenant-2", new Map([["tenant-1", {}], ["tenant-2", {}]]));
+      const account = createMockAccount(
+        "tenant-1",
+        new Map([
+          ["tenant-1", {}],
+          ["tenant-2", {}],
+        ])
+      );
+      const tenantTwoAccount = createMockAccount(
+        "tenant-2",
+        new Map([
+          ["tenant-1", {}],
+          ["tenant-2", {}],
+        ])
+      );
       const msal = createMsalMock([account], account);
       getMsalMock.mockResolvedValue(msal);
 
@@ -616,9 +640,7 @@ describe("useAzureAccessPass", () => {
         await harness.result.confirmTenantId();
       });
 
-      expect(msal.loginRedirect).toHaveBeenCalledWith(
-        expect.objectContaining({ authority: "https://login.microsoftonline.com/tenant-2", prompt: "consent" }),
-      );
+      expect(msal.loginRedirect).toHaveBeenCalledWith(expect.objectContaining({ authority: "https://login.microsoftonline.com/tenant-2", prompt: "consent" }));
       expect(sessionStorage.getItem("zeninstaller_arm_tenant_access")).toBe("tenant-2");
 
       harness.unmount();

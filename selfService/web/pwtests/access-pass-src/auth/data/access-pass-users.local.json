@@ -1,0 +1,30 @@
+[
+  {
+    "id": "NameC",
+    "email": "Name.C.LastName@brandedkeys.com",
+    "role": "auth_adm",
+    "expectedPostLoginText": "Azure Access Pass",
+    "tenantId": "ccd8ce7c-2096-44b4-9688-7a8fd231e7cb",
+    "expectedEntraResult": "users",
+    "canCreateAccessPass": true,
+    "targetEntraUsers": [
+      {
+        "id": "name-h",
+        "displayName": "Name H",
+        "email": "Name.H.LastName@brandedkeys.com",
+        "allowRealAccessPassCreation": true
+      }
+    ]
+  },
+  {
+    "id": "NameH",
+    "email": "Name.H.LastName@brandedkeys.com",
+    "role": "auth",
+    "expectedPostLoginText": "Azure Access Pass",
+    "tenantId": "ccd8ce7c-2096-44b4-9688-7a8fd231e7cb",
+    "expectedEntraResult": "empty",
+    "expectedEntraMessage": "No Entra users found",
+    "targetEntraUsers": [],
+    "canCreateAccessPass": true
+  }
+]

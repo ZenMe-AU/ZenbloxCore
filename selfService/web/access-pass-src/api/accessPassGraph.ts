@@ -70,6 +70,11 @@ export type TemporaryAccessPass = {
   isUsableOnce?: boolean;
 };
 
+type GraphGroup = {
+  id: string;
+  displayName?: string;
+};
+
 type GraphAuthMethod = {
   id: string;
   "@odata.type"?: string;
@@ -110,12 +115,7 @@ export function generateRandomPassword(length = 30): string {
   const all = `${lowercase}${uppercase}${digits}${symbols}`;
 
   const effectiveLength = Math.max(length, 4);
-  const chars: string[] = [
-    pickRandomChar(lowercase),
-    pickRandomChar(uppercase),
-    pickRandomChar(digits),
-    pickRandomChar(symbols),
-  ];
+  const chars: string[] = [pickRandomChar(lowercase), pickRandomChar(uppercase), pickRandomChar(digits), pickRandomChar(symbols)];
 
   for (let i = chars.length; i < effectiveLength; i += 1) {
     chars.push(pickRandomChar(all));
@@ -173,22 +173,66 @@ export async function listUsersManagedBySignedInUser(account: AccountInfo, overr
 
   const users = await gFetch(token, GRAPH, "/me/directReports/microsoft.graph.user?$select=id,displayName,userPrincipalName");
 
-  return (users.value ?? [])
-    // Ensure each option has user-friendly text even when optional fields are missing.
-    .map((u: { id: string; displayName?: string; userPrincipalName?: string; mail?: string }) => ({
-      id: u.id,
-      displayName: u.displayName ?? u.userPrincipalName ?? u.mail ?? u.id,
-      userPrincipalName: u.userPrincipalName ?? u.mail ?? "",
-    }))
-    .sort((a: EntraUser, b: EntraUser) => a.displayName.localeCompare(b.displayName));
+  return (
+    (users.value ?? [])
+      // Ensure each option has user-friendly text even when optional fields are missing.
+      .map((u: { id: string; displayName?: string; userPrincipalName?: string; mail?: string }) => ({
+        id: u.id,
+        displayName: u.displayName ?? u.userPrincipalName ?? u.mail ?? u.id,
+        userPrincipalName: u.userPrincipalName ?? u.mail ?? "",
+      }))
+      .sort((a: EntraUser, b: EntraUser) => a.displayName.localeCompare(b.displayName))
+  );
+}
+
+// fetches the signed-in user's object ID from Microsoft Graph /me endpoint
+export async function getSignedInUserObjectId(account: AccountInfo, overrideTenantId?: string): Promise<string> {
+  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const me = await gFetch(token, GRAPH, "/me?$select=id");
+  const userId = me?.id as string | undefined;
+  if (!userId) {
+    throw new Error("Unable to resolve signed-in user object ID from Graph /me");
+  }
+  return userId;
+}
+
+export async function addUserToGroupByDisplayName(account: AccountInfo, userId: string, groupDisplayName: string, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
+  const escapedName = groupDisplayName.replace(/'/g, "''");
+  const filter = encodeURIComponent(`displayName eq '${escapedName}'`);
+  const groups = await gFetch(token, GRAPH, `/groups?$filter=${filter}&$select=id,displayName&$top=1`);
+  const group = (groups?.value?.[0] ?? null) as GraphGroup | null;
+
+  if (!group?.id) {
+    throw new Error(`Group '${groupDisplayName}' not found`);
+  }
+
+  const res = await fetch(`${GRAPH}/groups/${group.id}/members/$ref`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      "@odata.id": `${GRAPH}/directoryObjects/${userId}`,
+    }),
+  });
+
+  if (res.ok || res.status === 204) return;
+
+  const body = await res.text().catch(() => "");
+  const lower = body.toLowerCase();
+  const alreadyMember =
+    (res.status === 400 || res.status === 409) &&
+    (lower.includes("already exist") || lower.includes("added object references already exist") || lower.includes("object references already exist"));
+
+  if (alreadyMember) return;
+
+  throw new Error(`${res.status} /groups/${group.id}/members/$ref: ${body}`);
 }
 
 // create a temporary access pass for a given user (requires Graph permission: UserAuthenticationMethod.ReadWrite.All)
-export async function createTemporaryAccessPassForUser(
-  account: AccountInfo,
-  userId: string,
-  overrideTenantId?: string,
-): Promise<TemporaryAccessPass> {
+export async function createTemporaryAccessPassForUser(account: AccountInfo, userId: string, overrideTenantId?: string): Promise<TemporaryAccessPass> {
   const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
   const maxAttempts = 4;
   let data: {
@@ -235,19 +279,13 @@ export async function createTemporaryAccessPassForUser(
   };
 }
 
-export async function removeNonPasswordAuthenticationMethods(
-  account: AccountInfo,
-  userId: string,
-  overrideTenantId?: string,
-): Promise<number> {
+export async function removeNonPasswordAuthenticationMethods(account: AccountInfo, userId: string, overrideTenantId?: string): Promise<number> {
   const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
   // Do not use @odata.type in $select; Graph rejects it in select/expand expressions.
   const data = await gFetch(token, GRAPH, `/users/${userId}/authentication/methods`);
   const methods = (data?.value ?? []) as GraphAuthMethod[];
 
-  const deletePaths = methods
-    .map((m) => getAuthMethodDeletePath(userId, m))
-    .filter((p): p is string => !!p);
+  const deletePaths = methods.map((m) => getAuthMethodDeletePath(userId, m)).filter((p): p is string => !!p);
 
   for (const path of deletePaths) {
     await gFetch(token, GRAPH, path, { method: "DELETE" });
@@ -256,12 +294,7 @@ export async function removeNonPasswordAuthenticationMethods(
   return deletePaths.length;
 }
 
-export async function resetUserPassword(
-  account: AccountInfo,
-  userId: string,
-  newPassword: string,
-  overrideTenantId?: string,
-): Promise<void> {
+export async function resetUserPassword(account: AccountInfo, userId: string, newPassword: string, overrideTenantId?: string): Promise<void> {
   const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
   const maxAttempts = 4;
 
@@ -293,12 +326,7 @@ export async function resetUserPassword(
 }
 
 // checks if a temporary access pass method exists for a given user and method ID
-export async function temporaryAccessPassMethodExists(
-  account: AccountInfo,
-  userId: string,
-  methodId: string,
-  overrideTenantId?: string,
-): Promise<boolean> {
+export async function temporaryAccessPassMethodExists(account: AccountInfo, userId: string, methodId: string, overrideTenantId?: string): Promise<boolean> {
   try {
     const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
     await gFetch(token, GRAPH, `/users/${userId}/authentication/temporaryAccessPassMethods/${methodId}?$select=id`);
@@ -312,11 +340,7 @@ export async function temporaryAccessPassMethodExists(
 
 // ── App registration ───────────────────────────────────────────────────────────
 
-export async function getExistingApp(
-  account: AccountInfo,
-  displayName: string,
-  overrideTenantId?: string,
-): Promise<{ appId: string; id: string } | null> {
+export async function getExistingApp(account: AccountInfo, displayName: string, overrideTenantId?: string): Promise<{ appId: string; id: string } | null> {
   const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/applications?$filter=displayName eq '${displayName}'&$select=appId,id`);
   return data.value?.[0] ? { appId: data.value[0].appId, id: data.value[0].id } : null;
@@ -326,7 +350,7 @@ export async function createAppRegistration(
   account: AccountInfo,
   displayName: string,
   permissions: readonly string[],
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<{ appId: string; id: string }> {
   const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, "/applications", {
@@ -381,7 +405,7 @@ export async function ensureFederatedCredential(
   org: string,
   repo: string,
   environment: string,
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<void> {
   const subject = `repo:${org}/${repo}:environment:${environment}`;
   const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "-");
@@ -408,7 +432,7 @@ export async function ensureRbacRole(
   subscriptionId: string,
   spObjectId: string,
   roleName: string,
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<void> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const scope = `/subscriptions/${subscriptionId}`;
@@ -417,10 +441,10 @@ export async function ensureRbacRole(
   const existing = await gFetch(
     token,
     ARM,
-    `${scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${spObjectId}')`,
+    `${scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${spObjectId}')`
   );
   const alreadyAssigned = existing?.value?.some((a: { properties: { roleDefinitionId: string } }) =>
-    a.properties.roleDefinitionId.toLowerCase().endsWith(roleId.toLowerCase()),
+    a.properties.roleDefinitionId.toLowerCase().endsWith(roleId.toLowerCase())
   );
   if (alreadyAssigned) return;
 
@@ -439,12 +463,7 @@ export async function ensureRbacRole(
 
 // ── Admin consent ──────────────────────────────────────────────────────────────
 
-export async function grantAdminConsent(
-  account: AccountInfo,
-  spObjectId: string,
-  permissions: readonly string[],
-  overrideTenantId?: string,
-): Promise<void> {
+export async function grantAdminConsent(account: AccountInfo, spObjectId: string, permissions: readonly string[], overrideTenantId?: string): Promise<void> {
   const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
 
   const graphSP = await gFetch(token, GRAPH, "/servicePrincipals?$filter=appId eq '00000003-0000-0000-c000-000000000000'&$select=id");

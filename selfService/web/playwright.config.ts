@@ -1,12 +1,10 @@
 /// <reference types="node" />
 
 import { defineConfig, devices } from "@playwright/test";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const signedOutTests = [
-  /access-pass-render\.spec\.ts/,
-  /azure-help-link\.spec\.ts/,
-  /zeninstaller-link\.spec\.ts/,
-];
+const signedOutTests = [/access-pass-render\.spec\.ts/, /azure-help-link\.spec\.ts/, /zeninstaller-link\.spec\.ts/];
 
 const authenticatedTests = [
   /authenticated-page-load\.spec\.ts/,
@@ -16,8 +14,16 @@ const authenticatedTests = [
   /access-pass-creation\.spec\.ts/,
 ];
 
+import * as dotenv from "dotenv";
+
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirectory = path.dirname(currentFilePath);
+dotenv.config({ path: path.resolve(currentDirectory, ".env") });
+
 export default defineConfig({
-  testDir: "./playwright-tests",
+  testDir: "./pwtests",
+  outputDir: "./pwtests/test-results",
+  updateSnapshots: process.env.CI ? "none" : "missing",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -27,13 +33,13 @@ export default defineConfig({
   expect: {
     timeout: 10_000,
 
-      toHaveScreenshot: {
-        animations: "disabled",
-        caret: "hide",
-        scale: "css",
-        maxDiffPixelRatio: 0.02,
+    toHaveScreenshot: {
+      animations: "disabled",
+      caret: "hide",
+      scale: "css",
+      maxDiffPixelRatio: 0.02,
 
-        pathTemplate: "{testDir}/snapshots/{arg}{ext}"
+      pathTemplate: "{testDir}/{arg}{ext}",
     },
   },
 
@@ -41,6 +47,7 @@ export default defineConfig({
     baseURL: "http://localhost:5173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    testIdAttribute: "data-id",
   },
 
   projects: [
@@ -54,6 +61,7 @@ export default defineConfig({
     {
       name: "azure-passkey-setup",
       testMatch: /azure-passkey\.setup\.ts/,
+      fullyParallel: false,
       use: {
         ...devices["Desktop Chrome"],
       },
@@ -65,7 +73,7 @@ export default defineConfig({
      * This ignores authenticated tests and setup tests.
      */
     {
-      name: "chromium",
+      name: "access-pass",
       testMatch: signedOutTests,
       fullyParallel: true,
       use: {
@@ -79,7 +87,7 @@ export default defineConfig({
      * This ignores authenticated tests and setup tests.
      */
     {
-      name: "chromium-authenticated",
+      name: "access-pass-auth",
       testMatch: authenticatedTests,
       // no parallel tests to avoid MSAL timeout when two test using same account
       fullyParallel: false,
@@ -90,29 +98,6 @@ export default defineConfig({
       },
       dependencies: ["azure-passkey-setup"],
     },
-
-
-    /**
-     * Normal signed-out Access Pass tests in Firefox.
-     */
-    {
-      name: "firefox",
-      use: {
-        ...devices["Desktop Firefox"],
-      },
-       dependencies: ["azure-passkey-setup"],
-    },
-
-    /**
-     * Normal signed-out Access Pass tests in WebKit.
-     */
-    {
-      name: "webkit",
-      use: {
-        ...devices["Desktop Safari"],
-      },
-       dependencies: ["azure-passkey-setup"],
-    },
   ],
 
   /**
@@ -121,11 +106,10 @@ export default defineConfig({
    *
    * If you prefer to run `pnpm dev` yourself, leave this commented out.
    */
-  // webServer: {
-  //   command: "pnpm dev -- --host 127.0.0.1 --port 5173",
-  //   url: "http://127.0.0.1:5173",
-  //   reuseExistingServer: !process.env.CI,
-  //   timeout: 120_000,
-  // },
+  webServer: {
+    command: "pnpm run dev",
+    url: "http://localhost:5173",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
 });
-

@@ -2,6 +2,7 @@ packages:
   - corpSetup/c25cloudfront/source/authGuardLambdaEdge
   - corpSetup/c25cloudfront/source/loginApp
   - selfService/web
+  - selfService/backend
 injectWorkspacePackages: true
 allowBuilds:
   esbuild: true
