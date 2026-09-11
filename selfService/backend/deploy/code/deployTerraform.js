@@ -31,6 +31,7 @@ const GRAPH_ROLE_IDS = [
 ];
 
 // Runs an Azure CLI command and returns its trimmed output
+// Todo: Test on mac
 function runAzureCli(args) {
   const isWindows = process.platform === "win32";
   const executable = isWindows ? process.env.ComSpec || "cmd.exe" : "az";
