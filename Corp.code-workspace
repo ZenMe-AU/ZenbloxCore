@@ -26,11 +26,11 @@
     },
     {
       "name": "portal-accessPass-ui",
-      "path": "./portal/module/accessPass/ui",
+      "path": "./accessPass/ui",
     },
     {
       "name": "portal-accessPass-func",
-      "path": "./portal/module/accessPass/func",
+      "path": "./accessPass/func",
     },
   ],
   "launch": {

@@ -4,13 +4,13 @@ packages:
   - selfService/web
   - selfService/backend
   - portal/ui
-  - portal/module/*/ui
-  - portal/module/*/func
+  - "*/ui"
+  - "*/func"
 injectWorkspacePackages: true
 allowBuilds:
   esbuild: true
   azure-functions-core-tools: true
-  '@scarf/scarf': true
+  "@scarf/scarf": true
   protobufjs: true
 onlyBuiltDependencies:
   - esbuild
