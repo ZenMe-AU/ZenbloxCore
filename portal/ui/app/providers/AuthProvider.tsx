@@ -6,7 +6,7 @@
 import type { AccountInfo, AuthenticationResult, IPublicClientApplication, IdTokenClaims } from "@azure/msal-browser";
 import { MsalProvider, useMsal } from "@azure/msal-react";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Profile } from "types/interfaces";
+import type { Profile } from "../../types/interfaces";
 import { useRefreshDomainCookie } from "../hooks/useRefreshDomainCookie";
 import { getInitials } from "../utils/getInitials";
 
