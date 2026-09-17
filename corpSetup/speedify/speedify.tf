@@ -2,9 +2,28 @@ output "new_subscription_id" {
   value = var.subscription_id
 }
 
+variable "speedify_resource_group" {
+  description = "Existing resource group that receives the VM"
+  type        = string
+  default     = "speedify3"
+}
+
+variable "location" {
+  description = "Azure region where the VM is created"
+  type        = string
+  default     = "eastus"
+}
+
+# TODO: use this to load the image name, once you have the image in the image gallery.
+# data "azurerm_shared_image" "custom_image" {
+#   name                = "speedify"
+#   gallery_name        = "zenblox"
+#   resource_group_name = var.speedify_resource_group
+# }
+
 resource "azurerm_resource_group" "speedify_rg" {
-  name     = "speedify2"
-  location = "eastus"
+  name     = var.speedify_resource_group
+  location = var.location
 }
 
 resource "azurerm_virtual_network" "speedify" {

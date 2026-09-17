@@ -45,10 +45,10 @@ variable "build_vm_size" {
   default     = "Standard_B1ms"
 }
 
+
 source "azure-arm" "speedify" {
+  use_azure_cli_auth = true
   client_id       = "87aa3687-66a4-4fab-bf59-70de6bf768fa"
-  client_secret   = ""
-  "use_azure_cli_auth": true
   tenant_id       = "15fb0613-7977-4551-801b-6aadac824241"
   subscription_id = var.subscription_id
 
@@ -56,18 +56,28 @@ source "azure-arm" "speedify" {
   vm_size  = var.build_vm_size
   os_type  = "Linux"
 
-  image_publisher = "Canonical"
-  image_offer     = "ubuntu-24_04-lts"
+  image_publisher = "Zenblox"
+  image_offer     = "Speedify"
   image_sku       = "server"
-  image_version   = "latest"
+  image_version   = "{{timestamp}}"
 
   managed_image_resource_group_name = var.image_resource_group
-  managed_image_name                = "speedify-golden-{{timestamp}}"
+  managed_image_name                = "speedify"
 
   azure_tags = {
     purpose = "speedify-server-golden-image"
     builtBy = "packer"
   }
+
+  # DESTINATION: This sends the output directly to your Azure Compute Gallery
+  # shared_image_gallery_destination {
+  #   subscription        = var.subscription_id
+  #   resource_group      = var.gallery_rg
+  #   gallery_name        = var.gallery_name
+  #   image_name          = var.image_name
+  #   image_version       = var.image_version
+  #   replication_regions = ["East US"]
+  # }
 }
 
 build {
