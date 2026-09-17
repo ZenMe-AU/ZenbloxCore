@@ -47,6 +47,20 @@ resource "azurerm_network_security_group" "speedify" {
   }
 
   security_rule {
+    name                       = "allow-ssh"
+    priority                   = 130
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+
+
+  security_rule {
     name                       = "speedify-session-tcp"
     priority                   = 110
     direction                  = "Inbound"
@@ -103,17 +117,41 @@ resource "azurerm_linux_virtual_machine" "speedify" {
   disable_password_authentication = false
   admin_password                  = var.admin_password
 
+  lifecycle {
+    ignore_changes = [admin_password]
+  }
+
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
 
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "ubuntu-24_04-lts"
-    sku       = "server"
-    version   = "latest"
+  # When a Packer-built golden image exists, boot from it instead of the
+  # marketplace image. Set with: -var="custom_image_id=/subscriptions/.../images/speedify-golden-..."
+  source_image_id = var.custom_image_id != "" ? var.custom_image_id : null
+
+  dynamic "source_image_reference" {
+    for_each = var.custom_image_id == "" ? [1] : []
+    content {
+      publisher = "Canonical"
+      offer     = "ubuntu-24_04-lts"
+      sku       = "server"
+      version   = "latest"
+    }
   }
+}
+
+# The Azure Linux Custom Script extension always executes its "script"
+# setting with /bin/sh, so the rendered PowerShell script is embedded as
+# base64 and a small sh bootstrap decodes it, installs PowerShell Core
+# (pwsh) if missing, and runs it.
+locals {
+  speedify_install_ps1_base64 = base64encode(templatefile("${path.module}/install-speedify-server.ps1", {
+    compose_file = templatefile("${path.module}/docker-compose.yml", {
+      public_ip   = azurerm_public_ip.speedify.ip_address
+      server_name = var.server_name
+    })
+  }))
 }
 
 resource "azurerm_virtual_machine_extension" "speedify_server" {
@@ -123,8 +161,25 @@ resource "azurerm_virtual_machine_extension" "speedify_server" {
   type                 = "CustomScript"
   type_handler_version = "2.1"
 
+  lifecycle {
+    ignore_changes = [settings]
+  }
+
   protected_settings = jsonencode({
-    script = base64encode(file("${path.module}/install-speedify-server.sh"))
+    script = base64encode(<<-EOT
+      #!/bin/sh
+      set -eu
+      echo '${local.speedify_install_ps1_base64}' | base64 -d > /tmp/install-speedify-server.ps1
+      if ! command -v pwsh >/dev/null 2>&1; then
+        wget -qO /tmp/packages-microsoft-prod.deb https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb
+        dpkg -i /tmp/packages-microsoft-prod.deb
+        rm -f /tmp/packages-microsoft-prod.deb
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y powershell
+      fi
+      pwsh -NoProfile -NonInteractive -File /tmp/install-speedify-server.ps1
+    EOT
+    )
   })
 }
 

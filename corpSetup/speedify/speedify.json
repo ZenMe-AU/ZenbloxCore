@@ -1,0 +1,24 @@
+{
+    "builders": [
+        {
+            "type": "azure-arm",
+            "client_id": "87aa3687-66a4-4fab-bf59-70de6bf768fa",
+            "client_secret": "",
+            "tenant_id": "15fb0613-7977-4551-801b-6aadac824241",
+            "subscription_id": "51d0ca21-eaa5-4d34-aeb3-fa9f7d454b5d",
+            "managed_image_resource_group_name": "speedify2",
+            "managed_image_name": "speedify-{{timestamp}}",
+            "os_type": "Linux",
+            "image_publisher": "Canonical",
+            "image_offer": "ubuntu-24_04-lts",
+            "image_sku": "server",
+            "image_version": "latest",
+            "azure_tags": {
+                "purpose": "speedify-server-golden-image",
+                "builtBy": "packer"
+            },
+            "location": "eastus",
+            "vm_size": "Standard_B1ms"
+        }
+    ]
+}

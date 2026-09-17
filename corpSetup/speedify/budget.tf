@@ -1,3 +1,4 @@
+/*
 resource "azurerm_consumption_budget_subscription" "speedify_monthly" {
   name            = "speedify-monthly-budget"
   amount          = 100
@@ -18,3 +19,4 @@ resource "azurerm_consumption_budget_subscription" "speedify_monthly" {
     ignore_changes = [time_period]
   }
 }
+*/
