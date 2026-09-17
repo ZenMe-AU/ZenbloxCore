@@ -62,7 +62,7 @@ source "azure-arm" "speedify" {
   image_version   = "{{timestamp}}"
 
   managed_image_resource_group_name = var.image_resource_group
-  managed_image_name                = "speedify"
+  managed_image_name                = "speedify-{{timestamp}}"
 
   azure_tags = {
     purpose = "speedify-server-golden-image"
