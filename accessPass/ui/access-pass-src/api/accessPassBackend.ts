@@ -8,7 +8,7 @@ export type BootstrapPassResetGroupsRequest = {
 };
 
 export async function bootstrapPassResetGroups(request: BootstrapPassResetGroupsRequest): Promise<void> {
-  const res = await fetch(`${url}/api/access-pass/bootstrap-groups`, {
+  const res = await fetch(`${url}/access-pass/bootstrap-groups`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -19,6 +19,6 @@ export async function bootstrapPassResetGroups(request: BootstrapPassResetGroups
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`${res.status} /api/access-pass/bootstrap-groups: ${body}`);
+    throw new Error(`${res.status} /access-pass/bootstrap-groups: ${body}`);
   }
 }

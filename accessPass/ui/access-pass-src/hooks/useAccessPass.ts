@@ -106,7 +106,7 @@ function toTapErrorMessage(err: unknown): string {
     );
   }
 
-  if (lower.includes("/api/access-pass/bootstrap-groups") && (lower.includes("401") || lower.includes("403"))) {
+  if (lower.includes("/access-pass/bootstrap-groups") && (lower.includes("401") || lower.includes("403"))) {
     return "Not authorized to run Access Pass backend bootstrap. Ensure the Function key is configured and backend app permissions are granted with admin consent.";
   }
 

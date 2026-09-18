@@ -1,14 +1,15 @@
 {
-  "name": "quest5Tier",
+  "name": "accessPassFunc",
+  "private": true,
   "version": "1.0.0",
-  "type": "commonjs",
+  "type": "module",
   "description": "",
-  "main": "index.js",
+  "main": "dist/src/*.js",
   "scripts": {
-    "setup:local": "node deploy/localDev/localSetting.js",
-    "prestart": "pnpm run setup:local",
+    "build": "tsc --project tsconfig.json",
+    "watch": "tsc --project tsconfig.json --watch",
+    "prestart": "pnpm run build",
     "start": "func start",
-    "deploy": "pnpm deploy --filter quest5Tier --prod out",
     "test": "jest"
   },
   "dependencies": {
@@ -41,8 +42,10 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "@types/node": "^22.10.2",
     "azure-functions-core-tools": "^4.x",
     "jest": "^29.7.0",
+    "typescript": "^5.6.3",
     "umzug": "^3.8.2"
   },
   "jest": {

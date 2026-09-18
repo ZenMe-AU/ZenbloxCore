@@ -12,7 +12,7 @@
     {
       "type": "shell",
       "label": "Install Dependencies",
-      "command": "pnpm install --filter=quest5Tier"
+      "command": "pnpm install --filter=accessPassFunc"
     },
     {
       "type": "shell",

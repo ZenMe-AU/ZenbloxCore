@@ -4,7 +4,7 @@ This backend is an Azure Function App that uses an app registration (service pri
 
 ## Endpoint
 
-- POST /api/access-pass/bootstrap-groups
+- POST /access-pass/bootstrap-groups
 
 Request body:
 
