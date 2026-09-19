@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 // Verifies temporary Access Pass creation for configured and permitted user pairs.
 
 import { expect, test } from "@playwright/test";
