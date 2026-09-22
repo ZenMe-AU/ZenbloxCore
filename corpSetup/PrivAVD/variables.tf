@@ -12,11 +12,23 @@ variable "subscription_id" {
 variable "location" {
   description = "Azure region where the build VM and image are created"
   type        = string
-  default     = "westus"
+  default     = "eastus"
 }
 
 variable "image_resource_group" {
   description = "Resource group that receives the built managed image"
   type        = string
   default     = "privavd"
+}
+
+variable "gallery_name" {
+  description = "Azure Compute Gallery that receives the image version"
+  type        = string
+  default     = "privavd"
+}
+
+variable "image_name" {
+  description = "Gallery image definition name (stable handle, never changes)"
+  type        = string
+  default     = "PrivilegedWorkstation"
 }

@@ -51,18 +51,18 @@ variable "build_vm_size" {
 variable "gallery_rg" {
   description = "Resource group that contains the Azure Compute Gallery"
   type        = string
-  default     = "speedify2"
+  default     = "privavd"
 }
 
 variable "gallery_name" {
   description = "Azure Compute Gallery that receives the image version"
   type        = string
-  default     = "zenblox"
+  default     = "privavd"
 }
 variable "image_name" {
   description = "Gallery image definition name (stable handle, never changes)"
   type        = string
-  default     = "speedify"
+  default     = "PrivilegedWorkstation"
 }
 variable "image_version" {
   description = "Gallery image version (semver). build.ps1 deletes the existing version first so the same version can be rebuilt"
@@ -103,15 +103,19 @@ source "azure-arm" "paw" {
     builtBy = "packer"
   }
 
-  # DESTINATION: This sends the output directly to your Azure Compute Gallery
-  # shared_image_gallery_destination {
-  #   subscription        = var.subscription_id
-  #   resource_group      = var.gallery_rg
-  #   gallery_name        = var.gallery_name
-  #   image_name          = var.image_name
-  #   image_version       = var.image_version
-  #   replication_regions = ["East US"]
-  # }
+  # DESTINATION: publish the build straight into the Azure Compute Gallery
+  # under the stable name zenblox/speedify. build.ps1 deletes any existing
+  # version before the build so re-runs overwrite instead of failing.
+  shared_image_gallery_destination {
+    subscription        = var.subscription_id
+    resource_group      = var.gallery_rg
+    gallery_name        = var.gallery_name
+    image_name          = var.image_name
+    image_version       = var.image_version
+    replication_regions = [var.location]
+    storage_account_type = "Standard_LRS"
+  }
+  shared_image_gallery_timeout = "60m"
 }
 
 build {
