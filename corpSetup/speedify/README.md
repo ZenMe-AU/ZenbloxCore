@@ -8,14 +8,27 @@ image by Packer. At boot, cloud-init only waits for the Docker daemon, stamps
 the VM's real public IP (from Azure IMDS) into `.env`, and runs
 `docker compose up -d`.
 
-## Requirements
+## Configuration (corp.env)
 
-- Azure CLI authenticated to the target subscription
-- Terraform 1.1 or newer
-- Packer 1.11 or newer (for building the  image)
-- A Speedify Self-Hosted Server license
-- A VM admin password supplied through `TF_VAR_admin_password`
-- A budget notification email supplied through `TF_VAR_contact_emails`
+All Azure values live in `../corp.env` — the single source of truth for the
+whole corp. The Speedify keys:
+
+| Key | Used by | Meaning |
+|---|---|---|
+| `SUBSCRIPTION_ID` | build.ps1, speedify.tf | Target subscription |
+| `SPEEDIFY_LOCATION` | build.ps1, speedify.tf | Azure region |
+| `SPEEDIFY_RESOURCE_GROUP` | build.ps1, speedify.tf | RG for image, gallery and VM |
+| `SPEEDIFY_GALLERY_NAME` | build.ps1, speedify.tf | Compute Gallery name |
+| `SPEEDIFY_IMAGE_NAME` | build.ps1, speedify.tf | Gallery image definition |
+| `SPEEDIFY_IMAGE_VERSION` | build.ps1 | Version to publish (override with `-ImageVersion`) |
+| `SPEEDIFY_BUILD_VM_SIZE` | build.ps1 | Temp VM size during the image build |
+| `SPEEDIFY_SERVER_NAME` | install script | Default server name baked into `.env` |
+
+`build.ps1` reads these, verifies the subscription against the active
+`az login` session, and passes them to Packer as `-var` flags. The Packer
+template has **no defaults** — a missing corp.env key fails the build
+immediately. Terraform receives the same values via `TF_VAR_*` environment
+variables (see the Deploy section).
 
 The VM uses `Standard_B1ms` (1 vCPU, 1 GB RAM), a static public IP, and the
 Speedify-required inbound ports:
@@ -26,13 +39,14 @@ Speedify-required inbound ports:
 
 ## Build the image
 
-`speedify-image.pkr.hcl` is the single source of truth for the gallery
-naming. The build:
+`speedify-image.pkr.hcl` receives all naming from `build.ps1` (which reads
+`corp.env`). The build:
 
-1. Installs Docker + Docker Compose v2 (`install-speedify-server.sh`)
-2. Bakes `/opt/speedify-server/docker-compose.yml` + a default `.env`
-   (`PUBLIC_IP=auto`, `SERVER_NAME=<server_name>`) and pulls
-   `speedify/ss-manager:latest`
+1. Uploads `docker-compose.yml` (the repo source of truth) to `/tmp`
+2. Runs `install-speedify-server.sh`, which installs Docker + Docker Compose
+   v2, bakes `/opt/speedify-server` (copies the uploaded `docker-compose.yml`
+   + writes a default `.env` with `PUBLIC_IP=auto` and `SERVER_NAME` from
+   corp.env) and pulls `speedify/ss-manager:latest`
 3. Deprovisions the waagent so the image is reusable
 
 The image is IP-agnostic: the compose file keeps `${public_ip}` /
@@ -45,9 +59,10 @@ The image is IP-agnostic: the compose file keeps `${public_ip}` /
 .\build.ps1 -SkipVersionDelete  # keep the existing version (fails if it exists)
 ```
 
-The pipeline parses the gallery naming from the HCL, ensures the gallery +
-image definition exist, deletes the existing version + stale managed image
-(overwrite, not fail), runs the Packer build, and reports the version JSON.
+The pipeline reads corp.env, verifies the subscription against the active
+`az login` session, ensures the gallery + image definition exist, deletes the
+existing version + stale managed image (overwrite, not fail), runs the Packer
+build, and reports the version JSON.
 Authentication uses `use_azure_cli_auth = true` (requires `az login`).
 
 Verified end-to-end: version `1.0.0` published to gallery `zenblox`
@@ -60,12 +75,19 @@ Verified end-to-end: version `1.0.0` published to gallery `zenblox`
 ## Deploy
 
 Terraform boots the VM from the gallery image via the
-`azurerm_shared_image` data source (gallery `zenblox`, image `speedify`) —
-no `custom_image_id` variable is needed. From this directory:
+`azurerm_shared_image` data source — no `custom_image_id` variable is needed.
+The gallery naming comes from corp.env via `TF_VAR_*` environment variables.
+From this directory:
 
 ```powershell
 $env:TF_VAR_admin_password = Read-Host -AsSecureString | ConvertFrom-SecureString -AsPlainText
 $env:TF_VAR_contact_emails = "jake.vosloo@zenme.com.au"
+# Gallery naming from corp.env (single source of truth):
+$env:TF_VAR_subscription_id      = (Get-Content ..\corp.env | Where-Object { $_ -match '^SUBSCRIPTION_ID=' }) -replace '^SUBSCRIPTION_ID=', ''
+$env:TF_VAR_speedify_resource_group = (Get-Content ..\corp.env | Where-Object { $_ -match '^SPEEDIFY_RESOURCE_GROUP=' }) -replace '^SPEEDIFY_RESOURCE_GROUP=', ''
+$env:TF_VAR_location             = (Get-Content ..\corp.env | Where-Object { $_ -match '^SPEEDIFY_LOCATION=' }) -replace '^SPEEDIFY_LOCATION=', ''
+$env:TF_VAR_gallery_name         = (Get-Content ..\corp.env | Where-Object { $_ -match '^SPEEDIFY_GALLERY_NAME=' }) -replace '^SPEEDIFY_GALLERY_NAME=', ''
+$env:TF_VAR_image_name           = (Get-Content ..\corp.env | Where-Object { $_ -match '^SPEEDIFY_IMAGE_NAME=' }) -replace '^SPEEDIFY_IMAGE_NAME=', ''
 terraform init
 terraform plan -out=tfplan
 terraform apply tfplan

@@ -3,23 +3,22 @@ output "new_subscription_id" {
 }
 
 variable "speedify_resource_group" {
-  description = "Existing resource group that receives the VM"
+  description = "Resource group that receives the VM, the gallery and the image (corp.env: SPEEDIFY_RESOURCE_GROUP)"
   type        = string
-  default     = "speedify2"
 }
 
 variable "location" {
-  description = "Azure region where the VM is created"
+  description = "Azure region where the VM is created (corp.env: SPEEDIFY_LOCATION)"
   type        = string
-  default     = "eastus"
 }
 
 # Resolve the latest published version of the Packer-built gallery image.
-# The gallery lives in the image RG (speedify2), which is also the VM RG.
+# The gallery lives in the image RG, which is also the VM RG.
+# Naming comes from corp.env via TF_VAR_* (see README "Deploy" section).
 data "azurerm_shared_image" "custom_image" {
-  name                = "speedify"
-  gallery_name        = "zenblox"
-  resource_group_name = "speedify2"
+  name                = var.image_name
+  gallery_name        = var.gallery_name
+  resource_group_name = var.speedify_resource_group
 }
 
 resource "azurerm_resource_group" "speedify_rg" {
