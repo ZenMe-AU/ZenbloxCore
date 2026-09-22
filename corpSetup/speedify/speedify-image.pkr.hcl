@@ -68,7 +68,7 @@ variable "gallery_rg" {
 variable "gallery_name" {
   description = "Azure Compute Gallery that receives the image version"
   type        = string
-  default     = "zenblox"
+  default     = "speedify2"
 }
 
 variable "image_name" {
