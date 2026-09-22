@@ -12,7 +12,10 @@
 #   2. install-speedify-server.sh installs Docker + docker compose v2,
 #      bakes /opt/speedify-server (docker-compose.yml + default .env) and
 #      pre-pulls the speedify/ss-manager image
-#   3. waagent deprovision generalizes the image for reuse
+#   3. activate-speedify-server.sh starts the stack, prints the activation
+#      URL and WAITS for the operator to complete the login + license flow
+#      in a browser (skippable with -SkipActivation)
+#   4. waagent deprovision generalizes the image for reuse
 #
 # The image is IP-agnostic: docker-compose.yml keeps ${PUBLIC_IP} and
 # ${SERVER_NAME} as compose interpolation variables resolved from .env at
@@ -71,6 +74,12 @@ variable "build_vm_size" {
 variable "server_name" {
   description = "Default server name written into the image .env; cloud-init overrides per VM (corp.env: SPEEDIFY_SERVER_NAME)"
   type        = string
+}
+
+variable "skip_activation" {
+  description = "Set true to skip the interactive Speedify activation step (build.ps1 -SkipActivation)"
+  type        = bool
+  default     = false
 }
 
 
@@ -141,6 +150,18 @@ build {
       "SERVER_NAME=${var.server_name}",
     ]
     script          = "${path.root}/install-speedify-server.sh"
+    execute_command = "chmod +x '{{ .Path }}'; {{ .Vars }} sudo -E bash '{{ .Path }}'"
+  }
+
+  # Interactive activation: starts the stack, prints the activation URL and
+  # WAITS while the operator completes the Speedify login + license flow in a
+  # browser. The activated state is then baked into the image so every VM
+  # boots pre-activated. Skippable via -SkipActivation (SKIP_ACTIVATION=true).
+  provisioner "shell" {
+    environment_vars = [
+      "SKIP_ACTIVATION=${var.skip_activation}",
+    ]
+    script          = "${path.root}/activate-speedify-server.sh"
     execute_command = "chmod +x '{{ .Path }}'; {{ .Vars }} sudo -E bash '{{ .Path }}'"
   }
 

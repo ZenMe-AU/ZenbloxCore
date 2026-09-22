@@ -30,8 +30,7 @@ template has **no defaults** — a missing corp.env key fails the build
 immediately. Terraform receives the same values via `TF_VAR_*` environment
 variables (see the Deploy section).
 
-The VM uses `Standard_B1ms` (1 vCPU, 1 GB RAM), a static public IP, and the
-Speedify-required inbound ports:
+The VM uses a static public IP and the Speedify-required inbound ports:
 
 - TCP 8443
 - TCP 32768-65535
@@ -47,7 +46,14 @@ Speedify-required inbound ports:
    v2, bakes `/opt/speedify-server` (copies the uploaded `docker-compose.yml`
    + writes a default `.env` with `PUBLIC_IP=auto` and `SERVER_NAME` from
    corp.env) and pulls `speedify/ss-manager:latest`
-3. Deprovisions the waagent so the image is reusable
+3. Runs `activate-speedify-server.sh`, which starts the stack, prints the
+   Speedify **activation URL** in the console and **waits** while you open it
+   in a browser, sign in to your Speedify account and attach the
+   Self-Hosted Server license. Press ENTER in the terminal after the browser
+   flow completes; the script confirms activation from the logs, stops the
+   stack, and the activated state is baked into the image. Pass
+   `-SkipActivation` to skip this step (image stays unactivated).
+4. Deprovisions the waagent so the image is reusable
 
 The image is IP-agnostic: the compose file keeps `${public_ip}` /
 `${server_name}` as compose interpolation variables (compose auto-reads
@@ -57,7 +63,11 @@ The image is IP-agnostic: the compose file keeps `${public_ip}` /
 .\build.ps1                     # rebuild version 1.0.0 (default from pkr.hcl)
 .\build.ps1 -ImageVersion 1.0.1 # rebuild a specific version
 .\build.ps1 -SkipVersionDelete  # keep the existing version (fails if it exists)
+.\build.ps1 -SkipActivation     # skip the interactive activation step
 ```
+
+> The build VM size is configurable via `SPEEDIFY_BUILD_VM_SIZE` in corp.env
+> (currently `Standard_B1ms`).
 
 The pipeline reads corp.env, verifies the subscription against the active
 `az login` session, ensures the gallery + image definition exist, deletes the

@@ -41,6 +41,15 @@ to do this when the recipe changes (new Speedify version, new settings, etc.):
 .\build.ps1
 ```
 
+**During the build the terminal will pause and show a Speedify activation
+URL.** Open that URL in a browser, sign in to your Speedify account and
+attach the Self-Hosted Server license. Then go back to the terminal and
+press ENTER. The build confirms the activation and bakes it into the image —
+so every server created from this image is **already activated**.
+
+(To skip this step, run `.\build.ps1 -SkipActivation` — the image is then
+built without a license and must be activated manually later, see Step 4.)
+
 When it finishes you will see `Pipeline complete.` and a JSON block that says
 `"provisioningState": "Succeeded"`. That means the new image is ready.
 
@@ -71,7 +80,11 @@ Write this IP down — Speedify clients connect to it.
 
 ---
 
-## Step 4 — Activate the Speedify license (one time per server)
+## Step 4 — Activate the Speedify license (only if built with -SkipActivation)
+
+If the image was built normally, the license was already activated during
+Step 2 and this step is **not needed**. Only do this if the image was built
+with `-SkipActivation` (or activation must be redone on a running server).
 
 Connect to the server (use the IP from Step 3 and the password from Step 3):
 
@@ -120,7 +133,8 @@ creates a fresh one from the new image. The public IP stays the same because
 it is a separate static IP resource.
 
 **3. Re-activate the license** (Step 4 again) — a fresh VM has a fresh
-Speedify install, so it shows a new activation link.
+Speedify install, so it shows a new activation link. (If the new image was
+built with activation included, this is not needed.)
 
 > **Note:** if you rebuild the SAME version number (e.g. `.\build.ps1` again
 > with 1.0.0), Terraform sees "nothing changed" and will NOT replace the VM.
@@ -138,6 +152,7 @@ Speedify install, so it shows a new activation link.
 |---|---|
 | Build image (same version, overwrite) | `.\build.ps1` |
 | Build image (new version) | `.\build.ps1 -ImageVersion 1.0.1` |
+| Build image (skip license activation) | `.\build.ps1 -SkipActivation` |
 | Create / update the VM | `terraform apply tfplan` (after `plan -out=tfplan`) |
 | Get the server IP | `terraform output -raw speedify_public_ip` |
 | Log in to the server | `ssh azureuser@<THE_PUBLIC_IP>` |

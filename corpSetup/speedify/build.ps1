@@ -12,11 +12,13 @@
 #   .\build.ps1                     # rebuild version from corp.env (SPEEDIFY_IMAGE_VERSION)
 #   .\build.ps1 -ImageVersion 1.0.1 # rebuild a specific version (overrides corp.env)
 #   .\build.ps1 -SkipVersionDelete  # keep the existing version (fails if it exists)
+#   .\build.ps1 -SkipActivation     # skip the interactive Speedify activation step
 
 [CmdletBinding()]
 param(
     [string]$ImageVersion = "",
-    [switch]$SkipVersionDelete
+    [switch]$SkipVersionDelete,
+    [switch]$SkipActivation
 )
 
 $ErrorActionPreference = 'Stop'
@@ -52,6 +54,7 @@ $GalleryRg = Get-CorpValue 'SPEEDIFY_RESOURCE_GROUP'
 $GalleryName = Get-CorpValue 'SPEEDIFY_GALLERY_NAME'
 $ImageName = Get-CorpValue 'SPEEDIFY_IMAGE_NAME'
 $BuildVmSize = Get-CorpValue 'SPEEDIFY_BUILD_VM_SIZE'
+$ServerName = Get-CorpValue 'SPEEDIFY_SERVER_NAME'
 if (-not $ImageVersion) { $ImageVersion = Get-CorpValue 'SPEEDIFY_IMAGE_VERSION' }
 
 Write-Host "Config (from corp.env):" -ForegroundColor Cyan
@@ -62,6 +65,8 @@ Write-Host "  image          : $ImageName"
 Write-Host "  version        : $ImageVersion"
 Write-Host "  location       : $Location"
 Write-Host "  build VM size  : $BuildVmSize"
+Write-Host "  server name    : $ServerName"
+Write-Host "  activation     : $(if ($SkipActivation) { 'SKIPPED (-SkipActivation)' } else { 'interactive (browser login during build)' })"
 
 # ---------------------------------------------------------------------------
 # 2. Verify the subscription matches the active `az login` session
@@ -145,6 +150,8 @@ try {
         -var "image_name=$ImageName" `
         -var "image_version=$ImageVersion" `
         -var "build_vm_size=$BuildVmSize" `
+        -var "server_name=$ServerName" `
+        -var "skip_activation=$(if ($SkipActivation) { 'true' } else { 'false' })" `
         speedify-image.pkr.hcl
     if ($LASTEXITCODE -ne 0) { throw "packer validate failed" }
 
@@ -156,6 +163,8 @@ try {
         -var "image_name=$ImageName" `
         -var "image_version=$ImageVersion" `
         -var "build_vm_size=$BuildVmSize" `
+        -var "server_name=$ServerName" `
+        -var "skip_activation=$(if ($SkipActivation) { 'true' } else { 'false' })" `
         speedify-image.pkr.hcl
     if ($LASTEXITCODE -ne 0) { throw "packer build failed" }
 }
