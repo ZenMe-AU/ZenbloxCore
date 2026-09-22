@@ -3,37 +3,23 @@ set -euo pipefail
 
 install -d -m 0750 /opt/speedify-server/.local/ssm
 
-export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -y docker.io docker-compose-v2
+# Docker and docker compose v2 are pre-baked by the Packer image
+# (speedify-image.pkr.hcl); only install if missing so the same script also
+# works when building from a plain marketplace image.
+if ! command -v docker >/dev/null 2>&1; then
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update
+  apt-get install -y docker.io docker-compose-v2
+fi
+
+# Make sure the docker daemon is enabled and actually accepting connections
+# (covers fresh installs and pre-baked images where it may not be up yet).
 systemctl enable --now docker
-
-cat > /opt/speedify-server/docker-compose.yml <<'EOF'
-services:
-  speed-server:
-    platform: linux/amd64
-    image: speedify/ss-manager:latest
-    volumes:
-      - /var/run/docker.sock:/run/docker.sock
-      - ./.local/ssm/analytics:/var/log/speedify/analytics
-      - ./.local/ssm/var/log/speedify/servers:/var/log/speedify/servers
-      - ./.local/ssm/var/run/speedify/servers:/var/run/speedify/servers
-      - /proc:/host-proc:ro
-      - ./.local/ssm/var/lib/ssm:/var/lib/ssm
-    ports:
-      - "8443:443"
-    environment:
-      ALLOCATION_TYPE: ondemand
-      ENABLE_SESSION_TOKENS: "true"
-      DIRECTORY_URI: "https://directory.speedifynetworks.com"
-      SELF_HOSTED_MODE: "true"
-      PUBLIC_API_PORT: "8443"
-      API_HTTP_PORT: "80"
-      API_HTTPS_PORT: "443"
-      DOCKER_REPO_PREFIX: "speedify"
-    restart: always
-EOF
-
-cd /opt/speedify-server
-docker compose pull
-docker compose up -d
+for i in $(seq 1 30); do
+  if docker info >/dev/null 2>&1; then
+    exit 0
+  fi
+  sleep 2
+done
+echo "docker daemon did not become ready" >&2
+exit 1

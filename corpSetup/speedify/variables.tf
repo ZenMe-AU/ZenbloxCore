@@ -39,9 +39,3 @@ variable "server_name" {
   default     = "Speedify Self-Hosted Server"
 }
 
-variable "custom_image_id" {
-  description = "Resource ID of a Packer-built Speedify golden image to boot from; leave empty to use the Ubuntu marketplace image"
-  type        = string
-  default     = ""
-}
-

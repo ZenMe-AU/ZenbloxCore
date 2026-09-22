@@ -3,7 +3,7 @@ services:
     platform: linux/amd64
     image: speedify/ss-manager:latest
     volumes:
-      - $${DOCKER_SOCK_PATH:-/var/run/docker.sock}:/run/docker.sock
+      - ${DOCKER_SOCK_PATH:-/var/run/docker.sock}:/run/docker.sock
       - ./.local/ssm/analytics:/var/log/speedify/analytics
       - ./.local/ssm/var/log/speedify/servers:/var/log/speedify/servers
       - ./.local/ssm/var/run/speedify/servers:/var/run/speedify/servers

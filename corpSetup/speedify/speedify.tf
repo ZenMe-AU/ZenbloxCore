@@ -5,7 +5,7 @@ output "new_subscription_id" {
 variable "speedify_resource_group" {
   description = "Existing resource group that receives the VM"
   type        = string
-  default     = "speedify3"
+  default     = "speedify2"
 }
 
 variable "location" {
@@ -14,12 +14,13 @@ variable "location" {
   default     = "eastus"
 }
 
-# TODO: use this to load the image name, once you have the image in the image gallery.
-# data "azurerm_shared_image" "custom_image" {
-#   name                = "speedify"
-#   gallery_name        = "zenblox"
-#   resource_group_name = var.speedify_resource_group
-# }
+# Resolve the latest published version of the Packer-built gallery image.
+# The gallery lives in the image RG (speedify2), which is also the VM RG.
+data "azurerm_shared_image" "custom_image" {
+  name                = "speedify"
+  gallery_name        = "zenblox"
+  resource_group_name = "speedify2"
+}
 
 resource "azurerm_resource_group" "speedify_rg" {
   name     = var.speedify_resource_group
@@ -145,61 +146,37 @@ resource "azurerm_linux_virtual_machine" "speedify" {
     storage_account_type = "Standard_LRS"
   }
 
-  # When a Packer-built golden image exists, boot from it instead of the
-  # marketplace image. Set with: -var="custom_image_id=/subscriptions/.../images/speedify-golden-..."
-  source_image_id = var.custom_image_id != "" ? var.custom_image_id : null
+  # Boot from the Packer-built gallery image (zenblox/speedify). All Speedify
+  # software is pre-baked - Terraform performs ZERO runtime installation.
+  source_image_id = data.azurerm_shared_image.custom_image.id
 
-  dynamic "source_image_reference" {
-    for_each = var.custom_image_id == "" ? [1] : []
-    content {
-      publisher = "Canonical"
-      offer     = "ubuntu-24_04-lts"
-      sku       = "server"
-      version   = "latest"
-    }
-  }
-}
+  # NO Custom Script Extension, NO runtime installs. The Packer image already
+  # contains Docker, docker compose v2, docker-compose.yml, a default .env and
+  # the pulled speedify/ss-manager image. cloud-init only stamps this VM's
+  # public IP into .env (compose interpolation) and starts the stack.
+  custom_data = base64encode(<<-CLOUDINIT
+    #!/bin/bash
+    set -eu
+    cd /opt/speedify-server
 
-# The Azure Linux Custom Script extension always executes its "script"
-# setting with /bin/sh, so the rendered PowerShell script is embedded as
-# base64 and a small sh bootstrap decodes it, installs PowerShell Core
-# (pwsh) if missing, and runs it.
-locals {
-  speedify_install_ps1_base64 = base64encode(templatefile("${path.module}/install-speedify-server.ps1", {
-    compose_file = templatefile("${path.module}/docker-compose.yml", {
-      public_ip   = azurerm_public_ip.speedify.ip_address
-      server_name = var.server_name
-    })
-  }))
-}
+    # Wait for the docker daemon (systemd starts it on first boot)
+    for i in $(seq 1 30); do
+      docker info >/dev/null 2>&1 && break
+      sleep 2
+    done
+    docker info >/dev/null 2>&1
 
-resource "azurerm_virtual_machine_extension" "speedify_server" {
-  name                 = "speedify-server-install"
-  virtual_machine_id   = azurerm_linux_virtual_machine.speedify.id
-  publisher            = "Microsoft.Azure.Extensions"
-  type                 = "CustomScript"
-  type_handler_version = "2.1"
-
-  lifecycle {
-    ignore_changes = [settings]
-  }
-
-  protected_settings = jsonencode({
-    script = base64encode(<<-EOT
-      #!/bin/sh
-      set -eu
-      echo '${local.speedify_install_ps1_base64}' | base64 -d > /tmp/install-speedify-server.ps1
-      if ! command -v pwsh >/dev/null 2>&1; then
-        wget -qO /tmp/packages-microsoft-prod.deb https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb
-        dpkg -i /tmp/packages-microsoft-prod.deb
-        rm -f /tmp/packages-microsoft-prod.deb
-        apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y powershell
+    # Stamp this VM's public IP into .env so compose interpolation resolves it
+    if command -v curl >/dev/null 2>&1; then
+      VM_IP=$(curl -s -f -H 'Metadata:true' 'http://169.254.169.254/metadata/instance/compute/publicIpAddress?api-version=2021-02-01&format=text' || true)
+      if [ -n "$VM_IP" ]; then
+        sed -i "s/^PUBLIC_IP=.*/PUBLIC_IP=$VM_IP/" .env
       fi
-      pwsh -NoProfile -NonInteractive -File /tmp/install-speedify-server.ps1
-    EOT
-    )
-  })
+    fi
+
+    docker compose up -d
+  CLOUDINIT
+  )
 }
 
 output "speedify_public_ip" {
