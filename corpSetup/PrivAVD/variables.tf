@@ -15,7 +15,7 @@ variable "location" {
   default     = "eastus"
 }
 
-variable "image_resource_group" {
+variable "IMAGE_RG" {
   description = "Resource group that receives the built managed image"
   type        = string
   default     = "privavd"
@@ -31,4 +31,22 @@ variable "image_name" {
   description = "Gallery image definition name (stable handle, never changes)"
   type        = string
   default     = "PrivilegedWorkstation"
+}
+
+variable "IMAGE_PUBLISHER" {
+  description = "Gallery image definition identifier: publisher"
+  type        = string
+  default     = "Zenblox"
+}
+
+variable "IMAGE_OFFER" {
+  description = "Gallery image definition identifier: offer"
+  type        = string
+  default     = "PrivAVD"
+}
+
+variable "IMAGE_SKU" {
+  description = "Gallery image definition identifier: sku"
+  type        = string
+  default     = "paw-win11"
 }

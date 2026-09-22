@@ -36,7 +36,7 @@ variable "location" {
   default     = "eastus"
 }
 
-variable "image_resource_group" {
+variable "IMAGE_RG" {
   description = "Existing resource group that receives the built managed image"
   type        = string
   default     = "privavd"
@@ -71,8 +71,6 @@ variable "image_version" {
 }
 source "azure-arm" "paw" {
   use_azure_cli_auth = true
-  client_id       = "87aa3687-66a4-4fab-bf59-70de6bf768fa"
-  tenant_id       = "15fb0613-7977-4551-801b-6aadac824241"
   subscription_id = var.subscription_id
 
   location = var.location
@@ -84,7 +82,7 @@ source "azure-arm" "paw" {
   image_sku       = "win11-24h2-avd"
   image_version   = "latest"
 
-  managed_image_resource_group_name = var.image_resource_group
+  managed_image_resource_group_name = var.IMAGE_RG
   managed_image_name                = "paw-golden-{{timestamp}}"
 
   communicator   = "winrm"

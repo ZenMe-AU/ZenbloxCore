@@ -14,7 +14,7 @@ provider "azurerm" {
 }
 
 resource "azurerm_resource_group" "paw_image" {
-  name     = var.image_resource_group
+  name     = var.IMAGE_RG
   location = var.location
 
   tags = {
@@ -40,8 +40,8 @@ resource "azurerm_shared_image" "paw" {
   hyper_v_generation  = "V2"
 
   identifier {
-    publisher = "Zenblox"
-    offer     = "PrivAVD"
-    sku       = "paw-win11"
+    publisher = var.IMAGE_PUBLISHER
+    offer     = var.IMAGE_OFFER
+    sku       = var.IMAGE_SKU
   }
 }
