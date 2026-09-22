@@ -45,7 +45,7 @@ variable "image_resource_group" {
 variable "build_vm_size" {
   description = "Size of the temporary VM used during the image build"
   type        = string
-  default     = "Standard_D4s_v5"
+  default     = "Standard_B4ms"
 }
 
 variable "gallery_rg" {
@@ -118,37 +118,25 @@ build {
   sources = ["source.azure-arm.paw"]
 
   # Baseline PAW hardening: reduce attack surface before applying updates.
+  # See scripts/harden-paw.ps1 - safe to run directly on a test VM.
   provisioner "powershell" {
-    inline = [
-      "Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart",
-      "Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force",
-      "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\LanmanWorkstation' -Name AllowInsecureGuestAuth -Value 0",
-      "Set-ItemProperty -Path 'HKLM:\\Software\\Policies\\Microsoft\\Windows NT\\DNSClient' -Name EnableMulticast -Value 0",
-      "Set-MpPreference -DisableRealtimeMonitoring $false -MAPSReporting Advanced -SubmitSamplesConsent SendAllSamples",
-      "Set-MpPreference -PUAProtection Enabled",
-      "Set-MpPreference -AttackSurfaceReductionRules_Ids D4F940AB-401B-4EFC-AADC-AD5F3C50688A -AttackSurfaceReductionRules_Actions Enabled"
-    ]
+    script = "scripts/harden-paw.ps1"
   }
 
-  provisioner "windows-update" {
-    search_criteria = "IsInstalled=0"
-    filters = [
-      "exclude:$_.Title -like '*Preview*'",
-      "include:$true"
-    ]
-  }
+#   provisioner "windows-update" {
+#     search_criteria = "IsInstalled=0"
+#     filters = [
+#       "exclude:$_.Title -like '*Preview*'",
+#       "include:$true"
+#     ]
+#   }
 
   provisioner "windows-restart" {
     restart_timeout = "15m"
   }
 
-  # Generalize before capture.
+  # Generalize before capture. See scripts/generalize.ps1.
   provisioner "powershell" {
-    inline = [
-      "while ((Get-Service RdAgent -ErrorAction SilentlyContinue).Status -ne 'Running') { Start-Sleep -s 5 }",
-      "while ((Get-Service WindowsAzureGuestAgent -ErrorAction SilentlyContinue).Status -ne 'Running') { Start-Sleep -s 5 }",
-      "& $env:SystemRoot\\System32\\Sysprep\\Sysprep.exe /oobe /generalize /quiet /quit /mode:vm",
-      "while ($true) { $imageState = (Get-ItemProperty HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\State).ImageState; if ($imageState -eq 'IMAGE_STATE_GENERALIZE_RESEAL_TO_OOBE') { break }; Start-Sleep -s 5 }"
-    ]
+    script = "scripts/generalize.ps1"
   }
 }
