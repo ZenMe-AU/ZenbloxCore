@@ -65,14 +65,9 @@ variable "image_name" {
   default     = "PrivilegedWorkstation"
 }
 variable "image_version" {
-  description = "Gallery image version (semver). build.ps1 deletes the existing version first so the same version can be rebuilt"
+  description = "Gallery image version (semver); build.ps1 auto-generates this from the current time so every build adds a new version"
   type        = string
   default     = "1.0.0"
-}
-variable "server_name" {
-  description = "Default server name baked into the image .env (cloud-init overrides per VM)"
-  type        = string
-  default     = "Speedify Self-Hosted Server"
 }
 source "azure-arm" "paw" {
   use_azure_cli_auth = true
@@ -104,8 +99,8 @@ source "azure-arm" "paw" {
   }
 
   # DESTINATION: publish the build straight into the Azure Compute Gallery
-  # under the stable name zenblox/speedify. build.ps1 deletes any existing
-  # version before the build so re-runs overwrite instead of failing.
+  # image definition. build.ps1 passes a fresh image_version per run, so
+  # each build adds a new version instead of colliding with the last one.
   shared_image_gallery_destination {
     subscription        = var.subscription_id
     resource_group      = var.gallery_rg

@@ -1,17 +1,17 @@
 terraform init
 
-$subscriptionId = "51d0ca21-eaa5-4d34-aeb3-fa9f7d454b5d"
-$imageResourceGroup = "privavd"
-$galleryName = "privavd"
-$imageName = "PrivilegedWorkstation"
+# Load KEY=VALUE pairs from .env in this folder into script variables.
+Get-Content (Join-Path $PSScriptRoot ".env") | ForEach-Object {
+    if ($_ -match '^\s*([^#=][^=]*)=(.*)$') {
+        Set-Variable -Name $Matches[1].Trim() -Value $Matches[2].Trim()
+    }
+}
 
-# Resources can already exist from a previous manual/ps1 run - import any
-# that aren't tracked in state yet instead of letting `apply` fail with
-# "already exists". Safe to re-run.
+# Resources can already exist from a previous manual/ps1 run - import any that aren't tracked in state yet instead of letting `apply` fail with "already exists". Safe to re-run.
 $resources = @{
-    "azurerm_resource_group.paw_image" = "/subscriptions/$subscriptionId/resourceGroups/$imageResourceGroup"
-    "azurerm_shared_image_gallery.paw" = "/subscriptions/$subscriptionId/resourceGroups/$imageResourceGroup/providers/Microsoft.Compute/galleries/$galleryName"
-    "azurerm_shared_image.paw"         = "/subscriptions/$subscriptionId/resourceGroups/$imageResourceGroup/providers/Microsoft.Compute/galleries/$galleryName/images/$imageName"
+    "azurerm_resource_group.paw_image" = "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$IMAGE_RESOURCE_GROUP"
+    "azurerm_shared_image_gallery.paw" = "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$IMAGE_RESOURCE_GROUP/providers/Microsoft.Compute/galleries/$GALLERY_NAME"
+    "azurerm_shared_image.paw"         = "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$IMAGE_RESOURCE_GROUP/providers/Microsoft.Compute/galleries/$GALLERY_NAME/images/$IMAGE_NAME"
 }
 
 $state = terraform state list
