@@ -17,3 +17,9 @@ terraform apply
 ## References:
 https://getnerdio.com/blog/privileged-access-workstation-avd-windows-365/
 
+
+Prepare your .env file
+Run files in this order
+init.ps1
+build.ps1
+deployPAW.ps1
