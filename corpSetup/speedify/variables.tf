@@ -33,9 +33,13 @@ variable "contact_emails" {
   }
 }
 
-variable "server_name" {
-  description = "Name shown for the Speedify server in the web dashboard"
+variable "gallery_name" {
+  description = "Azure Compute Gallery holding the Packer-built image (corp.env: SPEEDIFY_GALLERY_NAME)"
   type        = string
-  default     = "Speedify Self-Hosted Server"
+}
+
+variable "image_name" {
+  description = "Gallery image definition to boot the VM from (corp.env: SPEEDIFY_IMAGE_NAME)"
+  type        = string
 }
 
