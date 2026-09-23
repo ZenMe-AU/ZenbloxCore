@@ -82,10 +82,7 @@ source "azure-arm" "paw" {
   image_sku       = "win11-24h2-avd"
   image_version   = "latest"
 
-  managed_image_resource_group_name = var.IMAGE_RG
-  managed_image_name                = "paw-golden-{{timestamp}}"
-
-  communicator   = "winrm"
+    communicator   = "winrm"
   winrm_use_ssl  = true
   winrm_insecure = true
   winrm_timeout  = "15m"

@@ -1,7 +1,6 @@
 terraform init
 
-# Load KEY=VALUE pairs from .env in this folder as process environment
-# variables, so Terraform auto-picks up the TF_VAR_* ones.
+# Load KEY=VALUE pairs from .env in this folder as process environment variables, so Terraform auto-picks up the TF_VAR_* ones.
 Get-Content (Join-Path $PSScriptRoot ".env") | ForEach-Object {
     if ($_ -match '^\s*([^#=][^=]*)=(.*)$') {
         Set-Item -Path "Env:$($Matches[1].Trim())" -Value $Matches[2].Trim()
