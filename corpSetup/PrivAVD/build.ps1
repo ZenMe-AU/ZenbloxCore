@@ -11,8 +11,7 @@ Get-Content (Join-Path $PSScriptRoot ".env") | ForEach-Object {
 # Gallery image versions must be unique, so the patch component is the current Unix time (fits Azure's uint32 version limit until year 2106).
 $imageVersion = "$IMAGE_VERSION.$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
 
-# Pass the same values Terraform used to create the gallery/RG so Packer
-# publishes into the infra that actually exists, instead of its own defaults.
+# Pass the same values Terraform used to create the gallery/RG so Packer publishes into the infra that actually exists, instead of its own defaults.
 $packerVars = @(
     "-var", "subscription_id=$TF_VAR_subscription_id",
     "-var", "location=$TF_VAR_location",

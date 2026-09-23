@@ -1,7 +1,6 @@
 terraform init
 
-# Load KEY=VALUE pairs from .env in this folder as process environment
-# variables, so Terraform auto-picks up the TF_VAR_* ones.
+# Load KEY=VALUE pairs from .env in this folder as process environment variables, so Terraform auto-picks up the TF_VAR_* ones.
 Get-Content (Join-Path $PSScriptRoot ".env") | ForEach-Object {
     if ($_ -match '^\s*([^#=][^=]*)=(.*)$') {
         Set-Item -Path "Env:$($Matches[1].Trim())" -Value $Matches[2].Trim()
@@ -18,8 +17,7 @@ $resources = @{
 $state = terraform state list
 foreach ($address in $resources.Keys) {
     if (-not ($state | Select-String ([regex]::Escape($address)))) {
-        # Ignore failures here - on first-ever run these resources don't
-        # exist in Azure yet either, so `apply` will create them instead.
+        # Ignore failures here - on first-ever run these resources don't exist in Azure yet either, so `apply` will create them instead.
         terraform import $address $resources[$address] 2>$null
     }
 }
