@@ -16,29 +16,27 @@ if (-not (Get-Command terraform -ErrorAction SilentlyContinue)) {
     throw "terraform was not found on PATH. Install Terraform before running this script."
 }
 
+if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
+    throw "Azure CLI (az) was not found on PATH. Install it and sign in before running this script."
+}
+
 
 function Import-DotEnv {
-    param([string]$Path)
-
-    foreach ($line in Get-Content -LiteralPath $Path) {
-        $trimmedLine = $line.Trim()
-        if ([string]::IsNullOrWhiteSpace($trimmedLine) -or $trimmedLine.StartsWith("#")) {
-            continue
+    param(
+        [string]$Path = (Join-Path $PSScriptRoot ".env")
+    )
+    Get-Content -LiteralPath $Path | ForEach-Object {
+        $line = $_.Trim()
+        if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('#')) {
+            return
         }
-
-        $separatorIndex = $trimmedLine.IndexOf("=")
-        if ($separatorIndex -lt 1) {
-            continue
+        $idx = $line.IndexOf('=')
+        if ($idx -lt 1) {
+            return
         }
-
-        $name = $trimmedLine.Substring(0, $separatorIndex).Trim()
-        $value = $trimmedLine.Substring($separatorIndex + 1).Trim()
-        if (($value.StartsWith('"') -and $value.EndsWith('"')) -or
-            ($value.StartsWith("'") -and $value.EndsWith("'"))) {
-            $value = $value.Substring(1, $value.Length - 2)
-        }
-
-        [Environment]::SetEnvironmentVariable($name, $value, "Process")
+        $name = $line.Substring(0, $idx).Trim()
+        $value = $line.Substring($idx + 1).Trim('"', "'")
+        [Environment]::SetEnvironmentVariable($name, $value, 'Process')
     }
 }
 
@@ -78,7 +76,36 @@ Set-TerraformVariable -TerraformName "location" -SourceNames @("TF_VAR_location"
 Set-TerraformVariable -TerraformName "gallery_resource_group_name" -SourceNames @("GALLERY_RG", "TF_VAR_IMAGE_RG")
 Set-TerraformVariable -TerraformName "gallery_name" -SourceNames @("TF_VAR_gallery_name")
 Set-TerraformVariable -TerraformName "image_name" -SourceNames @("TF_VAR_image_name")
-Set-TerraformVariable -TerraformName "image_version" -SourceNames @("AVD_IMAGE_VERSION", "TF_VAR_image_version") -Required
+
+$subscriptionId = [Environment]::GetEnvironmentVariable("TF_VAR_subscription_id", "Process")
+$galleryResourceGroup = [Environment]::GetEnvironmentVariable("TF_VAR_gallery_resource_group_name", "Process")
+$galleryName = [Environment]::GetEnvironmentVariable("TF_VAR_gallery_name", "Process")
+$imageName = [Environment]::GetEnvironmentVariable("TF_VAR_image_name", "Process")
+
+$imageVersionsJson = az sig image-version list `
+    --subscription $subscriptionId `
+    --resource-group $galleryResourceGroup `
+    --gallery-name $galleryName `
+    --gallery-image-definition $imageName `
+    --output json
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to list Azure Compute Gallery image versions. Confirm Azure CLI login and gallery access."
+}
+
+$imageVersions = @($imageVersionsJson | ConvertFrom-Json)
+$latestImageVersion = $imageVersions |
+    Where-Object { $_.name -and $_.publishingProfile.publishedDate } |
+    Sort-Object { [DateTime]$_.publishingProfile.publishedDate } -Descending |
+    Select-Object -First 1
+
+if ($null -eq $latestImageVersion) {
+    throw "No published image versions were found for $galleryName/$imageName in resource group $galleryResourceGroup."
+}
+
+[Environment]::SetEnvironmentVariable("TF_VAR_image_version", $latestImageVersion.name, "Process")
+Write-Host "Using latest Azure Compute Gallery image version: $($latestImageVersion.name)"
+
 Set-TerraformVariable -TerraformName "subnet_id" -SourceNames @("AVD_SUBNET_ID", "TF_VAR_subnet_id") -Required
 Set-TerraformVariable -TerraformName "administrator_password" -SourceNames @("AVD_ADMINISTRATOR_PASSWORD", "TF_VAR_administrator_password") -Required
 Set-TerraformVariable -TerraformName "domain_name" -SourceNames @("AVD_DOMAIN_NAME", "TF_VAR_domain_name") -Required
