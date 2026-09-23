@@ -1,6 +1,6 @@
 name: Build backend
 
-# Builds corpSetup/backend into a self-contained package and publishes it as an artifact.
+# Builds the backend at BACKEND_DIR into a self-contained package and publishes it as an artifact.
 # ZenInstaller's backend card downloads that artifact and pushes it to the Function App itself.
 on:
   workflow_dispatch:
@@ -12,6 +12,9 @@ on:
 permissions:
   contents: read
   deployments: write
+
+env:
+  BACKEND_DIR: zeninstallerPvt/func
 
 jobs:
   build:
@@ -26,7 +29,7 @@ jobs:
         id: version
         shell: bash
         run: |
-          TREE=$(git rev-parse HEAD:corpSetup/backend)
+          TREE=$(git rev-parse HEAD:$BACKEND_DIR)
           LOCK=$(git rev-parse HEAD:pnpm-lock.yaml)
           echo "version=$(printf '%s %s' "$TREE" "$LOCK" | sha256sum | cut -c1-12)" >> $GITHUB_OUTPUT
           echo "tree=$TREE" >> $GITHUB_OUTPUT
@@ -37,12 +40,12 @@ jobs:
           install: false
 
       - name: Install dependencies
-        working-directory: corpSetup/backend
+        working-directory: ${{ env.BACKEND_DIR }}
         run: pnpm install --frozen-lockfile
 
       # pnpm's store is a symlink farm; Azure Functions needs real files, which this prunes into dist.
       - name: Build the deployable package
-        working-directory: corpSetup/backend
+        working-directory: ${{ env.BACKEND_DIR }}
         run: pnpm run build
 
       # Travels inside the package, so whatever the card reads back is by definition what is running.
@@ -54,15 +57,15 @@ jobs:
             --arg sha "${{ github.sha }}" --arg runId "${{ github.run_id }}" \
             --argjson builtAt "$(date +%s)" \
             '{ version: $version, tree: $tree, sha: $sha, runId: $runId, builtAt: $builtAt }' \
-            > corpSetup/backend/dist/build-info.json
-          cat corpSetup/backend/dist/build-info.json
+            > $BACKEND_DIR/dist/build-info.json
+          cat $BACKEND_DIR/dist/build-info.json
 
       - name: Upload the package
         id: pkg
         uses: actions/upload-artifact@v7
         with:
           name: backend-pkg
-          path: corpSetup/backend/dist
+          path: ${{ env.BACKEND_DIR }}/dist
           if-no-files-found: error
 
       - name: Build the report
