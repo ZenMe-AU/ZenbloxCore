@@ -17,29 +17,24 @@ variable "location" {
 variable "GALLERY_RG" {
   description = "Name used for both the Azure Compute Gallery resource group and gallery."
   type        = string
-  default     = "privavd"
 }
 
 variable "image_name" {
   description = "Gallery image definition name (stable handle, never changes)"
   type        = string
-  default     = "PrivilegedWorkstation"
 }
 
 variable "IMAGE_PUBLISHER" {
   description = "Gallery image definition identifier: publisher"
   type        = string
-  default     = "Zenblox"
 }
 
 variable "IMAGE_OFFER" {
   description = "Gallery image definition identifier: offer"
   type        = string
-  default     = "PrivAVD"
 }
 
 variable "IMAGE_SKU" {
   description = "Gallery image definition identifier: sku"
   type        = string
-  default     = "paw-win11"
 }
