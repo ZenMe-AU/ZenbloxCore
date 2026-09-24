@@ -66,6 +66,14 @@ function Set-TerraformVariable {
     }
 }
 
+function ConvertTo-NormalizedAzureRegion {
+    param(
+        [Parameter(Mandatory)] [string]$Name
+    )
+
+    return ($Name -replace '[^a-zA-Z0-9]', '').ToLowerInvariant()
+}
+
 Import-DotEnv -Path $envFile
 
 # Reuse the existing PrivAVD .env names and support TF_VAR_* names directly.
@@ -95,12 +103,16 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $imageVersions = @($imageVersionsJson | ConvertFrom-Json)
+$normalizedTargetLocation = ConvertTo-NormalizedAzureRegion -Name $targetLocation
 $latestImageVersion = $imageVersions |
 Where-Object {
     $targetRegions = @($_.publishingProfile.targetRegions)
     $_.name -and
     $_.publishingProfile.publishedDate -and
-    ($targetRegions | Where-Object { $_.name -ieq $targetLocation })
+    ($targetRegions | Where-Object {
+        $_.name -and
+        (ConvertTo-NormalizedAzureRegion -Name $_.name) -eq $normalizedTargetLocation
+    })
 } |
 Sort-Object { [DateTime]$_.publishingProfile.publishedDate } -Descending |
 Select-Object -First 1
