@@ -48,14 +48,12 @@ function Set-TerraformVariable {
     )
 
     $terraformEnvironmentName = "TF_VAR_$TerraformName"
-    $value = [Environment]::GetEnvironmentVariable($terraformEnvironmentName, "Process")
+    $value = $null
 
-    if ([string]::IsNullOrWhiteSpace($value)) {
-        foreach ($sourceName in $SourceNames) {
-            $value = [Environment]::GetEnvironmentVariable($sourceName, "Process")
-            if (-not [string]::IsNullOrWhiteSpace($value)) {
-                break
-            }
+    foreach ($sourceName in $SourceNames) {
+        $value = [Environment]::GetEnvironmentVariable($sourceName, "Process")
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            break
         }
     }
 
@@ -73,11 +71,13 @@ Import-DotEnv -Path $envFile
 # Reuse the existing PrivAVD .env names and support TF_VAR_* names directly.
 Set-TerraformVariable -TerraformName "subscription_id" -SourceNames @("TF_VAR_subscription_id") -Required
 Set-TerraformVariable -TerraformName "location" -SourceNames @("TF_VAR_location")
+Set-TerraformVariable -TerraformName "resource_group_name" -SourceNames @("AVD_RESOURCE_GROUP", "TF_VAR_resource_group_name") -Required
 Set-TerraformVariable -TerraformName "gallery_resource_group_name" -SourceNames @("GALLERY_RG", "TF_VAR_IMAGE_RG")
 Set-TerraformVariable -TerraformName "gallery_name" -SourceNames @("TF_VAR_gallery_name")
 Set-TerraformVariable -TerraformName "image_name" -SourceNames @("TF_VAR_image_name")
 
 $subscriptionId = [Environment]::GetEnvironmentVariable("TF_VAR_subscription_id", "Process")
+$targetResourceGroup = [Environment]::GetEnvironmentVariable("TF_VAR_resource_group_name", "Process")
 $galleryResourceGroup = [Environment]::GetEnvironmentVariable("TF_VAR_gallery_resource_group_name", "Process")
 $galleryName = [Environment]::GetEnvironmentVariable("TF_VAR_gallery_name", "Process")
 $imageName = [Environment]::GetEnvironmentVariable("TF_VAR_image_name", "Process")
@@ -105,12 +105,21 @@ if ($null -eq $latestImageVersion) {
 
 [Environment]::SetEnvironmentVariable("TF_VAR_image_version", $latestImageVersion.name, "Process")
 Write-Host "Using latest Azure Compute Gallery image version: $($latestImageVersion.name)"
+Write-Host "Deploying all AVD resources to resource group: $targetResourceGroup"
 
 Push-Location $terraformDirectory
 try {
     terraform init -input=false
     if ($LASTEXITCODE -ne 0) {
         throw "terraform init failed with exit code $LASTEXITCODE."
+    }
+
+    terraform workspace select $targetResourceGroup
+    if ($LASTEXITCODE -ne 0) {
+        terraform workspace new $targetResourceGroup
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to select or create Terraform workspace '$targetResourceGroup'."
+        }
     }
 
     terraform validate
