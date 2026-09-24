@@ -1,5 +1,5 @@
 locals {
-  firewall_private_ip = cidrhost(var.firewall_subnet_address_prefix, 4)
+  firewall_private_ip = azurerm_firewall.avd.ip_configuration[0].private_ip_address
 }
 
 resource "azurerm_virtual_network" "avd" {
@@ -7,7 +7,6 @@ resource "azurerm_virtual_network" "avd" {
   location            = azurerm_resource_group.avd.location
   resource_group_name = azurerm_resource_group.avd.name
   address_space       = [var.virtual_network_address_space]
-  dns_servers         = [local.firewall_private_ip]
   tags                = var.tags
 }
 
@@ -53,7 +52,7 @@ resource "azurerm_network_security_group" "session_hosts" {
     source_port_range          = "*"
     destination_port_range     = "53"
     source_address_prefix      = var.session_host_subnet_address_prefix
-    destination_address_prefix = local.firewall_private_ip
+    destination_address_prefix = var.firewall_subnet_address_prefix
   }
 
   security_rule {
@@ -65,7 +64,7 @@ resource "azurerm_network_security_group" "session_hosts" {
     source_port_range          = "*"
     destination_port_range     = "53"
     source_address_prefix      = var.session_host_subnet_address_prefix
-    destination_address_prefix = local.firewall_private_ip
+    destination_address_prefix = var.firewall_subnet_address_prefix
   }
 
   security_rule {
@@ -121,8 +120,12 @@ resource "azurerm_firewall" "avd" {
     name                 = "configuration"
     subnet_id            = azurerm_subnet.firewall.id
     public_ip_address_id = azurerm_public_ip.firewall.id
-    private_ip_address   = local.firewall_private_ip
   }
+}
+
+resource "azurerm_virtual_network_dns_servers" "avd" {
+  virtual_network_id = azurerm_virtual_network.avd.id
+  dns_servers        = [local.firewall_private_ip]
 }
 
 resource "azurerm_firewall_policy_rule_collection_group" "avd_egress" {

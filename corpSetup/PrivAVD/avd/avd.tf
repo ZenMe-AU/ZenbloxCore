@@ -59,26 +59,27 @@ resource "azurerm_virtual_desktop_scaling_plan" "pooled" {
   location            = azurerm_resource_group.avd.location
   resource_group_name = azurerm_resource_group.avd.name
   time_zone           = var.timezone
-  description         = "Deallocates idle PAW session hosts outside business hours."
+  description         = "Deallocates the PAW session host whenever it has no active sessions."
   tags                = var.tags
 
   schedule {
-    name                                 = "weekday"
-    days_of_week                         = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-    ramp_up_start_time                   = "07:00"
+    name                                 = "daily"
+    days_of_week                         = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    ramp_up_start_time                   = "00:00"
     ramp_up_load_balancing_algorithm     = "BreadthFirst"
-    ramp_up_minimum_hosts_percent        = 0
-    peak_start_time                      = "09:00"
+    ramp_up_minimum_hosts_percent        = 1
+    ramp_up_capacity_threshold_percent   = 1
+    peak_start_time                      = "00:15"
     peak_load_balancing_algorithm        = "BreadthFirst"
-    ramp_down_start_time                 = "18:00"
+    ramp_down_start_time                 = "00:30"
     ramp_down_load_balancing_algorithm   = "DepthFirst"
     ramp_down_capacity_threshold_percent = 50
     ramp_down_minimum_hosts_percent      = 0
     ramp_down_force_logoff_users         = false
     ramp_down_stop_hosts_when            = "ZeroActiveSessions"
     ramp_down_wait_time_minutes          = 30
-    ramp_down_notification_message       = "This session host is being shut down because it is outside the PAW usage window."
-    off_peak_start_time                  = "22:00"
+    ramp_down_notification_message       = "This PAW session host is being shut down because it has no active sessions."
+    off_peak_start_time                  = "23:45"
     off_peak_load_balancing_algorithm    = "DepthFirst"
   }
 }
@@ -87,4 +88,6 @@ resource "azurerm_virtual_desktop_scaling_plan_host_pool_association" "pooled" {
   scaling_plan_id = azurerm_virtual_desktop_scaling_plan.pooled.id
   host_pool_id    = azurerm_virtual_desktop_host_pool.pooled.id
   enabled         = true
+
+  depends_on = [azurerm_role_assignment.avd_power_management]
 }

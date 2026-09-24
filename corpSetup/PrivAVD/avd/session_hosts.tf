@@ -21,6 +21,7 @@ resource "azurerm_network_interface" "session_host" {
 resource "azurerm_windows_virtual_machine" "session_host" {
   count                 = var.session_host_count
   name                  = "${var.host_pool_name}-${count.index + 1}"
+  computer_name         = "paw-avd-${count.index + 1}"
   location              = azurerm_resource_group.avd.location
   resource_group_name   = azurerm_resource_group.avd.name
   size                  = var.vm_size
@@ -28,8 +29,8 @@ resource "azurerm_windows_virtual_machine" "session_host" {
   admin_password        = random_password.local_administrator.result
   network_interface_ids = [azurerm_network_interface.session_host[count.index].id]
   license_type          = "Windows_Client"
-  secure_boot_enabled   = true
-  vtpm_enabled          = true
+  secure_boot_enabled   = false
+  vtpm_enabled          = false
   tags                  = var.tags
 
   source_image_id = data.azurerm_shared_image_version.paw.id

@@ -77,17 +77,17 @@ variable "application_group_name" {
 variable "vm_size" {
   description = "Size of each pooled session host."
   type        = string
-  default     = "Standard_D4s_v5"
+  default     = "Standard_D4s_v4"
 }
 
 variable "session_host_count" {
-  description = "Number of session hosts to create. Hosts are deallocated when unused."
+  description = "Number of session hosts. This PAW deployment is restricted to one host."
   type        = number
-  default     = 2
+  default     = 1
 
   validation {
-    condition     = var.session_host_count > 0
-    error_message = "session_host_count must be greater than zero."
+    condition     = var.session_host_count == 1
+    error_message = "session_host_count must be exactly one for this PAW deployment."
   }
 }
 
