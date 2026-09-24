@@ -49,7 +49,8 @@ When using `..\deployPAW.ps1`, set the target resource group once as
 `AVD_RESOURCE_GROUP` in `..\.env`. Every Azure resource created by this module
 uses that resource group. The existing Compute Gallery image is read through a
 data source and remains in `GALLERY_RG`; it is not created or moved by this
-module.
+module. The script keeps a separate Terraform workspace for each target
+resource group, preventing stale state from another group from being applied.
 
 Azure Firewall Standard has a material recurring cost. This is intentional: an
 NSG alone cannot restrict encrypted outbound traffic by required AVD FQDNs.

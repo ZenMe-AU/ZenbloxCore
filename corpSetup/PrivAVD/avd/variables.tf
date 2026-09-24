@@ -12,7 +12,6 @@ variable "location" {
 variable "resource_group_name" {
   description = "Resource group for the AVD control plane and session hosts."
   type        = string
-  default     = "privavd-hosts"
 }
 
 variable "virtual_network_address_space" {
