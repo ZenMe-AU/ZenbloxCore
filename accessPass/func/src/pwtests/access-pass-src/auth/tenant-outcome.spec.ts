@@ -8,7 +8,7 @@ import {
   loadAccessPassUsers,
   openAuthenticatedAccessPassPage,
   sensitiveTextMasks,
-} from "../testHelper";
+} from "../testHelper.mjs";
 
 const users = loadAccessPassUsers({softFail: true,});
 test.skip(() => users.length === 0,"No local Access Pass users file was found. Authenticated tests are skipped.",);
