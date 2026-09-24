@@ -1,6 +1,6 @@
 # New Entra ID group granted sign-in access to the PAW desktop.
 resource "azuread_group" "paw_login" {
-  display_name     = var.paw_login_group_display_name
+  display_name     = var.PAW_GROUP
   security_enabled = true
 }
 

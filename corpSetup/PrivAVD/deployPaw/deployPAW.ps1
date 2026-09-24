@@ -78,20 +78,21 @@ Import-DotEnv -Path $envFile
 
 # Reuse the existing PrivAVD .env names and support TF_VAR_* names directly.
 Set-TerraformVariable -TerraformName "subscription_id" -SourceNames @("TF_VAR_subscription_id") -Required
-Set-TerraformVariable -TerraformName "location" -SourceNames @("AVD_LOCATION", "TF_VAR_location") -Required
-Set-TerraformVariable -TerraformName "resource_group_name" -SourceNames @("AVD_RESOURCE_GROUP", "TF_VAR_resource_group_name") -Required
+Set-TerraformVariable -TerraformName "PAW_LOCATION" -SourceNames @("TF_VAR_PAW_LOCATION") -Required
+Set-TerraformVariable -TerraformName "PAW_RG" -SourceNames @("TF_VAR_PAW_RG") -Required
+Set-TerraformVariable -TerraformName "PAW_GROUP" -SourceNames @("TF_VAR_PAW_GROUP")
 Set-TerraformVariable -TerraformName "gallery_resource_group_name" -SourceNames @("TF_VAR_GALLERY_RG") -Required
 Set-TerraformVariable -TerraformName "image_name" -SourceNames @("TF_VAR_image_name")
 
 $subscriptionId = [Environment]::GetEnvironmentVariable("TF_VAR_subscription_id", "Process")
-$targetLocation = [Environment]::GetEnvironmentVariable("TF_VAR_location", "Process")
-$targetResourceGroup = [Environment]::GetEnvironmentVariable("TF_VAR_resource_group_name", "Process")
+$targetLocation = [Environment]::GetEnvironmentVariable("TF_VAR_PAW_LOCATION", "Process")
+$targetResourceGroup = [Environment]::GetEnvironmentVariable("TF_VAR_PAW_RG", "Process")
 $galleryResourceGroup = [Environment]::GetEnvironmentVariable("TF_VAR_gallery_resource_group_name", "Process")
 $galleryName = $galleryResourceGroup
 $imageName = [Environment]::GetEnvironmentVariable("TF_VAR_image_name", "Process")
 
 # variables.tf defaults this to PawUsers, so that is the name `apply` would create when .env leaves it unset.
-$pawLoginGroupName = [Environment]::GetEnvironmentVariable("TF_VAR_paw_login_group_display_name", "Process")
+$pawLoginGroupName = [Environment]::GetEnvironmentVariable("TF_VAR_PAW_GROUP", "Process")
 if ([string]::IsNullOrWhiteSpace($pawLoginGroupName)) {
     $pawLoginGroupName = "PawUsers"
 }

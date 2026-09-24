@@ -20,7 +20,7 @@ variable "subscription_id" {
   default     = "51d0ca21-eaa5-4d34-aeb3-fa9f7d454b5d"
 }
 
-variable "location" {
+variable "PAW_LOCATION" {
   description = "Azure region where the build VM and image are created"
   type        = string
 }
@@ -53,7 +53,7 @@ source "azure-arm" "paw" {
   use_azure_cli_auth = true
   subscription_id    = var.subscription_id
 
-  location = var.location
+  location = var.PAW_LOCATION
   vm_size  = var.build_vm_size
   os_type  = "Windows"
 
@@ -79,7 +79,7 @@ source "azure-arm" "paw" {
     gallery_name         = var.gallery_rg
     image_name           = var.image_name
     image_version        = var.image_version
-    replication_regions  = [var.location]
+    replication_regions  = [var.PAW_LOCATION]
     storage_account_type = "Standard_LRS"
   }
   shared_image_gallery_timeout = "60m"

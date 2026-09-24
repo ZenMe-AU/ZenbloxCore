@@ -15,7 +15,7 @@ provider "azurerm" {
 
 resource "azurerm_resource_group" "paw_image" {
   name     = var.GALLERY_RG
-  location = var.location
+  location = var.PAW_LOCATION
 
   tags = {
     purpose = "paw-golden-image"

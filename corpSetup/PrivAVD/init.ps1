@@ -5,10 +5,9 @@ Get-Content (Join-Path $PSScriptRoot ".env") | ForEach-Object {
     }
 }
 
-if ([string]::IsNullOrWhiteSpace($env:AVD_LOCATION)) {
-    throw "AVD_LOCATION is required in .env."
+if ([string]::IsNullOrWhiteSpace($env:TF_VAR_PAW_LOCATION)) {
+    throw "TF_VAR_PAW_LOCATION is required in .env."
 }
-$env:TF_VAR_location = $env:AVD_LOCATION
 
 $terraformDirectory = Join-Path $PSScriptRoot "initImageGallery"
 Push-Location $terraformDirectory

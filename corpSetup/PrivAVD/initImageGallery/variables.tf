@@ -9,7 +9,7 @@ variable "subscription_id" {
   }
 }
 
-variable "location" {
+variable "PAW_LOCATION" {
   description = "Azure region where the build VM and image are created"
   type        = string
 }

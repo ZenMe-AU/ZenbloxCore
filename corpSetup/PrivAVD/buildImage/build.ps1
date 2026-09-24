@@ -8,9 +8,9 @@ Get-Content (Join-Path $PSScriptRoot "..\.env") | ForEach-Object {
     }
 }
 
-$targetLocation = if (-not [string]::IsNullOrWhiteSpace($AVD_LOCATION)) { $AVD_LOCATION } else { $TF_VAR_location }
+$targetLocation = $TF_VAR_PAW_LOCATION
 if ([string]::IsNullOrWhiteSpace($targetLocation)) {
-    throw "AVD_LOCATION is required in .env."
+    throw "TF_VAR_PAW_LOCATION is required in .env."
 }
 $packerTemplate = Join-Path $PSScriptRoot "paw-image.pkr.hcl"
 
@@ -21,7 +21,7 @@ $imageVersion = "$IMAGE_VERSION.$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
 # publishes into the infra that actually exists, instead of its own defaults.
 $packerVars = @(
     "-var", "subscription_id=$TF_VAR_subscription_id",
-    "-var", "location=$targetLocation",
+    "-var", "PAW_LOCATION=$targetLocation",
     "-var", "build_vm_size=$BUILD_VM_SIZE",
     "-var", "gallery_rg=$TF_VAR_GALLERY_RG",
     "-var", "image_name=$TF_VAR_image_name",

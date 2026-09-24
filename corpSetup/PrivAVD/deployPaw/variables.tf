@@ -3,12 +3,12 @@ variable "subscription_id" {
   type        = string
 }
 
-variable "location" {
+variable "PAW_LOCATION" {
   description = "Azure region for the AVD resources."
   type        = string
 }
 
-variable "resource_group_name" {
+variable "PAW_RG" {
   description = "Resource group for the AVD control plane and session hosts."
   type        = string
 }
@@ -110,7 +110,7 @@ variable "tags" {
   }
 }
 
-variable "paw_login_group_display_name" {
+variable "PAW_GROUP" {
   description = "Entra ID group created for PAW sign-in access."
   type        = string
   default     = "PawUsers"

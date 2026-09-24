@@ -178,7 +178,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "avd_egress" {
       name                  = "extension-packages"
       protocols             = ["TCP"]
       source_addresses      = [var.session_host_subnet_address_prefix]
-      destination_addresses = ["Storage.${var.location}"]
+      destination_addresses = ["Storage.${var.PAW_LOCATION}"]
       destination_ports     = ["443"]
     }
 

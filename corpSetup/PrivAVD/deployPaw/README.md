@@ -46,12 +46,12 @@ Enabling those features requires a Trusted Launch compatible image definition
 and a newly published image version.
 
 When using `..\deployPAW.ps1`, set the target resource group once as
-`AVD_RESOURCE_GROUP` in `..\.env`. Every Azure resource created by this module
+`TF_VAR_PAW_RG` in `..\.env`. Every Azure resource created by this module
 uses that resource group. The existing Compute Gallery image is read through a
 data source and remains in `TF_VAR_GALLERY_RG`; it is not created or moved by this
 module. The script keeps a separate Terraform workspace for each target
 resource group, preventing stale state from another group from being applied.
-Set `AVD_LOCATION` to the Azure region name, such as `eastus`. The script uses
+Set `TF_VAR_PAW_LOCATION` to the Azure region name, such as `eastus`. The script uses
 that region for every created resource and selects only an image version that
 has been replicated there.
 

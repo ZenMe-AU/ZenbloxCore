@@ -6,8 +6,8 @@ data "azurerm_shared_image_version" "paw" {
 }
 
 resource "azurerm_resource_group" "avd" {
-  name     = var.resource_group_name
-  location = var.location
+  name     = var.PAW_RG
+  location = var.PAW_LOCATION
   tags     = var.tags
 }
 
