@@ -20,7 +20,9 @@ import {
 } from "../testHelper.mjs";
 
 const users = loadAccessPassUsers({ softFail: true });
-test.skip(() => users.length === 0, "No local Access Pass users file was found. Authenticated tests are skipped.");
+if (users.length === 0) {
+  throw new Error("No local Access Pass users file was found.");
+}
 
 const desktopViewport = viewports.Desktop;
 
@@ -28,10 +30,11 @@ console.log("RUN_ACCESS_PASS_CREATION:", process.env.RUN_ACCESS_PASS_CREATION);
 
 test.describe("AP-Desktop - Temporary Access Pass Creation", () => {
   test.use({ viewport: desktopViewport, deviceScaleFactor: 1 });
-  test.skip(
-    ({ browserName }) => browserName !== "chromium",
-    "Saved Microsoft passkey sessions are only tested in Chromium.",
-  );
+  test.beforeEach(({ browserName }) => {
+    if (browserName !== "chromium") {
+      throw new Error("Saved Microsoft passkey sessions are only tested in Chromium.");
+    }
+  });
 
   for (const user of users) {
     if (user.expectedEntraResult !== "users") {
@@ -44,26 +47,32 @@ test.describe("AP-Desktop - Temporary Access Pass Creation", () => {
       test.beforeEach(() => {
         const auth = getAccessPassUserAuth(user);
 
-        test.skip(
-          !auth.exists,
-          [
-            `Missing auth files for ${user.id}.`,
-            `Expected storage: ${auth.storageStateFile}`,
-            `Expected session: ${auth.sessionStorageFile}`,
-          ].join(" "),
-        );
+          if (!auth.exists) {
+            throw new Error(
+              [
+                `Missing auth files for ${user.id}.`,
+                `Expected storage: ${auth.storageStateFile}`,
+                `Expected session: ${auth.sessionStorageFile}`,
+              ].join(" "),
+            );
+          }
       });
 
       for (const target of targets) {
         test(`Creating Temporary Access Pass for ${target.id}`, async ({ browser }, testInfo) => {
           console.log(process.env);
-          test.skip(
-            process.env.RUN_ACCESS_PASS_CREATION !== "true",
-            "Set RUN_ACCESS_PASS_CREATION=true to run real Access Pass creation.",
-          );
-          test.skip(!user.canCreateAccessPass, `${user.id} is not allowed to create access passes.`);
-          test.skip(!target.allowRealAccessPassCreation, `Real Access Pass creation is disabled for ${target.id}.`);
-          test.skip(!user.tenantId, `No tenantId configured for ${user.id}.`);
+          if (process.env.RUN_ACCESS_PASS_CREATION !== "true") {
+            throw new Error("Set RUN_ACCESS_PASS_CREATION=true to run real Access Pass creation.");
+          }
+          if (!user.canCreateAccessPass) {
+            throw new Error(`${user.id} is not allowed to create access passes.`);
+          }
+          if (!target.allowRealAccessPassCreation) {
+            throw new Error(`Real Access Pass creation is disabled for ${target.id}.`);
+          }
+          if (!user.tenantId) {
+            throw new Error(`No tenantId configured for ${user.id}.`);
+          }
 
           const { page, context } = await openAuthenticatedAccessPassPage(browser, user, desktopViewport);
 

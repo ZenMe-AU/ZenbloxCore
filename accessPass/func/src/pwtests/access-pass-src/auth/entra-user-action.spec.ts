@@ -15,16 +15,19 @@ import {
 } from "../testHelper.mjs";
 
 const users = loadAccessPassUsers({ softFail: true });
-test.skip(() => users.length === 0, "No local Access Pass users file was found. Authenticated tests are skipped.");
+if (users.length === 0) {
+  throw new Error("No local Access Pass users file was found.");
+}
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`AP-${viewportName} - Entra User Actions`, () => {
     test.use({ viewport, deviceScaleFactor: 1 });
 
-    test.skip(
-      ({ browserName }) => browserName !== "chromium",
-      "Saved Microsoft passkey sessions are only tested in Chromium.",
-    );
+    test.beforeEach(({ browserName }) => {
+      if (browserName !== "chromium") {
+        throw new Error("Saved Microsoft passkey sessions are only tested in Chromium.");
+      }
+    });
 
     for (const user of users) {
       if (user.expectedEntraResult !== "users") {
@@ -36,20 +39,25 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       test.describe(user.id, () => {
         test.beforeEach(() => {
           const auth = getAccessPassUserAuth(user);
-          test.skip(
-            !auth.exists,
-            [
-              `Missing auth files for ${user.id}.`,
-              `Expected storage: ${auth.storageStateFile}`,
-              `Expected session: ${auth.sessionStorageFile}`,
-            ].join(" "),
-          );
+          if (!auth.exists) {
+            throw new Error(
+              [
+                `Missing auth files for ${user.id}.`,
+                `Expected storage: ${auth.storageStateFile}`,
+                `Expected session: ${auth.sessionStorageFile}`,
+              ].join(" "),
+            );
+          }
         });
 
         // This test waits for the existing authenticated sessions to load its Entra users and verifies their action buttons.
         test("Access Pass actions are available for configured Entra users", async ({ browser }, testInfo) => {
-          test.skip(!user.tenantId, `No tenantId configured for ${user.id}.`);
-          test.skip(targets.length === 0, `No target Entra users configured for ${user.id}.`);
+          if (!user.tenantId) {
+            throw new Error(`No tenantId configured for ${user.id}.`);
+          }
+          if (targets.length === 0) {
+            throw new Error(`No target Entra users configured for ${user.id}.`);
+          }
 
           const { page, context } = await openAuthenticatedAccessPassPage(browser, user, viewport);
 

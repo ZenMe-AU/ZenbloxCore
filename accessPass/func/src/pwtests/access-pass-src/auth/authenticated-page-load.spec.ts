@@ -17,28 +17,32 @@ import {
 } from "../testHelper.mjs";
 
 const users = loadAccessPassUsers({ softFail: true });
-test.skip(() => users.length === 0, "No local Access Pass users file was found. Authenticated tests are skipped.");
+if (users.length === 0) {
+  throw new Error("No local Access Pass users file was found.");
+}
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`AP-${viewportName} - Authenticated Page Load`, () => {
     test.use({ viewport, deviceScaleFactor: 1 });
-    test.skip(
-      ({ browserName }) => browserName !== "chromium",
-      "Saved Microsoft passkey sessions are only tested in Chromium.",
-    );
+    test.beforeEach(({ browserName }) => {
+      if (browserName !== "chromium") {
+        throw new Error("Saved Microsoft passkey sessions are only tested in Chromium.");
+      }
+    });
 
     for (const user of users) {
       test.describe(user.id, () => {
         test.beforeEach(() => {
           const auth = getAccessPassUserAuth(user);
-          test.skip(
-            !auth.exists,
-            [
-              `Missing auth files for ${user.id}.`,
-              `Expected storage: ${auth.storageStateFile}`,
-              `Expected session: ${auth.sessionStorageFile}`,
-            ].join(" "),
-          );
+          if (!auth.exists) {
+            throw new Error(
+              [
+                `Missing auth files for ${user.id}.`,
+                `Expected storage: ${auth.storageStateFile}`,
+                `Expected session: ${auth.sessionStorageFile}`,
+              ].join(" "),
+            );
+          }
         });
 
         test("User loads Access Pass page", async ({ browser }, testInfo) => {
