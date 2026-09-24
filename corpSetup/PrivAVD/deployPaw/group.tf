@@ -4,11 +4,27 @@ resource "azuread_group" "paw_login" {
   security_enabled = true
 }
 
-# resource "azuread_group_member" "paw_login" {
-#   for_each         = toset(var.paw_login_group_member_object_ids)
-#   group_object_id  = azuread_group.paw_login.object_id
-#   member_object_id = each.value
-# }
+resource "azuread_group" "privileged_accounts" {
+  display_name     = "PrivilegedAccounts"
+  description      = "All enabled privileged accounts"
+  security_enabled = true
+
+  types = ["DynamicMembership"]
+
+  dynamic_membership {
+    enabled = true
+    rule    = <<-RULE
+      (user.userPrincipalName -startsWith "adm_")
+      and
+      (user.accountEnabled -eq true)
+    RULE
+  }
+}
+
+resource "azuread_group_member" "paw_login" {
+  group_object_id  = azuread_group.paw_login.object_id
+  member_object_id = azuread_group.privileged_accounts.object_id
+}
 
 # "Desktop Virtualization User" lets members enumerate and launch this application group; it does not grant Azure resource access.
 resource "azurerm_role_assignment" "paw_login_desktop" {
@@ -23,4 +39,3 @@ resource "azurerm_role_assignment" "paw_login_vm" {
   role_definition_name = "Virtual Machine User Login"
   principal_id         = azuread_group.paw_login.object_id
 }
-
