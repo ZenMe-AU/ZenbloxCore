@@ -25,12 +25,6 @@ variable "location" {
   type        = string
 }
 
-variable "IMAGE_RG" {
-  description = "Existing resource group that receives the built managed image"
-  type        = string
-  default     = "privavd"
-}
-
 variable "build_vm_size" {
   description = "Size of the temporary VM used during the image build"
   type        = string

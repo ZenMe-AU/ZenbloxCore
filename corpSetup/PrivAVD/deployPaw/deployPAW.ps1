@@ -80,7 +80,7 @@ Import-DotEnv -Path $envFile
 Set-TerraformVariable -TerraformName "subscription_id" -SourceNames @("TF_VAR_subscription_id") -Required
 Set-TerraformVariable -TerraformName "location" -SourceNames @("AVD_LOCATION", "TF_VAR_location") -Required
 Set-TerraformVariable -TerraformName "resource_group_name" -SourceNames @("AVD_RESOURCE_GROUP", "TF_VAR_resource_group_name") -Required
-Set-TerraformVariable -TerraformName "gallery_resource_group_name" -SourceNames @("GALLERY_RG", "TF_VAR_IMAGE_RG")
+Set-TerraformVariable -TerraformName "gallery_resource_group_name" -SourceNames @("TF_VAR_IMAGE_RG") -Required
 Set-TerraformVariable -TerraformName "gallery_name" -SourceNames @("TF_VAR_gallery_name")
 Set-TerraformVariable -TerraformName "image_name" -SourceNames @("TF_VAR_image_name")
 
