@@ -117,3 +117,16 @@ variable "tags" {
     managed  = "terraform"
   }
 }
+
+variable "paw_login_group_display_name" {
+  description = "Entra ID group created for PAW sign-in access."
+  type        = string
+  default     = "PawUsers"
+}
+
+# variable "paw_login_group_member_object_ids" {
+#   description = "Entra ID object IDs (users or groups) added as members of the created PAW login group."
+#   type        = list(string)
+#   default     = []
+# }
+

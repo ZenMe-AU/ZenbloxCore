@@ -33,3 +33,8 @@ output "session_host_subnet_id" {
   description = "ID of the isolated session-host subnet."
   value       = azurerm_subnet.session_hosts.id
 }
+
+output "paw_login_group_object_id" {
+  description = "Object ID of the Entra ID group granted sign-in access to the PAW desktop."
+  value       = azuread_group.paw_login.object_id
+}
