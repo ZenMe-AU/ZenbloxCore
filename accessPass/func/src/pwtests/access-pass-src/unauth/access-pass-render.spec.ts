@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { expect, test } from "@playwright/test";
 import { ACCESS_PASS_URL, viewports } from "../../testInit";
 import { expectPageSnapshot } from "../testHelper.mjs";
