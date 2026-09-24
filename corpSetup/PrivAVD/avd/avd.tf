@@ -20,6 +20,7 @@ resource "azurerm_virtual_desktop_host_pool" "pooled" {
   load_balancer_type       = "BreadthFirst"
   start_vm_on_connect      = true
   validate_environment     = false
+  custom_rdp_properties    = "targetisaadjoined:i:1;"
   tags                     = var.tags
 }
 

@@ -34,6 +34,7 @@ ui/.react-router
 terraform.tfstate.backup
 .terraform.*
 .terraform/
+*.tfplan
 .env
 planfile
 selfService/backend/local.settings.json

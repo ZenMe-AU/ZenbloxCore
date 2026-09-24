@@ -23,12 +23,21 @@ terraform plan -out avd.tfplan
 terraform apply avd.tfplan
 ```
 
-Required values are `subscription_id`, `subnet_id`, `image_version`,
-`administrator_password`, `domain_name`, `domain_join_username`, and
-`domain_join_password`. `image_version` must be the exact version emitted by
-`..\build.ps1`.
+Required values are `subscription_id` and `image_version`. `image_version` must
+be the exact version emitted by `..\build.ps1`. Terraform generates the local
+administrator password and stores it as sensitive state; it is not output.
 
-The subnet must provide DNS resolution and network access to the AD DS domain
-controllers. The domain-join extension assumes traditional AD DS; replace that
-extension with an Entra join or Entra Domain Services approach if the target
-network does not provide AD DS.
+The module creates the VNet, subnets, NSG, route table, Azure Firewall, and
+firewall policy in the AVD resource group. Session hosts have no public IP,
+VNet peering, NAT gateway, or default Azure outbound access. All default-route
+traffic is forced through Azure Firewall. Its allowlist contains only the AVD
+control plane, Microsoft Entra ID, regional Azure Storage needed to install VM
+extensions, and Azure KMS activation. Windows Update is not allowed.
+
+The hosts are Microsoft Entra joined, so no route to an external AD DS network
+is required. Assign users the Virtual Machine User Login or Virtual Machine
+Administrator Login role at the resource-group or VM scope in addition to the
+AVD application-group assignment.
+
+Azure Firewall Standard has a material recurring cost. This is intentional: an
+NSG alone cannot restrict encrypted outbound traffic by required AVD FQDNs.

@@ -15,9 +15,22 @@ variable "resource_group_name" {
   default     = "privavd-hosts"
 }
 
-variable "subnet_id" {
-  description = "Existing subnet where the session-host NICs will be created."
+variable "virtual_network_address_space" {
+  description = "Address space for the isolated AVD virtual network."
   type        = string
+  default     = "10.250.0.0/16"
+}
+
+variable "firewall_subnet_address_prefix" {
+  description = "Address prefix for AzureFirewallSubnet. Must be /26 or larger."
+  type        = string
+  default     = "10.250.0.0/26"
+}
+
+variable "session_host_subnet_address_prefix" {
+  description = "Address prefix for the isolated AVD session-host subnet."
+  type        = string
+  default     = "10.250.1.0/24"
 }
 
 variable "gallery_resource_group_name" {
@@ -82,41 +95,6 @@ variable "administrator_username" {
   description = "Local administrator account created on each session host."
   type        = string
   default     = "avdadmin"
-}
-
-variable "administrator_password" {
-  description = "Local administrator password created on each session host."
-  type        = string
-  sensitive   = true
-}
-
-variable "domain_name" {
-  description = "AD DS DNS domain used to join session hosts."
-  type        = string
-}
-
-variable "domain_join_username" {
-  description = "AD DS account allowed to join computers to the domain."
-  type        = string
-  sensitive   = true
-}
-
-variable "domain_join_password" {
-  description = "Password for the AD DS domain-join account."
-  type        = string
-  sensitive   = true
-}
-
-variable "domain_ou_path" {
-  description = "Optional distinguished name of the OU for session hosts."
-  type        = string
-  default     = ""
-}
-
-variable "domain_join_options" {
-  description = "JsonADDomainExtension options. 3 enables secure credential handling."
-  type        = number
-  default     = 3
 }
 
 variable "registration_dsc_modules_url" {

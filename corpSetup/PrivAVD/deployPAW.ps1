@@ -95,9 +95,9 @@ if ($LASTEXITCODE -ne 0) {
 
 $imageVersions = @($imageVersionsJson | ConvertFrom-Json)
 $latestImageVersion = $imageVersions |
-    Where-Object { $_.name -and $_.publishingProfile.publishedDate } |
-    Sort-Object { [DateTime]$_.publishingProfile.publishedDate } -Descending |
-    Select-Object -First 1
+Where-Object { $_.name -and $_.publishingProfile.publishedDate } |
+Sort-Object { [DateTime]$_.publishingProfile.publishedDate } -Descending |
+Select-Object -First 1
 
 if ($null -eq $latestImageVersion) {
     throw "No published image versions were found for $galleryName/$imageName in resource group $galleryResourceGroup."
@@ -105,12 +105,6 @@ if ($null -eq $latestImageVersion) {
 
 [Environment]::SetEnvironmentVariable("TF_VAR_image_version", $latestImageVersion.name, "Process")
 Write-Host "Using latest Azure Compute Gallery image version: $($latestImageVersion.name)"
-
-Set-TerraformVariable -TerraformName "subnet_id" -SourceNames @("AVD_SUBNET_ID", "TF_VAR_subnet_id") -Required
-Set-TerraformVariable -TerraformName "administrator_password" -SourceNames @("AVD_ADMINISTRATOR_PASSWORD", "TF_VAR_administrator_password") -Required
-Set-TerraformVariable -TerraformName "domain_name" -SourceNames @("AVD_DOMAIN_NAME", "TF_VAR_domain_name") -Required
-Set-TerraformVariable -TerraformName "domain_join_username" -SourceNames @("AVD_DOMAIN_JOIN_USERNAME", "TF_VAR_domain_join_username") -Required
-Set-TerraformVariable -TerraformName "domain_join_password" -SourceNames @("AVD_DOMAIN_JOIN_PASSWORD", "TF_VAR_domain_join_password") -Required
 
 Push-Location $terraformDirectory
 try {
@@ -125,7 +119,7 @@ try {
     }
 
     $planFile = Join-Path $terraformDirectory "avd.tfplan"
-    terraform plan -input=false -out=$planFile
+    terraform plan -input=false "-out=$planFile"
     if ($LASTEXITCODE -ne 0) {
         throw "terraform plan failed with exit code $LASTEXITCODE."
     }

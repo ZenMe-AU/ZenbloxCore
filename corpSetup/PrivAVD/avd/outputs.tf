@@ -23,3 +23,13 @@ output "registration_token" {
   value       = azurerm_virtual_desktop_host_pool_registration_info.pooled.token
   sensitive   = true
 }
+
+output "virtual_network_id" {
+  description = "ID of the isolated AVD virtual network."
+  value       = azurerm_virtual_network.avd.id
+}
+
+output "session_host_subnet_id" {
+  description = "ID of the isolated session-host subnet."
+  value       = azurerm_subnet.session_hosts.id
+}
