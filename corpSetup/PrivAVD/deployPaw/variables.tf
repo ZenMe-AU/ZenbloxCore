@@ -32,15 +32,9 @@ variable "session_host_subnet_address_prefix" {
 }
 
 variable "gallery_resource_group_name" {
-  description = "Resource group containing the existing Azure Compute Gallery."
+  description = "Name used for both the existing Azure Compute Gallery resource group and gallery."
   type        = string
   default     = "paw-gallery"
-}
-
-variable "gallery_name" {
-  description = "Existing Azure Compute Gallery name."
-  type        = string
-  default     = "PrivilegedAccessWorkstations"
 }
 
 variable "image_name" {

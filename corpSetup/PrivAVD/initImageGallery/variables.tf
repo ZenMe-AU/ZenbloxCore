@@ -14,14 +14,8 @@ variable "location" {
   type        = string
 }
 
-variable "IMAGE_RG" {
-  description = "Resource group that receives the built managed image"
-  type        = string
-  default     = "privavd"
-}
-
-variable "gallery_name" {
-  description = "Azure Compute Gallery that receives the image version"
+variable "GALLERY_RG" {
+  description = "Name used for both the Azure Compute Gallery resource group and gallery."
   type        = string
   default     = "privavd"
 }

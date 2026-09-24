@@ -14,7 +14,7 @@ provider "azurerm" {
 }
 
 resource "azurerm_resource_group" "paw_image" {
-  name     = var.IMAGE_RG
+  name     = var.GALLERY_RG
   location = var.location
 
   tags = {
@@ -25,7 +25,7 @@ resource "azurerm_resource_group" "paw_image" {
 # Packer's shared_image_gallery_destination only adds an image version - the
 # gallery and image definition must already exist before a build runs.
 resource "azurerm_shared_image_gallery" "paw" {
-  name                = var.gallery_name
+  name                = var.GALLERY_RG
   resource_group_name = azurerm_resource_group.paw_image.name
   location            = azurerm_resource_group.paw_image.location
   description         = "Golden images for Privileged Access Workstations"

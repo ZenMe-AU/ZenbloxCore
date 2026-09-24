@@ -23,8 +23,7 @@ $packerVars = @(
     "-var", "subscription_id=$TF_VAR_subscription_id",
     "-var", "location=$targetLocation",
     "-var", "build_vm_size=$BUILD_VM_SIZE",
-    "-var", "gallery_rg=$TF_VAR_IMAGE_RG",
-    "-var", "gallery_name=$TF_VAR_gallery_name",
+    "-var", "gallery_rg=$TF_VAR_GALLERY_RG",
     "-var", "image_name=$TF_VAR_image_name",
     "-var", "image_version=$imageVersion"
 )

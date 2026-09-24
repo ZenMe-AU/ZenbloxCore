@@ -32,13 +32,7 @@ variable "build_vm_size" {
 }
 
 variable "gallery_rg" {
-  description = "Resource group that contains the Azure Compute Gallery"
-  type        = string
-  default     = "privavd"
-}
-
-variable "gallery_name" {
-  description = "Azure Compute Gallery that receives the image version"
+  description = "Name used for both the Azure Compute Gallery resource group and gallery"
   type        = string
   default     = "privavd"
 }
@@ -82,7 +76,7 @@ source "azure-arm" "paw" {
   shared_image_gallery_destination {
     subscription         = var.subscription_id
     resource_group       = var.gallery_rg
-    gallery_name         = var.gallery_name
+    gallery_name         = var.gallery_rg
     image_name           = var.image_name
     image_version        = var.image_version
     replication_regions  = [var.location]
