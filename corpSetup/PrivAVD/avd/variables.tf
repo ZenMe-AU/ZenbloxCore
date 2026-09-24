@@ -6,7 +6,6 @@ variable "subscription_id" {
 variable "location" {
   description = "Azure region for the AVD resources."
   type        = string
-  default     = "eastus"
 }
 
 variable "resource_group_name" {

@@ -11,7 +11,7 @@ are the only supported tools, so state stays consistent and reproducible.
 terraform init
 terraform apply
 
-.\build.ps1
+..\buildImage\build.ps1
 ```
 
 ## References:
@@ -21,5 +21,5 @@ https://getnerdio.com/blog/privileged-access-workstation-avd-windows-365/
 Prepare your .env file
 Run files in this order
 init.ps1
-build.ps1
+buildImage\build.ps1
 deployPAW.ps1

@@ -25,7 +25,7 @@ terraform apply avd.tfplan
 ```
 
 Required values are `subscription_id` and `image_version`. `image_version` must
-be the exact version emitted by `..\build.ps1`. Terraform generates the local
+be the exact version emitted by `..\buildImage\build.ps1`. Terraform generates the local
 administrator password and stores it as sensitive state; it is not output.
 
 The module creates the VNet, subnets, NSG, route table, Azure Firewall, and
@@ -51,6 +51,9 @@ uses that resource group. The existing Compute Gallery image is read through a
 data source and remains in `GALLERY_RG`; it is not created or moved by this
 module. The script keeps a separate Terraform workspace for each target
 resource group, preventing stale state from another group from being applied.
+Set `AVD_LOCATION` to the Azure region name, such as `eastus`. The script uses
+that region for every created resource and selects only an image version that
+has been replicated there.
 
 Azure Firewall Standard has a material recurring cost. This is intentional: an
 NSG alone cannot restrict encrypted outbound traffic by required AVD FQDNs.

@@ -70,13 +70,14 @@ Import-DotEnv -Path $envFile
 
 # Reuse the existing PrivAVD .env names and support TF_VAR_* names directly.
 Set-TerraformVariable -TerraformName "subscription_id" -SourceNames @("TF_VAR_subscription_id") -Required
-Set-TerraformVariable -TerraformName "location" -SourceNames @("TF_VAR_location")
+Set-TerraformVariable -TerraformName "location" -SourceNames @("AVD_LOCATION", "TF_VAR_location") -Required
 Set-TerraformVariable -TerraformName "resource_group_name" -SourceNames @("AVD_RESOURCE_GROUP", "TF_VAR_resource_group_name") -Required
 Set-TerraformVariable -TerraformName "gallery_resource_group_name" -SourceNames @("GALLERY_RG", "TF_VAR_IMAGE_RG")
 Set-TerraformVariable -TerraformName "gallery_name" -SourceNames @("TF_VAR_gallery_name")
 Set-TerraformVariable -TerraformName "image_name" -SourceNames @("TF_VAR_image_name")
 
 $subscriptionId = [Environment]::GetEnvironmentVariable("TF_VAR_subscription_id", "Process")
+$targetLocation = [Environment]::GetEnvironmentVariable("TF_VAR_location", "Process")
 $targetResourceGroup = [Environment]::GetEnvironmentVariable("TF_VAR_resource_group_name", "Process")
 $galleryResourceGroup = [Environment]::GetEnvironmentVariable("TF_VAR_gallery_resource_group_name", "Process")
 $galleryName = [Environment]::GetEnvironmentVariable("TF_VAR_gallery_name", "Process")
@@ -95,17 +96,22 @@ if ($LASTEXITCODE -ne 0) {
 
 $imageVersions = @($imageVersionsJson | ConvertFrom-Json)
 $latestImageVersion = $imageVersions |
-Where-Object { $_.name -and $_.publishingProfile.publishedDate } |
+Where-Object {
+    $targetRegions = @($_.publishingProfile.targetRegions)
+    $_.name -and
+    $_.publishingProfile.publishedDate -and
+    ($targetRegions | Where-Object { $_.name -ieq $targetLocation })
+} |
 Sort-Object { [DateTime]$_.publishingProfile.publishedDate } -Descending |
 Select-Object -First 1
 
 if ($null -eq $latestImageVersion) {
-    throw "No published image versions were found for $galleryName/$imageName in resource group $galleryResourceGroup."
+    throw "No published image versions for $galleryName/$imageName are replicated to Azure region '$targetLocation'."
 }
 
 [Environment]::SetEnvironmentVariable("TF_VAR_image_version", $latestImageVersion.name, "Process")
-Write-Host "Using latest Azure Compute Gallery image version: $($latestImageVersion.name)"
-Write-Host "Deploying all AVD resources to resource group: $targetResourceGroup"
+Write-Host "Using latest Azure Compute Gallery image version in ${targetLocation}: $($latestImageVersion.name)"
+Write-Host "Deploying all AVD resources to resource group '$targetResourceGroup' in '$targetLocation'"
 
 Push-Location $terraformDirectory
 try {
