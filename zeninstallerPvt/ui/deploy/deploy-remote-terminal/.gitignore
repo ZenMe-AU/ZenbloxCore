@@ -1,6 +1,0 @@
-.env
-env/terraform.auto.tfvars.json
-env/.terraform/
-env/.terraform.lock.hcl
-env/*.tfstate
-env/*.tfstate.*
