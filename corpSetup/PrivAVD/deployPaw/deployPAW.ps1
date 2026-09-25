@@ -1,5 +1,6 @@
 param(
-    [switch]$PlanOnly
+    [switch]$PlanOnly,
+    [switch]$Import
 )
 
 $ErrorActionPreference = "Stop"
@@ -70,12 +71,6 @@ $galleryResourceGroup = Get-RequiredEnvironmentVariable -Name "TF_VAR_GALLERY_RG
 $galleryName = $galleryResourceGroup
 $imageName = Get-RequiredEnvironmentVariable -Name "TF_VAR_IMAGE_NAME"
 
-# variables.tf defaults this to PawUsers, so that is the name `apply` would create when .env leaves it unset.
-$pawLoginGroupName = [Environment]::GetEnvironmentVariable("TF_VAR_PAW_GROUP", "Process")
-if ([string]::IsNullOrWhiteSpace($pawLoginGroupName)) {
-    $pawLoginGroupName = "PawUsers"
-}
-
 $imageVersionsJson = az sig image-version list `
     --subscription $subscriptionId `
     --resource-group $galleryResourceGroup `
@@ -110,6 +105,10 @@ if ($null -eq $latestImageVersion) {
 Write-Host "Using latest Azure Compute Gallery image version in ${targetLocation}: $($latestImageVersion.name)"
 Write-Host "Deploying all AVD resources to resource group '$targetResourceGroup' in '$targetLocation'"
 
+if ($Import) {
+    & (Join-Path $scriptDirectory "importPAW.ps1")
+}
+
 Push-Location $terraformDirectory
 try {
     terraform init -input=false
@@ -122,39 +121,6 @@ try {
         terraform workspace new $targetResourceGroup
         if ($LASTEXITCODE -ne 0) {
             throw "Unable to select or create Terraform workspace '$targetResourceGroup'."
-        }
-    }
-
-    $avdState = @(terraform state list 2>$null)
-    if ($avdState -notcontains "azuread_group.paw_login") {
-        $existingGroupId = az ad group list --filter "displayName eq '$pawLoginGroupName'" --query "[0].id" -o tsv
-        if ($LASTEXITCODE -ne 0) {
-            throw "Unable to look up the Entra ID group '$pawLoginGroupName'. Confirm Azure CLI login and directory read access."
-        }
-
-        if (-not [string]::IsNullOrWhiteSpace($existingGroupId)) {
-            Write-Host "Importing existing Entra ID group '$pawLoginGroupName' ($existingGroupId) into azuread_group.paw_login..."
-            # azuread_group's import id is the object id behind /groups/, not the bare GUID.
-            terraform import "azuread_group.paw_login" "/groups/$existingGroupId"
-            if ($LASTEXITCODE -ne 0) {
-                throw "terraform import of azuread_group.paw_login failed with exit code $LASTEXITCODE."
-            }
-        }
-    }
-
-    if ($avdState -notcontains "azuread_group.privileged_accounts") {
-        $existingGroupId = az ad group list --filter "displayName eq 'PrivilegedAccounts'" --query "[0].id" -o tsv
-        if ($LASTEXITCODE -ne 0) {
-            throw "Unable to look up the Entra ID group 'PrivilegedAccounts'. Confirm Azure CLI login and directory read access."
-        }
-
-        if (-not [string]::IsNullOrWhiteSpace($existingGroupId)) {
-            Write-Host "Importing existing Entra ID group 'PrivilegedAccounts' ($existingGroupId) into azuread_group.privileged_accounts..."
-            # azuread_group's import id is the object id behind /groups/, not the bare GUID.
-            terraform import "azuread_group.privileged_accounts" "/groups/$existingGroupId"
-            if ($LASTEXITCODE -ne 0) {
-                throw "terraform import of azuread_group.privileged_accounts failed with exit code $LASTEXITCODE."
-            }
         }
     }
 

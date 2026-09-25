@@ -28,7 +28,13 @@ $packerVars = @(
     "-var", "IMAGE_VERSION=$imageVersion"
 )
 
-packer init $packerTemplate
-packer validate @packerVars $packerTemplate
-packer inspect $packerTemplate
-packer build @packerVars $packerTemplate
+Push-Location $PSScriptRoot
+try {
+    packer init $packerTemplate
+    packer validate @packerVars $packerTemplate
+    packer inspect $packerTemplate
+    packer build @packerVars $packerTemplate
+}
+finally {
+    Pop-Location
+}
