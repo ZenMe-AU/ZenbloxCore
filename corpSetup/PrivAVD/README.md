@@ -118,6 +118,9 @@ PAW network policy.
 
 - [ ] Store PAW user data and profile configuration in a persistent service that
     can be backed up and restored easily onto a newly created PAW host.
+- [ ] Decide whether administrators who need local elevation require personal
+    session hosts instead of the current pooled host.
+- [ ] Establish image patching, security monitoring, and restore-testing procedures.
 
 ## Folder responsibilities
 
@@ -128,15 +131,16 @@ PAW network policy.
 
 ## Design decisions
 
+- Image versions are immutable; each build publishes a new version.
+- Network access is denied by default and only required PAW services are allowed.
+- Deallocation is used for cost control and does not mean deletion.
+- The PAW runtime resource group is replaceable, but local user data requires
+    backup before recreation.
+
 - Image initialization, image building, and PAW deployment are separate stages.
 - Gallery and PAW deployment state are kept separate.
 - Configuration is shared through uppercase `TF_VAR_*` values in `.env`.
-- Image versions are immutable; each build publishes a new version.
-- The PAW runtime resource group is disposable and recreated instead of repaired.
+- Local state deletion never deletes online resources.
 - Imports are deliberately limited and require empty state.
 - Importing too little is preferred to managing an unrelated online resource.
-- Local state deletion never deletes online resources.
 - Broken online environments are removed as complete resource groups, not patched piecemeal.
-- The infrastructure is replaceable, but local user data requires backup before recreation.
-- Deallocation is used for cost control and does not mean deletion.
-- Network access is denied by default and only required PAW services are allowed.
