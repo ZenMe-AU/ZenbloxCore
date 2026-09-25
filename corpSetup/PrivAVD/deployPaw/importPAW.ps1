@@ -36,6 +36,21 @@ if ([string]::IsNullOrWhiteSpace($targetResourceGroup)) {
     throw "Required PAW setting 'TF_VAR_PAW_RG' is missing from $envFile."
 }
 
+$subscriptionId = [Environment]::GetEnvironmentVariable("TF_VAR_SUBSCRIPTION_ID", "Process")
+$galleryResourceGroup = [Environment]::GetEnvironmentVariable("TF_VAR_GALLERY_RG", "Process")
+$imageName = [Environment]::GetEnvironmentVariable("TF_VAR_IMAGE_NAME", "Process")
+$latestImageVersion = az sig image-version list `
+    --subscription $subscriptionId `
+    --resource-group $galleryResourceGroup `
+    --gallery-name $galleryResourceGroup `
+    --gallery-image-definition $imageName `
+    --query "sort_by([], &publishingProfile.publishedDate)[-1].name" `
+    --output tsv
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($latestImageVersion)) {
+    throw "Unable to resolve a published image version from the PAW gallery settings in $envFile."
+}
+[Environment]::SetEnvironmentVariable("TF_VAR_IMAGE_VERSION", $latestImageVersion, "Process")
+
 $pawLoginGroupName = [Environment]::GetEnvironmentVariable("TF_VAR_PAW_GROUP", "Process")
 if ([string]::IsNullOrWhiteSpace($pawLoginGroupName)) {
     $pawLoginGroupName = "PawUsers"
@@ -88,7 +103,7 @@ try {
 
     foreach ($resource in $imports) {
         Write-Host "Importing $($resource.Address)..."
-        terraform import $resource.Address $resource.Id
+        terraform import -input=false $resource.Address $resource.Id
         if ($LASTEXITCODE -ne 0) {
             throw "terraform import of $($resource.Address) failed with exit code $LASTEXITCODE."
         }
