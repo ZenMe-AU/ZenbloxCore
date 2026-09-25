@@ -60,6 +60,18 @@ export function toHttpResponse(error) {
     };
   }
 
+  // Azure SDK errors carry statusCode; a 403 there means the caller's RBAC does not cover the resource.
+  if (typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode < 600) {
+    const forbidden = error.statusCode === 403;
+    return {
+      status: error.statusCode,
+      jsonBody: {
+        error: forbidden ? "Forbidden" : error.message,
+        meta: { code: error.code, ...(forbidden && { reason: "insufficient_permissions" }) },
+      },
+    };
+  }
+
   // Pass through HTTP status from upstream APIs (e.g. Octokit errors carry .status)
   if (typeof error.status === "number" && error.status >= 400 && error.status < 600) {
     return {

@@ -4,10 +4,20 @@
     "FUNCTIONS_WORKER_RUNTIME": "node",
     "AzureWebJobsStorage": "",
     "ALLOWED_ORIGINS": "http://localhost:5173,https://www.zeninstaller.com",
-    "GITHUB_TOKEN": "",
-    "WEBPUBSUB_ENDPOINT": "<your-webpubsub-hostname>",
+
+    "GITHUB_TOKEN": "<a personal access token, so local runs skip the OAuth flow>",
+    "GITHUB_OAUTH_CLIENT_SECRET": "<the GitHub OAuth app's client secret, for getGhToken>",
+
+    "WEBPUBSUB_ENDPOINT": "<name>.webpubsub.azure.com",
     "HUB_NAME": "terminal",
-    "SESSION_TABLE_ACCOUNT_NAME": "<your-storage-account>",
-    "SESSION_TABLE_NAME": "sessions"
+    "SESSION_TABLE_ACCOUNT_NAME": "<storage account holding the session table>",
+    "SESSION_TABLE_NAME": "sessions",
+
+    "WEBPUBSUB_RESOURCE_ID": "<local only: /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.SignalRService/webPubSub/<name>>",
+    "SESSION_TABLE_RESOURCE_ID": "<local only: /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Storage/storageAccounts/<name>>",
+
+    "FUNCTION_TENANT_ID": "<unused: only obo.js reads it>",
+    "FUNCTION_CLIENT_ID": "<unused: only obo.js reads it>",
+    "FUNCTION_CLIENT_SECRET": "<unused: only obo.js reads it>"
   }
 }

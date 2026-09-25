@@ -1,4 +1,5 @@
 import { toHttpResponse } from "../error/index.js";
+import { GH_TOKEN_HEADER, MS_TOKEN_HEADER } from "./auth.js";
 
 function getAllowList() {
   return (process.env.ALLOWED_ORIGINS || "")
@@ -26,7 +27,7 @@ export function getAllowedOrigin(origin) {
   return "";
 }
 
-export function buildCorsResponse({ origin, status = 200, headers = {}, jsonBody } = {}) {
+export function buildCorsResponse({ origin, status = 200, headers = {}, jsonBody, body } = {}) {
   const allowedOrigin = getAllowedOrigin(origin);
 
   const corsHeaders = allowedOrigin
@@ -34,7 +35,7 @@ export function buildCorsResponse({ origin, status = 200, headers = {}, jsonBody
         "Access-Control-Allow-Origin": allowedOrigin,
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-CSRF-Token",
+        "Access-Control-Allow-Headers": `Content-Type, X-CSRF-Token, ${GH_TOKEN_HEADER}, ${MS_TOKEN_HEADER}`,
       }
     : {};
   return {
@@ -44,6 +45,7 @@ export function buildCorsResponse({ origin, status = 200, headers = {}, jsonBody
       ...headers,
     },
     ...(jsonBody !== undefined && { jsonBody }),
+    ...(body !== undefined && { body }), // Raw bytes for large files (e.g. the backend package).
   };
 }
 

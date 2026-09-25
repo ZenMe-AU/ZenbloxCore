@@ -11,7 +11,13 @@ dist
 dist-ssr
 *.local
 
+# VitePress
+docs/.vitepress/dist
+docs/.vitepress/cache
+.env
 # Editor directories and files
+.vscode/*
+!.vscode/extensions.json
 .idea
 .DS_Store
 *.suo
@@ -21,12 +27,11 @@ dist-ssr
 *.sw?
 package-lock.json
 */package-lock.json
-
 api/src/module/shared/db/migration
-ui/.react-router
 
-#Build files
-
+# Playwright
+/pwtest/test-results/
+.auth/
 
 
 # Terraform files
@@ -34,5 +39,4 @@ ui/.react-router
 terraform.tfstate.backup
 .terraform.*
 .terraform/
-.env
 planfile

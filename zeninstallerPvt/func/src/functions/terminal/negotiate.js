@@ -1,47 +1,50 @@
 import { app } from "@azure/functions";
+import { requireAuth } from "../../utils/auth.js";
+import { anyOf } from "../../utils/rbac.js";
 import { corsWrapper } from "../../utils/cors.js";
-import { Forbidden, HttpError, MissingParam, NotFound } from "../../error/index.js";
-import { SESSION_PARTITION_KEY, deleteSessionEntity, getTableClient } from "../../utils/sessionTable.js";
+import { Forbidden, HttpError, MissingParam, logError } from "../../error/index.js";
+import { deleteSessionEntity, getTableClient, readSession } from "../../utils/sessionTable.js";
 import { getPubSubClient, normalizeTokenResponse } from "../../utils/webPubSub.js";
 
 app.http("negotiate", {
   methods: ["POST"],
   route: "terminal/negotiate",
   authLevel: "anonymous",
-  handler: corsWrapper(async (request) => {
-    const sessionId = request.query.get("session");
-    const token = request.query.get("token");
+  handler: corsWrapper(
+    requireAuth({
+      ms: true,
+      msRbac: [anyOf("Storage Table Data Reader", "Storage Table Data Contributor"), "Web PubSub Service Owner"],
+    })(async (request) => {
+      const sessionId = request.query.get("session");
+      const token = request.query.get("token");
 
-    if (!sessionId || !token) {
-      throw MissingParam({ meta: { required: ["session", "token"] } });
-    }
+      if (!sessionId || !token) {
+        throw MissingParam({ meta: { required: ["session", "token"] } });
+      }
 
-    const { tableClient, tableReadyPromise } = getTableClient();
-    await tableReadyPromise;
+      const tableClient = getTableClient();
 
-    let entity;
-    try {
-      entity = await tableClient.getEntity(SESSION_PARTITION_KEY, sessionId);
-    } catch (err) {
-      if (err?.statusCode === 404) throw NotFound({ cause: err, meta: { reason: "session_not_found" } });
-      throw err;
-    }
+      const session = await readSession(tableClient, sessionId);
 
-    if (Date.now() > Number(entity.expiresAt)) {
-      await deleteSessionEntity(sessionId);
-      throw new HttpError(410, "Session expired");
-    }
+      if (Date.now() > session.expiresAt) {
+        // Tell the caller the session expired even if this cleanup fails.
+        await deleteSessionEntity(tableClient, sessionId).catch(logError);
+        throw new HttpError(410, "Session expired");
+      }
 
-    if (entity.accessToken !== token) {
-      throw Forbidden({ meta: { reason: "invalid_session_token" } });
-    }
+      if (session.accessToken !== token) {
+        throw Forbidden({ meta: { reason: "invalid_session_token" } });
+      }
 
-    const wsClient = getPubSubClient();
-    const tokenResponse = await wsClient.getClientAccessToken({
-      roles: [`webpubsub.joinLeaveGroup.${sessionId}`, `webpubsub.sendToGroup.${sessionId}`],
-      expiresInMinutes: 30,
-    });
+      // Web PubSub publishes no delegated permission, so this one runs as the app.
+      // const wsClient = await getPubSubClient(request.auth.msToken);
+      const wsClient = getPubSubClient();
+      const tokenResponse = await wsClient.getClientAccessToken({
+        roles: [`webpubsub.joinLeaveGroup.${sessionId}`, `webpubsub.sendToGroup.${sessionId}`],
+        expiresInMinutes: 30,
+      });
 
-    return { jsonBody: { url: normalizeTokenResponse(tokenResponse) } };
-  }),
+      return { jsonBody: { url: normalizeTokenResponse(tokenResponse) } };
+    }),
+  ),
 });

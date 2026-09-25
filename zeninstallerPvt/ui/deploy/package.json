@@ -1,0 +1,20 @@
+{
+  "name": "deploy",
+  "version": "1.0.0",
+  "main": "deployer.js",
+  "type": "module",
+  "scripts": {
+    "gen": "node scripts/genTfVars.js",
+    "tf": "node scripts/genTfVars.js && terraform -chdir=env init && terraform -chdir=env apply",
+    "deploy": "node deployer.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@azure/identity": "^4.13.1",
+    "@azure/keyvault-secrets": "^4.11.1",
+    "dotenv": "^16.0.0"
+  }
+}
