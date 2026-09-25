@@ -5,6 +5,14 @@
       "path": "./",
     },
     {
+      "name": "zeninstallerPvt-ui",
+      "path": "zeninstallerPvt/ui",
+    },
+    {
+      "name": "zeninstallerPvt-func",
+      "path": "zeninstallerPvt/func",
+    },
+    {
       "name": "selfService-web",
       "path": "./selfService/web",
     },
@@ -61,6 +69,8 @@
       "./corpSetup/c25cloudfront/source/loginApp",
       "./selfService/web",
       "./selfService/backend",
+      "./zeninstallerPvt/func",
+      "./zeninstallerPvt/ui",
     ],
 
     // For Linux, set the NVM_DIR in VsCode to same NVM install dir as user shell
