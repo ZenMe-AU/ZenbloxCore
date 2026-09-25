@@ -15,17 +15,17 @@ if ([string]::IsNullOrWhiteSpace($targetLocation)) {
 $packerTemplate = Join-Path $PSScriptRoot "paw-image.pkr.hcl"
 
 # Gallery image versions must be unique, so the patch component is the current Unix time (fits Azure's uint32 version limit until year 2106).
-$imageVersion = "$IMAGE_VERSION.$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
+$imageVersion = "$TF_VAR_IMAGE_VERSION.$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
 
 # Pass the same values Terraform used to create the gallery/RG so Packer
 # publishes into the infra that actually exists, instead of its own defaults.
 $packerVars = @(
-    "-var", "subscription_id=$TF_VAR_subscription_id",
+    "-var", "SUBSCRIPTION_ID=$TF_VAR_SUBSCRIPTION_ID",
     "-var", "PAW_LOCATION=$targetLocation",
-    "-var", "build_vm_size=$BUILD_VM_SIZE",
-    "-var", "gallery_rg=$TF_VAR_GALLERY_RG",
-    "-var", "image_name=$TF_VAR_image_name",
-    "-var", "image_version=$imageVersion"
+    "-var", "BUILD_VM_SIZE=$TF_VAR_BUILD_VM_SIZE",
+    "-var", "GALLERY_RG=$TF_VAR_GALLERY_RG",
+    "-var", "IMAGE_NAME=$TF_VAR_IMAGE_NAME",
+    "-var", "IMAGE_VERSION=$imageVersion"
 )
 
 packer init $packerTemplate

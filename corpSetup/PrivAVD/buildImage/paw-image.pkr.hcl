@@ -14,7 +14,7 @@ packer {
   }
 }
 
-variable "subscription_id" {
+variable "SUBSCRIPTION_ID" {
   description = "Azure subscription used for the image build"
   type        = string
   default     = "51d0ca21-eaa5-4d34-aeb3-fa9f7d454b5d"
@@ -25,25 +25,25 @@ variable "PAW_LOCATION" {
   type        = string
 }
 
-variable "build_vm_size" {
+variable "BUILD_VM_SIZE" {
   description = "Size of the temporary VM used during the image build"
   type        = string
   default     = "Standard_B4ms"
 }
 
-variable "gallery_rg" {
+variable "GALLERY_RG" {
   description = "Name used for both the Azure Compute Gallery resource group and gallery"
   type        = string
   default     = "privavd"
 }
 
-variable "image_name" {
+variable "IMAGE_NAME" {
   description = "Gallery image definition name (stable handle, never changes)"
   type        = string
   default     = "PrivilegedWorkstation"
 }
 
-variable "image_version" {
+variable "IMAGE_VERSION" {
   description = "Gallery image version (semver); build.ps1 auto-generates this from the current time so every build adds a new version"
   type        = string
   default     = "1.0.0"
@@ -51,10 +51,10 @@ variable "image_version" {
 
 source "azure-arm" "paw" {
   use_azure_cli_auth = true
-  subscription_id    = var.subscription_id
+  subscription_id    = var.SUBSCRIPTION_ID
 
   location = var.PAW_LOCATION
-  vm_size  = var.build_vm_size
+  vm_size  = var.BUILD_VM_SIZE
   os_type  = "Windows"
 
   image_publisher = "MicrosoftWindowsDesktop"
@@ -74,11 +74,11 @@ source "azure-arm" "paw" {
   }
 
   shared_image_gallery_destination {
-    subscription         = var.subscription_id
-    resource_group       = var.gallery_rg
-    gallery_name         = var.gallery_rg
-    image_name           = var.image_name
-    image_version        = var.image_version
+    subscription         = var.SUBSCRIPTION_ID
+    resource_group       = var.GALLERY_RG
+    gallery_name         = var.GALLERY_RG
+    image_name           = var.IMAGE_NAME
+    image_version        = var.IMAGE_VERSION
     replication_regions  = [var.PAW_LOCATION]
     storage_account_type = "Standard_LRS"
   }

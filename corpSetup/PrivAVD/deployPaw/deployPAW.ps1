@@ -40,30 +40,17 @@ function Import-DotEnv {
     }
 }
 
-function Set-TerraformVariable {
+function Get-RequiredEnvironmentVariable {
     param(
-        [Parameter(Mandatory)] [string]$TerraformName,
-        [Parameter(Mandatory)] [string[]]$SourceNames,
-        [switch]$Required
+        [Parameter(Mandatory)] [string]$Name
     )
 
-    $terraformEnvironmentName = "TF_VAR_$TerraformName"
-    $value = $null
-
-    foreach ($sourceName in $SourceNames) {
-        $value = [Environment]::GetEnvironmentVariable($sourceName, "Process")
-        if (-not [string]::IsNullOrWhiteSpace($value)) {
-            break
-        }
+    $value = [Environment]::GetEnvironmentVariable($Name, "Process")
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        throw "Required PAW setting '$Name' is missing from $envFile."
     }
 
-    if ($Required -and [string]::IsNullOrWhiteSpace($value)) {
-        throw "Required AVD setting is missing. Add one of [$($SourceNames -join ', ')] to $envFile."
-    }
-
-    if (-not [string]::IsNullOrWhiteSpace($value)) {
-        [Environment]::SetEnvironmentVariable($terraformEnvironmentName, $value, "Process")
-    }
+    return $value
 }
 
 function ConvertTo-NormalizedAzureRegion {
@@ -76,20 +63,12 @@ function ConvertTo-NormalizedAzureRegion {
 
 Import-DotEnv -Path $envFile
 
-# Reuse the existing PrivAVD .env names and support TF_VAR_* names directly.
-Set-TerraformVariable -TerraformName "subscription_id" -SourceNames @("TF_VAR_subscription_id") -Required
-Set-TerraformVariable -TerraformName "PAW_LOCATION" -SourceNames @("TF_VAR_PAW_LOCATION") -Required
-Set-TerraformVariable -TerraformName "PAW_RG" -SourceNames @("TF_VAR_PAW_RG") -Required
-Set-TerraformVariable -TerraformName "PAW_GROUP" -SourceNames @("TF_VAR_PAW_GROUP")
-Set-TerraformVariable -TerraformName "gallery_resource_group_name" -SourceNames @("TF_VAR_GALLERY_RG") -Required
-Set-TerraformVariable -TerraformName "image_name" -SourceNames @("TF_VAR_image_name")
-
-$subscriptionId = [Environment]::GetEnvironmentVariable("TF_VAR_subscription_id", "Process")
-$targetLocation = [Environment]::GetEnvironmentVariable("TF_VAR_PAW_LOCATION", "Process")
-$targetResourceGroup = [Environment]::GetEnvironmentVariable("TF_VAR_PAW_RG", "Process")
-$galleryResourceGroup = [Environment]::GetEnvironmentVariable("TF_VAR_gallery_resource_group_name", "Process")
+$subscriptionId = Get-RequiredEnvironmentVariable -Name "TF_VAR_SUBSCRIPTION_ID"
+$targetLocation = Get-RequiredEnvironmentVariable -Name "TF_VAR_PAW_LOCATION"
+$targetResourceGroup = Get-RequiredEnvironmentVariable -Name "TF_VAR_PAW_RG"
+$galleryResourceGroup = Get-RequiredEnvironmentVariable -Name "TF_VAR_GALLERY_RG"
 $galleryName = $galleryResourceGroup
-$imageName = [Environment]::GetEnvironmentVariable("TF_VAR_image_name", "Process")
+$imageName = Get-RequiredEnvironmentVariable -Name "TF_VAR_IMAGE_NAME"
 
 # variables.tf defaults this to PawUsers, so that is the name `apply` would create when .env leaves it unset.
 $pawLoginGroupName = [Environment]::GetEnvironmentVariable("TF_VAR_PAW_GROUP", "Process")
@@ -127,7 +106,7 @@ if ($null -eq $latestImageVersion) {
     throw "No published image versions for $galleryName/$imageName are replicated to Azure region '$targetLocation'."
 }
 
-[Environment]::SetEnvironmentVariable("TF_VAR_image_version", $latestImageVersion.name, "Process")
+[Environment]::SetEnvironmentVariable("TF_VAR_IMAGE_VERSION", $latestImageVersion.name, "Process")
 Write-Host "Using latest Azure Compute Gallery image version in ${targetLocation}: $($latestImageVersion.name)"
 Write-Host "Deploying all AVD resources to resource group '$targetResourceGroup' in '$targetLocation'"
 

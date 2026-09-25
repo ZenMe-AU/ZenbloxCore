@@ -10,7 +10,7 @@ terraform {
 
 provider "azurerm" {
   features {}
-  subscription_id = var.subscription_id
+  subscription_id = var.SUBSCRIPTION_ID
 }
 
 resource "azurerm_resource_group" "paw_image" {
@@ -32,7 +32,7 @@ resource "azurerm_shared_image_gallery" "paw" {
 }
 
 resource "azurerm_shared_image" "paw" {
-  name                = var.image_name
+  name                = var.IMAGE_NAME
   gallery_name        = azurerm_shared_image_gallery.paw.name
   resource_group_name = azurerm_resource_group.paw_image.name
   location            = azurerm_resource_group.paw_image.location

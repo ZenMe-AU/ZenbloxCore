@@ -1,18 +1,18 @@
 data "azurerm_shared_image_version" "paw" {
-  name                = var.image_version
-  image_name          = var.image_name
-  gallery_name        = var.gallery_resource_group_name
-  resource_group_name = var.gallery_resource_group_name
+  name                = var.IMAGE_VERSION
+  image_name          = var.IMAGE_NAME
+  gallery_name        = var.GALLERY_RG
+  resource_group_name = var.GALLERY_RG
 }
 
 resource "azurerm_resource_group" "avd" {
   name     = var.PAW_RG
   location = var.PAW_LOCATION
-  tags     = var.tags
+  tags     = var.TAGS
 }
 
 resource "azurerm_virtual_desktop_host_pool" "pooled" {
-  name                     = var.host_pool_name
+  name                     = var.HOST_POOL_NAME
   location                 = azurerm_resource_group.avd.location
   resource_group_name      = azurerm_resource_group.avd.name
   type                     = "Pooled"
@@ -21,27 +21,27 @@ resource "azurerm_virtual_desktop_host_pool" "pooled" {
   start_vm_on_connect      = true
   validate_environment     = false
   custom_rdp_properties    = "targetisaadjoined:i:1;"
-  tags                     = var.tags
+  tags                     = var.TAGS
 }
 
 resource "azurerm_virtual_desktop_workspace" "workspace" {
-  name                = var.workspace_name
+  name                = var.WORKSPACE_NAME
   location            = azurerm_resource_group.avd.location
   resource_group_name = azurerm_resource_group.avd.name
   friendly_name       = "Privileged Access Workstations"
   description         = "Shared multi-session PAW desktop workspace."
-  tags                = var.tags
+  tags                = var.TAGS
 }
 
 resource "azurerm_virtual_desktop_application_group" "desktop" {
-  name                = var.application_group_name
+  name                = var.APPLICATION_GROUP_NAME
   location            = azurerm_resource_group.avd.location
   resource_group_name = azurerm_resource_group.avd.name
   type                = "Desktop"
   host_pool_id        = azurerm_virtual_desktop_host_pool.pooled.id
   friendly_name       = "Privileged Access Workstations"
   description         = "Desktop application group for the pooled PAW host pool."
-  tags                = var.tags
+  tags                = var.TAGS
 }
 
 resource "azurerm_virtual_desktop_workspace_application_group_association" "desktop" {
@@ -55,12 +55,12 @@ resource "azurerm_virtual_desktop_host_pool_registration_info" "pooled" {
 }
 
 resource "azurerm_virtual_desktop_scaling_plan" "pooled" {
-  name                = "${var.host_pool_name}-scaling"
+  name                = "${var.HOST_POOL_NAME}-scaling"
   location            = azurerm_resource_group.avd.location
   resource_group_name = azurerm_resource_group.avd.name
-  time_zone           = var.timezone
+  time_zone           = var.TIMEZONE
   description         = "Deallocates the PAW session host whenever it has no active sessions."
-  tags                = var.tags
+  tags                = var.TAGS
 
   schedule {
     name                                 = "daily"

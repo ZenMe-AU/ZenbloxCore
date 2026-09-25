@@ -3,33 +3,33 @@ locals {
 }
 
 resource "azurerm_virtual_network" "avd" {
-  name                = "${var.host_pool_name}-vnet"
+  name                = "${var.HOST_POOL_NAME}-vnet"
   location            = azurerm_resource_group.avd.location
   resource_group_name = azurerm_resource_group.avd.name
-  address_space       = [var.virtual_network_address_space]
-  tags                = var.tags
+  address_space       = [var.VIRTUAL_NETWORK_ADDRESS_SPACE]
+  tags                = var.TAGS
 }
 
 resource "azurerm_subnet" "firewall" {
   name                 = "AzureFirewallSubnet"
   resource_group_name  = azurerm_resource_group.avd.name
   virtual_network_name = azurerm_virtual_network.avd.name
-  address_prefixes     = [var.firewall_subnet_address_prefix]
+  address_prefixes     = [var.FIREWALL_SUBNET_ADDRESS_PREFIX]
 }
 
 resource "azurerm_subnet" "session_hosts" {
   name                            = "session-hosts"
   resource_group_name             = azurerm_resource_group.avd.name
   virtual_network_name            = azurerm_virtual_network.avd.name
-  address_prefixes                = [var.session_host_subnet_address_prefix]
+  address_prefixes                = [var.SESSION_HOST_SUBNET_ADDRESS_PREFIX]
   default_outbound_access_enabled = false
 }
 
 resource "azurerm_network_security_group" "session_hosts" {
-  name                = "${var.host_pool_name}-session-hosts-nsg"
+  name                = "${var.HOST_POOL_NAME}-session-hosts-nsg"
   location            = azurerm_resource_group.avd.location
   resource_group_name = azurerm_resource_group.avd.name
-  tags                = var.tags
+  tags                = var.TAGS
 
   security_rule {
     name                       = "DenyAllInbound"
@@ -51,8 +51,8 @@ resource "azurerm_network_security_group" "session_hosts" {
     protocol                   = "Udp"
     source_port_range          = "*"
     destination_port_range     = "53"
-    source_address_prefix      = var.session_host_subnet_address_prefix
-    destination_address_prefix = var.firewall_subnet_address_prefix
+    source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
+    destination_address_prefix = var.FIREWALL_SUBNET_ADDRESS_PREFIX
   }
 
   security_rule {
@@ -63,8 +63,8 @@ resource "azurerm_network_security_group" "session_hosts" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "53"
-    source_address_prefix      = var.session_host_subnet_address_prefix
-    destination_address_prefix = var.firewall_subnet_address_prefix
+    source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
+    destination_address_prefix = var.FIREWALL_SUBNET_ADDRESS_PREFIX
   }
 
   security_rule {
@@ -86,21 +86,21 @@ resource "azurerm_subnet_network_security_group_association" "session_hosts" {
 }
 
 resource "azurerm_public_ip" "firewall" {
-  name                = "${var.host_pool_name}-firewall-pip"
+  name                = "${var.HOST_POOL_NAME}-firewall-pip"
   location            = azurerm_resource_group.avd.location
   resource_group_name = azurerm_resource_group.avd.name
   allocation_method   = "Static"
   sku                 = "Standard"
-  tags                = var.tags
+  tags                = var.TAGS
 }
 
 resource "azurerm_firewall_policy" "avd" {
-  name                     = "${var.host_pool_name}-firewall-policy"
+  name                     = "${var.HOST_POOL_NAME}-firewall-policy"
   location                 = azurerm_resource_group.avd.location
   resource_group_name      = azurerm_resource_group.avd.name
   sku                      = "Standard"
   threat_intelligence_mode = "Deny"
-  tags                     = var.tags
+  tags                     = var.TAGS
 
   dns {
     proxy_enabled = true
@@ -108,13 +108,13 @@ resource "azurerm_firewall_policy" "avd" {
 }
 
 resource "azurerm_firewall" "avd" {
-  name                = "${var.host_pool_name}-firewall"
+  name                = "${var.HOST_POOL_NAME}-firewall"
   location            = azurerm_resource_group.avd.location
   resource_group_name = azurerm_resource_group.avd.name
   sku_name            = "AZFW_VNet"
   sku_tier            = "Standard"
   firewall_policy_id  = azurerm_firewall_policy.avd.id
-  tags                = var.tags
+  tags                = var.TAGS
 
   ip_configuration {
     name                 = "configuration"
@@ -140,7 +140,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "avd_egress" {
 
     rule {
       name                  = "windows-virtual-desktop"
-      source_addresses      = [var.session_host_subnet_address_prefix]
+      source_addresses      = [var.SESSION_HOST_SUBNET_ADDRESS_PREFIX]
       destination_fqdn_tags = ["WindowsVirtualDesktop"]
 
       protocols {
@@ -151,7 +151,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "avd_egress" {
 
     rule {
       name              = "avd-registration-package"
-      source_addresses  = [var.session_host_subnet_address_prefix]
+      source_addresses  = [var.SESSION_HOST_SUBNET_ADDRESS_PREFIX]
       destination_fqdns = ["wvdportalstorageblob.blob.core.windows.net"]
 
       protocols {
@@ -169,7 +169,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "avd_egress" {
     rule {
       name                  = "entra-id"
       protocols             = ["TCP"]
-      source_addresses      = [var.session_host_subnet_address_prefix]
+      source_addresses      = [var.SESSION_HOST_SUBNET_ADDRESS_PREFIX]
       destination_addresses = ["AzureActiveDirectory"]
       destination_ports     = ["443"]
     }
@@ -177,7 +177,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "avd_egress" {
     rule {
       name                  = "extension-packages"
       protocols             = ["TCP"]
-      source_addresses      = [var.session_host_subnet_address_prefix]
+      source_addresses      = [var.SESSION_HOST_SUBNET_ADDRESS_PREFIX]
       destination_addresses = ["Storage.${var.PAW_LOCATION}"]
       destination_ports     = ["443"]
     }
@@ -185,7 +185,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "avd_egress" {
     rule {
       name              = "windows-activation"
       protocols         = ["TCP"]
-      source_addresses  = [var.session_host_subnet_address_prefix]
+      source_addresses  = [var.SESSION_HOST_SUBNET_ADDRESS_PREFIX]
       destination_fqdns = ["kms.core.windows.net"]
       destination_ports = ["1688"]
     }
@@ -193,11 +193,11 @@ resource "azurerm_firewall_policy_rule_collection_group" "avd_egress" {
 }
 
 resource "azurerm_route_table" "session_hosts" {
-  name                          = "${var.host_pool_name}-session-hosts-routes"
+  name                          = "${var.HOST_POOL_NAME}-session-hosts-routes"
   location                      = azurerm_resource_group.avd.location
   resource_group_name           = azurerm_resource_group.avd.name
   bgp_route_propagation_enabled = false
-  tags                          = var.tags
+  tags                          = var.TAGS
 
   route {
     name                   = "force-firewall-egress"

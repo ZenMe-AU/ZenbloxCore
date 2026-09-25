@@ -1,4 +1,4 @@
-variable "subscription_id" {
+variable "SUBSCRIPTION_ID" {
   description = "Azure subscription that contains the AVD deployment."
   type        = string
 }
@@ -13,95 +13,95 @@ variable "PAW_RG" {
   type        = string
 }
 
-variable "virtual_network_address_space" {
+variable "VIRTUAL_NETWORK_ADDRESS_SPACE" {
   description = "Address space for the isolated AVD virtual network."
   type        = string
   default     = "10.250.0.0/16"
 }
 
-variable "firewall_subnet_address_prefix" {
+variable "FIREWALL_SUBNET_ADDRESS_PREFIX" {
   description = "Address prefix for AzureFirewallSubnet. Must be /26 or larger."
   type        = string
   default     = "10.250.0.0/26"
 }
 
-variable "session_host_subnet_address_prefix" {
+variable "SESSION_HOST_SUBNET_ADDRESS_PREFIX" {
   description = "Address prefix for the isolated AVD session-host subnet."
   type        = string
   default     = "10.250.1.0/24"
 }
 
-variable "gallery_resource_group_name" {
+variable "GALLERY_RG" {
   description = "Name used for both the existing Azure Compute Gallery resource group and gallery."
   type        = string
   default     = "paw-gallery"
 }
 
-variable "image_name" {
+variable "IMAGE_NAME" {
   description = "Existing gallery image definition name."
   type        = string
   default     = "PrivilegedWorkstation"
 }
 
-variable "image_version" {
+variable "IMAGE_VERSION" {
   description = "Exact gallery image version published by build.ps1, for example 1.0.1720000000."
   type        = string
 }
 
-variable "host_pool_name" {
+variable "HOST_POOL_NAME" {
   description = "Azure Virtual Desktop host pool name."
   type        = string
   default     = "privavd-pooled"
 }
 
-variable "workspace_name" {
+variable "WORKSPACE_NAME" {
   description = "Azure Virtual Desktop workspace name."
   type        = string
   default     = "privavd-workspace"
 }
 
-variable "application_group_name" {
+variable "APPLICATION_GROUP_NAME" {
   description = "Azure Virtual Desktop desktop application group name."
   type        = string
   default     = "privavd-desktop"
 }
 
-variable "vm_size" {
+variable "VM_SIZE" {
   description = "Size of each pooled session host."
   type        = string
   default     = "Standard_D4s_v4"
 }
 
-variable "session_host_count" {
+variable "SESSION_HOST_COUNT" {
   description = "Number of session hosts. This PAW deployment is restricted to one host."
   type        = number
   default     = 1
 
   validation {
-    condition     = var.session_host_count == 1
-    error_message = "session_host_count must be exactly one for this PAW deployment."
+    condition     = var.SESSION_HOST_COUNT == 1
+    error_message = "SESSION_HOST_COUNT must be exactly one for this PAW deployment."
   }
 }
 
-variable "administrator_username" {
+variable "ADMINISTRATOR_USERNAME" {
   description = "Local administrator account created on each session host."
   type        = string
   default     = "avdadmin"
 }
 
-variable "registration_dsc_modules_url" {
+variable "REGISTRATION_DSC_MODULES_URL" {
   description = "Microsoft-hosted AVD session-host DSC package URL."
   type        = string
   default     = "https://wvdportalstorageblob.blob.core.windows.net/galleryartifacts/Configuration_1.0.02714.392.zip"
 }
 
-variable "timezone" {
+variable "TIMEZONE" {
   description = "Scaling-plan timezone in Windows timezone format."
   type        = string
   default     = "Eastern Standard Time"
 }
 
-variable "tags" {
+variable "TAGS" {
   description = "Tags applied to the resource group and session hosts."
   type        = map(string)
   default = {
