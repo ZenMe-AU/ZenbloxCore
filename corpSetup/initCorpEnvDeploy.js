@@ -1,5 +1,5 @@
 /**
- * @license SPDX-FileCopyrightText: © 2025 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
  * @license SPDX-License-Identifier: MIT
  */
 
@@ -207,7 +207,7 @@ function main() {
 
     if (planOnly) {
       console.log("Planning Terraform changes to tfplan");
-      execSync(`terraform plan -out=tfplan`, {
+      execSync(`terraform plan -lock=false -out=tfplan`, {
         stdio: "inherit",
         shell: true,
         cwd: resolve(__dirname, workingDirName),

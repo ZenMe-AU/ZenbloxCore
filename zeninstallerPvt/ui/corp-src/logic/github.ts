@@ -1,0 +1,27 @@
+// GitHub URL builders shared across corp-src.
+
+export const GITHUB_LOGIN_URL = "https://github.com/login";
+
+export function getGithubUserUrl(login: string): string {
+  return `https://github.com/${login}`;
+}
+
+export function getRepoUrl(repoFullName: string): string {
+  return `https://github.com/${repoFullName}`;
+}
+
+export function getEnvSettingsUrl(repoFullName: string, envId: number): string {
+  return `https://github.com/${repoFullName}/settings/environments/${envId}/edit`;
+}
+
+export function getEnvironmentsUrl(repoFullName: string): string {
+  return `https://github.com/${repoFullName}/settings/environments`;
+}
+
+export function getVariablesUrl(repoFullName: string): string {
+  return `https://github.com/${repoFullName}/settings/variables/actions`;
+}
+
+export function getWorkflowRunUrl(repoFullName: string, runId: string): string {
+  return `https://github.com/${repoFullName}/actions/runs/${runId}`;
+}

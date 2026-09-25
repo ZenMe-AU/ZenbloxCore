@@ -54,6 +54,7 @@ async function main() {
   let child = null;
   let joined = false;
   let finished = false;
+  let detached = false;
   let loginExitCode = 1;
 
   const send = (message) => {
@@ -231,8 +232,10 @@ async function main() {
     }
 
     if (payload.type === "endSession") {
-      console.log("Browser ended the session");
-      return finish();
+      console.log("Browser ended the session — detaching the terminal, the sign-in keeps running");
+      detached = true;
+      ws.close();
+      return;
     }
 
     if (!child) return;
@@ -241,7 +244,9 @@ async function main() {
   });
 
   ws.on("error", (err) => console.error("WebSocket error:", err.message));
-  ws.on("close", finish);
+  ws.on("close", () => {
+    if (!detached) finish();
+  });
 
   process.on("SIGTERM", finish);
   process.on("SIGINT", finish);
