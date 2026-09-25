@@ -1,4 +1,27 @@
 {
+  //This file is used to store local workspace settings.
+  // Azure Functions settings are duplicated for each workspace that uses azure functions.
+  // "azureFunctions.deploySubpath": "api",
+  // "azureFunctions.postDeployTask": "Install Dependencies",
+  // "azureFunctions.projectLanguage": "JavaScript",
+  // "azureFunctions.projectRuntime": "~4",
+  // "azureFunctions.projectLanguageModel": 4,
+  // "azureFunctions.preDeployTask": "npm prune (functions)",
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+  "endOfLine": "auto",
+  "workbench.editorAssociations": {
+    "*.copilotmd": "vscode.markdown.preview.editor",
+    "*.parquet": "duckdb.dataFileViewer",
+    "*.csv": "duckdb.dataFileViewer",
+    "*.tsv": "duckdb.dataFileViewer",
+    "*.xlsx": "duckdb.dataFileViewer"
+  },
+  "azureFunctions.projectSubpath": "module\\quest3Tier\\func",
+  "azurite.location": "${workspaceFolder}/azurite",
+  "azurite.debug": true,
+  "azurite.silent": true,
+  "eslint.workingDirectories": [{ "mode": "auto" }],
     "sarif-viewer.connectToGithubCodeScanning": "off",
     "cSpell.language": "en-AU",
     "cSpell.dictionaries": ["en-au"],
