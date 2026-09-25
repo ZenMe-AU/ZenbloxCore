@@ -3,6 +3,8 @@ packages:
   - corpSetup/c25cloudfront/source/loginApp
   - selfService/web
   - corpSetup/backend
+  - zeninstallerPvt/func
+  - zeninstallerPvt/ui
 injectWorkspacePackages: true
 allowBuilds:
   esbuild: true

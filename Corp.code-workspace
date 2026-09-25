@@ -5,6 +5,14 @@
       "path": "./",
     },
     {
+      "name": "zeninstallerPvt-ui",
+      "path": "zeninstallerPvt/ui",
+    },
+    {
+      "name": "zeninstallerPvt-func",
+      "path": "zeninstallerPvt/func",
+    },
+    {
       "name": "selfService-web",
       "path": "./selfService/web",
     },
@@ -62,10 +70,12 @@
     "eslint.enable": true,
     "eslint.lintTask.enable": true,
     "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
-    "eslint.workingDirectories": ["./",  
-  "./corpSetup/c25cloudfront/source/authGuardLambdaEdge",
-  "./corpSetup/c25cloudfront/source/loginApp",
-  "./selfService/web"],
+    "eslint.workingDirectories": [
+      "./",
+      "./corpSetup/c25cloudfront/source/authGuardLambdaEdge",
+      "./corpSetup/c25cloudfront/source/loginApp",
+      "./selfService/web",
+    ],
 
     // For Linux, set the NVM_DIR in VsCode to same NVM install dir as user shell
     "terminal.integrated.automationProfile.linux": {
