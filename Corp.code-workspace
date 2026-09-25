@@ -5,11 +5,11 @@
       "path": "./",
     },
     {
-      "name": "zeninstallerPvt-ui",
+      "name": "ui-zeninstallerPvt",
       "path": "zeninstallerPvt/ui",
     },
     {
-      "name": "zeninstallerPvt-func",
+      "name": "func-zeninstallerPvt",
       "path": "zeninstallerPvt/func",
     },
     {
