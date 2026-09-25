@@ -67,3 +67,16 @@ has been replicated there.
 
 Azure Firewall Standard has a material recurring cost. This is intentional: an
 NSG alone cannot restrict encrypted outbound traffic by required AVD FQDNs.
+
+## Design decisions
+
+- The PAW deployment has its own Terraform state and workspace per resource group.
+- The gallery image is read as an external dependency and is not managed here.
+- Exactly one pooled, Microsoft Entra joined session host is deployed.
+- Start VM on Connect starts the host; autoscale deallocates it when unused.
+- Runtime resources are contained in the configured PAW resource group.
+- Session hosts have no public IP and all outbound traffic crosses Azure Firewall.
+- Firewall rules allow only the Microsoft services required for AVD operation.
+- The local administrator password is generated and retained only in Terraform state.
+- Imports require empty state and only match clearly identified existing resources.
+- Planning happens before apply so proposed changes are visible and repeatable.

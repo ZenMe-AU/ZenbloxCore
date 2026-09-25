@@ -23,3 +23,12 @@ Run files in this order
 init.ps1
 buildImage\build.ps1
 deployPAW.ps1
+
+## Design decisions
+
+- Terraform owns the gallery resource group, gallery, and image definition.
+- Packer owns image versions; Terraform does not publish image content.
+- The gallery resource group and gallery use the same configured name.
+- The image definition is Windows, generalized, and Generation 2.
+- Gallery infrastructure has separate state from the PAW deployment.
+- Configuration comes from the shared parent `.env` file.
