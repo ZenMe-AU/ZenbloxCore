@@ -281,14 +281,14 @@ export function useRemoteTerminal(opts: {
     try {
       await registerSession(creds);
       setStatus("dispatching");
-      // await triggerRemoteLogin(account, repoName, {
-      //   workflowId,
-      //   githubEnvName: selectedEnv.name,
-      //   ref: selectedEnv.name,
-      //   sessionId: creds.sessionId,
-      //   dir,
-      //   planRunId,
-      // });
+      await triggerRemoteLogin(account, repoName, {
+        workflowId,
+        githubEnvName: selectedEnv.name,
+        ref: selectedEnv.name,
+        sessionId: creds.sessionId,
+        dir,
+        planRunId,
+      });
     } catch (e) {
       console.error("Failed to start the remote login session:", e);
       setStatus("error");
