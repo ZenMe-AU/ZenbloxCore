@@ -22,4 +22,4 @@ else
 fi
 
 echo "Continuing with deployment of local dependencies in PowerShell..."
-pwsh -NoProfile -File ./deploy/deploy.ps1
+pwsh -NoProfile -File ./portalEnv/deploy.ps1
