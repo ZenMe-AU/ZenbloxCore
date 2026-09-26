@@ -32,7 +32,7 @@ export type CorpStageCardModel = {
   repoName: string;
   selectedEnv: GhEnv | null;
   onVariableConfirmed: (key: string, value: string) => void;
-  onDeploy?: () => Promise<void>;
+  trackDeploy?: () => Promise<void>;
   onPlanSummary: (s: PlanSummary) => void;
   onRunStatusUpdate: () => Promise<void>;
   statusUpdateRunning: boolean;
@@ -109,7 +109,7 @@ export function useCorpStageCards({
       onToggle: () => onToggle(cardId),
       onRequirementClick,
     };
-    const onDeploy =
+    const trackDeploy =
       effectiveStatus === "success" && stage.runId && selectedEnv
         ? async () => {
             await plan.deployStage(stageDef.dir);
@@ -130,7 +130,7 @@ export function useCorpStageCards({
       repoName,
       selectedEnv,
       onVariableConfirmed,
-      onDeploy,
+      trackDeploy,
       onPlanSummary: (s) => plan.setStageSummary(stageDef.dir, s),
       onRunStatusUpdate: () => plan.onRun(stageDef.dir),
       statusUpdateRunning: run != null && run.error == null,

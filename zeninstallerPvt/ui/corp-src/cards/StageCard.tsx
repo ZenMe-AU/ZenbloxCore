@@ -261,7 +261,7 @@ type Props = {
   repoName: string;
   selectedEnv: GhEnv | null;
   onVariableConfirmed: (key: string, value: string) => void;
-  onDeploy?: () => Promise<void>;
+  trackDeploy?: () => Promise<void>;
   onPlanSummary: (s: PlanSummary) => void;
   onRunStatusUpdate: () => Promise<void>;
   statusUpdateRunning: boolean;
@@ -289,7 +289,7 @@ export default function StageCard({
   repoName,
   selectedEnv,
   onVariableConfirmed,
-  onDeploy,
+  trackDeploy,
   onPlanSummary,
   onRunStatusUpdate,
   statusUpdateRunning,
@@ -324,11 +324,11 @@ export default function StageCard({
     selectedEnv,
   });
   // Deploying is both halves: the terminal dispatches the run and carries the sign-in, then
-  // onDeploy starts polling for the report it will eventually record.
-  const handleDeploy =
-    onDeploy &&
+  // trackDeploy starts polling for the report it will eventually record.
+  const onDeploy =
+    trackDeploy &&
     (async () => {
-      if (await remoteTerminal.start()) await onDeploy();
+      if (await remoteTerminal.start()) await trackDeploy();
     });
 
   const onPlanSummaryRef = useRef(onPlanSummary);
@@ -549,7 +549,7 @@ export default function StageCard({
             summary={planSummary}
             loading={planLoading}
             error={planError}
-            onDeploy={handleDeploy}
+            onDeploy={onDeploy}
             stagesStale={deployDisabled}
             behind={isPlanBehind(stage, latestSha)}
             planSha={stage.planSha}
