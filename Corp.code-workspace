@@ -4,12 +4,20 @@
       "name": "ROOT",
       "path": "./",
     },
+        {
+      "name": "Core Env Deployer",
+      "path": "portalEnv",
+    },
     {
-      "name": "ui-zeninstallerPvt",
+      "name": "Portal Env Deployer",
+      "path": "portalEnv",
+    },
+        {
+      "name": "zeninstallerPvt-ui",
       "path": "zeninstallerPvt/ui",
     },
     {
-      "name": "func-zeninstallerPvt",
+      "name": "zeninstallerPvt-func",
       "path": "zeninstallerPvt/func",
     },
     {
