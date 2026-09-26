@@ -5,6 +5,14 @@
       "path": "./",
     },
     {
+      "name": "Core Env Deployer",
+      "path": "portalEnv",
+    },
+    {
+      "name": "Portal Env Deployer",
+      "path": "portalEnv",
+    },
+    {
       "name": "zeninstallerPvt-ui",
       "path": "zeninstallerPvt/ui",
     },
