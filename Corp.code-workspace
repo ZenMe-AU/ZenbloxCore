@@ -6,7 +6,7 @@
     },
     {
       "name": "Core Env Deployer",
-      "path": "portalEnv",
+      "path": "corpSetup",
     },
     {
       "name": "Portal Env Deployer",
