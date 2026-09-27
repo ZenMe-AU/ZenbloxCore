@@ -25,7 +25,6 @@ export default defineConfig({
     // A terminal reporter is what streams worker stdout/stderr (incl. pw:api) to the console.
     ["line"],
     ["html", { outputFolder: './pwtests/playwright-report', open: "never" }],
-    ["./pwtests/coverage/report-after-tests.mts"],
   ],
   timeout: 60_000,
   expect: {
@@ -77,7 +76,6 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
       },
-      dependencies: ["Setup Corp Github Auth", "Setup Corp Azure Login"],
     },
 
   ],
