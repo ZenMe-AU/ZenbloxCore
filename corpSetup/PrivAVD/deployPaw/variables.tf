@@ -110,10 +110,4 @@ variable "TAGS" {
   }
 }
 
-variable "PAW_GROUP" {
-  description = "Entra ID group created for PAW sign-in access."
-  type        = string
-  default     = "PawUsers"
-}
-
 

@@ -6,3 +6,9 @@ variable "subscription_id" {
   description = "The ID of the Azure Subscription"
   type        = string
 }
+
+variable "PAW_GROUP" {
+  description = "Entra ID group created for PAW sign-in access."
+  type        = string
+  default     = "PawUsers"
+}
