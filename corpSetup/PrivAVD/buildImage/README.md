@@ -18,6 +18,8 @@ image definition must already exist.
 ## Design decisions
 
 - The source is the latest Windows 11 multi-session AVD image.
+- Current Microsoft-signed AVD Agent and Boot Loader installers are staged in
+  the image but installed only after deployment with a host-pool registration token.
 - Hardening runs before the VM is restarted and generalized.
 - Each build publishes a new immutable timestamped image version.
 - The image is replicated to the configured PAW region.

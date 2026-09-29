@@ -88,6 +88,15 @@ source "azure-arm" "paw" {
 build {
   sources = ["source.azure-arm.paw"]
 
+  provisioner "file" {
+    source      = "register-avd-session-host.ps1"
+    destination = "C:\\Windows\\Temp\\register-avd-session-host.ps1"
+  }
+
+  provisioner "powershell" {
+    script = "img-stage-avd-registration.ps1"
+  }
+
   provisioner "powershell" {
     script = "img-harden-paw.ps1"
   }

@@ -60,36 +60,13 @@ resource "azurerm_virtual_machine_extension" "avd_register" {
   count                      = var.SESSION_HOST_COUNT
   name                       = "avd-registration"
   virtual_machine_id         = azurerm_windows_virtual_machine.session_host[count.index].id
-  publisher                  = "Microsoft.Powershell"
-  type                       = "DSC"
-  type_handler_version       = "2.73"
+  publisher                  = "Microsoft.Compute"
+  type                       = "CustomScriptExtension"
+  type_handler_version       = "1.10"
   auto_upgrade_minor_version = true
 
-  settings = jsonencode({
-    modulesUrl            = var.REGISTRATION_DSC_MODULES_URL
-    configurationFunction = "Configuration.ps1\\AddSessionHost"
-    properties = [
-      {
-        name  = "hostPoolName"
-        value = var.HOST_POOL_NAME
-        type  = "String"
-      },
-      {
-        name  = "registrationInfoToken"
-        value = azurerm_virtual_desktop_host_pool_registration_info.pooled.token
-        type  = "String"
-      },
-      {
-        name  = "aadJoin"
-        value = true
-        type  = "Boolean"
-      },
-      {
-        name  = "UseAgentDownloadEndpoint"
-        value = true
-        type  = "Boolean"
-      }
-    ]
+  protected_settings = jsonencode({
+    commandToExecute = "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File C:\\ProgramData\\PAW\\AvdRegistration\\register-avd-session-host.ps1 -RegistrationTokenBase64 ${base64encode(azurerm_virtual_desktop_host_pool_registration_info.pooled.token)}"
   })
 
   depends_on = [

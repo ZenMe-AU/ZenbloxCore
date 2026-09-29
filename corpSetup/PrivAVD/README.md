@@ -33,7 +33,8 @@ image definition.
 ```
 
 This hardens and generalizes Windows, then publishes a new timestamped image
-version to the gallery.
+version to the gallery. The image includes Microsoft-signed AVD Agent and Boot
+Loader installers plus the local registration script used after deployment.
 
 ### 3. Review and deploy the PAW
 
@@ -54,8 +55,8 @@ The deployment selects the newest image version replicated to
 
 ## Import existing resources
 
-Imports are intentionally conservative. They require empty deployment state and
-only import resources that can be matched clearly from `.env` and fixed names.
+Imports are intentionally conservative. They import only resources that can be
+matched clearly from `.env` and fixed names, and skip resources already in state.
 
 ```powershell
 .\importPAW.ps1
@@ -67,11 +68,9 @@ You can also import and then continue with deployment:
 .\deployPAW.ps1 -Import
 ```
 
-Do not use import to repair partial or uncertain state. If the online PAW
-environment is inconsistent, delete the complete PAW resource group and deploy
-it again. Entra groups are outside that resource group, so import those groups
-into empty state before redeploying. This avoids accidentally placing unrelated
-resources under this Terraform state.
+The importer can resume partial state and ignores discovered resources that are
+not declared by the current Terraform configuration. Ambiguous Entra groups are
+not imported automatically.
 
 ## Delete local Terraform state
 

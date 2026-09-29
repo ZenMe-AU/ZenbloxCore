@@ -89,12 +89,6 @@ variable "ADMINISTRATOR_USERNAME" {
   default     = "avdadmin"
 }
 
-variable "REGISTRATION_DSC_MODULES_URL" {
-  description = "Microsoft-hosted AVD session-host DSC package URL."
-  type        = string
-  default     = "https://wvdportalstorageblob.blob.core.windows.net/galleryartifacts/Configuration_1.0.02714.392.zip"
-}
-
 variable "TIMEZONE" {
   description = "Scaling-plan timezone in Windows timezone format."
   type        = string

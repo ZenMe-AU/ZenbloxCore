@@ -24,15 +24,15 @@ terraform plan -out avd.tfplan
 terraform apply avd.tfplan
 ```
 
-To import existing resources into a newly cleared workspace, run the standalone
-importer before deployment:
+To import existing resources, run the standalone importer before deployment:
 
 ```powershell
 ..\importPAW.ps1
 ```
 
-The importer requires completely empty Terraform state. Running
-`..\deployPAW.ps1 -Import` delegates to the same script before planning.
+The importer skips resources already in Terraform state, so it can safely resume
+an interrupted import or apply. Running `..\deployPAW.ps1 -Import` delegates to
+the same script before planning.
 
 Required values are `subscription_id` and `image_version`. `image_version` must
 be the exact version emitted by `..\buildImage\build.ps1`. Terraform generates the local
@@ -44,6 +44,11 @@ VNet peering, NAT gateway, or default Azure outbound access. All default-route
 traffic is forced through Azure Firewall. Its allowlist contains only the AVD
 control plane, Microsoft Entra ID, regional Azure Storage needed to install VM
 extensions, and Azure KMS activation. Windows Update is not allowed.
+
+The golden image contains Microsoft-signed AVD Agent and Boot Loader installers.
+At deployment, Custom Script Extension runs the local registration script with
+the short-lived host-pool token in protected settings. The retired PowerShell
+DSC extension and its public configuration package are not used.
 
 The hosts are Microsoft Entra joined, so no route to an external AD DS network
 is required. Assign users the Virtual Machine User Login or Virtual Machine
@@ -87,4 +92,4 @@ NSG alone cannot restrict encrypted outbound traffic by required AVD FQDNs.
 - The gallery image is read as an external dependency and is not managed here.
 - The PAW deployment has its own Terraform state and workspace per resource group.
 - Planning happens before apply so proposed changes are visible and repeatable.
-- Imports require empty state and only match clearly identified existing resources.
+- Imports discover clearly identified existing resources and skip objects already in state.

@@ -149,16 +149,6 @@ resource "azurerm_firewall_policy_rule_collection_group" "avd_egress" {
       }
     }
 
-    rule {
-      name              = "avd-registration-package"
-      source_addresses  = [var.SESSION_HOST_SUBNET_ADDRESS_PREFIX]
-      destination_fqdns = ["wvdportalstorageblob.blob.core.windows.net"]
-
-      protocols {
-        type = "Https"
-        port = 443
-      }
-    }
   }
 
   network_rule_collection {
