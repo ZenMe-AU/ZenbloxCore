@@ -38,12 +38,12 @@ Required values are `subscription_id` and `image_version`. `image_version` must
 be the exact version emitted by `..\buildImage\build.ps1`. Terraform generates the local
 administrator password and stores it as sensitive state; it is not output.
 
-The module creates the VNet, subnets, NSG, route table, Azure Firewall, and
-firewall policy in the AVD resource group. Session hosts have no public IP,
-VNet peering, NAT gateway, or default Azure outbound access. All default-route
-traffic is forced through Azure Firewall. Its allowlist contains only the AVD
-control plane, Microsoft Entra ID, regional Azure Storage needed to install VM
-extensions, and Azure KMS activation. Windows Update is not allowed.
+The module creates the VNet, session-host subnet, and NSG in the AVD resource
+group. Azure Firewall and its forced-egress route are temporarily commented out
+in `network.tf`; session hosts use default Azure outbound access, while private
+network egress remains denied by the NSG. Session hosts have no public IP, VNet
+peering, or NAT gateway. This temporary setup does not restrict internet egress
+to the AVD service allowlist.
 
 The golden image contains Microsoft-signed AVD Agent and Boot Loader installers.
 At deployment, Custom Script Extension runs the local registration script with
@@ -70,8 +70,10 @@ Set `TF_VAR_PAW_LOCATION` to the Azure region name, such as `eastus`. The script
 that region for every created resource and selects only an image version that
 has been replicated there.
 
-Azure Firewall Standard has a material recurring cost. This is intentional: an
-NSG alone cannot restrict encrypted outbound traffic by required AVD FQDNs.
+Azure Firewall Standard has a material recurring cost. Its configuration is
+temporarily commented out in `network.tf`; restore it when outbound traffic must
+be restricted to approved service endpoints. No NAT gateway is configured in
+this module.
 
 ## TODO
 
@@ -85,8 +87,9 @@ NSG alone cannot restrict encrypted outbound traffic by required AVD FQDNs.
 - Exactly one pooled, Microsoft Entra joined session host is deployed.
 - Start VM on Connect starts the host; autoscale deallocates it when unused.
 - Runtime resources are contained in the configured PAW resource group.
-- Session hosts have no public IP and all outbound traffic crosses Azure Firewall.
-- Firewall rules allow only the Microsoft services required for AVD operation.
+- Session hosts have no public IP and use default Azure outbound access while
+	the firewall configuration is commented out.
+- Private network egress from session hosts is denied by the NSG.
 - The local administrator password is generated and retained only in Terraform state.
 
 - The gallery image is read as an external dependency and is not managed here.

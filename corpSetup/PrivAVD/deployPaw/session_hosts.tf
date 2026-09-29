@@ -71,7 +71,7 @@ resource "azurerm_virtual_machine_extension" "avd_register" {
 
   depends_on = [
     azurerm_virtual_machine_extension.entra_login,
-    azurerm_firewall_policy_rule_collection_group.avd_egress,
-    azurerm_subnet_route_table_association.session_hosts
+    # azurerm_firewall_policy_rule_collection_group.avd_egress,
+    # azurerm_subnet_route_table_association.session_hosts
   ]
 }

@@ -1,6 +1,8 @@
+/*
 locals {
   firewall_private_ip = azurerm_firewall.avd.ip_configuration[0].private_ip_address
 }
+*/
 
 resource "azurerm_virtual_network" "avd" {
   name                = "${var.HOST_POOL_NAME}-vnet"
@@ -10,19 +12,21 @@ resource "azurerm_virtual_network" "avd" {
   tags                = var.TAGS
 }
 
+/*
 resource "azurerm_subnet" "firewall" {
   name                 = "AzureFirewallSubnet"
   resource_group_name  = azurerm_resource_group.avd.name
   virtual_network_name = azurerm_virtual_network.avd.name
   address_prefixes     = [var.FIREWALL_SUBNET_ADDRESS_PREFIX]
 }
+*/
 
 resource "azurerm_subnet" "session_hosts" {
   name                            = "session-hosts"
   resource_group_name             = azurerm_resource_group.avd.name
   virtual_network_name            = azurerm_virtual_network.avd.name
   address_prefixes                = [var.SESSION_HOST_SUBNET_ADDRESS_PREFIX]
-  default_outbound_access_enabled = false
+  default_outbound_access_enabled = true
 }
 
 resource "azurerm_network_security_group" "session_hosts" {
@@ -43,6 +47,7 @@ resource "azurerm_network_security_group" "session_hosts" {
     destination_address_prefix = "*"
   }
 
+  /*
   security_rule {
     name                       = "AllowFirewallDnsUdp"
     priority                   = 100
@@ -66,6 +71,7 @@ resource "azurerm_network_security_group" "session_hosts" {
     source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
     destination_address_prefix = var.FIREWALL_SUBNET_ADDRESS_PREFIX
   }
+  */
 
   security_rule {
     name                       = "DenyPrivateNetworkOutbound"
@@ -80,11 +86,7 @@ resource "azurerm_network_security_group" "session_hosts" {
   }
 }
 
-resource "azurerm_subnet_network_security_group_association" "session_hosts" {
-  subnet_id                 = azurerm_subnet.session_hosts.id
-  network_security_group_id = azurerm_network_security_group.session_hosts.id
-}
-
+/*
 resource "azurerm_public_ip" "firewall" {
   name                = "${var.HOST_POOL_NAME}-firewall-pip"
   location            = azurerm_resource_group.avd.location
@@ -148,7 +150,6 @@ resource "azurerm_firewall_policy_rule_collection_group" "avd_egress" {
         port = 443
       }
     }
-
   }
 
   network_rule_collection {
@@ -200,4 +201,10 @@ resource "azurerm_route_table" "session_hosts" {
 resource "azurerm_subnet_route_table_association" "session_hosts" {
   subnet_id      = azurerm_subnet.session_hosts.id
   route_table_id = azurerm_route_table.session_hosts.id
+}
+*/
+
+resource "azurerm_subnet_network_security_group_association" "session_hosts" {
+  subnet_id                 = azurerm_subnet.session_hosts.id
+  network_security_group_id = azurerm_network_security_group.session_hosts.id
 }
