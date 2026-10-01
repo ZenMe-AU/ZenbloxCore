@@ -1,3 +1,15 @@
+<#
+.SYNOPSIS
+Import existing resources when state is missing, then plan and apply PAW resources.
+
+.PARAMETER PlanOnly
+deployPAW.ps1 -PlanOnly
+Show the Terraform plan without applying it.
+
+.PARAMETER Import
+deployPAW.ps1 -Import
+Force an import scan even when Terraform state exists.
+#>
 param(
     [switch]$PlanOnly,
     [switch]$Import
@@ -105,10 +117,6 @@ if ($null -eq $latestImageVersion) {
 Write-Host "Using latest Azure Compute Gallery image version in ${targetLocation}: $($latestImageVersion.name)"
 Write-Host "Deploying all AVD resources to resource group '$targetResourceGroup' in '$targetLocation'"
 
-if ($Import) {
-    & (Join-Path $scriptDirectory "importPAW.ps1")
-}
-
 Push-Location $terraformDirectory
 try {
     terraform init -input=false
@@ -122,6 +130,23 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw "Unable to select or create Terraform workspace '$targetResourceGroup'."
         }
+    }
+
+    $stateOutput = @(terraform state list 2>&1)
+    $stateExitCode = $LASTEXITCODE
+    $stateIsMissing = ($stateOutput -join "`n") -match "No state file was found!"
+    if ($stateExitCode -ne 0 -and -not $stateIsMissing) {
+        throw "Unable to inspect Terraform state for workspace '$targetResourceGroup'."
+    }
+
+    $hasStateResources = $stateExitCode -eq 0 -and @(
+        $stateOutput | Where-Object { -not [string]::IsNullOrWhiteSpace("$_") }
+    ).Count -gt 0
+    if ($Import -or -not $hasStateResources) {
+        if (-not $Import) {
+            Write-Host "Terraform state is missing or empty; importing existing PAW resources."
+        }
+        & (Join-Path $scriptDirectory "importPAW.ps1")
     }
 
     terraform validate

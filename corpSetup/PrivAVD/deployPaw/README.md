@@ -24,15 +24,17 @@ terraform plan -out avd.tfplan
 terraform apply avd.tfplan
 ```
 
-To import existing resources, run the standalone importer before deployment:
+When the selected Terraform workspace has no state, deployment automatically
+scans Azure and imports existing PAW resources before planning. To force another
+scan when state already exists, run:
 
 ```powershell
-..\importPAW.ps1
+.\importPAW.ps1
 ```
 
 The importer skips resources already in Terraform state, so it can safely resume
-an interrupted import or apply. Running `..\deployPAW.ps1 -Import` delegates to
-the same script before planning.
+an interrupted import or apply. `.\deployPAW.ps1 -Import` forces this scan
+before planning.
 
 Required values are `subscription_id` and `image_version`. `image_version` must
 be the exact version emitted by `..\buildImage\build.ps1`. Terraform generates the local

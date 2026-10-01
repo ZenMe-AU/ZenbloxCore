@@ -95,6 +95,15 @@ try {
         }
     }
 
+    $resourceGroupExists = az group exists --subscription $subscriptionId --name $targetResourceGroup
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to check Azure resource group '$targetResourceGroup'. Confirm Azure CLI login and subscription access."
+    }
+    if ($resourceGroupExists -ne "true") {
+        Write-Host "Resource group '$targetResourceGroup' does not exist. Nothing to import."
+        return
+    }
+
     $state = @(terraform state list 2>$null)
     $stateAddresses = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     $state | ForEach-Object { $null = $stateAddresses.Add($_) }
@@ -112,11 +121,11 @@ try {
     $imports = [System.Collections.Generic.List[hashtable]]::new()
     $stateValues = @{}
     $stateDocument = terraform show -json | ConvertFrom-Json
-    foreach ($stateResource in @($stateDocument.values.root_module.resources)) {
+    foreach ($stateResource in @($stateDocument.values.root_module.resources) | Where-Object { $null -ne $_ -and -not [string]::IsNullOrWhiteSpace($_.address) }) {
         $stateValues[$stateResource.address] = $stateResource.values
     }
 
-    $pawLoginGroupId = $stateValues["azuread_group.paw_login"].object_id
+    $pawLoginGroupId = $stateValues["data.azuread_group.paw_login"].object_id
     $privilegedAccountsGroupId = $stateValues["azuread_group.privileged_accounts"].object_id
     if (-not $pawLoginGroupId -or -not $privilegedAccountsGroupId) {
         $pawCandidates = @(az ad group list --filter "displayName eq '$pawLoginGroupName'" --output json | ConvertFrom-Json)
@@ -150,13 +159,10 @@ try {
         if (-not $privilegedAccountsGroupId -and $privilegedCandidates.Count -eq 1) {
             $privilegedAccountsGroupId = $privilegedCandidates[0].id
         }
-        if (-not $pawLoginGroupId -or -not $privilegedAccountsGroupId) {
+        if (-not $pawLoginGroupId -and $pawCandidates.Count -gt 1) {
             throw "Multiple PAW Entra ID groups share the configured display names, and no unique membership pair could be identified. Remove stale duplicates or import the intended groups manually."
         }
     }
-
-    $imports.Add(@{ Address = "azuread_group.paw_login"; Id = "/groups/$pawLoginGroupId" })
-    $imports.Add(@{ Address = "azuread_group.privileged_accounts"; Id = "/groups/$privilegedAccountsGroupId" })
 
     $resourceGroupId = "/subscriptions/$subscriptionId/resourceGroups/$targetResourceGroup"
     $hostPoolId = "$resourceGroupId/providers/Microsoft.DesktopVirtualization/hostPools/$hostPoolName"
@@ -189,13 +195,7 @@ try {
         @{ Address = "azurerm_virtual_machine_extension.avd_register[0]"; Id = "$virtualMachineId/extensions/avd-registration" }
     )
 
-    $resourceGroupExists = az group exists --subscription $subscriptionId --name $targetResourceGroup
-    if ($LASTEXITCODE -ne 0) {
-        throw "Unable to check Azure resource group '$targetResourceGroup'. Confirm Azure CLI login and subscription access."
-    }
-    if ($resourceGroupExists -eq "true") {
-        $imports.Add(@{ Address = "azurerm_resource_group.avd"; Id = $resourceGroupId })
-    }
+    $imports.Add(@{ Address = "azurerm_resource_group.avd"; Id = $resourceGroupId })
 
     foreach ($resource in $azureResources) {
         if (Test-AzureResource $resource.Id) {
@@ -223,10 +223,12 @@ try {
         $imports.Add(@{ Address = "azurerm_virtual_network_dns_servers.avd"; Id = "$virtualNetworkId/dnsServers/default" })
     }
 
-    if ($pawLoginGroupId -and $privilegedAccountsGroupId) {
-        $membership = az ad group member check --group $pawLoginGroupId --member-id $privilegedAccountsGroupId --output json | ConvertFrom-Json
-        if ($LASTEXITCODE -eq 0 -and $membership.value) {
-            $imports.Add(@{ Address = "azuread_group_member.paw_login"; Id = "$pawLoginGroupId/member/$privilegedAccountsGroupId" })
+    if ($pawLoginGroupId) {
+        if ($privilegedAccountsGroupId) {
+            $membership = az ad group member check --group $pawLoginGroupId --member-id $privilegedAccountsGroupId --output json | ConvertFrom-Json
+            if ($LASTEXITCODE -eq 0 -and $membership.value) {
+                $imports.Add(@{ Address = "azuread_group_member.paw_login"; Id = "$pawLoginGroupId/member/$privilegedAccountsGroupId" })
+            }
         }
 
         $roleAssignments = @(
