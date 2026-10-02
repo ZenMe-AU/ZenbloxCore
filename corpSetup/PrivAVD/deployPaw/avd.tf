@@ -21,6 +21,7 @@ resource "azurerm_virtual_desktop_host_pool" "pooled" {
   location                 = azurerm_resource_group.avd.location
   resource_group_name      = azurerm_resource_group.avd.name
   type                     = "Pooled"
+  preferred_app_group_type = "Desktop" # Important: Remote app is available by default, but if desktop is enabled, remote app will disappear.
   maximum_sessions_allowed = 20
   load_balancer_type       = "BreadthFirst"
   start_vm_on_connect      = true
@@ -39,7 +40,7 @@ resource "azurerm_virtual_desktop_workspace" "workspace" {
 }
 
 resource "azurerm_virtual_desktop_application_group" "desktop" {
-  name                         = var.APPLICATION_GROUP_NAME
+  name                         = "${var.HOST_POOL_NAME}-Desktop"
   location                     = azurerm_resource_group.avd.location
   resource_group_name          = azurerm_resource_group.avd.name
   default_desktop_display_name = var.HOST_POOL_NAME
@@ -56,7 +57,7 @@ resource "azurerm_virtual_desktop_workspace_application_group_association" "desk
 }
 
 resource "azurerm_virtual_desktop_application_group" "remoteapp" {
-  name                = "${var.APPLICATION_GROUP_NAME}-ra"
+  name                = "${var.HOST_POOL_NAME}-RemoteApps"
   location            = azurerm_resource_group.avd.location
   resource_group_name = azurerm_resource_group.avd.name
   type                = "RemoteApp"
@@ -72,9 +73,9 @@ resource "azurerm_virtual_desktop_workspace_application_group_association" "remo
 }
 
 resource "azurerm_virtual_desktop_application" "edge" {
-  name                         = "edge"
+  name                         = "${var.HOST_POOL_NAME}-edge"
   application_group_id         = azurerm_virtual_desktop_application_group.remoteapp.id
-  friendly_name                = "Microsoft Edge"
+  friendly_name                = "${var.HOST_POOL_NAME}-MS Edge"
   description                  = "Microsoft Edge browser"
   path                         = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
   command_line_argument_policy = "DoNotAllow"
@@ -125,16 +126,49 @@ resource "azurerm_virtual_desktop_scaling_plan_host_pool_association" "pooled" {
   depends_on = [azurerm_role_assignment.avd_power_management]
 }
 
-# "Desktop Virtualization User" lets members enumerate and launch this application group; it does not grant Azure resource access.
-resource "azurerm_role_assignment" "paw_login_desktop" {
-  scope                = azurerm_virtual_desktop_application_group.desktop.id
-  role_definition_name = "Desktop Virtualization User"
-  principal_id         = data.azuread_group.paw_login.object_id
-}
-
 # "Virtual Machine User Login" lets members complete Entra ID authentication on the session hosts themselves.
-resource "azurerm_role_assignment" "paw_login_vm" {
+resource "azurerm_role_assignment" "paw_sso" {
   scope                = azurerm_resource_group.avd.id
   role_definition_name = "Virtual Machine User Login"
   principal_id         = data.azuread_group.paw_login.object_id
 }
+
+data "azurerm_role_definition" "desktop_user" {
+  name  = "Desktop Virtualization User"
+  scope = azurerm_virtual_desktop_application_group.desktop.id
+}
+
+# Important: When this role is activated, the user will lose access to the remote apps because a pool support only Desktop or App but not both at the same time per user.
+resource "azurerm_pim_eligible_role_assignment" "paw_login_desktop" {
+  count              = var.ENABLE_PIM ? 1 : 0
+  scope              = azurerm_virtual_desktop_application_group.desktop.id
+  role_definition_id = data.azurerm_role_definition.desktop_user.id
+  principal_id       = data.azuread_group.paw_login.object_id
+  justification      = "Privileged accounts activate PAW Desktop access through PIM"
+  schedule {
+    expiration {
+      duration_days = 365
+    }
+  }
+}
+
+moved {
+  from = azurerm_pim_eligible_role_assignment.paw_login_desktop
+  to   = azurerm_pim_eligible_role_assignment.paw_login_desktop[0]
+}
+
+# # "Desktop Virtualization User" lets members enumerate and launch this application group; it does not grant Azure resource access.
+# resource "azurerm_role_assignment" "paw_login_desktop" {
+#   scope                = azurerm_virtual_desktop_application_group.desktop.id
+#   role_definition_name = "Desktop Virtualization User"
+#   principal_id         = data.azuread_group.paw_login.object_id
+# }
+
+# Important: Remote app is available by default, but if desktop is enabled, remote app will disappear.
+resource "azurerm_role_assignment" "paw_login_remoteapp" {
+  scope                = azurerm_virtual_desktop_application_group.remoteapp.id
+  role_definition_name = "Desktop Virtualization User"
+  principal_id         = data.azuread_group.paw_login.object_id
+}
+
+

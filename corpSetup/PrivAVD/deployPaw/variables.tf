@@ -104,3 +104,9 @@ variable "PAW_GROUP" {
   type        = string
   default     = "PawUsers"
 }
+
+variable "ENABLE_PIM" {
+  description = "Whether to create the eligible Desktop Virtualization User assignment."
+  type        = bool
+  default     = false
+}

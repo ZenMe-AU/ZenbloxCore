@@ -78,7 +78,8 @@ Import-DotEnv -Path $envFile
 
 $subscriptionId = Get-RequiredEnvironmentVariable -Name "TF_VAR_SUBSCRIPTION_ID"
 $targetLocation = Get-RequiredEnvironmentVariable -Name "TF_VAR_PAW_LOCATION"
-$targetResourceGroup = (Get-RequiredEnvironmentVariable -Name "TF_VAR_HOST_POOL_NAME") + "-rg"
+$hostPoolName = Get-RequiredEnvironmentVariable -Name "TF_VAR_HOST_POOL_NAME"
+$targetResourceGroup = "$hostPoolName-rg"
 $galleryResourceGroup = Get-RequiredEnvironmentVariable -Name "TF_VAR_GALLERY_RG"
 $galleryName = $galleryResourceGroup
 $imageName = Get-RequiredEnvironmentVariable -Name "TF_VAR_IMAGE_NAME"
