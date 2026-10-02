@@ -62,9 +62,9 @@ Launch supported, so its session host is deployed without Secure Boot or vTPM.
 Enabling those features requires a Trusted Launch compatible image definition
 and a newly published image version.
 
-When using `..\deployPAW.ps1`, set the target resource group once as
-`TF_VAR_PAW_RG` in `..\.env`. Every Azure resource created by this module
-uses that resource group. The existing Compute Gallery image is read through a
+When using `..\deployPAW.ps1`, set the target name once as
+`TF_VAR_HOST_POOL_NAME` in `..\.env`. Every Azure resource created by this module
+uses that name. The existing Compute Gallery image is read through a
 data source and remains in `TF_VAR_GALLERY_RG`; it is not created or moved by this
 module. The script keeps a separate Terraform workspace for each target
 resource group, preventing stale state from another group from being applied.

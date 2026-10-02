@@ -8,11 +8,6 @@ variable "PAW_LOCATION" {
   type        = string
 }
 
-variable "PAW_RG" {
-  description = "Resource group for the AVD control plane and session hosts."
-  type        = string
-}
-
 variable "VIRTUAL_NETWORK_ADDRESS_SPACE" {
   description = "Address space for the isolated AVD virtual network."
   type        = string
@@ -51,7 +46,7 @@ variable "IMAGE_VERSION" {
 variable "HOST_POOL_NAME" {
   description = "Azure Virtual Desktop host pool name."
   type        = string
-  default     = "privavd-pooled"
+  default     = "paw"
 }
 
 variable "WORKSPACE_NAME" {

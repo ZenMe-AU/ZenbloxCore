@@ -11,7 +11,7 @@ data "azurerm_shared_image_version" "paw" {
 }
 
 resource "azurerm_resource_group" "avd" {
-  name     = var.PAW_RG
+  name     = "${var.HOST_POOL_NAME}-rg"
   location = var.PAW_LOCATION
   tags     = var.TAGS
 }
@@ -25,7 +25,7 @@ resource "azurerm_virtual_desktop_host_pool" "pooled" {
   load_balancer_type       = "BreadthFirst"
   start_vm_on_connect      = true
   validate_environment     = false
-  custom_rdp_properties    = "targetisaadjoined:i:1;"
+  custom_rdp_properties    = "targetisaadjoined:i:1;enablerdsaadauth:i:1;"
   tags                     = var.TAGS
 }
 
@@ -39,20 +39,48 @@ resource "azurerm_virtual_desktop_workspace" "workspace" {
 }
 
 resource "azurerm_virtual_desktop_application_group" "desktop" {
-  name                = var.APPLICATION_GROUP_NAME
-  location            = azurerm_resource_group.avd.location
-  resource_group_name = azurerm_resource_group.avd.name
-  type                = "Desktop"
-  host_pool_id        = azurerm_virtual_desktop_host_pool.pooled.id
-  friendly_name       = "Privileged Access Workstations"
-  description         = "Desktop application group for the pooled PAW host pool."
-  tags                = var.TAGS
+  name                         = var.APPLICATION_GROUP_NAME
+  location                     = azurerm_resource_group.avd.location
+  resource_group_name          = azurerm_resource_group.avd.name
+  default_desktop_display_name = var.HOST_POOL_NAME
+  type                         = "Desktop"
+  host_pool_id                 = azurerm_virtual_desktop_host_pool.pooled.id
+  friendly_name                = "Privileged Access Workstations"
+  description                  = "Desktop application group for the pooled PAW host pool."
+  tags                         = var.TAGS
 }
 
 resource "azurerm_virtual_desktop_workspace_application_group_association" "desktop" {
   workspace_id         = azurerm_virtual_desktop_workspace.workspace.id
   application_group_id = azurerm_virtual_desktop_application_group.desktop.id
 }
+
+resource "azurerm_virtual_desktop_application_group" "remoteapp" {
+  name                = "${var.APPLICATION_GROUP_NAME}-ra"
+  location            = azurerm_resource_group.avd.location
+  resource_group_name = azurerm_resource_group.avd.name
+  type                = "RemoteApp"
+  host_pool_id        = azurerm_virtual_desktop_host_pool.pooled.id
+  friendly_name       = "PAW RemoteApps"
+  description         = "Remote applications for PAW users."
+  tags                = var.TAGS
+}
+
+resource "azurerm_virtual_desktop_workspace_application_group_association" "remoteapp" {
+  workspace_id         = azurerm_virtual_desktop_workspace.workspace.id
+  application_group_id = azurerm_virtual_desktop_application_group.remoteapp.id
+}
+
+resource "azurerm_virtual_desktop_application" "edge" {
+  name                         = "edge"
+  application_group_id         = azurerm_virtual_desktop_application_group.remoteapp.id
+  friendly_name                = "Microsoft Edge"
+  description                  = "Microsoft Edge browser"
+  path                         = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
+  command_line_argument_policy = "DoNotAllow"
+  show_in_portal               = true
+}
+
 
 resource "azurerm_virtual_desktop_host_pool_registration_info" "pooled" {
   hostpool_id     = azurerm_virtual_desktop_host_pool.pooled.id

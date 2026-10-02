@@ -51,10 +51,11 @@ Get-Content -LiteralPath $envFile | ForEach-Object {
     [Environment]::SetEnvironmentVariable($name, $value, 'Process')
 }
 
-$targetResourceGroup = Get-Setting "PAW_RG"
-if ([string]::IsNullOrWhiteSpace($targetResourceGroup)) {
-    throw "Required PAW setting 'TF_VAR_PAW_RG' is missing from $envFile."
+$hostPoolName = Get-Setting "HOST_POOL_NAME"
+if ([string]::IsNullOrWhiteSpace($hostPoolName)) {
+    throw "Required PAW setting 'TF_VAR_HOST_POOL_NAME' is missing from $envFile."
 }
+$targetResourceGroup = "$hostPoolName-rg"
 
 $subscriptionId = Get-Setting "SUBSCRIPTION_ID"
 if ([string]::IsNullOrWhiteSpace($subscriptionId)) {
@@ -75,10 +76,9 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($latestImageVersion)) {
 }
 [Environment]::SetEnvironmentVariable("TF_VAR_IMAGE_VERSION", $latestImageVersion, "Process")
 
-$pawLoginGroupName = Get-Setting "PAW_GROUP" "PawUsers"
-$hostPoolName = Get-Setting "HOST_POOL_NAME" "privavd-pooled"
-$workspaceName = Get-Setting "WORKSPACE_NAME" "privavd-workspace"
-$applicationGroupName = Get-Setting "APPLICATION_GROUP_NAME" "privavd-desktop"
+$pawLoginGroupName = Get-Setting "PAW_GROUP" "PAW_GROUP_DEFAULT"
+$workspaceName = Get-Setting "WORKSPACE_NAME" "WORKSPACE_NAME_DEFAULT"
+$applicationGroupName = Get-Setting "APPLICATION_GROUP_NAME" "APPLICATION_GROUP_NAME_DEFAULT"
 
 Push-Location $scriptDirectory
 try {

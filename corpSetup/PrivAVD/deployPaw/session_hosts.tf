@@ -21,7 +21,7 @@ resource "azurerm_network_interface" "session_host" {
 resource "azurerm_windows_virtual_machine" "session_host" {
   count                 = var.SESSION_HOST_COUNT
   name                  = "${var.HOST_POOL_NAME}-${count.index + 1}"
-  computer_name         = "paw-avd-${count.index + 1}"
+  computer_name         = "${var.HOST_POOL_NAME}-${count.index + 1}"
   location              = azurerm_resource_group.avd.location
   resource_group_name   = azurerm_resource_group.avd.name
   size                  = var.VM_SIZE
