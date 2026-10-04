@@ -47,15 +47,11 @@ test.describe("AP-Desktop - Temporary Access Pass Creation", () => {
       test.beforeEach(() => {
         const auth = getAccessPassUserAuth(user);
 
-          if (!auth.exists) {
-            throw new Error(
-              [
-                `Missing auth files for ${user.id}.`,
-                `Expected storage: ${auth.storageStateFile}`,
-                `Expected session: ${auth.sessionStorageFile}`,
-              ].join(" "),
-            );
-          }
+        if (!auth.exists) {
+          throw new Error(
+            [`Missing auth files for ${user.id}.`, `Expected storage: ${auth.storageStateFile}`, `Expected session: ${auth.sessionStorageFile}`].join(" ")
+          );
+        }
       });
 
       for (const target of targets) {
@@ -106,10 +102,7 @@ test.describe("AP-Desktop - Temporary Access Pass Creation", () => {
             // Second click: start real Access Pass creation.
             await confirmCreateAccessPassButton.click();
             const createAgainButton = targetRow.getByRole("button", { name: "Create Again", exact: true });
-            await expect(
-              createAgainButton,
-              `Expected Temporary Access Pass creation to complete for ${target.email}.`,
-            ).toBeVisible({ timeout: 120_000 });
+            await expect(createAgainButton, `Expected Temporary Access Pass creation to complete for ${target.email}.`).toBeVisible({ timeout: 120_000 });
             await expect(page.getByText("Access pass created", { exact: true }).first()).toBeVisible();
             const accessPassLabel = page.getByText("New Temporary Access Pass:", { exact: true }).last();
             await expect(accessPassLabel).toBeVisible();

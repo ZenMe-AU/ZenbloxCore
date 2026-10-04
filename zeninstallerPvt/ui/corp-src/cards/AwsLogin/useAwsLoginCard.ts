@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAwsCallerIdentity, getAwsMfaDevices, getAwsSessionCredentials } from "../../api/aws";
 import type { AwsCallerIdentity, AwsMfaDevice } from "../../api/aws";
@@ -35,7 +40,7 @@ export function useAwsLoginCard(): UseAwsLoginCard {
   const [signingIn, setSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
   const [sessionValidUntil, setSessionValidUntil] = useState<number | null>(
-    restoredSession ? new Date(restoredSession.credentials.expiration).getTime() : null,
+    restoredSession ? new Date(restoredSession.credentials.expiration).getTime() : null
   );
 
   const signedIn = sessionValidUntil !== null && sessionValidUntil > Date.now();
@@ -87,10 +92,7 @@ export function useAwsLoginCard(): UseAwsLoginCard {
   }, [sessionValidUntil, mfaDevices, accessKeyId, secretAccessKey, identity]);
 
   const exchangeSession = async (forIdentity: AwsCallerIdentity, forDevices: AwsMfaDevice[]) => {
-    const mfa =
-      selectedMfaSerial && mfaTokenCode.trim()
-        ? { serialNumber: selectedMfaSerial, tokenCode: mfaTokenCode.trim() }
-        : undefined;
+    const mfa = selectedMfaSerial && mfaTokenCode.trim() ? { serialNumber: selectedMfaSerial, tokenCode: mfaTokenCode.trim() } : undefined;
     const creds = await getAwsSessionCredentials(accessKeyId.trim(), secretAccessKey.trim(), mfa);
     setSessionValidUntil(creds.expiration ? creds.expiration.getTime() : Date.now() + SESSION_DURATION_MS);
     setMfaTokenCode("");
@@ -130,11 +132,7 @@ export function useAwsLoginCard(): UseAwsLoginCard {
   const logout = () => resetSession();
   const canSignIn = !!accessKeyId.trim() && !!secretAccessKey.trim() && (!needsMfa || !!mfaTokenCode.trim());
   const status: CardStatus = signedIn ? "complete" : identity ? "warning" : "idle";
-  const summary = signedIn
-    ? `Signed in as ${identity?.username ?? "AWS"}`
-    : identity
-      ? "MFA verification required"
-      : "Connect your AWS account";
+  const summary = signedIn ? `Signed in as ${identity?.username ?? "AWS"}` : identity ? "MFA verification required" : "Connect your AWS account";
 
   return {
     // cardHook

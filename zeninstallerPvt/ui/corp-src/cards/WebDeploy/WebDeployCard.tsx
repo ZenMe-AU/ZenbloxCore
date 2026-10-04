@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -28,16 +33,7 @@ type Props = {
   githubUrl?: string;
 };
 
-export default function WebDeployCard({
-  card,
-  web,
-  repoFullName,
-  githubAccount,
-  repoName,
-  selectedEnv,
-  variables,
-  githubUrl,
-}: Props) {
+export default function WebDeployCard({ card, web, repoFullName, githubAccount, repoName, selectedEnv, variables, githubUrl }: Props) {
   const {
     storageAccountName,
     siteUrl,
@@ -63,9 +59,7 @@ export default function WebDeployCard({
       action={
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
-          <ViewLink
-            href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)}
-          />
+          <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} />
         ) : undefined
       }
       {...card}
@@ -140,21 +134,13 @@ export default function WebDeployCard({
             <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
               Latest build:{" "}
               <Box component="span" sx={{ color: "#0f172a" }}>
-                {loadingLatest
-                  ? "checking..."
-                  : latest
-                    ? `${latest.sha.slice(0, 7)} · ${when(latest.builtAt)}`
-                    : "none yet"}
+                {loadingLatest ? "checking..." : latest ? `${latest.sha.slice(0, 7)} · ${when(latest.builtAt)}` : "none yet"}
               </Box>
             </Typography>
             <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
               Live on the site:{" "}
               <Box component="span" sx={{ color: "#0f172a" }}>
-                {loadingDeployed
-                  ? "checking..."
-                  : deployed
-                    ? `${deployed.sha.slice(0, 7)} · ${when(deployed.builtAt)}`
-                    : "nothing deployed"}
+                {loadingDeployed ? "checking..." : deployed ? `${deployed.sha.slice(0, 7)} · ${when(deployed.builtAt)}` : "nothing deployed"}
               </Box>
             </Typography>
           </Box>
@@ -241,18 +227,14 @@ export default function WebDeployCard({
           {!loadingLatest && latest && !updateAvailable && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...mono }}>
-                The site is serving the latest build.
-              </Typography>
+              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...mono }}>The site is serving the latest build.</Typography>
             </Box>
           )}
 
           {!loadingLatest && updateAvailable && deployed && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>
-                Ready to deploy the new build
-              </Typography>
+              <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>Ready to deploy the new build</Typography>
             </Box>
           )}
         </Box>

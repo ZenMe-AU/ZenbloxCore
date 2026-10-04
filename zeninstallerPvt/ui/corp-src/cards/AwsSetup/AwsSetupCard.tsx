@@ -1,3 +1,7 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
 
 // This card handles the setup of AWS IAM roles for GitHub Actions through OIDC.
 
@@ -40,8 +44,8 @@ type Props = {
 function Intro() {
   return (
     <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-      Create an AWS IAM role GitHub Actions can assume through OIDC, then save the role ARN to this GitHub environment
-      so the deployment stages can use the same AWS target.
+      Create an AWS IAM role GitHub Actions can assume through OIDC, then save the role ARN to this GitHub environment so the deployment stages can use the same
+      AWS target.
     </Typography>
   );
 }
@@ -67,50 +71,23 @@ function StepRow({ step }: { step: SetupStep }) {
     <Box sx={{ display: "grid", gridTemplateColumns: "18px 1fr", alignItems: "start", py: 0.5 }}>
       <Box sx={{ display: "flex", alignItems: "center", height: "1.2em" }}>{icon}</Box>
       <Box>
-        <Typography sx={{ fontSize: "0.78rem", color: step.status === "error" ? "#ef4444" : "#475569", ...mono }}>
-          {step.label}
-        </Typography>
-        {step.detail && (
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>{step.detail}</Typography>
-        )}
+        <Typography sx={{ fontSize: "0.78rem", color: step.status === "error" ? "#ef4444" : "#475569", ...mono }}>{step.label}</Typography>
+        {step.detail && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>{step.detail}</Typography>}
       </Box>
     </Box>
   );
 }
 
-export default function AwsSetupCard({
-  card,
-  awsSetup,
-  account,
-  repoName,
-  repoFullName,
-  selectedEnv,
-  variables,
-  onAwsValid,
-}: Props) {
+export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFullName, selectedEnv, variables, onAwsValid }: Props) {
   const [varExpanded, setVarExpanded] = useState(false);
   const [loadedVars, setLoadedVars] = useState<Record<string, string> | null>(null);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const [bannerState, setBannerState] = useState<"none" | "saved" | "no-changes" | "error">("none");
   const prevRoleArnRef = useRef<string | null>(null);
   const prefilledRoleRef = useRef(false);
-  const githubUrl =
-    repoFullName && selectedEnv
-      ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit`
-      : undefined;
+  const githubUrl = repoFullName && selectedEnv ? `https://github.com/${repoFullName}/settings/environments/${selectedEnv.id}/edit` : undefined;
 
-  const {
-    roleName,
-    setRoleName,
-    setEnvironments,
-    loading,
-    steps,
-    roleArn,
-    error,
-    canCreate,
-    create,
-    resetRoleCreation,
-  } = awsSetup;
+  const { roleName, setRoleName, setEnvironments, loading, steps, roleArn, error, canCreate, create, resetRoleCreation } = awsSetup;
 
   const varHasAny = !!loadedVars && Object.keys(loadedVars).length > 0;
 
@@ -222,9 +199,7 @@ export default function AwsSetupCard({
               {varHasAny && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                   <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                  <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>
-                    This will overwrite your current connection details
-                  </Typography>
+                  <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
                 </Box>
               )}
             </Box>

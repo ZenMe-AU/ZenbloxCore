@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchPullRequests } from "../api";
 import type { Account, PullRequest, RepoOption } from "../types";
@@ -80,7 +85,7 @@ export function usePR(opts: UsePRParams): UsePR {
         checkRestoreDone();
       }
     },
-    [addRestoreWarning, checkRestoreDone, pendingRestore],
+    [addRestoreWarning, checkRestoreDone, pendingRestore]
   );
 
   // Load when repo becomes a clone (template confirmed)

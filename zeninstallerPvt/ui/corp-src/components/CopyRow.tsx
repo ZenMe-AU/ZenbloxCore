@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -26,11 +31,7 @@ export default function CopyRow({ label, value, masked = false }: { label: strin
       >
         {displayValue}
       </Typography>
-      <Button
-        size="small"
-        onClick={copy}
-        sx={{ minWidth: 0, p: 0.5, color: "#94a3b8", "&:hover": { color: "#2563eb" } }}
-      >
+      <Button size="small" onClick={copy} sx={{ minWidth: 0, p: 0.5, color: "#94a3b8", "&:hover": { color: "#2563eb" } }}>
         <ContentCopyIcon sx={{ fontSize: 13 }} />
         <Typography sx={{ fontSize: "0.65rem", ml: 0.5, ...mono }}>{copied ? "Copied" : "Copy"}</Typography>
       </Button>

@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { toHex } from "./crypto";
 
 export type SessionCredentials = { sessionId: string; accessToken: string };
@@ -25,24 +30,14 @@ export type RunnerMessage =
   | { type: "terraformCompleted" }
   | { type: "terraformFailed"; exitCode: number };
 
-export type SocketEvent =
-  { kind: "connected" } | { kind: "ack"; success: boolean } | { kind: "runner"; message: RunnerMessage };
+export type SocketEvent = { kind: "connected" } | { kind: "ack"; success: boolean } | { kind: "runner"; message: RunnerMessage };
 
 /*
  * The four in-progress states are separate because each fails for a different reason: CORS on the
  * backend, GitHub permissions on the dispatch, a backend 500 on the token, and the relay itself.
  * One combined "starting" made all four look identical while you waited.
  */
-export type TerminalStatus =
-  | "idle"
-  | "registering"
-  | "dispatching"
-  | "negotiating"
-  | "connecting"
-  | "connected"
-  | "reconnecting"
-  | "closed"
-  | "error";
+export type TerminalStatus = "idle" | "registering" | "dispatching" | "negotiating" | "connecting" | "connected" | "reconnecting" | "closed" | "error";
 
 function asRunnerMessage(payload: unknown): RunnerMessage | null {
   if (typeof payload !== "object" || payload === null) return null;

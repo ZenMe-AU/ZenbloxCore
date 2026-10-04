@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { getToken } from "../auth/msal";
 import { azFetch as gFetch, ARM, GRAPH } from "./azureFetch";
 import {
@@ -57,22 +62,14 @@ export async function listTenants(account: AzureAccount, overrideTenantId?: stri
 
 // ── App registration ───────────────────────────────────────────────────────────
 
-export async function getExistingApp(
-  account: AzureAccount,
-  displayName: string,
-  overrideTenantId?: string,
-): Promise<{ appId: string; id: string } | null> {
+export async function getExistingApp(account: AzureAccount, displayName: string, overrideTenantId?: string): Promise<{ appId: string; id: string } | null> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/applications?$filter=displayName eq '${displayName}'&$select=appId,id`);
   return data.value?.[0] ? { appId: data.value[0].appId, id: data.value[0].id } : null;
 }
 
 // Reverse lookup: resolve an app registration's display name from its client (app) id.
-export async function getAppNameByAppId(
-  account: AzureAccount,
-  appId: string,
-  overrideTenantId?: string,
-): Promise<string | null> {
+export async function getAppNameByAppId(account: AzureAccount, appId: string, overrideTenantId?: string): Promise<string | null> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/applications?$filter=appId eq '${appId}'&$select=displayName`);
   return data.value?.[0]?.displayName ?? null;
@@ -82,7 +79,7 @@ export async function createAppRegistration(
   account: AzureAccount,
   displayName: string,
   permissions: readonly string[],
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<{ appId: string; id: string }> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const body: {
@@ -118,11 +115,7 @@ export async function createAppRegistration(
  * cloud — so they are read off each resource's own service principal by name rather than hardcoded.
  */
 async function delegatedScopeIds(token: string, resourceAppId: string, scopeNames: readonly string[]) {
-  const data = await gFetch(
-    token,
-    GRAPH,
-    `/servicePrincipals?$filter=appId eq '${resourceAppId}'&$select=oauth2PermissionScopes`,
-  );
+  const data = await gFetch(token, GRAPH, `/servicePrincipals?$filter=appId eq '${resourceAppId}'&$select=oauth2PermissionScopes`);
   const published: { id: string; value: string }[] = data.value?.[0]?.oauth2PermissionScopes ?? [];
   return scopeNames.map((wanted) => {
     const scope = published.find((p) => p.value === wanted);
@@ -138,14 +131,14 @@ export async function createSpaAppRegistration(
   displayName: string,
   redirectUris: string[],
   delegated: Record<string, readonly string[]>,
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<{ appId: string; id: string }> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const requiredResourceAccess = await Promise.all(
     Object.entries(delegated).map(async ([resourceAppId, scopes]) => ({
       resourceAppId,
       resourceAccess: await delegatedScopeIds(token, resourceAppId, scopes),
-    })),
+    }))
   );
 
   const data = await gFetch(token, GRAPH, "/applications", {
@@ -163,21 +156,13 @@ export async function createSpaAppRegistration(
 
 // ── Service principal ──────────────────────────────────────────────────────────
 
-export async function getExistingSP(
-  account: AzureAccount,
-  appId: string,
-  overrideTenantId?: string,
-): Promise<{ id: string } | null> {
+export async function getExistingSP(account: AzureAccount, appId: string, overrideTenantId?: string): Promise<{ id: string } | null> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/servicePrincipals?$filter=appId eq '${appId}'&$select=id`);
   return data.value?.[0] ? { id: data.value[0].id } : null;
 }
 
-export async function createServicePrincipal(
-  account: AzureAccount,
-  appId: string,
-  overrideTenantId?: string,
-): Promise<{ id: string }> {
+export async function createServicePrincipal(account: AzureAccount, appId: string, overrideTenantId?: string): Promise<{ id: string }> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const res = await fetch(`${GRAPH}/servicePrincipals`, {
     method: "POST",
@@ -205,7 +190,7 @@ export async function ensureFederatedCredential(
   appObjectId: string,
   name: string,
   subject: string,
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<boolean> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const existing = await gFetch(token, GRAPH, `/applications/${appObjectId}/federatedIdentityCredentials`);
@@ -230,17 +215,17 @@ export async function hasRbacRole(
   subscriptionId: string,
   principalId: string,
   roleName: string,
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<boolean> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const roleId = RBAC_ROLE_IDS[roleName];
   const existing = await gFetch(
     token,
     ARM,
-    `/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${principalId}')`,
+    `/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${principalId}')`
   );
   return !!existing?.value?.some((a: { properties: { roleDefinitionId: string } }) =>
-    a.properties.roleDefinitionId.toLowerCase().endsWith(roleId.toLowerCase()),
+    a.properties.roleDefinitionId.toLowerCase().endsWith(roleId.toLowerCase())
   );
 }
 
@@ -249,7 +234,7 @@ export async function ensureRbacRole(
   subscriptionId: string,
   spObjectId: string,
   roleName: string,
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<void> {
   if (await hasRbacRole(account, subscriptionId, spObjectId, roleName, overrideTenantId)) return;
 
@@ -257,49 +242,31 @@ export async function ensureRbacRole(
   const scope = `/subscriptions/${subscriptionId}`;
   const roleId = RBAC_ROLE_IDS[roleName];
   const assignmentName = await deterministicUuid(scope, roleId, spObjectId);
-  await gFetch(
-    token,
-    ARM,
-    `${scope}/providers/Microsoft.Authorization/roleAssignments/${assignmentName}?api-version=2022-04-01`,
-    {
-      method: "PUT",
-      body: JSON.stringify({
-        properties: {
-          roleDefinitionId: `/providers/Microsoft.Authorization/roleDefinitions/${roleId}`,
-          principalId: spObjectId,
-          principalType: "ServicePrincipal",
-        },
-      }),
-    },
-  );
+  await gFetch(token, ARM, `${scope}/providers/Microsoft.Authorization/roleAssignments/${assignmentName}?api-version=2022-04-01`, {
+    method: "PUT",
+    body: JSON.stringify({
+      properties: {
+        roleDefinitionId: `/providers/Microsoft.Authorization/roleDefinitions/${roleId}`,
+        principalId: spObjectId,
+        principalType: "ServicePrincipal",
+      },
+    }),
+  });
 }
 
 // ── Admin consent ──────────────────────────────────────────────────────────────
 
 // The Graph application-permission ids already assigned to this service principal.
-export async function listAppRoleAssignments(
-  account: AzureAccount,
-  spObjectId: string,
-  overrideTenantId?: string,
-): Promise<string[]> {
+export async function listAppRoleAssignments(account: AzureAccount, spObjectId: string, overrideTenantId?: string): Promise<string[]> {
   const token = await getToken(account, GRANT_CONSENT_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/servicePrincipals/${spObjectId}/appRoleAssignments?$select=appRoleId`);
   return (data?.value ?? []).map((a: { appRoleId: string }) => a.appRoleId);
 }
 
-export async function grantAdminConsent(
-  account: AzureAccount,
-  spObjectId: string,
-  permissions: readonly string[],
-  overrideTenantId?: string,
-): Promise<void> {
+export async function grantAdminConsent(account: AzureAccount, spObjectId: string, permissions: readonly string[], overrideTenantId?: string): Promise<void> {
   const token = await getToken(account, GRANT_CONSENT_SCOPES, overrideTenantId);
 
-  const graphSP = await gFetch(
-    token,
-    GRAPH,
-    "/servicePrincipals?$filter=appId eq '00000003-0000-0000-c000-000000000000'&$select=id",
-  );
+  const graphSP = await gFetch(token, GRAPH, "/servicePrincipals?$filter=appId eq '00000003-0000-0000-c000-000000000000'&$select=id");
   const graphSpId = graphSP?.value?.[0]?.id;
   if (!graphSpId) throw new Error("Microsoft Graph service principal not found in tenant");
 
@@ -315,20 +282,14 @@ export async function grantAdminConsent(
 
 // ── Revoke delegated permission grants ────────────────────────────────────────
 
-export async function revokeOAuth2Grants(
-  account: AzureAccount,
-  appClientId: string,
-  overrideTenantId?: string,
-): Promise<void> {
+export async function revokeOAuth2Grants(account: AzureAccount, appClientId: string, overrideTenantId?: string): Promise<void> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
   const spRes = await gFetch(token, GRAPH, `/servicePrincipals?$filter=appId eq '${appClientId}'&$select=id`);
   const spId: string | undefined = spRes?.value?.[0]?.id;
   if (!spId) return;
   const grantsRes = await gFetch(token, GRAPH, `/oauth2PermissionGrants?$filter=clientId eq '${spId}'`);
   const ids: string[] = (grantsRes?.value ?? []).map((g: { id: string }) => g.id);
-  await Promise.all(
-    ids.map((id) => gFetch(token, GRAPH, `/oauth2PermissionGrants/${id}`, { method: "DELETE" }).catch(() => {})),
-  );
+  await Promise.all(ids.map((id) => gFetch(token, GRAPH, `/oauth2PermissionGrants/${id}`, { method: "DELETE" }).catch(() => {})));
 }
 
 // ── Entra custom domains ──────────────────────────────────────────────────────
@@ -352,20 +313,13 @@ export async function listVerifiedDomains(account: AzureAccount, overrideTenantI
     }));
 }
 
-export async function listVerifiedDomainsViaOrganization(
-  account: AzureAccount,
-  overrideTenantId?: string,
-): Promise<VerifiedDomain[]> {
+export async function listVerifiedDomainsViaOrganization(account: AzureAccount, overrideTenantId?: string): Promise<VerifiedDomain[]> {
   const token = await getToken(account, ORGANIZATION_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, "/organization?$select=verifiedDomains");
   return data?.value?.[0]?.verifiedDomains ?? [];
 }
 
-export async function getEntraDomain(
-  account: AzureAccount,
-  domainName: string,
-  overrideTenantId?: string,
-): Promise<EntraDomain | null> {
+export async function getEntraDomain(account: AzureAccount, domainName: string, overrideTenantId?: string): Promise<EntraDomain | null> {
   const token = await getToken(account, DOMAIN_SCOPES, overrideTenantId);
   try {
     const data = await gFetch(token, GRAPH, `/domains/${domainName}`);
@@ -376,36 +330,22 @@ export async function getEntraDomain(
   }
 }
 
-export async function createEntraDomain(
-  account: AzureAccount,
-  domainName: string,
-  overrideTenantId?: string,
-): Promise<EntraDomain> {
+export async function createEntraDomain(account: AzureAccount, domainName: string, overrideTenantId?: string): Promise<EntraDomain> {
   const token = await getToken(account, DOMAIN_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, "/domains", { method: "POST", body: JSON.stringify({ id: domainName }) });
   return { id: data.id, isVerified: !!data.isVerified, isDefault: !!data.isDefault };
 }
 
 // Returns the TXT verification token (e.g. "MS=ms12345678") for an unverified domain.
-export async function getDomainVerificationTxt(
-  account: AzureAccount,
-  domainName: string,
-  overrideTenantId?: string,
-): Promise<string | null> {
+export async function getDomainVerificationTxt(account: AzureAccount, domainName: string, overrideTenantId?: string): Promise<string | null> {
   const token = await getToken(account, DOMAIN_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/domains/${domainName}/verificationDnsRecords`);
-  const txt = (data.value ?? []).find(
-    (r: { recordType?: string; text?: string }) => r.recordType?.toLowerCase() === "txt",
-  );
+  const txt = (data.value ?? []).find((r: { recordType?: string; text?: string }) => r.recordType?.toLowerCase() === "txt");
   return txt?.text ?? null;
 }
 
 // Triggers domain verification. Throws if the DNS record hasn't propagated yet.
-export async function verifyEntraDomain(
-  account: AzureAccount,
-  domainName: string,
-  overrideTenantId?: string,
-): Promise<EntraDomain> {
+export async function verifyEntraDomain(account: AzureAccount, domainName: string, overrideTenantId?: string): Promise<EntraDomain> {
   const token = await getToken(account, DOMAIN_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/domains/${domainName}/verify`, {
     method: "POST",
@@ -415,11 +355,7 @@ export async function verifyEntraDomain(
 }
 
 // Makes the domain the tenant's primary (default) domain. Requires the domain to be verified.
-export async function setPrimaryEntraDomain(
-  account: AzureAccount,
-  domainName: string,
-  overrideTenantId?: string,
-): Promise<void> {
+export async function setPrimaryEntraDomain(account: AzureAccount, domainName: string, overrideTenantId?: string): Promise<void> {
   const token = await getToken(account, DOMAIN_SCOPES, overrideTenantId);
   await gFetch(token, GRAPH, `/domains/${domainName}`, { method: "PATCH", body: JSON.stringify({ isDefault: true }) });
 }
@@ -442,16 +378,9 @@ export type GraphAuthMethod = {
 };
 
 // List Entra users managed by the signed-in user (direct reports) — populates the Access Pass user picker.
-export async function listUsersManagedBySignedInUser(
-  account: AzureAccount,
-  overrideTenantId?: string,
-): Promise<EntraUser[]> {
+export async function listUsersManagedBySignedInUser(account: AzureAccount, overrideTenantId?: string): Promise<EntraUser[]> {
   const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
-  const users = await gFetch(
-    token,
-    GRAPH,
-    "/me/directReports/microsoft.graph.user?$select=id,displayName,userPrincipalName",
-  );
+  const users = await gFetch(token, GRAPH, "/me/directReports/microsoft.graph.user?$select=id,displayName,userPrincipalName");
 
   return (users.value ?? [])
     .map((u: { id: string; displayName?: string; userPrincipalName?: string; mail?: string }) => ({
@@ -467,10 +396,7 @@ const TAP_POLICY_PATH = "/policies/authenticationMethodsPolicy/authenticationMet
 // Ensures the tenant's authentication methods policy allows Temporary Access Pass, enabling
 // it (without touching includeTargets/excludeTargets/lifetime settings) if currently
 // disabled. Returns true if it needed to be enabled, false if it already was.
-export async function ensureTemporaryAccessPassEnabled(
-  account: AzureAccount,
-  overrideTenantId?: string,
-): Promise<boolean> {
+export async function ensureTemporaryAccessPassEnabled(account: AzureAccount, overrideTenantId?: string): Promise<boolean> {
   const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, TAP_POLICY_PATH);
   if (data.state === "enabled") return false;
@@ -484,32 +410,19 @@ export async function ensureTemporaryAccessPassEnabled(
   return true;
 }
 
-export async function listUserAuthenticationMethods(
-  account: AzureAccount,
-  userId: string,
-  overrideTenantId?: string,
-): Promise<GraphAuthMethod[]> {
+export async function listUserAuthenticationMethods(account: AzureAccount, userId: string, overrideTenantId?: string): Promise<GraphAuthMethod[]> {
   const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
   // Do not use @odata.type in $select; Graph rejects it in select/expand expressions.
   const data = await gFetch(token, GRAPH, `/users/${userId}/authentication/methods`);
   return (data?.value ?? []) as GraphAuthMethod[];
 }
 
-export async function deleteUserAuthenticationMethod(
-  account: AzureAccount,
-  deletePath: string,
-  overrideTenantId?: string,
-): Promise<void> {
+export async function deleteUserAuthenticationMethod(account: AzureAccount, deletePath: string, overrideTenantId?: string): Promise<void> {
   const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
   await gFetch(token, GRAPH, deletePath, { method: "DELETE" });
 }
 
-export async function resetUserPassword(
-  account: AzureAccount,
-  userId: string,
-  newPassword: string,
-  overrideTenantId?: string,
-): Promise<void> {
+export async function resetUserPassword(account: AzureAccount, userId: string, newPassword: string, overrideTenantId?: string): Promise<void> {
   const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
   const maxAttempts = 4;
 
@@ -528,8 +441,7 @@ export async function resetUserPassword(
       return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
-      const retryable =
-        msg.includes("409") && (msg.includes("Directory_ConcurrencyViolation") || msg.includes("concurrent requests"));
+      const retryable = msg.includes("409") && (msg.includes("Directory_ConcurrencyViolation") || msg.includes("concurrent requests"));
 
       if (!retryable || attempt === maxAttempts) {
         throw err;
@@ -542,11 +454,7 @@ export async function resetUserPassword(
 }
 
 // Creates a Temporary Access Pass for a user (requires delegated UserAuthenticationMethod.ReadWrite.All).
-export async function createTemporaryAccessPassForUser(
-  account: AzureAccount,
-  userId: string,
-  overrideTenantId?: string,
-): Promise<TemporaryAccessPass> {
+export async function createTemporaryAccessPassForUser(account: AzureAccount, userId: string, overrideTenantId?: string): Promise<TemporaryAccessPass> {
   const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
   const maxAttempts = 4;
   let data: {
@@ -569,8 +477,7 @@ export async function createTemporaryAccessPassForUser(
       break;
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
-      const retryable =
-        msg.includes("409") && (msg.toLowerCase().includes("conflict") || msg.includes("concurrent requests"));
+      const retryable = msg.includes("409") && (msg.toLowerCase().includes("conflict") || msg.includes("concurrent requests"));
 
       if (!retryable || attempt === maxAttempts) {
         throw err;
@@ -595,12 +502,7 @@ export async function createTemporaryAccessPassForUser(
 }
 
 // Checks whether a previously-created Temporary Access Pass method still exists for a user.
-export async function temporaryAccessPassMethodExists(
-  account: AzureAccount,
-  userId: string,
-  methodId: string,
-  overrideTenantId?: string,
-): Promise<boolean> {
+export async function temporaryAccessPassMethodExists(account: AzureAccount, userId: string, methodId: string, overrideTenantId?: string): Promise<boolean> {
   try {
     const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
     await gFetch(token, GRAPH, `/users/${userId}/authentication/temporaryAccessPassMethods/${methodId}?$select=id`);
@@ -632,17 +534,9 @@ export async function listGroups(account: AzureAccount, overrideTenantId?: strin
 
 // The groups (only, not admin units/directory roles) this group is itself a member of —
 // i.e. its PARENT groups. Powers "Member of" without listing every group's members.
-export async function getGroupParents(
-  account: AzureAccount,
-  groupId: string,
-  overrideTenantId?: string,
-): Promise<EntraGroup[]> {
+export async function getGroupParents(account: AzureAccount, groupId: string, overrideTenantId?: string): Promise<EntraGroup[]> {
   const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
-  const data = await gFetch(
-    token,
-    GRAPH,
-    `/groups/${groupId}/memberOf/microsoft.graph.group?$select=id,displayName,description`,
-  );
+  const data = await gFetch(token, GRAPH, `/groups/${groupId}/memberOf/microsoft.graph.group?$select=id,displayName,description`);
   return (data.value ?? []).map((g: { id: string; displayName?: string; description?: string }) => ({
     id: g.id,
     displayName: g.displayName ?? g.id,
@@ -654,19 +548,14 @@ export async function updateGroup(
   account: AzureAccount,
   groupId: string,
   patch: { displayName?: string; description?: string },
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<void> {
   const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
   await gFetch(token, GRAPH, `/groups/${groupId}`, { method: "PATCH", body: JSON.stringify(patch) });
 }
 
 // Removes a member (user or group) from a group — the inverse of addGroupMember.
-export async function removeGroupMember(
-  account: AzureAccount,
-  groupId: string,
-  memberObjectId: string,
-  overrideTenantId?: string,
-): Promise<void> {
+export async function removeGroupMember(account: AzureAccount, groupId: string, memberObjectId: string, overrideTenantId?: string): Promise<void> {
   const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
   await gFetch(token, GRAPH, `/groups/${groupId}/members/${memberObjectId}/$ref`, { method: "DELETE" });
 }
@@ -679,17 +568,9 @@ export async function deleteGroup(account: AzureAccount, groupId: string, overri
 
 // Group display names aren't unique in Entra, so this — not a POST-and-catch-409 — is the
 // only reliable way to avoid creating duplicate groups on a repeat sync.
-export async function getGroupByName(
-  account: AzureAccount,
-  displayName: string,
-  overrideTenantId?: string,
-): Promise<EntraGroup | null> {
+export async function getGroupByName(account: AzureAccount, displayName: string, overrideTenantId?: string): Promise<EntraGroup | null> {
   const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
-  const data = await gFetch(
-    token,
-    GRAPH,
-    `/groups?$filter=displayName eq '${displayName}'&$select=id,displayName,description`,
-  );
+  const data = await gFetch(token, GRAPH, `/groups?$filter=displayName eq '${displayName}'&$select=id,displayName,description`);
   const g = data.value?.[0];
   return g ? { id: g.id, displayName: g.displayName, description: g.description ?? "" } : null;
 }
@@ -699,7 +580,7 @@ export async function createGroup(
   // isAssignableToRole cannot be changed later, so a group that may ever hold a directory role
   // has to be born with it. Setting it also requires the caller to be a privileged role admin.
   params: { displayName: string; description: string; mailNickname: string; isAssignableToRole?: boolean },
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<EntraGroup> {
   const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, "/groups", {
@@ -717,12 +598,7 @@ export async function createGroup(
 }
 
 // Works for both a user-in-group and a group-in-group member (both are directoryObjects).
-export async function addGroupMember(
-  account: AzureAccount,
-  groupId: string,
-  memberObjectId: string,
-  overrideTenantId?: string,
-): Promise<void> {
+export async function addGroupMember(account: AzureAccount, groupId: string, memberObjectId: string, overrideTenantId?: string): Promise<void> {
   const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
   await gFetch(token, GRAPH, `/groups/${groupId}/members/$ref`, {
     method: "POST",
@@ -732,12 +608,7 @@ export async function addGroupMember(
 
 // Uses the checkMemberGroups action (not a members/{id} GET, which Graph doesn't support for
 // this navigation property) — the documented way to test membership without listing everyone.
-export async function isGroupMember(
-  account: AzureAccount,
-  groupId: string,
-  memberObjectId: string,
-  overrideTenantId?: string,
-): Promise<boolean> {
+export async function isGroupMember(account: AzureAccount, groupId: string, memberObjectId: string, overrideTenantId?: string): Promise<boolean> {
   const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/directoryObjects/${memberObjectId}/checkMemberGroups`, {
     method: "POST",
@@ -752,19 +623,10 @@ export async function isGroupMember(
  * Eligible, not active: members of the group hold nothing until they activate the role, and the
  * activation expires. Reading it back is a plain filter; creating it goes through a request object.
  */
-export async function hasRoleEligibility(
-  account: AzureAccount,
-  principalId: string,
-  roleDefinitionId: string,
-  overrideTenantId?: string,
-): Promise<boolean> {
+export async function hasRoleEligibility(account: AzureAccount, principalId: string, roleDefinitionId: string, overrideTenantId?: string): Promise<boolean> {
   const token = await getToken(account, ROLE_MANAGEMENT_SCOPES, overrideTenantId);
   const filter = `principalId eq '${principalId}' and roleDefinitionId eq '${roleDefinitionId}'`;
-  const data = await gFetch(
-    token,
-    GRAPH,
-    `/roleManagement/directory/roleEligibilitySchedules?$filter=${encodeURIComponent(filter)}`,
-  );
+  const data = await gFetch(token, GRAPH, `/roleManagement/directory/roleEligibilitySchedules?$filter=${encodeURIComponent(filter)}`);
   return (data?.value ?? []).length > 0;
 }
 
@@ -773,7 +635,7 @@ export async function ensureRoleEligibility(
   principalId: string,
   roleDefinitionId: string,
   justification: string,
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<"created" | "exists"> {
   if (await hasRoleEligibility(account, principalId, roleDefinitionId, overrideTenantId)) return "exists";
 

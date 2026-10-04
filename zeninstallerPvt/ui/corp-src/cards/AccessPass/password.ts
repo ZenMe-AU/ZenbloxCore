@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 function randomInt(maxExclusive: number): number {
   if (maxExclusive <= 0) return 0;
 
@@ -33,12 +38,7 @@ export function generateRandomPassword(length = 30): string {
   const all = `${lowercase}${uppercase}${digits}${symbols}`;
 
   const effectiveLength = Math.max(length, 4);
-  const chars: string[] = [
-    pickRandomChar(lowercase),
-    pickRandomChar(uppercase),
-    pickRandomChar(digits),
-    pickRandomChar(symbols),
-  ];
+  const chars: string[] = [pickRandomChar(lowercase), pickRandomChar(uppercase), pickRandomChar(digits), pickRandomChar(symbols)];
 
   for (let i = chars.length; i < effectiveLength; i += 1) {
     chars.push(pickRandomChar(all));

@@ -1,12 +1,14 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AzureAccount } from "../types";
-import {
-  useAzureAppRegistrationCard,
-  type UseAzureAppRegistrationCard,
-} from "../cards/AzureAppRegistration/useAzureAppRegistrationCard";
+import { useAzureAppRegistrationCard, type UseAzureAppRegistrationCard } from "../cards/AzureAppRegistration/useAzureAppRegistrationCard";
 
 async function waitFor(assertion: () => void, timeoutMs = 1500) {
   const deadline = Date.now() + timeoutMs;
@@ -82,7 +84,7 @@ vi.mock("../config/githubConfig", () => ({
 function HookHarness(
   props: {
     onUpdate: (value: UseAzureAppRegistrationCard) => void;
-  } & Parameters<typeof useAzureAppRegistrationCard>[0],
+  } & Parameters<typeof useAzureAppRegistrationCard>[0]
 ) {
   const value = useAzureAppRegistrationCard(props);
   useEffect(() => {
@@ -91,9 +93,7 @@ function HookHarness(
   return null;
 }
 
-function baseProps(
-  overrides: Partial<Parameters<typeof useAzureAppRegistrationCard>[0]> = {},
-): Parameters<typeof useAzureAppRegistrationCard>[0] {
+function baseProps(overrides: Partial<Parameters<typeof useAzureAppRegistrationCard>[0]> = {}): Parameters<typeof useAzureAppRegistrationCard>[0] {
   return {
     azureAccount: { tenantId: "tenant-home" } as AzureAccount,
     githubAccount: { id: 1, login: "org-one", type: "User" },
@@ -141,7 +141,7 @@ describe("useAzureAppRegistrationCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -153,10 +153,7 @@ describe("useAzureAppRegistrationCard", () => {
   });
 
   it("falls back to PROD/TEST when pipeline valid envs do not include them", async () => {
-    const includesSpy = vi.spyOn(Array.prototype, "includes").mockImplementation(function (
-      this: string[],
-      value: string,
-    ) {
+    const includesSpy = vi.spyOn(Array.prototype, "includes").mockImplementation(function (this: string[], value: string) {
       if (this.length === 2 && this[0] === "PROD" && this[1] === "TEST") {
         return false;
       }
@@ -173,7 +170,7 @@ describe("useAzureAppRegistrationCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -202,7 +199,7 @@ describe("useAzureAppRegistrationCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -215,10 +212,7 @@ describe("useAzureAppRegistrationCard", () => {
   });
 
   it("falls back to saved result client id when variables are empty", async () => {
-    localStorage.setItem(
-      "zeninstaller_azure_result",
-      JSON.stringify({ clientId: "saved-client", tenantId: "tenant-1", subscriptionIds: ["sub-1"] }),
-    );
+    localStorage.setItem("zeninstaller_azure_result", JSON.stringify({ clientId: "saved-client", tenantId: "tenant-1", subscriptionIds: ["sub-1"] }));
 
     let latest: UseAzureAppRegistrationCard | null = null;
     const root = createRoot(document.createElement("div"));
@@ -230,7 +224,7 @@ describe("useAzureAppRegistrationCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -253,7 +247,7 @@ describe("useAzureAppRegistrationCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -291,7 +285,7 @@ describe("useAzureAppRegistrationCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -319,7 +313,7 @@ describe("useAzureAppRegistrationCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -332,24 +326,12 @@ describe("useAzureAppRegistrationCard", () => {
       expect(apiMocks.createAppRegistration).not.toHaveBeenCalled();
       expect(apiMocks.getExistingSP).toHaveBeenCalled();
       expect(apiMocks.createServicePrincipal).not.toHaveBeenCalled();
-      expect(apiMocks.setOidcImmutableSubject).toHaveBeenCalledWith(
-        expect.objectContaining({ login: "org-one" }),
-        "repo-one",
-      );
+      expect(apiMocks.setOidcImmutableSubject).toHaveBeenCalledWith(expect.objectContaining({ login: "org-one" }), "repo-one");
       expect(apiMocks.ensureFederatedCredential).toHaveBeenCalledTimes(2);
       const subjects = apiMocks.ensureFederatedCredential.mock.calls.map((c) => c[3]);
-      expect(subjects).toEqual([
-        "repo:org-one@1/repo-one@456789:environment:PROD",
-        "repo:org-one@1/repo-one@456789:environment:TEST",
-      ]);
+      expect(subjects).toEqual(["repo:org-one@1/repo-one@456789:environment:PROD", "repo:org-one@1/repo-one@456789:environment:TEST"]);
       expect(apiMocks.ensureRbacRole).toHaveBeenCalledTimes(1);
-      expect(apiMocks.ensureRbacRole).toHaveBeenCalledWith(
-        expect.anything(),
-        "sub-1",
-        "sp-existing",
-        "Reader",
-        undefined,
-      );
+      expect(apiMocks.ensureRbacRole).toHaveBeenCalledWith(expect.anything(), "sub-1", "sp-existing", "Reader", undefined);
       expect(latest?.result?.tenantId).toBe("tenant-home");
     });
 
@@ -372,7 +354,7 @@ describe("useAzureAppRegistrationCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -381,12 +363,7 @@ describe("useAzureAppRegistrationCard", () => {
     });
 
     await waitFor(() => {
-      expect(apiMocks.createAppRegistration).toHaveBeenCalledWith(
-        expect.anything(),
-        "zeninstaller-github",
-        [],
-        "tenant-2",
-      );
+      expect(apiMocks.createAppRegistration).toHaveBeenCalledWith(expect.anything(), "zeninstaller-github", [], "tenant-2");
       expect(apiMocks.createServicePrincipal).toHaveBeenCalledWith(expect.anything(), "created-app", "tenant-2");
       expect(latest?.result?.clientId).toBe("created-app");
       expect(latest?.result?.tenantId).toBe("tenant-2");
@@ -408,7 +385,7 @@ describe("useAzureAppRegistrationCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -422,9 +399,7 @@ describe("useAzureAppRegistrationCard", () => {
     // ARM consent is already established by the Azure login card, so only Graph is asked for here.
     expect(apiMocks.ensureScopeConsent.mock.calls[0][1]).toEqual(["app.scope"]);
     // Nothing may run before consent is settled — a redirect here must cost no progress.
-    expect(apiMocks.ensureScopeConsent.mock.invocationCallOrder[0]).toBeLessThan(
-      apiMocks.getExistingApp.mock.invocationCallOrder[0],
-    );
+    expect(apiMocks.ensureScopeConsent.mock.invocationCallOrder[0]).toBeLessThan(apiMocks.getExistingApp.mock.invocationCallOrder[0]);
     expect(latest?.steps.find((s) => s.id === "consent")?.status).toBe("skipped");
 
     await act(async () => {
@@ -446,7 +421,7 @@ describe("useAzureAppRegistrationCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -480,7 +455,7 @@ describe("useAzureAppRegistrationCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -489,9 +464,7 @@ describe("useAzureAppRegistrationCard", () => {
     });
 
     await waitFor(() => {
-      expect(latest?.steps.find((s) => s.id === "app")?.detail).toBe(
-        "Additional consent required — redirecting to Microsoft...",
-      );
+      expect(latest?.steps.find((s) => s.id === "app")?.detail).toBe("Additional consent required — redirecting to Microsoft...");
       expect(apiMocks.getMsal).toHaveBeenCalled();
     });
 
@@ -517,7 +490,7 @@ describe("useAzureAppRegistrationCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 

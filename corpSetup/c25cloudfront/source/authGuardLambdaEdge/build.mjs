@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 // This script packages the authGuard Lambda for deployment.
 import { execSync } from "child_process";
 import { copyFileSync, mkdirSync, rmSync } from "fs";
@@ -22,7 +27,7 @@ execSync("npm install --omit=dev --no-audit --no-fund", {
 });
 
 // Clean up unnecessary files that npm might have created
-rmSync(resolve(distDir, "package.json"), { force: true }); 
+rmSync(resolve(distDir, "package.json"), { force: true });
 rmSync(resolve(distDir, "package-lock.json"), { force: true });
 
 console.log("Prepared Lambda package in dist/");

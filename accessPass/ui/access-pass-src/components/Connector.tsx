@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import React from "react";
 import { Box } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";

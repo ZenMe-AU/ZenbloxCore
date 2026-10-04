@@ -1,14 +1,10 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useState } from "react";
-import {
-  Box,
-  Button,
-  CircularProgress,
-  IconButton,
-  InputAdornment,
-  MenuItem,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, CircularProgress, IconButton, InputAdornment, MenuItem, TextField, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew"; //Todo: check why this import could not be found or why it is missing
 import Visibility from "@mui/icons-material/Visibility"; //Todo: check why this import could not be found or why it is missing
 import VisibilityOff from "@mui/icons-material/VisibilityOff"; //Todo: check why this import could not be found or why it is missing
@@ -29,8 +25,8 @@ type Props = {
 function Intro() {
   return (
     <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-      Sign in with your AWS access key in this browser. We never send your long-term AWS access key or secret key to our
-      servers; only short-term AWS session credentials are kept in this tab until they expire.
+      Sign in with your AWS access key in this browser. We never send your long-term AWS access key or secret key to our servers; only short-term AWS session
+      credentials are kept in this tab until they expire.
       <>
         <br />
         You will need to copy the credentials from AWS after&nbsp;
@@ -118,8 +114,8 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
           <>
             <Box>
               <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", mb: 1.5, lineHeight: 1.6 }}>
-                Generate access keys from your AWS account's Security credentials. They're exchanged for short-term
-                session credentials and can be deleted after setup.
+                Generate access keys from your AWS account's Security credentials. They're exchanged for short-term session credentials and can be deleted after
+                setup.
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 <TextField
@@ -148,13 +144,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                     style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" },
                     endAdornment: (
                       <InputAdornment position="end">
-                        <IconButton
-                          size="small"
-                          type="button"
-                          onClick={() => setShowSecret((v) => !v)}
-                          edge="end"
-                          tabIndex={-1}
-                        >
+                        <IconButton size="small" type="button" onClick={() => setShowSecret((v) => !v)} edge="end" tabIndex={-1}>
                           {showSecret ? <VisibilityOff sx={{ fontSize: 16 }} /> : <Visibility sx={{ fontSize: 16 }} />}
                         </IconButton>
                       </InputAdornment>
@@ -226,11 +216,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
               }}
               placeholder="123456"
               autoFocus
-              helperText={
-                usableDevices.length > 1
-                  ? "Code from the selected device"
-                  : `Code from ${usableDevices[0]?.name ?? "your MFA device"}`
-              }
+              helperText={usableDevices.length > 1 ? "Code from the selected device" : `Code from ${usableDevices[0]?.name ?? "your MFA device"}`}
               inputProps={{
                 maxLength: 6,
                 style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem", letterSpacing: "0.2em" },
@@ -244,9 +230,8 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
           <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75, maxWidth: 420 }}>
             <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706", mt: "2px" }} />
             <Typography sx={{ fontSize: "0.68rem", color: "#92400e", lineHeight: 1.6 }}>
-              Your only MFA is a security key (FIDO), which AWS can't use for CLI/API sign-in. We'll continue without
-              MFA — if your account requires MFA, register an authenticator-app (TOTP) device or use access keys that
-              don't enforce MFA.
+              Your only MFA is a security key (FIDO), which AWS can't use for CLI/API sign-in. We'll continue without MFA — if your account requires MFA,
+              register an authenticator-app (TOTP) device or use access keys that don't enforce MFA.
             </Typography>
           </Box>
         )}

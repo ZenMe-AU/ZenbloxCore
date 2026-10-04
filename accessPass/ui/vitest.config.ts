@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { defineConfig, defineProject } from "vitest/config";
 import { playwright } from "@vitest/browser-playwright";
 

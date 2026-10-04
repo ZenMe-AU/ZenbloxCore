@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 const DOCS_BASE = "/docs";
 
 // TODO: Investige if we should remove redundant cloud-docs wrapper.

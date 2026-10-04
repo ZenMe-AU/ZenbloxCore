@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -77,9 +82,7 @@ function StatusBar({ session }: { session: UseRemoteTerminal }) {
           "@keyframes pulse": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0.3 } },
         }}
       />
-      <Typography sx={{ fontSize: "0.72rem", color: TERMINAL_COLORS.text, fontWeight: 600, ...mono }}>
-        {text}
-      </Typography>
+      <Typography sx={{ fontSize: "0.72rem", color: TERMINAL_COLORS.text, fontWeight: 600, ...mono }}>{text}</Typography>
       {session.stage && (
         <Typography
           sx={{
@@ -96,9 +99,7 @@ function StatusBar({ session }: { session: UseRemoteTerminal }) {
         </Typography>
       )}
       {session.sessionId && (
-        <Typography sx={{ fontSize: "0.65rem", color: TERMINAL_COLORS.muted, ml: "auto", ...mono }}>
-          {session.sessionId.slice(0, 8)}
-        </Typography>
+        <Typography sx={{ fontSize: "0.65rem", color: TERMINAL_COLORS.muted, ml: "auto", ...mono }}>{session.sessionId.slice(0, 8)}</Typography>
       )}
       {/* Gone once the session is over — the panel stays, but there is nothing left to end. */}
       {session.status !== "closed" && session.status !== "idle" && (
@@ -219,9 +220,7 @@ export default function RemoteTerminal({ session }: { session: UseRemoteTerminal
       }}
     >
       <StatusBar session={session} />
-      {session.deviceCode && (
-        <DeviceCodePanel cloud={session.deviceCode.cloud} url={session.deviceCode.url} code={session.deviceCode.code} />
-      )}
+      {session.deviceCode && <DeviceCodePanel cloud={session.deviceCode.cloud} url={session.deviceCode.url} code={session.deviceCode.code} />}
       {session.loggedIn.length > 0 && (
         <Typography
           sx={{

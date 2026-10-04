@@ -1,23 +1,11 @@
-import type {
-  Account,
-  CardChrome,
-  CardHook,
-  CardId,
-  CardStatus,
-  GhEnv,
-  PipelineConfig,
-  PlanSummary,
-  Stage,
-  StageDefinition,
-} from "../../types";
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
+import type { Account, CardChrome, CardHook, CardId, CardStatus, GhEnv, PipelineConfig, PlanSummary, Stage, StageDefinition } from "../../types";
 import type { UseDeploymentPlan } from "./useDeploymentPlan";
-import {
-  getEffectiveStatus,
-  getStageCardId,
-  getStageSummaryText,
-  hasVariableDiff,
-  stageToCardStatus,
-} from "../../logic/stage";
+import { getEffectiveStatus, getStageCardId, getStageSummaryText, hasVariableDiff, stageToCardStatus } from "../../logic/stage";
 
 export type CorpStageCardModel = {
   key: string;
@@ -70,10 +58,7 @@ export function useCorpStageCards({
   onToggle: (id: CardId) => void;
   onRequirementClick: (id: CardId) => void;
 }): CorpStageCardModel[] {
-  const cardStatus = Object.fromEntries(Object.entries(allCards).map(([id, hook]) => [id, hook.status])) as Record<
-    CardId,
-    CardStatus
-  >;
+  const cardStatus = Object.fromEntries(Object.entries(allCards).map(([id, hook]) => [id, hook.status])) as Record<CardId, CardStatus>;
 
   return pipeline.stages.map((stageDef: StageDefinition) => {
     const stage = plan.stages.find((s) => s.stage === stageDef.dir) ?? {
@@ -82,8 +67,7 @@ export function useCorpStageCards({
     };
     const summary = plan.stageSummaries[stageDef.dir];
     const effectiveStatus = getEffectiveStatus(stage, summary, stageDef.optional);
-    const varsMismatch =
-      plan.deployedEnv != null && hasVariableDiff(stageDef.prerequisites, variableValues, plan.deployedEnv);
+    const varsMismatch = plan.deployedEnv != null && hasVariableDiff(stageDef.prerequisites, variableValues, plan.deployedEnv);
     // This stage's own run, if it has one — a run on another card must not grey this one out.
     const run = plan.runs[stageDef.dir];
     const isStale = run != null;

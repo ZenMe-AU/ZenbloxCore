@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutlined";
 import type { CardStatus } from "../types";
 import type { useAzureAccessPass } from "../hooks/useAccessPass";

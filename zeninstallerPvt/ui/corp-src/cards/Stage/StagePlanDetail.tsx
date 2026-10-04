@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
 import { ACTION_CONFIG } from "./stageConfig";
 import { getActionType } from "../../logic/stage";
@@ -23,10 +28,7 @@ function SummaryPill({ label, count, color }: { label: string; count: number; co
 }
 
 function BehindPill({ planSha, latestSha }: { planSha?: string; latestSha?: string }) {
-  const detail =
-    planSha && latestSha
-      ? `Planned at ${planSha.slice(0, 7)} \u00b7 the branch is now at ${latestSha.slice(0, 7)}`
-      : "";
+  const detail = planSha && latestSha ? `Planned at ${planSha.slice(0, 7)} \u00b7 the branch is now at ${latestSha.slice(0, 7)}` : "";
   return (
     <Tooltip title={detail} placement="top">
       <Box
@@ -165,12 +167,8 @@ export default function StagePlanDetail({
                   background: idx % 2 === 0 ? "#ffffff" : "#fafafa",
                 }}
               >
-                <Box sx={{ width: 26, color: cfg.color, fontSize: "0.72rem", fontWeight: 700, ...mono, flexShrink: 0 }}>
-                  {cfg.symbol}
-                </Box>
-                <Typography sx={{ fontSize: "0.75rem", color: "#334155", wordBreak: "break-all", ...mono }}>
-                  {item.address}
-                </Typography>
+                <Box sx={{ width: 26, color: cfg.color, fontSize: "0.72rem", fontWeight: 700, ...mono, flexShrink: 0 }}>{cfg.symbol}</Box>
+                <Typography sx={{ fontSize: "0.75rem", color: "#334155", wordBreak: "break-all", ...mono }}>{item.address}</Typography>
               </Box>
             );
           })}
