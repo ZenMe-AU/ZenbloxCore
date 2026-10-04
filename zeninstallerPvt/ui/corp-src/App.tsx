@@ -4,7 +4,6 @@ import { Box, Typography } from "@mui/material";
 import { type CardChrome, type CardHook, type CardId } from "./types";
 import { groupSx, EXPANDED_W } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
-import { PIPELINE } from "./logic/pipeline";
 import { useGithubLoginCard } from "./cards/GithubLogin/useGithubLoginCard";
 import { useRepoCard } from "./cards/Repo/useRepoCard";
 import { useGithubVariables } from "./hooks/useGithubVariables";
@@ -20,9 +19,10 @@ import { useRemoteTerminalInfraCard } from "./cards/RemoteTerminalInfra/useRemot
 import { useBackendDeployCard } from "./cards/BackendDeploy/useBackendDeployCard";
 import { useAccessPassCard } from "./cards/AccessPass/useAccessPassCard";
 import { useAwsLoginCard } from "./cards/AwsLogin/useAwsLoginCard";
+import { useWebDeployCard } from "./cards/WebDeploy/useWebDeployCard";
 import { useAwsSetupCard } from "./cards/AwsSetup/useAwsSetupCard";
 
-import NavBar from "./components/NavBar";
+import Header from "./components/Header";
 import RestoreToast from "./components/RestoreToast";
 import GithubLoginCard from "./cards/GithubLogin/GithubLoginCard";
 import RepoCard from "./cards/Repo/RepoCard";
@@ -32,6 +32,7 @@ import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCa
 import CoreInfraCard from "./cards/CoreInfra/CoreInfraCard";
 import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
 import BackendDeployCard from "./cards/BackendDeploy/BackendDeployCard";
+import WebDeployCard from "./cards/WebDeploy/WebDeployCard";
 import CreateDomainCard from "./cards/CreateDomain/CreateDomainCard";
 import AccessPassCard from "./cards/AccessPass/AccessPassCard";
 import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
@@ -39,7 +40,7 @@ import AwsSetupCard from "./cards/AwsSetup/AwsSetupCard";
 import StageCard from "./cards/Stage/StageCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
-import { reactPlugin } from "./cards/AccessPass/applicationInsights";
+import { reactPlugin } from "./monitor/applicationInsights";
 
 // TODO: Remove fontSize and fontFamily from all Typography components and rely on theme defaults instead.
 
@@ -138,7 +139,7 @@ function AppDashboard() {
       subscriptionId: azureSubscription.selectedSubscriptionId,
       corpName,
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-      allowedOrigin: window.location.origin,
+      allowedOrigins: [window.location.origin, ...(dnsName ? [`https://www.${dnsName}`, `https://${dnsName}`] : [])],
       githubAccount: githubRepoEnv.repo.selectedAccount,
       githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
       githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,
@@ -146,6 +147,18 @@ function AppDashboard() {
   );
   const backendDeploy = addCard(
     useBackendDeployCard({
+      azureAccount: azureLogin.account,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
+      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
+      corpName,
+      githubAccount: githubRepoEnv.repo.selectedAccount,
+      repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
+      selectedEnv: githubRepoEnv.env.selectedEnv,
+    }),
+  );
+  const webDeploy = addCard(
+    useWebDeployCard({
+      variableValues: githubVariableValues,
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
@@ -276,18 +289,7 @@ function AppDashboard() {
       <Box
         sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}
       >
-        <NavBar
-          authLoading={githubLogin.loggingIn}
-          user={githubLogin.account}
-          selectedRepo={githubRepoEnv.repo.selectedRepo}
-          siblingPages={[
-            { label: "Access Pass", href: "/accessPass.html" },
-            { label: "Private Account", href: "/privAccount.html" },
-            { label: "AWS Hosting", href: "/awsHosting.html", carryQuery: true },
-            { label: "Cost Management", href: "/costManagement.html", carryQuery: true },
-            { label: "User Access", href: "/userAccess.html", carryQuery: true },
-          ]}
-        />
+        <Header />
 
         <Box sx={{ maxWidth: EXPANDED_W, mx: "auto", px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 5 } }}>
           {/* Intro */}
@@ -394,6 +396,20 @@ function AppDashboard() {
 
             <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
 
+            <WebDeployCard
+              card={cardProps("web_deploy")}
+              web={webDeploy}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+              githubUrl={githubRepoEnv.githubEnvUrl}
+              repoFullName={
+                githubRepoEnv.repo.selectedAccount && githubRepoEnv.repo.selectedRepo
+                  ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
+                  : null
+              }
+            />
             <AwsSetupCard
               card={cardProps("aws_setup")}
               awsSetup={awsSetup}

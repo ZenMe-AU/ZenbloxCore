@@ -1,7 +1,8 @@
+// UI component: ../../../corp-src/cards/AzureLogin/AzureLoginCard.tsx
 import { expect, test } from "@playwright/test";
 import { restoreAzureSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
-import { expectSnapshot, expectVisibleWithin } from "../util/testHelper.mts";
+import { expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
 import { expandAzureLoginCard } from "../util/cardHelper.mts";
 import { writeFile } from "fs/promises";
 
@@ -32,6 +33,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
             const azureCard = await test.step("Expand Unauthenticated Azure Login Card", async () => {
                 const azureCard = await expandAzureLoginCard(page);
+                await expect(azureCard.getByRole("button", { name: "Sign in with Azure" })).toBeVisible();
                 await expectSnapshot(page, azureCard, testInfo, "start", viewportName);
                 return azureCard;
             });
@@ -39,12 +41,28 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
             await test.step("Shows authenticated Azure card and selects a tenant", async () => {
               await restoreAzureSessionStorage(context);
               await page.reload();
-              await expect(azureCard.getByText(/Signed in as/i)).toBeVisible();
-              await expect(azureCard.getByTestId("txtAzureUsername")).toBeVisible();
-              await expect(azureCard.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
+              await expectVisibleWithin(azureCard.getByText(/Signed in as/i), "Azure signed-in status", 50_000);
+              await expectVisibleWithin(azureCard.getByTestId("txtAzureUsername"), "Azure username", 50_000);
+              await expectVisibleWithin(azureCard.getByRole("button", { name: "Sign out", exact: true }), "Sign out button", 50_000);
               await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
-              await expect(azureCard.getByText(/^Tenant/)).toBeVisible();
-              await expectVisibleWithin(azureCard.getByRole("combobox"), "Combobox: Load already stored tenant id.", 500000);
+              await expectVisibleWithin(azureCard.getByText(/^Tenant/), "Tenant label", 50_000);
+              await expectVisibleWithin(azureCard.getByRole("combobox"), "Stored tenant selector", 50_000);
+
+              // re-selects tenant to actually confirm correctly selected id
+              const tenantSelect = azureCard.getByTestId("tenant-select");
+              await expect.poll(async () => (await tenantSelect.locator("input").inputValue()).trim(), { timeout: 50_000 }).not.toBe("");
+              const tenantId = (await tenantSelect.locator("input").inputValue()).trim();
+              await tenantSelect.click();
+              await page.getByRole("option").filter({ hasText: tenantId }).click();
+              await expect(tenantSelect.locator("input")).toHaveValue(tenantId);
+
+              const subscriptionCard = page.locator("#card-azure_subscription");
+              const requirements = subscriptionCard.getByText("Complete these first");
+              if (!(await requirements.isVisible())) {
+                await subscriptionCard.getByText("Choose Azure subscription").click();
+              }
+              await expect(requirements).toBeVisible();
+              await expect(subscriptionCard.getByText("Select a tenant")).toHaveCount(0, { timeout: 50_000 });
 
               await expectSnapshot(page, azureCard, testInfo, "end", viewportName);
 
@@ -55,7 +73,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await restoreAzureSessionStorage(context);
         await page.goto(CORP_URL);
         const azureCard = await expandAzureLoginCard(page);
-        await expect(azureCard.getByText(/Signed in as/i)).toBeVisible();
+        await expectVisibleWithin(azureCard.getByText(/Signed in as/i), "Azure signed-in status", 50_000);
         await azureCard.getByRole("button", { name: "Sign out", exact: true }).click();
         await expect(azureCard.getByText(/Signed in as/i)).toHaveCount(0);
         await expectSnapshot(page, azureCard, testInfo, "signed-out", viewportName);

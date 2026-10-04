@@ -31,6 +31,8 @@ export interface UseBackendDeployCardParams {
   selectedEnv: GhEnv | null;
 }
 
+const BUILD_WORKFLOW = "buildBackend.yml";
+
 export interface UseBackendDeployCard extends CardHook, AzureConfigHook {
   readonly cardId: "backend_deploy";
   appName: string;
@@ -40,6 +42,7 @@ export interface UseBackendDeployCard extends CardHook, AzureConfigHook {
   loadingLatest: boolean;
   building: boolean;
   build: () => Promise<void>;
+  buildWorkflow: string;
   updateAvailable: boolean;
   error: string | null;
   cardRequirements: CardRequirements;
@@ -126,7 +129,7 @@ export function useBackendDeployCard({
     setError(null);
     const before = latest?.builtAt ?? 0;
     try {
-      await triggerWorkflow(githubAccount, repoName, "buildBackend.yml", selectedEnv.name, selectedEnv.name);
+      await triggerWorkflow(githubAccount, repoName, BUILD_WORKFLOW, selectedEnv.name, selectedEnv.name);
       for (const delay of POLL_DELAYS_MS) {
         await new Promise((r) => setTimeout(r, delay));
         const next = await readLatest();
@@ -170,7 +173,7 @@ export function useBackendDeployCard({
       );
       updateStep("download", "done", `${mb(zip.size)} MB`);
 
-      await deployZipToFunctionApp(azureAccount, appName, zip, tenantId, (phase) => {
+      await deployZipToFunctionApp(azureAccount, subscriptionId, resourceGroup, appName, zip, tenantId, (phase) => {
         if (phase === "uploading") updateStep("upload", "running");
         else {
           updateStep("upload", "done");
@@ -205,6 +208,8 @@ export function useBackendDeployCard({
     githubAccount,
     repoName,
     latest,
+    subscriptionId,
+    resourceGroup,
     appName,
     tenantId,
     readDeployed,
@@ -241,6 +246,7 @@ export function useBackendDeployCard({
     loadingLatest,
     building,
     build,
+    buildWorkflow: BUILD_WORKFLOW,
     updateAvailable,
     error,
     steps,

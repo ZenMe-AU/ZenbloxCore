@@ -11,7 +11,7 @@ import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_APP_REGISTRATIONS_URL, getAppRegistrationUrl } from "./consoleUrls";
 import { AZURE_APP_KEYS } from "../../logic/variables";
-import CloudVariableDetail from ".././CloudVariableDetail";
+import CloudVariableDetail from "../CloudVariableDetail";
 import { MONO as mono, labelSx } from "../../config/styles";
 
 type Props = {

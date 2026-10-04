@@ -1,7 +1,8 @@
+// UI component: ../../../corp-src/cards/GithubLoginCard.tsx
 import { expect, test } from "@playwright/test";
 import { getCorpGithubAuthMode, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports, } from "../../testInit";
-import { expectSnapshot } from "../util/testHelper.mts";
+import { expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
 import { expandGithubLoginCard } from "../util/cardHelper.mts";
 import { writeFile } from "fs/promises";
 
@@ -32,6 +33,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			
 			const githubCard = await test.step("Expand Unauthenticated Github Login Card", async () => {
 				const githubCard = await expandGithubLoginCard(page,);
+				await expect(githubCard.getByRole("button", { name: "Login with GitHub" })).toBeVisible();
 				await expectSnapshot(page, githubCard, testInfo, "start", viewportName);
 				return githubCard;
 			});
@@ -43,14 +45,14 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				const authMode = getCorpGithubAuthMode();
 				expect(authMode,).not.toBeNull();
 				const githubCard = await expandGithubLoginCard(page,);
-				await expect(githubCard.getByText(/Authenticated as/i,),).toBeVisible();
+				await expectVisibleWithin(githubCard.getByText(/Authenticated as/i,), "GitHub authenticated status", 50_000);
 				const patMode = githubCard.getByText(/· PAT mode/i,);
 				if (authMode === "direct") {
-					await expect(patMode,).toBeVisible();
+					await expectVisibleWithin(patMode, "PAT mode indicator", 50_000);
 				} else {
 					await expect(patMode,).toHaveCount(0);
 				}
-				await expect(githubCard.getByRole("button", { name: "Sign out", exact: true, }),).toBeVisible();
+				await expectVisibleWithin(githubCard.getByRole("button", { name: "Sign out", exact: true, }), "Sign out button", 50_000);
 				await expect(githubCard.getByRole("button", { name: "Login with GitHub", exact: true, }),).toHaveCount(0);
 				await expectSnapshot(page, githubCard, testInfo, "end", viewportName);
 			});
@@ -64,12 +66,12 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await githubCard.getByRole("button", { name: "Direct (PAT)", exact: true, }).click();
 			const patInput = githubCard.getByPlaceholder("ghp_… or github_pat_…",);
 			const connectWithPat = githubCard.getByRole("button", { name: "Connect with PAT", exact: true, });
-			await expect(patInput,).toBeVisible();
+			await expectVisibleWithin(patInput, "GitHub PAT input", 50_000);
 			await expect(connectWithPat,).toBeDisabled();
 			await patInput.fill("not-a-valid-pat",);
 			await expect(connectWithPat,).toBeEnabled();
 			await connectWithPat.click();
-			await expect(githubCard.getByText(/Must be a GitHub PAT \(ghp_… or github_pat_…\)/i,),).toBeVisible();
+			await expectVisibleWithin(githubCard.getByText(/Must be a GitHub PAT \(ghp_… or github_pat_…\)/i,), "Invalid GitHub PAT message", 50_000);
 			await expectSnapshot(page, githubCard, testInfo, "invalid-pat", viewportName);
 		});
 
@@ -77,9 +79,9 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await page.goto(CORP_URL);
 			const githubCard = await expandGithubLoginCard(page,);
 			await githubCard.getByRole("button", { name: "Direct (PAT)", exact: true, }).click();
-			await expect(githubCard.getByRole("button", { name: "Connect with PAT", exact: true, }),).toBeVisible();
+			await expectVisibleWithin(githubCard.getByRole("button", { name: "Connect with PAT", exact: true, }), "Connect with PAT button", 50_000);
 			await githubCard.getByRole("button", { name: "Backend", exact: true, }).click();
-			await expect(githubCard.getByRole("button", { name: "Login with GitHub", exact: true, }),).toBeVisible();
+			await expectVisibleWithin(githubCard.getByRole("button", { name: "Login with GitHub", exact: true, }), "Login with GitHub button", 50_000);
 		});
 
 	});

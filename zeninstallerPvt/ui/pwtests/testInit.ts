@@ -17,15 +17,12 @@ export const GRAPH_APPLICATION_SCOPE = `${MICROSOFT_GRAPH_URL}/application.readw
 export const GRAPH_APP_ROLE_ASSIGNMENT_SCOPE = `${MICROSOFT_GRAPH_URL}/approleassignment.readwrite.all`;
 
 /* GITHUB_TOKEN must be configured in web/.env file due to Github commit security */
-export const TENANT_ID = "Zenme";
 export const SUBSCRIPTION_ID = "Zenme Azure 1";
 
 // Repo names to be used repo creation
 export const TEST_REPO_MAIN = "pwtests"; // creating repo with env variables
 export const TEST_REPO_NO_ENV = "pwtests-no-env"; // creating repo with no env variables
 export const TEST_REPO_FROM_PROD = "pwtests-test-from-prod"; // creating test branch from existing prod branch
-
-
 
 export const viewports = {
   Desktop: { width: 1280, height: 720, },

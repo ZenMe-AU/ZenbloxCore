@@ -5,7 +5,7 @@ import type { UseBackendDeployCard } from "./useBackendDeployCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
-import { getWorkflowRunUrl } from "../../logic/github";
+import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import { MONO as mono, labelSx } from "../../config/styles";
 import type { CardChrome } from "../../types";
 
@@ -26,6 +26,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
     loadingDeployed,
     building,
     build,
+    buildWorkflow,
     updateAvailable,
     error,
     steps,
@@ -36,7 +37,14 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
   return (
     <Card
       title="Private Zeninstaller Backend"
-      action={repoFullName && latest ? <ViewLink href={getWorkflowRunUrl(repoFullName, latest.runId)} /> : undefined}
+      action={
+        repoFullName ? (
+          // Before anything has built there is no run to point at, so the workflow's page stands in.
+          <ViewLink
+            href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)}
+          />
+        ) : undefined
+      }
       {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -74,31 +82,13 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           </Box>
         </Box>
 
-        {/* The whole point of tracking versions: say plainly whether anything needs doing. */}
-        {!loadingLatest && latest && !updateAvailable && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...mono }}>
-              The Function App is running the latest build.
-            </Typography>
-          </Box>
-        )}
-        {!loadingLatest && updateAvailable && deployed && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>
-              A newer build is available — deploy to pick it up.
-            </Typography>
-          </Box>
-        )}
-
         {error && (
           <Box sx={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", px: 2, py: 1.25 }}>
             <Typography sx={{ fontSize: "0.75rem", color: "#991b1b" }}>{error}</Typography>
           </Box>
         )}
 
-        <Box sx={{ display: "flex", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Button
             onClick={() => void build()}
             disabled={building || running}
@@ -145,6 +135,25 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
               "Deploy"
             )}
           </Button>
+
+          {/* Mutually exclusive with the prompt below, so both share the slot by the button. */}
+          {!loadingLatest && latest && !updateAvailable && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
+              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...mono }}>
+                The Function App is running the latest build.
+              </Typography>
+            </Box>
+          )}
+
+          {!loadingLatest && updateAvailable && deployed && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
+              <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>
+                Ready to deploy the new build
+              </Typography>
+            </Box>
+          )}
         </Box>
 
         {steps.length > 0 && (
