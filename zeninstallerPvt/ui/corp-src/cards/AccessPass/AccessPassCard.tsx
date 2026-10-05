@@ -8,7 +8,7 @@ import { Box, Button, CircularProgress, Table, TableBody, TableCell, TableContai
 import type { CardChrome, SetupStep } from "../../types";
 import type { UseAccessPassCard } from "./useAccessPassCard";
 import StepRow from "../StepRow";
-import { logEvent } from "./telemetry";
+import { logEvent } from "../../monitor/telemetry";
 import Card from "../../components/Card";
 import CopyRow from "../../components/CopyRow";
 import ViewLink from "../../components/ViewLink";
