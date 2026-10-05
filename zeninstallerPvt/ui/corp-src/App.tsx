@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { Box, Typography } from "@mui/material";
-
+import { PIPELINE } from "./logic/pipeline";
 import { type CardChrome, type CardHook, type CardId } from "./types";
 import { groupSx, EXPANDED_W } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
