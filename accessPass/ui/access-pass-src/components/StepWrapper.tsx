@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { Box, Collapse, IconButton, Typography } from "@mui/material";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -24,15 +29,7 @@ export default function StepWrapper({ title, subtitle, status, expanded, onToggl
         pointerEvents: disabled ? "none" : "auto",
         border: "1px solid",
         borderColor:
-          status === "complete"
-            ? "#bbf7d0"
-            : status === "error"
-              ? "#fecaca"
-              : status === "warning"
-                ? "#fed7aa"
-                : status === "skipped"
-                  ? "#f1f5f9"
-                  : "#e2e8f0",
+          status === "complete" ? "#bbf7d0" : status === "error" ? "#fecaca" : status === "warning" ? "#fed7aa" : status === "skipped" ? "#f1f5f9" : "#e2e8f0",
         borderRadius: "10px",
         background: "#ffffff",
         overflow: "hidden",

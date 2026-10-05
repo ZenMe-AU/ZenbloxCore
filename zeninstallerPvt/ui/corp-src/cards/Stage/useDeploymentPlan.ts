@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { fetchStageReport, getPlanEnv, triggerWorkflow } from "../../api";
 import type { Account, Branch, GhEnv, PipelineConfig, PlanSummary, Stage, StageReport } from "../../types";
@@ -91,22 +96,10 @@ export function useDeploymentPlan(opts: {
 
   const implRef = useRef<{
     loadPlanImpl: (ref: string, poll?: PollContext) => void;
-    startPollingImpl: (
-      ref: string,
-      attempt: number,
-      triggerTime: number,
-      stageKey: string,
-      kind: "plan" | "deploy",
-    ) => void;
+    startPollingImpl: (ref: string, attempt: number, triggerTime: number, stageKey: string, kind: "plan" | "deploy") => void;
   }>({ loadPlanImpl: () => {}, startPollingImpl: () => {} });
 
-  const startPollingImpl = (
-    ref: string,
-    attempt: number,
-    triggerTime: number,
-    stageKey: string,
-    kind: "plan" | "deploy",
-  ) => {
+  const startPollingImpl = (ref: string, attempt: number, triggerTime: number, stageKey: string, kind: "plan" | "deploy") => {
     const delay = POLL_DELAYS[attempt] ?? POLL_DELAYS[POLL_DELAYS.length - 1];
     stopTicker(stageKey);
     patchRun(stageKey, { kind, countdown: delay });
@@ -139,7 +132,7 @@ export function useDeploymentPlan(opts: {
       pipe.stages.map(async (stageDef) => {
         const [plan, deploy] = await Promise.all([load(stageDef.dir, "plan"), load(stageDef.dir, "deploy")]);
         return [stageDef.dir, { plan, deploy }] as const;
-      }),
+      })
     )
       .then((entries) => {
         const byKey = new Map(entries);
@@ -190,7 +183,7 @@ export function useDeploymentPlan(opts: {
             // The plan deployment owns the plan fields, the deploy one owns the deploy fields.
             // planSha is named explicitly so the deploy report's own sha cannot overwrite it.
             return { ...plan?.stage, ...deploy?.stage, stage: dir, planSha: plan?.sha } as Stage;
-          }),
+          })
         );
         setHasPlan(true);
       })

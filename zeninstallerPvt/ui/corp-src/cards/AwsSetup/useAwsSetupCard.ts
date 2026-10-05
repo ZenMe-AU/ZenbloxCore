@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useCallback, useState } from "react";
 import { createOrUpdateGithubOidcRole, ensureGithubOidcProvider } from "../../api/aws";
 import { getFederatedSubject } from "./naming";
@@ -47,9 +52,7 @@ export function useAwsSetupCard({
 }: UseAwsSetupCardParams): UseAwsSetupCard {
   const defaultEnvs = ["PROD", "TEST"].filter((e) => PIPELINE.validEnvs.includes(e));
   const [roleName, setRoleName] = useState("zeninstaller-github");
-  const [environments, setEnvironments] = useState<string[]>(
-    defaultEnvs.length > 0 ? defaultEnvs : [...PIPELINE.validEnvs],
-  );
+  const [environments, setEnvironments] = useState<string[]>(defaultEnvs.length > 0 ? defaultEnvs : [...PIPELINE.validEnvs]);
   const [loading, setLoading] = useState(false);
   const [steps, setSteps] = useState<SetupStep[]>([]);
   const [roleArn, setRoleArn] = useState<string | null>(null);
@@ -60,13 +63,11 @@ export function useAwsSetupCard({
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status, detail } : s)));
   }, []);
 
-  const toggleEnv = (env: string) =>
-    setEnvironments((prev) => (prev.includes(env) ? prev.filter((e) => e !== env) : [...prev, env]));
+  const toggleEnv = (env: string) => setEnvironments((prev) => (prev.includes(env) ? prev.filter((e) => e !== env) : [...prev, env]));
 
   const savedRoleArn = variableValues[AWS_VARIABLE_KEYS[0]]?.trim() ?? "";
   const done = !!savedRoleArn;
-  const canCreate =
-    awsReady && !!awsAccount && !!roleName.trim() && environments.length > 0 && !!githubAccount && !!githubRepo;
+  const canCreate = awsReady && !!awsAccount && !!roleName.trim() && environments.length > 0 && !!githubAccount && !!githubRepo;
 
   const resetRoleCreation = () => {
     setSteps([]);
@@ -102,9 +103,7 @@ export function useAwsSetupCard({
         accountId: awsAccount.accountId,
         org: githubAccount,
         repo: githubRepo,
-        subjects: environments.map((env) =>
-          getFederatedSubject(githubAccount, githubAccountId, githubRepo, githubRepoId, env),
-        ),
+        subjects: environments.map((env) => getFederatedSubject(githubAccount, githubAccountId, githubRepo, githubRepoId, env)),
         roleName,
       });
       updateStep("role", "done", updated ? `Existing role — merged ${environments.length} environment(s)` : "Created");
@@ -119,11 +118,7 @@ export function useAwsSetupCard({
   };
 
   const status: CardStatus = done ? "complete" : awsReady ? "warning" : "idle";
-  const summary = done
-    ? "Connection details already filled in"
-    : awsReady
-      ? "Create the AWS IAM role"
-      : "Set up AWS connection";
+  const summary = done ? "Connection details already filled in" : awsReady ? "Create the AWS IAM role" : "Set up AWS connection";
 
   return {
     cardId: "aws_setup",

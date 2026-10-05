@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -18,21 +23,7 @@ type Props = {
 };
 
 export default function BackendDeployCard({ card, backend, repoFullName }: Props) {
-  const {
-    appName,
-    latest,
-    deployed,
-    loadingLatest,
-    loadingDeployed,
-    building,
-    build,
-    buildWorkflow,
-    updateAvailable,
-    error,
-    steps,
-    running,
-    run,
-  } = backend;
+  const { appName, latest, deployed, loadingLatest, loadingDeployed, building, build, buildWorkflow, updateAvailable, error, steps, running, run } = backend;
 
   return (
     <Card
@@ -40,9 +31,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
       action={
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
-          <ViewLink
-            href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)}
-          />
+          <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} />
         ) : undefined
       }
       {...card}
@@ -62,11 +51,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
             <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
               Latest build:{" "}
               <Box component="span" sx={{ color: "#0f172a" }}>
-                {loadingLatest
-                  ? "checking..."
-                  : latest
-                    ? `${latest.sha.slice(0, 7)} · ${when(latest.builtAt)}`
-                    : "none yet"}
+                {loadingLatest ? "checking..." : latest ? `${latest.sha.slice(0, 7)} · ${when(latest.builtAt)}` : "none yet"}
               </Box>
             </Typography>
             <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
@@ -140,18 +125,14 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           {!loadingLatest && latest && !updateAvailable && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...mono }}>
-                The Function App is running the latest build.
-              </Typography>
+              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...mono }}>The Function App is running the latest build.</Typography>
             </Box>
           )}
 
           {!loadingLatest && updateAvailable && deployed && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>
-                Ready to deploy the new build
-              </Typography>
+              <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>Ready to deploy the new build</Typography>
             </Box>
           )}
         </Box>

@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
@@ -54,7 +59,7 @@ vi.mock("../config/azureConfig", () => ({
 function HookHarness(
   props: {
     onUpdate: (value: UseAccessPassCard) => void;
-  } & Parameters<typeof useAccessPassCard>[0],
+  } & Parameters<typeof useAccessPassCard>[0]
 ) {
   const value = useAccessPassCard(props);
   useEffect(() => {
@@ -78,11 +83,16 @@ async function waitFor(assertion: () => void, timeoutMs = 2000) {
   }
 }
 
-function baseProps(
-  overrides: Partial<Parameters<typeof useAccessPassCard>[0]> = {},
-): Parameters<typeof useAccessPassCard>[0] {
+function baseProps(overrides: Partial<Parameters<typeof useAccessPassCard>[0]> = {}): Parameters<typeof useAccessPassCard>[0] {
   return {
-    azureAccount: { tenantId: "tenant-a", homeAccountId: "h1", environment: "login.microsoftonline.com", username: "user@contoso.com", localAccountId: "l1", name: "User" } as AzureAccount,
+    azureAccount: {
+      tenantId: "tenant-a",
+      homeAccountId: "h1",
+      environment: "login.microsoftonline.com",
+      username: "user@contoso.com",
+      localAccountId: "l1",
+      name: "User",
+    } as AzureAccount,
     confirmedTenantId: "tenant-a",
     ...overrides,
   };
@@ -125,7 +135,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -143,7 +153,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -164,7 +174,7 @@ describe("useAccessPassCard", () => {
       expect.objectContaining({
         scopes: ["scope.a", "scope.b"],
         authority: "https://login.microsoftonline.com/tenant-a",
-      }),
+      })
     );
 
     await act(async () => {
@@ -183,7 +193,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -212,7 +222,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -220,9 +230,7 @@ describe("useAccessPassCard", () => {
       expect(latest?.selectedManagerUserId).toBe("u2");
     });
 
-    apiMocks.listUsersManagedBySignedInUser.mockResolvedValueOnce([
-      { id: "u9", displayName: "User Nine", userPrincipalName: "u9@contoso.com" },
-    ]);
+    apiMocks.listUsersManagedBySignedInUser.mockResolvedValueOnce([{ id: "u9", displayName: "User Nine", userPrincipalName: "u9@contoso.com" }]);
 
     await act(async () => {
       root.render(
@@ -231,7 +239,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -255,7 +263,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -271,7 +279,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -291,7 +299,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -305,14 +313,15 @@ describe("useAccessPassCard", () => {
     });
   });
 
-  it("hides stale persisted TAP result when method no longer exists or validation fails", async () => {    localStorage.setItem(
+  it("hides stale persisted TAP result when method no longer exists or validation fails", async () => {
+    localStorage.setItem(
       "zeninstaller_corp_access_pass_result",
       JSON.stringify({
         accessPassValue: "persisted",
         tenantId: "tenant-a",
         targetUserId: "u1",
         tapMethodId: "tap-1",
-      }),
+      })
     );
 
     apiMocks.temporaryAccessPassMethodExists.mockResolvedValueOnce(false);
@@ -326,7 +335,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -346,7 +355,7 @@ describe("useAccessPassCard", () => {
         tenantId: "tenant-a",
         targetUserId: "u1",
         tapMethodId: "tap-2",
-      }),
+      })
     );
 
     apiMocks.temporaryAccessPassMethodExists.mockRejectedValueOnce(new Error("graph fail"));
@@ -359,7 +368,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -381,7 +390,7 @@ describe("useAccessPassCard", () => {
         tenantId: "tenant-a",
         targetUserId: "u1",
         tapMethodId: "tap-1",
-      }),
+      })
     );
 
     let latest: UseAccessPassCard | null = null;
@@ -394,7 +403,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -419,7 +428,7 @@ describe("useAccessPassCard", () => {
         tenantId: "tenant-a",
         targetUserId: "u1",
         tapMethodId: "tap-1",
-      }),
+      })
     );
     apiMocks.temporaryAccessPassMethodExists.mockResolvedValueOnce(true);
 
@@ -433,7 +442,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -441,12 +450,7 @@ describe("useAccessPassCard", () => {
       expect(latest?.managerUsersLoading).toBe(false);
     });
 
-    expect(apiMocks.temporaryAccessPassMethodExists).toHaveBeenCalledWith(
-      expect.anything(),
-      "u1",
-      "tap-1",
-      "tenant-a",
-    );
+    expect(apiMocks.temporaryAccessPassMethodExists).toHaveBeenCalledWith(expect.anything(), "u1", "tap-1", "tenant-a");
     expect(latest?.result?.accessPassValue).toBe("persisted");
     expect(localStorage.getItem("zeninstaller_corp_access_pass_result")).not.toBeNull();
 
@@ -468,7 +472,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -486,7 +490,10 @@ describe("useAccessPassCard", () => {
   it("discards a stale manager-users load when the tenant changes before it resolves", async () => {
     let resolveFirst!: (users: Array<{ id: string; displayName: string; userPrincipalName: string }>) => void;
     apiMocks.listUsersManagedBySignedInUser.mockImplementationOnce(
-      () => new Promise((resolve) => { resolveFirst = resolve; }),
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        })
     );
 
     let latest: UseAccessPassCard | null = null;
@@ -499,13 +506,11 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
-    apiMocks.listUsersManagedBySignedInUser.mockResolvedValueOnce([
-      { id: "u9", displayName: "User Nine", userPrincipalName: "u9@contoso.com" },
-    ]);
+    apiMocks.listUsersManagedBySignedInUser.mockResolvedValueOnce([{ id: "u9", displayName: "User Nine", userPrincipalName: "u9@contoso.com" }]);
     await act(async () => {
       root.render(
         <HookHarness
@@ -513,7 +518,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -537,7 +542,10 @@ describe("useAccessPassCard", () => {
   it("reports 'Loading users...' as the summary while manager users are being fetched", async () => {
     let resolveUsers!: (users: Array<{ id: string; displayName: string; userPrincipalName: string }>) => void;
     apiMocks.listUsersManagedBySignedInUser.mockImplementationOnce(
-      () => new Promise((resolve) => { resolveUsers = resolve; }),
+      () =>
+        new Promise((resolve) => {
+          resolveUsers = resolve;
+        })
     );
 
     let latest: UseAccessPassCard | null = null;
@@ -550,7 +558,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -578,7 +586,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -634,7 +642,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -655,40 +663,24 @@ describe("useAccessPassCard", () => {
     });
 
     expect(apiMocks.deleteUserAuthenticationMethod).toHaveBeenCalledTimes(7);
-    expect(apiMocks.deleteUserAuthenticationMethod).toHaveBeenCalledWith(
-      expect.anything(),
-      "/users/u1/authentication/emailMethods/m-email",
-      "tenant-a",
-    );
-    expect(apiMocks.deleteUserAuthenticationMethod).toHaveBeenCalledWith(
-      expect.anything(),
-      "/users/u1/authentication/phoneMethods/m-phone",
-      "tenant-a",
-    );
+    expect(apiMocks.deleteUserAuthenticationMethod).toHaveBeenCalledWith(expect.anything(), "/users/u1/authentication/emailMethods/m-email", "tenant-a");
+    expect(apiMocks.deleteUserAuthenticationMethod).toHaveBeenCalledWith(expect.anything(), "/users/u1/authentication/phoneMethods/m-phone", "tenant-a");
     expect(apiMocks.deleteUserAuthenticationMethod).toHaveBeenCalledWith(
       expect.anything(),
       "/users/u1/authentication/microsoftAuthenticatorMethods/m-ma",
-      "tenant-a",
+      "tenant-a"
     );
-    expect(apiMocks.deleteUserAuthenticationMethod).toHaveBeenCalledWith(
-      expect.anything(),
-      "/users/u1/authentication/fido2Methods/m-fido2",
-      "tenant-a",
-    );
-    expect(apiMocks.deleteUserAuthenticationMethod).toHaveBeenCalledWith(
-      expect.anything(),
-      "/users/u1/authentication/softwareOathMethods/m-oath",
-      "tenant-a",
-    );
+    expect(apiMocks.deleteUserAuthenticationMethod).toHaveBeenCalledWith(expect.anything(), "/users/u1/authentication/fido2Methods/m-fido2", "tenant-a");
+    expect(apiMocks.deleteUserAuthenticationMethod).toHaveBeenCalledWith(expect.anything(), "/users/u1/authentication/softwareOathMethods/m-oath", "tenant-a");
     expect(apiMocks.deleteUserAuthenticationMethod).toHaveBeenCalledWith(
       expect.anything(),
       "/users/u1/authentication/windowsHelloForBusinessMethods/m-whfb",
-      "tenant-a",
+      "tenant-a"
     );
     expect(apiMocks.deleteUserAuthenticationMethod).toHaveBeenCalledWith(
       expect.anything(),
       "/users/u1/authentication/temporaryAccessPassMethods/m-tap",
-      "tenant-a",
+      "tenant-a"
     );
 
     await waitFor(() => {
@@ -715,7 +707,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -732,7 +724,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -767,7 +759,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -828,7 +820,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -843,7 +835,7 @@ describe("useAccessPassCard", () => {
 
     expect(apiMocks.logEvent).toHaveBeenCalledWith(
       "accessPassWorkflowStepFailed",
-      expect.objectContaining({ targetUserId: "u1", stepId: "policy", message: "plain string rejection" }),
+      expect.objectContaining({ targetUserId: "u1", stepId: "policy", message: "plain string rejection" })
     );
 
     await act(async () => {
@@ -865,7 +857,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -879,10 +871,7 @@ describe("useAccessPassCard", () => {
       expect(latest?.running).toBe(false);
     });
 
-    expect(apiMocks.logEvent).toHaveBeenCalledWith(
-      "accessPassWorkflowStepFailed",
-      expect.objectContaining({ targetUserId: "u1", stepId: "policy" }),
-    );
+    expect(apiMocks.logEvent).toHaveBeenCalledWith("accessPassWorkflowStepFailed", expect.objectContaining({ targetUserId: "u1", stepId: "policy" }));
 
     await act(async () => {
       root.unmount();
@@ -902,7 +891,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -911,9 +900,7 @@ describe("useAccessPassCard", () => {
       expect(latest?.summary).toBe("No users available");
     });
 
-    apiMocks.listUsersManagedBySignedInUser.mockResolvedValueOnce([
-      { id: "u1", displayName: "User One", userPrincipalName: "u1@contoso.com" },
-    ]);
+    apiMocks.listUsersManagedBySignedInUser.mockResolvedValueOnce([{ id: "u1", displayName: "User One", userPrincipalName: "u1@contoso.com" }]);
 
     await act(async () => {
       root.render(
@@ -922,7 +909,7 @@ describe("useAccessPassCard", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 

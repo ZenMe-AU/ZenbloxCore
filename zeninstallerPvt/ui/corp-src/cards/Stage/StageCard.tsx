@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -35,11 +40,7 @@ import VariablesCard from "../../components/VariablesCard";
 import StagePlanDetail from "./StagePlanDetail";
 import RemoteTerminal from "./RemoteTerminal";
 
-function checkPrerequisite(
-  prereq: Prerequisite,
-  cardStatus: Record<CardId, CardStatus>,
-  variableValues: Record<string, string>,
-): boolean {
+function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, CardStatus>, variableValues: Record<string, string>): boolean {
   switch (prereq.type) {
     case "card":
       return cardStatus[prereq.cardId] === "complete";
@@ -64,9 +65,7 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
       return prereq.label;
     case "stageVar": {
       const setCount = prereq.keys.filter((k) => !!variableValues[k]?.trim()).length;
-      return setCount === prereq.keys.length
-        ? `${prereq.label} configured`
-        : `${prereq.label} (${setCount}/${prereq.keys.length} set)`;
+      return setCount === prereq.keys.length ? `${prereq.label} configured` : `${prereq.label} (${setCount}/${prereq.keys.length} set)`;
     }
   }
 }
@@ -89,9 +88,7 @@ function StageVarEditor({
   onVariableConfirmed: (key: string, value: string) => void;
 }) {
   const [localValues, setLocalValues] = useState<Record<string, string>>(savedValues);
-  const [upsertStatuses, setUpsertStatuses] = useState<{ key: string; status: "success" | "error"; error?: string }[]>(
-    [],
-  );
+  const [upsertStatuses, setUpsertStatuses] = useState<{ key: string; status: "success" | "error"; error?: string }[]>([]);
   const [updating, setUpdating] = useState(false);
   const [prevSaved, setPrevSaved] = useState(savedValues);
   if (prevSaved !== savedValues) {
@@ -158,11 +155,7 @@ function StageVarEditor({
             "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
           }}
         >
-          {updating
-            ? "Updating..."
-            : dirtyKeys.length > 0
-              ? `Update ${dirtyKeys.length} variable${dirtyKeys.length !== 1 ? "s" : ""}`
-              : "Update variables"}
+          {updating ? "Updating..." : dirtyKeys.length > 0 ? `Update ${dirtyKeys.length} variable${dirtyKeys.length !== 1 ? "s" : ""}` : "Update variables"}
         </Button>
       </Box>
     </Box>
@@ -185,10 +178,7 @@ function FailureLog({ fetched, text }: { fetched: boolean; text: string | null }
         overflowY: "auto",
       }}
     >
-      <Typography
-        component="pre"
-        sx={{ fontSize: "0.68rem", color: "#b91c1c", whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...mono }}
-      >
+      <Typography component="pre" sx={{ fontSize: "0.68rem", color: "#b91c1c", whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...mono }}>
         {text}
       </Typography>
     </Box>
@@ -411,9 +401,7 @@ export default function StageCard({
             countdown={statusUpdateCountdown}
             disabled={statusUpdateDisabled || azurePermissions.granting}
           />
-          {(permissionError ?? runError) && (
-            <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{permissionError ?? runError}</Typography>
-          )}
+          {(permissionError ?? runError) && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{permissionError ?? runError}</Typography>}
         </Box>
 
         {stageDef.prerequisites.length > 0 && (
@@ -444,9 +432,7 @@ export default function StageCard({
                 return (
                   <Box key={`${stageDef.dir}-${i}`}>
                     <Box
-                      onClick={
-                        isExpandable ? () => setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] })) : undefined
-                      }
+                      onClick={isExpandable ? () => setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] })) : undefined}
                       sx={{
                         display: "flex",
                         alignItems: "center",
@@ -469,15 +455,9 @@ export default function StageCard({
                       ) : (
                         <RadioButtonUncheckedIcon sx={{ fontSize: 13, color: "#cbd5e1", flexShrink: 0 }} />
                       )}
-                      <Typography sx={{ fontSize: "0.72rem", color: met ? "#475569" : "#94a3b8", ...mono, flex: 1 }}>
-                        {label}
-                      </Typography>
+                      <Typography sx={{ fontSize: "0.72rem", color: met ? "#475569" : "#94a3b8", ...mono, flex: 1 }}>{label}</Typography>
                       {isExpandable &&
-                        (isOpen ? (
-                          <ExpandLessIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
-                        ) : (
-                          <ExpandMoreIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
-                        ))}
+                        (isOpen ? <ExpandLessIcon sx={{ fontSize: 14, color: "#cbd5e1" }} /> : <ExpandMoreIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />)}
                     </Box>
 
                     {isExpandable && isOpen && (
@@ -565,9 +545,7 @@ export default function StageCard({
           </Typography>
         )}
 
-        {stage.status === "failed" && stage.planLogId && (
-          <FailureLog fetched={planLogFetched} text={planLog?.text ?? null} />
-        )}
+        {stage.status === "failed" && stage.planLogId && <FailureLog fetched={planLogFetched} text={planLog?.text ?? null} />}
 
         {(stage.deployedAt || stage.deployStatus) && (
           <Box>
@@ -593,24 +571,14 @@ export default function StageCard({
               ) : stage.deployStatus === "failed" ? (
                 <WarningAmberIcon sx={{ fontSize: 13, color: "#ef4444", flexShrink: 0 }} />
               ) : null}
-              {stage.deployedAt && (
-                <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>
-                  {relativeTime(stage.deployedAt)}
-                </Typography>
-              )}
+              {stage.deployedAt && <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>{relativeTime(stage.deployedAt)}</Typography>}
               {/* The apply's own run, not the plan's — the header link points at the plan. */}
-              {repoFullName && stage.deployRunId && (
-                <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} />
-              )}
+              {repoFullName && stage.deployRunId && <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} />}
             </Box>
             {/* 13px icon + the 8px gap above. */}
             <Box sx={{ pl: "21px" }}>
-              {stage.deployStatus === "cancelled" && (
-                <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...mono }}>Cancelled</Typography>
-              )}
-              {stage.deployStatus === "failed" && (
-                <FailureLog fetched={deployLogFetched} text={deployLog?.text ?? null} />
-              )}
+              {stage.deployStatus === "cancelled" && <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...mono }}>Cancelled</Typography>}
+              {stage.deployStatus === "failed" && <FailureLog fetched={deployLogFetched} text={deployLog?.text ?? null} />}
             </Box>
           </Box>
         )}

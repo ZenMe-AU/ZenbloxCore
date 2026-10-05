@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 // Generates .auth files for authentication tests by saving sessionStorage.
 
 /// <reference types="node" />
@@ -7,8 +12,8 @@ import path from "path";
 import type { Page } from "@playwright/test";
 
 export const authDir = path.join(process.cwd(), "web/pwtests/access-pass-src/auth/.auth");
-export const storageStateFile = path.join(authDir,"azure-access-pass-user.json",);
-export const sessionStorageFile = path.join(authDir,"azure-session-storage.json",);
+export const storageStateFile = path.join(authDir, "azure-access-pass-user.json");
+export const sessionStorageFile = path.join(authDir, "azure-session-storage.json");
 
 // Normalizes a user id into a safe filename segment.
 export function safeAuthFileName(value: string) {
@@ -33,14 +38,11 @@ export function getUserAuthFiles(userId: string) {
 export function userAuthFilesExist(userId: string) {
   const files = getUserAuthFiles(userId);
 
-  return (
-    fs.existsSync(files.storageStateFile) &&
-    fs.existsSync(files.sessionStorageFile)
-  );
+  return fs.existsSync(files.storageStateFile) && fs.existsSync(files.sessionStorageFile);
 }
 
 // Saves current browser sessionStorage to disk for later authenticated test runs.
-export async function saveSessionStorage(page: Page, targetSessionStorageFile = sessionStorageFile,) {
+export async function saveSessionStorage(page: Page, targetSessionStorageFile = sessionStorageFile) {
   fs.mkdirSync(path.dirname(targetSessionStorageFile), { recursive: true });
 
   const sessionStorageData = await page.evaluate(() => {
@@ -48,27 +50,20 @@ export async function saveSessionStorage(page: Page, targetSessionStorageFile = 
       Array.from({ length: sessionStorage.length }, (_, index) => {
         const key = sessionStorage.key(index)!;
         return [key, sessionStorage.getItem(key)];
-      }),
+      })
     );
   });
 
-  fs.writeFileSync(
-    targetSessionStorageFile,
-    JSON.stringify(sessionStorageData, null, 2),
-  );
+  fs.writeFileSync(targetSessionStorageFile, JSON.stringify(sessionStorageData, null, 2));
 }
 
 // Restores previously saved sessionStorage values into a new page context.
-export async function restoreSessionStorage(page: Page, targetSessionStorageFile = sessionStorageFile,) {
+export async function restoreSessionStorage(page: Page, targetSessionStorageFile = sessionStorageFile) {
   if (!fs.existsSync(targetSessionStorageFile)) {
-    throw new Error(
-      `Missing session storage file: ${targetSessionStorageFile}. Run pwtests/auth/azure-passkey.setup.ts first.`,
-    );
+    throw new Error(`Missing session storage file: ${targetSessionStorageFile}. Run pwtests/auth/azure-passkey.setup.ts first.`);
   }
 
-  const sessionStorageData = JSON.parse(
-    fs.readFileSync(targetSessionStorageFile, "utf-8"),
-  ) as Record<string, string>;
+  const sessionStorageData = JSON.parse(fs.readFileSync(targetSessionStorageFile, "utf-8")) as Record<string, string>;
 
   await page.addInitScript((data) => {
     for (const [key, value] of Object.entries(data)) {

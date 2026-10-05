@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useEffect, useState } from "react";
 import { Box, Typography } from "@mui/material";
 
@@ -62,7 +67,7 @@ function AppDashboard() {
   const githubRepoEnv = addCard(
     useRepoCard({
       user: githubLogin.account,
-    }),
+    })
   );
   const githubVariables = useGithubVariables({
     account: githubRepoEnv.repo.selectedAccount,
@@ -78,7 +83,7 @@ function AppDashboard() {
   const azureLogin = addCard(
     useAzureLoginCard({
       savedTenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-    }),
+    })
   );
 
   const awsLogin = addCard(useAwsLoginCard());
@@ -87,7 +92,7 @@ function AppDashboard() {
     useAccessPassCard({
       azureAccount: azureLogin.account,
       confirmedTenantId: azureLogin.confirmedTenantId,
-    }),
+    })
   );
 
   const azureSubscription = addCard(
@@ -96,7 +101,7 @@ function AppDashboard() {
       confirmedTenantId: azureLogin.confirmedTenantId,
       manualTenantId: azureLogin.manualTenantId,
       savedSubscriptionId: githubVariableValues.AZURE_SUBSCRIPTION_ID ?? "",
-    }),
+    })
   );
 
   const azureAppSetup = addCard(
@@ -110,7 +115,7 @@ function AppDashboard() {
       tenantId: azureLogin.confirmedTenantId || undefined,
       variableValues: githubVariableValues,
       manualTenantId: azureLogin.manualTenantId,
-    }),
+    })
   );
 
   const awsSetup = addCard(
@@ -122,7 +127,7 @@ function AppDashboard() {
       variableValues: githubVariableValues,
       awsReady: awsLogin.done,
       awsAccount: awsLogin.account,
-    }),
+    })
   );
   const infra = addCard(
     useCoreInfraCard({
@@ -131,7 +136,7 @@ function AppDashboard() {
       corpName,
       spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-    }),
+    })
   );
   const remoteTerminalInfra = addCard(
     useRemoteTerminalInfraCard({
@@ -143,7 +148,7 @@ function AppDashboard() {
       githubAccount: githubRepoEnv.repo.selectedAccount,
       githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
       githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,
-    }),
+    })
   );
   const backendDeploy = addCard(
     useBackendDeployCard({
@@ -154,7 +159,7 @@ function AppDashboard() {
       githubAccount: githubRepoEnv.repo.selectedAccount,
       repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
       selectedEnv: githubRepoEnv.env.selectedEnv,
-    }),
+    })
   );
   const webDeploy = addCard(
     useWebDeployCard({
@@ -166,7 +171,7 @@ function AppDashboard() {
       githubAccount: githubRepoEnv.repo.selectedAccount,
       repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
       selectedEnv: githubRepoEnv.env.selectedEnv,
-    }),
+    })
   );
   const createDomain = addCard(
     useCreateDomainCard({
@@ -176,7 +181,7 @@ function AppDashboard() {
       dnsName,
       spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-    }),
+    })
   );
 
   const plan = useDeploymentPlan({
@@ -217,7 +222,7 @@ function AppDashboard() {
       tenant: azureLogin.confirmedTenantId || undefined,
       subscription: azureSubscription.selectedSubscriptionId || undefined,
     },
-    urlRestore.completed && !githubLogin.loggingIn,
+    urlRestore.completed && !githubLogin.loggingIn
   );
 
   // ── Accordion + completion flags ───────────────────────────────────────────
@@ -238,9 +243,7 @@ function AppDashboard() {
   // you came from stays open too.
   const openCard = (id: CardId) => {
     setExpandedIds((cur) => new Set(cur).add(id));
-    requestAnimationFrame(() =>
-      document.getElementById(`card-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }),
-    );
+    requestAnimationFrame(() => document.getElementById(`card-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
   };
 
   const cardProps = (id: CardId): CardChrome => {
@@ -286,9 +289,7 @@ function AppDashboard() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      <Box
-        sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}
-      >
+      <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}>
         <Header />
 
         <Box sx={{ maxWidth: EXPANDED_W, mx: "auto", px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 5 } }}>
@@ -304,11 +305,11 @@ function AppDashboard() {
             }}
           >
             <Typography sx={{ color: "#475569", lineHeight: 1.7 }}>
-              ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers of
-              your choosing. Before starting, you will need the following: <br />
+              ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers of your choosing. Before starting, you will
+              need the following: <br />
               1. A personal email address, using Google, or any other email hosting provider. <br />
-              2. An organisation name and domain name. We recommend that you register the domain name with Godaddy
-              https://www.godaddy.com/ because we will have automations in place with them. <br />
+              2. An organisation name and domain name. We recommend that you register the domain name with Godaddy https://www.godaddy.com/ because we will have
+              automations in place with them. <br />
               Complete the cards below in any order — each shows what it needs before it can run.
             </Typography>
           </Box>
@@ -429,11 +430,7 @@ function AppDashboard() {
         </Box>
       </Box>
 
-      <RestoreToast
-        loading={urlRestore.restoring}
-        warnings={urlRestore.warnings}
-        onDismiss={urlRestore.dismissWarnings}
-      />
+      <RestoreToast loading={urlRestore.restoring} warnings={urlRestore.warnings} onDismiss={urlRestore.dismissWarnings} />
     </>
   );
 }

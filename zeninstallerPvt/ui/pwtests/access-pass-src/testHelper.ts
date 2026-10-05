@@ -1,13 +1,18 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 // Provides shared Playwright helpers for auth bootstrap, tenant flows, and snapshot assertions.
 
-import { expect, type Browser, type Locator, type Page, type TestInfo,} from "@playwright/test";
-import { getUserAuthFiles, restoreSessionStorage, userAuthFilesExist, } from "./setupHelper";
-import { ACCESS_PASS_URL, type ViewportSize, } from "../testInit";
+import { expect, type Browser, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { getUserAuthFiles, restoreSessionStorage, userAuthFilesExist } from "./setupHelper";
+import { ACCESS_PASS_URL, type ViewportSize } from "../testInit";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath,} from "node:url";
+import { fileURLToPath } from "node:url";
 
-export type LoadAccessPassUsersOptions = {softFail?: boolean;};
+export type LoadAccessPassUsersOptions = { softFail?: boolean };
 
 export type PageSnapshotOptions = {
   userId: string;
@@ -24,7 +29,7 @@ export type EntraTargetUser = {
   allowRealAccessPassCreation?: boolean;
 };
 
-export type AccessPassRoles = | "auth_adm" | "auth";
+export type AccessPassRoles = "auth_adm" | "auth";
 export type AccessPassUser = {
   id: string;
   email: string;
@@ -38,32 +43,39 @@ export type AccessPassUser = {
   canCreateAccessPass: boolean;
 };
 
-const currentFilePath = fileURLToPath(import.meta.url,);
-const currentDirectory =path.dirname(currentFilePath,);
-const localUsersPath =path.join(currentDirectory,"auth","data","access-pass-users.local.json",);
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirectory = path.dirname(currentFilePath);
+const localUsersPath = path.join(currentDirectory, "auth", "data", "access-pass-users.local.json");
 
-const validScenarios: AccessPassRoles[] = [
-  "auth_adm",
-  "auth",
-];
+const validScenarios: AccessPassRoles[] = ["auth_adm", "auth"];
 
 // Validates and normalizes Access Pass user test data.
-function validateAccessPassUsers(users: AccessPassUser[], filePath: string,) {
-  if (!Array.isArray(users)) {throw new Error(`Access Pass user data must be an array: ${filePath}`,);}
+function validateAccessPassUsers(users: AccessPassUser[], filePath: string) {
+  if (!Array.isArray(users)) {
+    throw new Error(`Access Pass user data must be an array: ${filePath}`);
+  }
 
   for (const user of users) {
-    if (!user.id?.trim()) {throw new Error(`Every Access Pass user must have an id in ${filePath}.`,);}
-    if (!user.email?.trim()) {throw new Error(`Access Pass user "${user.id}" must have an email.`,);}
-    if (!["users", "empty", "forbidden"].includes(user.expectedEntraResult ?? "")) {throw new Error(`Invalid expectedEntraResult for "${user.id}".`,);}
+    if (!user.id?.trim()) {
+      throw new Error(`Every Access Pass user must have an id in ${filePath}.`);
+    }
+    if (!user.email?.trim()) {
+      throw new Error(`Access Pass user "${user.id}" must have an email.`);
+    }
+    if (!["users", "empty", "forbidden"].includes(user.expectedEntraResult ?? "")) {
+      throw new Error(`Invalid expectedEntraResult for "${user.id}".`);
+    }
 
-    if (!user.role?.trim()) {throw new Error(`Access Pass user "${user.id}" must have a role.`,);}
+    if (!user.role?.trim()) {
+      throw new Error(`Access Pass user "${user.id}" must have a role.`);
+    }
     if (!validScenarios.includes(user.role)) {
-      throw new Error(`Invalid scenario "${user.role}" for "${user.id}".`,);
+      throw new Error(`Invalid scenario "${user.role}" for "${user.id}".`);
     }
 
     const usedScenarios = new Set<string>();
     if (usedScenarios.has(user.role)) {
-      throw new Error(`Duplicate Access Pass scenario: "${user.role}".`,);
+      throw new Error(`Duplicate Access Pass scenario: "${user.role}".`);
     }
 
     usedScenarios.add(user.role);
@@ -72,48 +84,41 @@ function validateAccessPassUsers(users: AccessPassUser[], filePath: string,) {
     if (user.targetEntraUsers == null) {
       user.targetEntraUsers = [];
     } else if (!Array.isArray(user.targetEntraUsers)) {
-      throw new Error(`targetEntraUsers must be an array for "${user.id}" in ${filePath}`,);
+      throw new Error(`targetEntraUsers must be an array for "${user.id}" in ${filePath}`);
     }
 
     if (user.expectedEntraResult !== "users" && !user.expectedEntraMessage?.trim()) {
-      throw new Error(`"${user.id}" must provide expectedEntraMessage for an "${user.expectedEntraResult}" result.`,);
+      throw new Error(`"${user.id}" must provide expectedEntraMessage for an "${user.expectedEntraResult}" result.`);
     }
 
     for (const target of user.targetEntraUsers) {
       if (!target.id?.trim() || !target.email?.trim()) {
-        throw new Error(`Every target Entra user for "${user.id}" must have an id and email.`,);
+        throw new Error(`Every target Entra user for "${user.id}" must have an id and email.`);
       }
     }
   }
 }
 
-
 // Loads Access Pass users from local or example data files.
 export function loadAccessPassUsers(options: LoadAccessPassUsersOptions = {}): AccessPassUser[] {
-  const { softFail = false} = options;
+  const { softFail = false } = options;
 
   // If no local users file exists, keep unauth scenarios runnable and discovery healthy.
   if (!fs.existsSync(localUsersPath)) {
-    const message = [
-      "Authenticated Playwright tests will be skipped.",
-      `Missing users file: ${localUsersPath}`,
-    ].join(" ");
+    const message = ["Authenticated Playwright tests will be skipped.", `Missing users file: ${localUsersPath}`].join(" ");
     console.warn(message);
     return [];
   }
 
-  try {const users = JSON.parse(fs.readFileSync(localUsersPath,"utf-8",),) as AccessPassUser[];
-    validateAccessPassUsers(users,localUsersPath,);
+  try {
+    const users = JSON.parse(fs.readFileSync(localUsersPath, "utf-8")) as AccessPassUser[];
+    validateAccessPassUsers(users, localUsersPath);
     return users;
   } catch (error) {
-    const errorMessage =error instanceof Error ? error.message: String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
     if (softFail) {
-      console.warn([
-          "Authenticated Playwright tests will be skipped.",
-          `The users file is invalid: ${errorMessage}`,
-        ].join(" "),
-      );
+      console.warn(["Authenticated Playwright tests will be skipped.", `The users file is invalid: ${errorMessage}`].join(" "));
       return [];
     }
     throw error;
@@ -121,93 +126,96 @@ export function loadAccessPassUsers(options: LoadAccessPassUsersOptions = {}): A
 }
 // Resolves auth-state file locations and existence for a configured user.
 export function getAccessPassUserAuth(user: AccessPassUser) {
-  return {...getUserAuthFiles(user.id),exists: userAuthFilesExist(user.id),};
+  return { ...getUserAuthFiles(user.id), exists: userAuthFilesExist(user.id) };
 }
 
 // Normalizes arbitrary strings into stable snapshot path segments.
-function safePathSegment(value: string,): string {
+function safePathSegment(value: string): string {
   const safeValue = value
     .trim()
-    .replace(/[^a-zA-Z0-9._-]+/g,"-",)
-    .replace(/^[-_.]+|[-_.]+$/g,"",);
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^[-_.]+|[-_.]+$/g, "");
 
   return safeValue || "unnamed";
 }
 
-
 // Escapes regex metacharacters in dynamic text values.
-export function escapeRegExp(value: string,): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g,"\\$&",);
+export function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 // Returns locators that mask sensitive identity fields in screenshots.
-export function sensitiveTextMasks(page: Page,): Locator[] {
-  return [page.locator('[data-sensitive="true"]'),];
+export function sensitiveTextMasks(page: Page): Locator[] {
+  return [page.locator('[data-sensitive="true"]')];
 }
 
 /*
  * Waits for the page to reach a stable visual state and compares it
  * against its stored screenshot baseline.
  */
-export async function expectPageSnapshot(
-  page: Page,
-  testInfo: TestInfo,
-  snapshotName: string,
-  options: PageSnapshotOptions,
-): Promise<void> {
-
+export async function expectPageSnapshot(page: Page, testInfo: TestInfo, snapshotName: string, options: PageSnapshotOptions): Promise<void> {
   await page.waitForLoadState("domcontentloaded").catch(() => undefined);
   await page.waitForLoadState("networkidle").catch(() => undefined);
-  await page.locator("body").evaluate(async () => {await document.fonts?.ready;}).catch(() => undefined);
+  await page
+    .locator("body")
+    .evaluate(async () => {
+      await document.fonts?.ready;
+    })
+    .catch(() => undefined);
   await page.waitForTimeout(300).catch(() => undefined);
 
-  const userFolder = safePathSegment(options.userId,);
-  const viewportFolder =safePathSegment(options.viewportName,);
-  const testPathSegments = testInfo.file.split(/[\\/]/,);
-  const testFile = safePathSegment(testPathSegments.at(-1)?.replace(/\.spec\.tsx?$/, "",) ?? "unnamed",);
+  const userFolder = safePathSegment(options.userId);
+  const viewportFolder = safePathSegment(options.viewportName);
+  const testPathSegments = testInfo.file.split(/[\\/]/);
+  const testFile = safePathSegment(testPathSegments.at(-1)?.replace(/\.spec\.tsx?$/, "") ?? "unnamed");
 
-  const normalisedSnapshotName =snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`;
+  const normalisedSnapshotName = snapshotName.endsWith(".png") ? snapshotName : `${snapshotName}.png`;
   const relativeSnapshotPath = ["access-pass-src", "snapshots", userFolder, testFile, viewportFolder, normalisedSnapshotName];
-  const expectedSnapshotPath = testInfo.snapshotPath(...relativeSnapshotPath,);
-  const baselineExists = fs.existsSync(expectedSnapshotPath,);
+  const expectedSnapshotPath = testInfo.snapshotPath(...relativeSnapshotPath);
+  const baselineExists = fs.existsSync(expectedSnapshotPath);
 
-  if (!baselineExists && testInfo.config.updateSnapshots ==="missing") {
-    console.info(["","Generating missing baseline snapshot:",expectedSnapshotPath,"",].join("\n"),
-    );
+  if (!baselineExists && testInfo.config.updateSnapshots === "missing") {
+    console.info(["", "Generating missing baseline snapshot:", expectedSnapshotPath, ""].join("\n"));
   }
 
-  await expect(page).toHaveScreenshot(
-    relativeSnapshotPath,
-    {
-      fullPage: false,
-      animations: "disabled",
-      caret: "hide",
-      mask: options.mask ?? [],
-      maskColor: "rgb(0, 0, 0)",
-    },
-  );
+  await expect(page).toHaveScreenshot(relativeSnapshotPath, {
+    fullPage: false,
+    animations: "disabled",
+    caret: "hide",
+    mask: options.mask ?? [],
+    maskColor: "rgb(0, 0, 0)",
+  });
 }
 
 // Opens Access Pass in a context with saved auth and session storage.
-export async function openAuthenticatedAccessPassPage(browser: Browser, user: AccessPassUser, viewport: ViewportSize,) {
+export async function openAuthenticatedAccessPassPage(browser: Browser, user: AccessPassUser, viewport: ViewportSize) {
   const auth = getAccessPassUserAuth(user);
-  const context = await browser.newContext({storageState:auth.storageStateFile,viewport,deviceScaleFactor: 1,});
+  const context = await browser.newContext({ storageState: auth.storageStateFile, viewport, deviceScaleFactor: 1 });
   const page = await context.newPage();
-  await restoreSessionStorage(page,auth.sessionStorageFile,);
+  await restoreSessionStorage(page, auth.sessionStorageFile);
   await page.goto(ACCESS_PASS_URL);
-  return {page,context,};
+  return { page, context };
 }
 
 /*
  * Confirms that the Access Pass page recognises the expected
  * authenticated Microsoft account.
  */
-export async function expectAuthenticatedAccessPassState(page: Page,user: AccessPassUser,): Promise<void> {
+export async function expectAuthenticatedAccessPassState(page: Page, user: AccessPassUser): Promise<void> {
   await Promise.all([
     page.getByText("Access Pass").first().waitFor({ state: "visible" }),
-    page.getByText(new RegExp(`signed in as ${escapeRegExp(user.email)}`, "i")).first().waitFor({ state: "visible", timeout: 30_000 }),
-    page.getByText(/Azure Login/i).first().waitFor({ state: "visible" }),
-    page.getByText(/Azure Access Pass/i).first().waitFor({ state: "visible" }),
+    page
+      .getByText(new RegExp(`signed in as ${escapeRegExp(user.email)}`, "i"))
+      .first()
+      .waitFor({ state: "visible", timeout: 30_000 }),
+    page
+      .getByText(/Azure Login/i)
+      .first()
+      .waitFor({ state: "visible" }),
+    page
+      .getByText(/Azure Access Pass/i)
+      .first()
+      .waitFor({ state: "visible" }),
   ]);
 }
 
@@ -216,20 +224,22 @@ export async function expectAuthenticatedAccessPassState(page: Page,user: Access
  * ACCESS_PASS_AUTH_USER can select a particular configured account.
  * Otherwise, the first configured user is returned.
  */
-export function getAzureJourneyUser(users: AccessPassUser[],): AccessPassUser {
-  const requestedUserId =process.env.ACCESS_PASS_AUTH_USER;
+export function getAzureJourneyUser(users: AccessPassUser[]): AccessPassUser {
+  const requestedUserId = process.env.ACCESS_PASS_AUTH_USER;
 
   if (requestedUserId) {
-    const requestedUser = users.find(
-        (user) => user.id === requestedUserId,
-      );
+    const requestedUser = users.find((user) => user.id === requestedUserId);
 
-    if (!requestedUser) {throw new Error(`ACCESS_PASS_AUTH_USER="${requestedUserId}" was not found in access-pass-users.local.json`,);}
+    if (!requestedUser) {
+      throw new Error(`ACCESS_PASS_AUTH_USER="${requestedUserId}" was not found in access-pass-users.local.json`);
+    }
     return requestedUser;
   }
 
   const firstUser = users[0];
-  if (!firstUser) {throw new Error("No Access Pass users found. Add at least one user to pwtests/auth/data/access-pass-users.local.json",);}
+  if (!firstUser) {
+    throw new Error("No Access Pass users found. Add at least one user to pwtests/auth/data/access-pass-users.local.json");
+  }
   return firstUser;
 }
 
@@ -237,14 +247,16 @@ export function getAzureJourneyUser(users: AccessPassUser[],): AccessPassUser {
  * Opens the tenant editor when available, enters the configured
  * tenant ID and submits it.
  */
-export async function changeTenantIdIfAvailable(page: Page,tenantId: string,): Promise<boolean> {
-  const changeTenantText = page.getByText(/change tenant id/i,).first();
+export async function changeTenantIdIfAvailable(page: Page, tenantId: string): Promise<boolean> {
+  const changeTenantText = page.getByText(/change tenant id/i).first();
 
-  if (await changeTenantText.isVisible().catch(() => false)) {await changeTenantText.click();}
-  const tenantInput = page.getByPlaceholder("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",);
+  if (await changeTenantText.isVisible().catch(() => false)) {
+    await changeTenantText.click();
+  }
+  const tenantInput = page.getByPlaceholder("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
 
   if (!(await tenantInput.isVisible().catch(() => false))) {
-    console.log("Tenant ID input is not visible. This account may already be using an Entra tenant.",);
+    console.log("Tenant ID input is not visible. This account may already be using an Entra tenant.");
     return false;
   }
 
@@ -268,12 +280,14 @@ export async function changeTenantIdIfAvailable(page: Page,tenantId: string,): P
     return true;
   }
 
-  await expect(loadTenantButton,).toBeEnabled({ timeout: 15_000 }).catch(async () => {
-    const reattachedButton = page.getByTestId("btnConfirmTenant").first();
-    if (await reattachedButton.isVisible().catch(() => false)) {
-      await reattachedButton.click();
-    }
-  });
+  await expect(loadTenantButton)
+    .toBeEnabled({ timeout: 15_000 })
+    .catch(async () => {
+      const reattachedButton = page.getByTestId("btnConfirmTenant").first();
+      if (await reattachedButton.isVisible().catch(() => false)) {
+        await reattachedButton.click();
+      }
+    });
 
   await loadTenantButton.click().catch(async () => {
     const reattachedButton = page.getByTestId("btnConfirmTenant").first();
@@ -288,31 +302,34 @@ export async function changeTenantIdIfAvailable(page: Page,tenantId: string,): P
 /**
  * Confirms that the Entra user-selection section has loaded.
  */
-export async function expectEntraUserListLoaded(page: Page,): Promise<void> {
-  const fallbackPattern = /select entra user|no users found|managed by your signed-in account|graph admin consent|consent|required|not authorized|forbidden|timed_out|loading users|loading/i;
+export async function expectEntraUserListLoaded(page: Page): Promise<void> {
+  const fallbackPattern =
+    /select entra user|no users found|managed by your signed-in account|graph admin consent|consent|required|not authorized|forbidden|timed_out|loading users|loading/i;
   const buttons = page.getByRole("button", { name: /create access pass/i });
   const fallback = page.getByText(fallbackPattern).first();
 
   try {
-    await Promise.any([
-      buttons.first().waitFor({ state: "visible", timeout: 45_000 }),
-      fallback.waitFor({ state: "visible", timeout: 45_000 }),
-    ]);
+    await Promise.any([buttons.first().waitFor({ state: "visible", timeout: 45_000 }), fallback.waitFor({ state: "visible", timeout: 45_000 })]);
   } catch (error) {
     // If both conditions timed out (AggregateError), check page state for diagnostics
     if (error instanceof AggregateError) {
-      const pageText = await page.locator("body").innerText().catch(() => "");
-      throw new Error(`Expected the Entra user list or a supported fallback state to appear. Neither appeared within 45s. Page text: ${pageText.slice(0, 500)}`);
+      const pageText = await page
+        .locator("body")
+        .innerText()
+        .catch(() => "");
+      throw new Error(
+        `Expected the Entra user list or a supported fallback state to appear. Neither appeared within 45s. Page text: ${pageText.slice(0, 500)}`
+      );
     }
     throw error;
   }
 }
 
 // Locates a target Entra user context and returns the associated action button.
-export async function expectEntraUserAvailable(page: Page,target: EntraTargetUser,) {
+export async function expectEntraUserAvailable(page: Page, target: EntraTargetUser) {
   const targetEmail = target.email?.trim();
   const targetDisplayName = target.displayName?.trim();
-  const createAccessPassButtons = page.getByRole("button", {name: /create access pass/i,});
+  const createAccessPassButtons = page.getByRole("button", { name: /create access pass/i });
   const fallbackLocator = page.getByText(/timed_out|no users found|managed by your signed-in account|consent|required|not authorized|forbidden/i).first();
 
   try {
@@ -322,7 +339,10 @@ export async function expectEntraUserAvailable(page: Page,target: EntraTargetUse
     ]);
   } catch (error) {
     if (error instanceof AggregateError) {
-      const pageText = await page.locator("body").innerText().catch(() => "");
+      const pageText = await page
+        .locator("body")
+        .innerText()
+        .catch(() => "");
       console.log(`Expected Entra user action or fallback for ${target.email}, but neither appeared. Page text: ${pageText.slice(0, 500)}`);
     }
     throw error;
@@ -337,11 +357,15 @@ export async function expectEntraUserAvailable(page: Page,target: EntraTargetUse
   }
 
   if (targetDisplayName) {
-    const displayNameMatcher = fallbackContainer.getByText(targetDisplayName, {exact: false,});
-    if (await displayNameMatcher.count().catch(() => 0)) {await expect(displayNameMatcher.first()).toBeVisible().catch(() => undefined);}
+    const displayNameMatcher = fallbackContainer.getByText(targetDisplayName, { exact: false });
+    if (await displayNameMatcher.count().catch(() => 0)) {
+      await expect(displayNameMatcher.first())
+        .toBeVisible()
+        .catch(() => undefined);
+    }
   }
 
-  const createAccessPassButton =fallbackContainer.getByRole("button", {name: /create access pass/i,});
+  const createAccessPassButton = fallbackContainer.getByRole("button", { name: /create access pass/i });
   const buttonCount = await createAccessPassButton.count().catch(() => 0);
   if (buttonCount === 0) {
     return {
@@ -350,8 +374,8 @@ export async function expectEntraUserAvailable(page: Page,target: EntraTargetUse
     };
   }
 
-  await expect(createAccessPassButton.first(),).toBeVisible();
-  await expect(createAccessPassButton.first(),).toBeEnabled();
+  await expect(createAccessPassButton.first()).toBeVisible();
+  await expect(createAccessPassButton.first()).toBeEnabled();
 
   return {
     userContainer: fallbackContainer,
@@ -360,18 +384,20 @@ export async function expectEntraUserAvailable(page: Page,target: EntraTargetUse
 }
 
 // Builds a case-insensitive matcher for the configured expected Entra message.
-function getExpectedEntraMessage(user: AccessPassUser,): RegExp {
-  if (!user.expectedEntraMessage) {throw new Error(`No expectedEntraMessage configured for ${user.id}.`,);}
-  return new RegExp(user.expectedEntraMessage,"i",);
+function getExpectedEntraMessage(user: AccessPassUser): RegExp {
+  if (!user.expectedEntraMessage) {
+    throw new Error(`No expectedEntraMessage configured for ${user.id}.`);
+  }
+  return new RegExp(user.expectedEntraMessage, "i");
 }
 
 // Ensures no Create Access Pass actions are visible on the page.
-async function expectNoAccessPassActions(page: Page,): Promise<void> {
-  await expect(page.getByRole("button",{name:/create access pass/i,},),).toHaveCount(0);
+async function expectNoAccessPassActions(page: Page): Promise<void> {
+  await expect(page.getByRole("button", { name: /create access pass/i })).toHaveCount(0);
 }
 
 // Asserts a valid empty-tenant state and absence of actionable user rows.
-async function expectEmptyEntraState(page: Page, user: AccessPassUser,): Promise<void> {
+async function expectEmptyEntraState(page: Page, user: AccessPassUser): Promise<void> {
   const expectedMessage = getExpectedEntraMessage(user);
   const fallbackPattern = /no users found|managed by your signed-in account|timed_out|forbidden|not authorized|consent is required|graph admin consent/i;
 
@@ -382,10 +408,12 @@ async function expectEmptyEntraState(page: Page, user: AccessPassUser,): Promise
       page.getByText(fallbackPattern).first().waitFor({ state: "visible", timeout: 45_000 }),
     ]);
   } catch (error) {
-    
     // If both conditions failed, check if page is in a valid empty state
     if (error instanceof AggregateError) {
-      const buttonCount = await page.getByRole("button", { name: /create access pass/i }).count().catch(() => 0);
+      const buttonCount = await page
+        .getByRole("button", { name: /create access pass/i })
+        .count()
+        .catch(() => 0);
       if (buttonCount === 0) {
         // Page rendered but has no buttons, which is the empty state we expect
         await expectNoAccessPassActions(page);
@@ -398,31 +426,33 @@ async function expectEmptyEntraState(page: Page, user: AccessPassUser,): Promise
 }
 
 // Asserts a forbidden-tenant state and absence of actionable user rows.
-async function expectForbiddenEntraState(page: Page, user: AccessPassUser,): Promise<void> {
-  await page.getByText(getExpectedEntraMessage(user))
-    .first()
-    .waitFor({ state: "visible", timeout: 45_000 });
+async function expectForbiddenEntraState(page: Page, user: AccessPassUser): Promise<void> {
+  await page.getByText(getExpectedEntraMessage(user)).first().waitFor({ state: "visible", timeout: 45_000 });
 
   await expectNoAccessPassActions(page);
 }
 
 // Asserts the tenant result configured for an authenticated account.
-export async function expectConfiguredTenantOutcome(page: Page,user: AccessPassUser,): Promise<void> {
+export async function expectConfiguredTenantOutcome(page: Page, user: AccessPassUser): Promise<void> {
   switch (user.expectedEntraResult) {
     // if tenant is expected to have users
     case "users": {
       const buttons = page.getByRole("button", { name: /create access pass/i });
-      const fallback = page.getByText(/timed_out|no users found|managed by your signed-in account|consent|required|not authorized|forbidden|graph admin consent/i).first();
+      const fallback = page
+        .getByText(/timed_out|no users found|managed by your signed-in account|consent|required|not authorized|forbidden|graph admin consent/i)
+        .first();
 
       try {
-        await Promise.any([
-          buttons.first().waitFor({ state: "visible", timeout: 45_000 }),
-          fallback.waitFor({ state: "visible", timeout: 45_000 }),
-        ]);
+        await Promise.any([buttons.first().waitFor({ state: "visible", timeout: 45_000 }), fallback.waitFor({ state: "visible", timeout: 45_000 })]);
       } catch (error) {
         if (error instanceof AggregateError) {
-          const pageText = await page.locator("body").innerText().catch(() => "");
-          throw new Error( `Expected either Create Access Pass actions or a supported fallback state, but neither appeared. Page text: ${pageText.slice(0, 500)}`);
+          const pageText = await page
+            .locator("body")
+            .innerText()
+            .catch(() => "");
+          throw new Error(
+            `Expected either Create Access Pass actions or a supported fallback state, but neither appeared. Page text: ${pageText.slice(0, 500)}`
+          );
         }
         throw error;
       }
@@ -431,16 +461,18 @@ export async function expectConfiguredTenantOutcome(page: Page,user: AccessPassU
 
     // no users expected in the tenant
     case "empty": {
-      await expectEmptyEntraState(page,user,);
+      await expectEmptyEntraState(page, user);
       return;
     }
 
     // tenant users not allowed to create access passes
     case "forbidden": {
-      await expectForbiddenEntraState(page,user,);
+      await expectForbiddenEntraState(page, user);
       return;
     }
 
-    default: {throw new Error(`Unsupported expected Entra result: ${String(user.expectedEntraResult,)}`,);}
+    default: {
+      throw new Error(`Unsupported expected Entra result: ${String(user.expectedEntraResult)}`);
+    }
   }
 }

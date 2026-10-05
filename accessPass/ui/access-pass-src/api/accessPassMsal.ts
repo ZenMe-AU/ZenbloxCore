@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { PublicClientApplication } from "@azure/msal-browser";
 import { AZURE_CLIENT_ID } from "../config/accessPassConfig";
 
@@ -22,4 +27,3 @@ export async function getMsal(): Promise<PublicClientApplication | null> {
   }
   return _msal;
 }
-

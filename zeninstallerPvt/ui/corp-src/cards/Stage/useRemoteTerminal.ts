@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { triggerRemoteLogin } from "../../api";
@@ -69,14 +74,11 @@ export function useRemoteTerminal(opts: {
         dataType: "text",
         noEcho: true,
         data: JSON.stringify(payload),
-      }),
+      })
     );
   }, []);
 
-  const resize = useCallback(
-    (cols: number, rows: number) => sendToGroup({ type: "resize", cols, rows }),
-    [sendToGroup],
-  );
+  const resize = useCallback((cols: number, rows: number) => sendToGroup({ type: "resize", cols, rows }), [sendToGroup]);
 
   const closeSocket = useCallback((delayMs = 0) => {
     const ws = wsRef.current;
@@ -102,7 +104,7 @@ export function useRemoteTerminal(opts: {
       credsRef.current = null;
       if (creds) void deleteSession(creds.sessionId);
     },
-    [closeSocket],
+    [closeSocket]
   );
 
   // A closed session's terminal is a transcript, not a prompt. Leaving the cursor blinking invites

@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
@@ -87,7 +92,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -155,7 +160,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -212,7 +217,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -226,7 +231,7 @@ describe("useAzureAccount", () => {
 
     await waitFor(() => {
       expect(latest?.tenantIdError).toBe(
-        "This account isn't a member of that tenant — sign in with a different account, or have an admin add it as a guest first.",
+        "This account isn't a member of that tenant — sign in with a different account, or have an admin add it as a guest first."
       );
     });
 
@@ -271,7 +276,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -284,9 +289,7 @@ describe("useAzureAccount", () => {
     });
 
     await waitFor(() => {
-      expect(latest?.tenantIdError).toBe(
-        "Couldn't reach that tenant — check the tenant ID or your access, then try again.",
-      );
+      expect(latest?.tenantIdError).toBe("Couldn't reach that tenant — check the tenant ID or your access, then try again.");
     });
 
     expect(msal.loginRedirect).not.toHaveBeenCalled();
@@ -318,7 +321,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -369,7 +372,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -427,7 +430,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -484,7 +487,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -541,7 +544,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -601,7 +604,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -662,7 +665,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -719,7 +722,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -781,7 +784,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -843,7 +846,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -888,7 +891,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -927,7 +930,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -981,7 +984,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -1036,7 +1039,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -1084,7 +1087,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -1134,7 +1137,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -1182,7 +1185,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 
@@ -1213,7 +1216,7 @@ describe("useAzureAccount", () => {
           onUpdate={(value) => {
             latest = value;
           }}
-        />,
+        />
       );
     });
 

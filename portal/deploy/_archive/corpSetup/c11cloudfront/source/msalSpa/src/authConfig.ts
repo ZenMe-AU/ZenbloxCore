@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { type Configuration } from "@azure/msal-browser";
 const cfg =
   window.__APP_CONFIG__ ||

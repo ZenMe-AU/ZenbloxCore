@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useCallback, useState } from "react";
 import { getExistingSP, grantAdminConsent, listAppRoleAssignments } from "../../api/azureGraph";
 import type { AzureAccount } from "../../types";
@@ -18,12 +23,7 @@ export type UseAzurePermissions = {
 const NONE: readonly string[] = [];
 
 // Grants the Graph application permissions one caller needs, skipping any already assigned.
-export function useAzurePermissions({
-  azureAccount,
-  spClientId,
-  tenantId,
-  permissions = NONE,
-}: UseAzurePermissionsParams): UseAzurePermissions {
+export function useAzurePermissions({ azureAccount, spClientId, tenantId, permissions = NONE }: UseAzurePermissionsParams): UseAzurePermissions {
   const [granting, setGranting] = useState(false);
 
   // No-ops when Azure isn't wired up yet, so callers behave exactly as they did before.

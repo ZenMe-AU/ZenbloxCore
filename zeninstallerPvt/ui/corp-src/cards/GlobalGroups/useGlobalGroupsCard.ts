@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getMsal } from "../../auth/msal";
 import { GROUPS_SCOPES, AZURE_CLIENT_ID } from "../../config/azureConfig";
@@ -66,8 +71,7 @@ export function isRowDirty(row: GroupRow, savedById: Record<string, SavedGroup>)
   const saved = savedById[row.id];
   if (!saved) return true;
   const sameMembers =
-    saved.memberOfGroupNames.length === row.memberOfGroupNames.length &&
-    saved.memberOfGroupNames.every((n) => row.memberOfGroupNames.includes(n));
+    saved.memberOfGroupNames.length === row.memberOfGroupNames.length && saved.memberOfGroupNames.every((n) => row.memberOfGroupNames.includes(n));
   return saved.displayName !== row.groupName || saved.description !== row.description || !sameMembers;
 }
 
@@ -140,10 +144,7 @@ export interface UseGlobalGroupsCard extends CardHook {
  * edits/creates/deletes not yet synced. "Add default groups" offers c02globalGroups's 5-group
  * template as a starting point — nothing is auto-seeded, an empty tenant just shows an empty list.
  */
-export function useGlobalGroupsCard({
-  azureAccount,
-  confirmedTenantId,
-}: UseGlobalGroupsCardParams): UseGlobalGroupsCard {
+export function useGlobalGroupsCard({ azureAccount, confirmedTenantId }: UseGlobalGroupsCardParams): UseGlobalGroupsCard {
   const [rows, setRows] = useState<GroupRow[]>([]);
   const [savedById, setSavedById] = useState<Record<string, SavedGroup>>({});
   const [loading, setLoading] = useState(false);
@@ -173,7 +174,7 @@ export function useGlobalGroupsCard({
             } catch {
               return { ...g, memberOfGroupNames: [] as string[] };
             }
-          }),
+          })
         );
         const nextSaved: Record<string, SavedGroup> = {};
         let mergedIds = new Set<string>();
@@ -220,7 +221,7 @@ export function useGlobalGroupsCard({
         markBusy(false);
       }
     },
-    [azureAccount, confirmedTenantId, savedById],
+    [azureAccount, confirmedTenantId, savedById]
   );
 
   const refresh = useCallback(() => load(setRefreshing), [load]);
@@ -258,10 +259,7 @@ export function useGlobalGroupsCard({
 
   // ── CRUD (local draft) ───────────────────────────────────────────────────
   const addRow = useCallback(() => {
-    setRows((prev) => [
-      ...prev,
-      { id: newRowId(), groupName: "", description: "", memberOfGroupNames: [], isNew: true },
-    ]);
+    setRows((prev) => [...prev, { id: newRowId(), groupName: "", description: "", memberOfGroupNames: [], isNew: true }]);
   }, []);
 
   const addDefaultGroups = useCallback(() => {
@@ -305,13 +303,13 @@ export function useGlobalGroupsCard({
         prev.map((r) =>
           r.id === id
             ? {
-              ...r,
-              groupName: saved.displayName,
-              description: saved.description,
-              memberOfGroupNames: [...saved.memberOfGroupNames],
-            }
-            : r,
-        ),
+                ...r,
+                groupName: saved.displayName,
+                description: saved.description,
+                memberOfGroupNames: [...saved.memberOfGroupNames],
+              }
+            : r
+        )
       );
       setRowResults((prev) => {
         if (!(id in prev)) return prev;
@@ -320,7 +318,7 @@ export function useGlobalGroupsCard({
         return next;
       });
     },
-    [savedById],
+    [savedById]
   );
 
   // ── Two-step delete (real Entra groups only — irreversible, so it's confirm-then-act) ──
@@ -389,7 +387,7 @@ export function useGlobalGroupsCard({
               description: row.description,
               mailNickname: deriveMailNickname(row.groupName),
             },
-            confirmedTenantId,
+            confirmedTenantId
           );
           finalId = created.id;
           idRemap.set(row.id, finalId);
@@ -397,13 +395,7 @@ export function useGlobalGroupsCard({
         } else {
           const saved = savedById[row.id];
           const changed = !saved || saved.displayName !== row.groupName || saved.description !== row.description;
-          if (changed)
-            await updateGroup(
-              azureAccount,
-              row.id,
-              { displayName: row.groupName, description: row.description },
-              confirmedTenantId,
-            );
+          if (changed) await updateGroup(azureAccount, row.id, { displayName: row.groupName, description: row.description }, confirmedTenantId);
           outcomes[finalId] = { status: changed ? "done" : "skipped", detail: changed ? undefined : "No changes" };
         }
         idByName.set(row.groupName.toLowerCase(), finalId);
@@ -502,11 +494,7 @@ export function useGlobalGroupsCard({
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
   const status: CardStatus = !azureConfigured ? "error" : hasError ? "error" : done ? "complete" : "warning";
-  const summary = !azureConfigured
-    ? "Unavailable"
-    : loading
-      ? "Loading groups..."
-      : `${rows.length} group${rows.length === 1 ? "" : "s"}`;
+  const summary = !azureConfigured ? "Unavailable" : loading ? "Loading groups..." : `${rows.length} group${rows.length === 1 ? "" : "s"}`;
 
   return {
     cardId: "global_groups" as const,

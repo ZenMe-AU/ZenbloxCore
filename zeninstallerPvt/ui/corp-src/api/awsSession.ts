@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import type { AwsCallerIdentity, AwsMfaDevice, AwsSessionCredentials } from "./aws";
 
 const SESSION_STORAGE_KEY = "zeninstaller_aws_session";
@@ -8,11 +13,7 @@ export type StoredAwsTemporarySession = {
   credentials: { accessKeyId: string; secretAccessKey: string; sessionToken: string; expiration: string };
 };
 
-export function saveAwsTemporarySession(
-  identity: AwsCallerIdentity,
-  mfaDevices: AwsMfaDevice[],
-  creds: AwsSessionCredentials,
-) {
+export function saveAwsTemporarySession(identity: AwsCallerIdentity, mfaDevices: AwsMfaDevice[], creds: AwsSessionCredentials) {
   if (!creds.expiration) return;
   const payload: StoredAwsTemporarySession = {
     identity,

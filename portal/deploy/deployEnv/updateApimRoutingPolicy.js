@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { execSync } from "child_process";
 import { getResourceGroupName, getApimName } from "../util/namingConvention.cjs";
 import { getSubscriptionId, getApimBackendList } from "../util/azureCli.cjs";

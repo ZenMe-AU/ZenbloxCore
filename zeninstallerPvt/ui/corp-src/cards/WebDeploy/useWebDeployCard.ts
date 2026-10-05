@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useCallback, useEffect, useState } from "react";
 import JSZip from "jszip";
 import { fetchArtifactZip, fetchStageReport, triggerWorkflow } from "../../api";
@@ -82,8 +87,7 @@ export function useWebDeployCard({
   const storageAccountName = corpName ? getWebStorageAccountName(corpName) : "";
   const resourceGroup = corpName ? getRootResourceGroupName(corpName) : "";
   const missingGithubClientId = !(variableValues.VITE_GITHUB_CLIENT_ID ?? "").trim();
-  const ready =
-    !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv && !!corpName && !missingGithubClientId;
+  const ready = !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv && !!corpName && !missingGithubClientId;
 
   const readLatest = useCallback(async (): Promise<WebBuild | null> => {
     if (!githubAccount || !repoName || !selectedEnv) return null;
@@ -171,12 +175,7 @@ export function useWebDeployCard({
       updateStep("download", "running");
       const mb = (bytes: number) => (bytes / 1_000_000).toFixed(1);
       const zip = await fetchArtifactZip(githubAccount, repoName, latest.artifactId, (received, total) =>
-        updateStep(
-          "download",
-          "running",
-          total ? `${mb(received)} / ${mb(total)} MB` : `${mb(received)} MB`,
-          total ? received / total : undefined,
-        ),
+        updateStep("download", "running", total ? `${mb(received)} / ${mb(total)} MB` : `${mb(received)} MB`, total ? received / total : undefined)
       );
       updateStep("download", "done", `${mb(zip.size)} MB`);
 
@@ -185,24 +184,19 @@ export function useWebDeployCard({
       const files = await Promise.all(
         Object.values(archive.files)
           .filter((f) => !f.dir)
-          .map(async (f) => ({ path: f.name, body: await f.async("blob") })),
+          .map(async (f) => ({ path: f.name, body: await f.async("blob") }))
       );
       if (files.length === 0) throw new Error("The artifact contained no files");
       updateStep("unpack", "done", `${files.length} files`);
 
       updateStep("upload", "running");
       await uploadStaticSite(azureAccount, storageAccountName, files, tenantId, (uploaded, total) =>
-        updateStep("upload", "running", `${uploaded} / ${total} files`, uploaded / total),
+        updateStep("upload", "running", `${uploaded} / ${total} files`, uploaded / total)
       );
       updateStep("upload", "done", `${files.length} files`);
 
       // Recorded on the container rather than in this browser, so any machine sees what is live.
-      await recordDeployedSite(
-        azureAccount,
-        storageAccountName,
-        { version: latest.version, sha: latest.sha, builtAt: latest.builtAt },
-        tenantId,
-      );
+      await recordDeployedSite(azureAccount, storageAccountName, { version: latest.version, sha: latest.sha, builtAt: latest.builtAt }, tenantId);
       await readDeployed();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -211,18 +205,7 @@ export function useWebDeployCard({
     } finally {
       setRunning(false);
     }
-  }, [
-    azureAccount,
-    githubAccount,
-    repoName,
-    latest,
-    storageAccountName,
-    tenantId,
-    readDeployed,
-    setRunning,
-    setSteps,
-    updateStep,
-  ]);
+  }, [azureAccount, githubAccount, repoName, latest, storageAccountName, tenantId, readDeployed, setRunning, setSteps, updateStep]);
 
   const reset = useCallback(() => {
     resetSteps();

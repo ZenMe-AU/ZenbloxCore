@@ -1,17 +1,10 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { Fragment, useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import type { CardChrome, SetupStep } from "../../types";
 import type { UseAccessPassCard } from "./useAccessPassCard";
 import StepRow from "../StepRow";
@@ -58,8 +51,8 @@ type Props = {
 function Intro() {
   return (
     <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-      Create a Temporary Access Pass for a user managed by your signed-in account. This removes their existing sign-in
-      methods, randomizes their password, and issues a one-hour access pass.
+      Create a Temporary Access Pass for a user managed by your signed-in account. This removes their existing sign-in methods, randomizes their password, and
+      issues a one-hour access pass.
     </Typography>
   );
 }
@@ -95,8 +88,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
   const [confirmationUserId, setConfirmationUserId] = useState<string | null>(null);
   const [photoIdConfirmed, setPhotoIdConfirmed] = useState(false);
   const [passValuesByUserId, setPassValuesByUserId] = useState<Record<string, string>>({});
-  const [deliveryConfirmedByUserId, setDeliveryConfirmedByUserId] =
-    useState<Record<string, boolean>>(loadDeliveryConfirmedByUserId);
+  const [deliveryConfirmedByUserId, setDeliveryConfirmedByUserId] = useState<Record<string, boolean>>(loadDeliveryConfirmedByUserId);
   const [completedByUserId, setCompletedByUserId] = useState<Record<string, boolean>>(loadCompletedByUserId);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageInput, setPageInput] = useState("1");
@@ -183,10 +175,8 @@ export default function AccessPassCard({ card, accessPass }: Props) {
         ]
       : steps;
   const hasFinishedOrErroredStep = hydratedSelectedUserSteps.some((s) => s.status === "done" || s.status === "error");
-  const showingSelectedUserSteps =
-    hydratedSelectedUserSteps.length > 0 && (running || showingSelectedUserPass || hasFinishedOrErroredStep);
-  const selectedUserRunSucceeded =
-    showingSelectedUserPass && !hydratedSelectedUserSteps.some((s) => s.status === "error");
+  const showingSelectedUserSteps = hydratedSelectedUserSteps.length > 0 && (running || showingSelectedUserPass || hasFinishedOrErroredStep);
+  const selectedUserRunSucceeded = showingSelectedUserPass && !hydratedSelectedUserSteps.some((s) => s.status === "error");
   const shouldShowTryAgain = !running && showingSelectedUserSteps && !selectedUserRunSucceeded;
   const statusUserId = creatingUserId ?? selectedManagerUserId;
 
@@ -208,9 +198,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
             gap: 1.25,
           }}
         >
-          <Typography sx={{ fontSize: "0.78rem", color: "#0f172a", ...mono, fontWeight: 600 }}>
-            Select Entra user
-          </Typography>
+          <Typography sx={{ fontSize: "0.78rem", color: "#0f172a", ...mono, fontWeight: 600 }}>Select Entra user</Typography>
           <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexDirection: "column", width: "100%" }}>
             {managerUsersLoading && (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -232,12 +220,8 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                 <Table size="small" sx={{ minWidth: 640 }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>
-                        Name
-                      </TableCell>
-                      <TableCell sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>
-                        UPN
-                      </TableCell>
+                      <TableCell sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>Name</TableCell>
+                      <TableCell sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>UPN</TableCell>
                       <TableCell align="right" sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>
                         {" "}
                         Action{" "}
@@ -251,11 +235,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                       const savedPass = passValuesByUserId[user.id];
                       const isCompletedUser = !!completedByUserId[user.id];
                       const isDeliveryConfirmed = !!deliveryConfirmedByUserId[user.id];
-                      const rowHighlightSx = isCompletedUser
-                        ? { background: "#dbeafe" }
-                        : isCurrentResult
-                          ? { background: "#f0fdf4" }
-                          : undefined;
+                      const rowHighlightSx = isCompletedUser ? { background: "#dbeafe" } : isCurrentResult ? { background: "#f0fdf4" } : undefined;
                       const showingConfirmationForUser = confirmationUserId === user.id && !running;
                       const showingInlineStepsForUser = showingSelectedUserSteps && statusUserId === user.id;
                       return (
@@ -266,9 +246,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                 ...mono,
                                 fontSize: "0.76rem",
                                 color: "#334155",
-                                ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser
-                                  ? { borderBottom: "none" }
-                                  : {}),
+                                ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : {}),
                               }}
                             >
                               {user.displayName}
@@ -279,20 +257,14 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                 ...mono,
                                 fontSize: "0.72rem",
                                 color: "#64748b",
-                                ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser
-                                  ? { borderBottom: "none" }
-                                  : {}),
+                                ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : {}),
                               }}
                             >
                               {user.userPrincipalName || "-"}
                             </TableCell>
                             <TableCell
                               align="right"
-                              sx={
-                                savedPass || showingInlineStepsForUser || showingConfirmationForUser
-                                  ? { borderBottom: "none" }
-                                  : undefined
-                              }
+                              sx={savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : undefined}
                             >
                               <Box sx={{ display: "flex", justifyContent: "flex-end", minHeight: 28 }}>
                                 {!showingConfirmationForUser && (
@@ -320,11 +292,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                       "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
                                     }}
                                   >
-                                    {isCreatingThisUser
-                                      ? "Creating..."
-                                      : savedPass
-                                        ? "Create Again"
-                                        : "Create Access Pass"}
+                                    {isCreatingThisUser ? "Creating..." : savedPass ? "Create Again" : "Create Access Pass"}
                                   </Button>
                                 )}
                               </Box>
@@ -332,10 +300,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                           </TableRow>
                           {showingConfirmationForUser && (
                             <TableRow sx={rowHighlightSx ?? { background: "inherit" }}>
-                              <TableCell
-                                colSpan={3}
-                                sx={{ py: 0.75, px: 1.5, borderBottom: savedPass ? "none" : undefined }}
-                              >
+                              <TableCell colSpan={3} sx={{ py: 0.75, px: 1.5, borderBottom: savedPass ? "none" : undefined }}>
                                 <Box
                                   sx={{
                                     display: "flex",
@@ -346,8 +311,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                   }}
                                 >
                                   <Typography sx={{ fontSize: "0.72rem", color: "#92400e", ...mono }}>
-                                    If you continue, all existing access for this user will be deleted and a 1 hour
-                                    temporary access pass will be created.
+                                    If you continue, all existing access for this user will be deleted and a 1 hour temporary access pass will be created.
                                   </Typography>
                                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                                     <input
@@ -392,11 +356,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                         "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
                                       }}
                                     >
-                                      {isCreatingThisUser
-                                        ? "Creating..."
-                                        : savedPass
-                                          ? "Create Again"
-                                          : "Create Access Pass"}
+                                      {isCreatingThisUser ? "Creating..." : savedPass ? "Create Again" : "Create Access Pass"}
                                     </Button>
                                   </Box>
                                 </Box>
@@ -405,10 +365,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                           )}
                           {showingInlineStepsForUser && (
                             <TableRow sx={rowHighlightSx ?? { background: "inherit" }}>
-                              <TableCell
-                                colSpan={3}
-                                sx={{ py: 0.75, px: 1.5, borderBottom: savedPass ? "none" : undefined }}
-                              >
+                              <TableCell colSpan={3} sx={{ py: 0.75, px: 1.5, borderBottom: savedPass ? "none" : undefined }}>
                                 <Box
                                   sx={{
                                     display: "flex",
@@ -421,11 +378,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                   {hydratedSelectedUserSteps.map((s) => (
                                     <StepRow key={`${user.id}-${s.id}`} step={s} />
                                   ))}
-                                  {running && (
-                                    <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>
-                                      Running...
-                                    </Typography>
-                                  )}
+                                  {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>Running...</Typography>}
                                   {!running && (
                                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.25 }}>
                                       {consentRequired && (
@@ -507,13 +460,8 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                       style={{ margin: 0, width: 14, height: 14 }}
                                     />
                                     <Typography sx={{ fontSize: "0.7rem", color: "#1e3a8a", ...mono }}>
-                                      Confirm that the person has successfully logged in and created their long term
-                                      access pass on{" "}
-                                      <a
-                                        href="https://mysignins.microsoft.com/"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                      >
+                                      Confirm that the person has successfully logged in and created their long term access pass on{" "}
+                                      <a href="https://mysignins.microsoft.com/" target="_blank" rel="noopener noreferrer">
                                         https://mysignins.microsoft.com/
                                       </a>
                                     </Typography>
@@ -631,9 +579,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
             )}
 
             {!managerUsersLoading && managerUsers.length === 0 && !managerUsersError && (
-              <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>
-                No users found that are managed by your signed-in account.
-              </Typography>
+              <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>No users found that are managed by your signed-in account.</Typography>
             )}
 
             {managerUsersError && (
@@ -653,9 +599,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
             )}
           </Box>
         </Box>
-        {managerUsersError && (
-          <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{managerUsersError}</Typography>
-        )}
+        {managerUsersError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{managerUsersError}</Typography>}
       </Box>
     </Card>
   );

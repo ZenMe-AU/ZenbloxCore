@@ -36,11 +36,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
           const auth = getAccessPassUserAuth(user);
           if (!auth.exists) {
             throw new Error(
-              [
-                `Missing auth files for ${user.id}.`,
-                `Expected storage: ${auth.storageStateFile}`,
-                `Expected session: ${auth.sessionStorageFile}`,
-              ].join(" "),
+              [`Missing auth files for ${user.id}.`, `Expected storage: ${auth.storageStateFile}`, `Expected session: ${auth.sessionStorageFile}`].join(" ")
             );
           }
         });
@@ -51,15 +47,11 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
           try {
             // Wait for core authentication elements
             await expect(page.getByText("Access Pass").first()).toBeVisible({ timeout: 10_000 });
-            await expect(
-              page.getByText(new RegExp(`signed in as ${escapeRegExp(user.email)}`, "i")).first(),
-            ).toBeVisible({ timeout: 10_000 });
+            await expect(page.getByText(new RegExp(`signed in as ${escapeRegExp(user.email)}`, "i")).first()).toBeVisible({ timeout: 10_000 });
             await expect(page.getByText(/Azure Login/i).first()).toBeVisible({ timeout: 10_000 });
             await expect(page.getByText(/Azure Access Pass/i).first()).toBeVisible({ timeout: 10_000 });
             // Wait for user-specific post-login content
-            await expect(page.getByText(new RegExp(escapeRegExp(user.expectedPostLoginText), "i")).first()).toBeVisible(
-              { timeout: 10_000 },
-            );
+            await expect(page.getByText(new RegExp(escapeRegExp(user.expectedPostLoginText), "i")).first()).toBeVisible({ timeout: 10_000 });
             // Snapshot the authenticated page state
             await expectPageSnapshot(page, testInfo, "page-rendered.png", {
               userId: user.role,

@@ -41,11 +41,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
           const auth = getAccessPassUserAuth(user);
           if (!auth.exists) {
             throw new Error(
-              [
-                `Missing auth files for ${user.id}.`,
-                `Expected storage: ${auth.storageStateFile}`,
-                `Expected session: ${auth.sessionStorageFile}`,
-              ].join(" "),
+              [`Missing auth files for ${user.id}.`, `Expected storage: ${auth.storageStateFile}`, `Expected session: ${auth.sessionStorageFile}`].join(" ")
             );
           }
         });
@@ -63,9 +59,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
           try {
             await expect(page.getByText("Access Pass").first()).toBeVisible({ timeout: 10_000 });
-            await expect(
-              page.getByText(new RegExp(`signed in as ${escapeRegExp(user.email)}`, "i")).first(),
-            ).toBeVisible({ timeout: 10_000 });
+            await expect(page.getByText(new RegExp(`signed in as ${escapeRegExp(user.email)}`, "i")).first()).toBeVisible({ timeout: 10_000 });
 
             const userTable = page.getByRole("table");
             await expect(userTable, "Expected the Entra-user table to load.")
@@ -78,9 +72,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
             // Verify each target user has an action button
             for (const target of targets) {
               await test.step(`Verify Access Pass action for ${target.id}`, async () => {
-                const targetRow = userTable
-                  .getByRole("row")
-                  .filter({ hasText: new RegExp(escapeRegExp(target.email), "i") });
+                const targetRow = userTable.getByRole("row").filter({ hasText: new RegExp(escapeRegExp(target.email), "i") });
 
                 await expect(targetRow, `Expected one Entra-user row for ${target.email}.`).toHaveCount(1, {
                   timeout: 30_000,
@@ -96,15 +88,9 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
                   name: "Create Access Pass",
                   exact: true,
                 });
-                await expect(
-                  createAccessPassButton,
-                  `Expected one Create Access Pass button for ${target.email}.`,
-                ).toHaveCount(1);
+                await expect(createAccessPassButton, `Expected one Create Access Pass button for ${target.email}.`).toHaveCount(1);
                 await expect(createAccessPassButton).toBeVisible();
-                await expect(
-                  createAccessPassButton,
-                  `Expected the Create Access Pass button for ${target.email} to be enabled.`,
-                ).toBeEnabled();
+                await expect(createAccessPassButton, `Expected the Create Access Pass button for ${target.email} to be enabled.`).toBeEnabled();
               });
             }
 
