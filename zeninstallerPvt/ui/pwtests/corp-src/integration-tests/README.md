@@ -1,0 +1,1 @@
+make sure to activate the "owner" role in My roles | Azure resources ENTRA when running these tests

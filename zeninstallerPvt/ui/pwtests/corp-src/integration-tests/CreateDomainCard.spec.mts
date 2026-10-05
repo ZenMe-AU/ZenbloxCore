@@ -173,7 +173,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
             
 			await test.step("Save variables then set up corp domain", async (step) => {
-				const domainInput = card.getByText("DNS DOMAIN").locator("../..").getByRole("textbox");
+				const domainInput = card.getByText("DNS Domain").locator("../..").getByRole("textbox");
 				await expectVisibleWithin(domainInput, "Corp domain input", 50_000);
 				await expect(card.getByRole("progressbar")).toBeHidden({ timeout: 60_000 });
 				const rerunButton = card.getByRole("button", { name: "Re-run setup" });
@@ -184,7 +184,11 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				}
 
 				if ((await domainInput.inputValue()).trim() !== TEST_DNS_DOMAIN) {
-					await expectSnapshot(page, card, testInfo, "start", viewportName);
+					const verifiedDomainsHeading = card.getByText("Verified domains in this tenant", { exact: true });
+					await expect(verifiedDomainsHeading).toBeVisible();
+					await expectSnapshot(page, card, testInfo, "start", viewportName, {
+						mask: [verifiedDomainsHeading.locator("..")],
+					});
 					await domainInput.fill(TEST_DNS_DOMAIN);
 					const saveButton = card.getByRole("button", { name: "Save 1 variable" });
 					await saveButton.click();

@@ -53,7 +53,14 @@ function snapshotPath(testInfo: TestInfo, viewportName: string, fileSubstring: s
 }
 
 // takes snapshot of a specific card element, rather than the whole page
-export async function expectSnapshot(page: Page, locator: Locator, testInfo: TestInfo, snapshotName: string, viewportName: string): Promise<void> {
+export async function expectSnapshot(
+  page: Page,
+  locator: Locator,
+  testInfo: TestInfo,
+  snapshotName: string,
+  viewportName: string,
+  options: Pick<PageSnapshotOptions, "mask"> = {},
+): Promise<void> {
   await page.waitForLoadState("domcontentloaded").catch(() => undefined);
   await page.waitForLoadState("networkidle").catch(() => undefined);
   await page
@@ -86,7 +93,7 @@ export async function expectSnapshot(page: Page, locator: Locator, testInfo: Tes
       animations: "disabled",
       caret: "hide",
       maxDiffPixelRatio: 0.02,
-      mask: sensitiveTextMasks(locator) ?? [],
+      mask: [...sensitiveTextMasks(locator), ...(options.mask ?? [])],
       maskColor: "rgb(0, 0, 0)",
     });
   } finally {
