@@ -100,7 +100,7 @@ describe("usePR", () => {
   it("loads pull requests and restores the requested PR", async () => {
     let latest: UsePR | null = null;
     const root = createRoot(document.createElement("div"));
-    const pendingRestore = { current: { account: null, repo: null, pr: "12", env: "prod" } } as React.MutableRefObject<unknown>;
+    const pendingRestore = { current: { account: null, repo: null, pr: "12", env: "prod" } };
     const checkRestoreDone = vi.fn();
 
     await act(async () => {
@@ -191,7 +191,7 @@ describe("usePR", () => {
     const addRestoreWarning = vi.fn();
     const pendingRestore = {
       current: { account: null, repo: null, pr: "999", env: "staging" },
-    } as React.MutableRefObject<unknown>;
+    };
 
     await act(async () => {
       root.render(
@@ -225,7 +225,7 @@ describe("usePR", () => {
     const root = createRoot(document.createElement("div"));
     const pendingRestore = {
       current: { account: null, repo: null, pr: "12", env: "staging" },
-    } as React.MutableRefObject<unknown>;
+    };
 
     await act(async () => {
       root.render(
