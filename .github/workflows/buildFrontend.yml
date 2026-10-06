@@ -15,6 +15,7 @@ permissions:
 
 env:
   FRONTEND_DIR: zeninstallerPvt/ui
+  VITE_KEYS: VITE_API_URL VITE_AZURE_CLIENT_ID VITE_GITHUB_CLIENT_ID VITE_APPINSIGHTS_CONNECTION_STRING
 
 jobs:
   build:
@@ -28,10 +29,14 @@ jobs:
       - name: Work out the frontend version
         id: version
         shell: bash
+        env:
+          ALL_VARS: ${{ toJSON(vars) }}
         run: |
           TREE=$(git rev-parse HEAD:$FRONTEND_DIR)
           LOCK=$(git rev-parse HEAD:pnpm-lock.yaml)
-          echo "version=$(printf '%s %s' "$TREE" "$LOCK" | sha256sum | cut -c1-12)" >> $GITHUB_OUTPUT
+          # -S sorts the keys to make sure the same values hash
+          VARS=$(jq -Sc --arg keys "$VITE_KEYS" 'with_entries(select(.key | IN(($keys | split(" "))[])))' <<< "$ALL_VARS")
+          echo "version=$(printf '%s %s %s' "$TREE" "$LOCK" "$VARS" | sha256sum | cut -c1-12)" >> $GITHUB_OUTPUT
           echo "tree=$TREE" >> $GITHUB_OUTPUT
 
       - uses: pnpm/setup@v2
@@ -68,7 +73,11 @@ jobs:
         env:
           ARTIFACT_ID: ${{ steps.pkg.outputs.artifact-id }}
           ARTIFACT_URL: ${{ steps.pkg.outputs.artifact-url }}
+          ALL_VARS: ${{ toJSON(vars) }}
         run: |
+          # The values this build was made with, recorded so they can be read back from the report.
+          VARS=$(jq -Sc --arg keys "$VITE_KEYS" 'with_entries(select(.key | IN(($keys | split(" "))[])))' <<< "$ALL_VARS")
+
           # The card compares this version against $web's metadata to decide if an update is due.
           PAYLOAD=$(jq -nc \
             --arg version "${{ steps.version.outputs.version }}" \
@@ -77,8 +86,9 @@ jobs:
             --arg artifactUrl "$ARTIFACT_URL" \
             --argjson artifactId "${ARTIFACT_ID:-null}" \
             --argjson builtAt "$(date +%s)" \
+            --argjson vars "$VARS" \
             '{ version: $version, sha: $sha, runId: $runId, artifactId: $artifactId,
-               artifactUrl: $artifactUrl, builtAt: $builtAt }')
+               artifactUrl: $artifactUrl, builtAt: $builtAt, vars: $vars }')
           echo "payload=$PAYLOAD" >> $GITHUB_OUTPUT
           echo "$PAYLOAD"
 
