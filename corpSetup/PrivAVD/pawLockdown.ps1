@@ -11,6 +11,9 @@ $ErrorActionPreference = 'Stop'
 # Windows Update, Edge and all other internet egress stop working until
 # pawOpen.ps1 is run. Idempotent: safe to rerun.
 # Reverse with pawOpen.ps1.
+# NOTE: if this stack was DEPLOYED with TF_VAR_LOCKDOWN=true, a later
+# terraform apply re-creates the lockdown; prefer flipping that env value
+# and re-applying instead of this script in that case.
 
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $envFile = Join-Path $scriptDirectory '.env'
@@ -36,22 +39,19 @@ function Get-RequiredEnvironmentVariable {
     return $value
 }
 
-function Get-AzValue {
-    param([string]$Label)
-    $out = & @('az') + $args 2>$null
-    if ($LASTEXITCODE -ne 0) { throw "az $Label failed. If the error mentions MFA or claims, run the az login command az printed, then rerun this script." }
+# Runs az with the remaining arguments; returns trimmed stdout.
+function Invoke-Az {
+    $out = & az @args 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        throw "az $($args -join ' ') failed. If the error mentioned MFA or a claims challenge, run the az login command it printed, then rerun this script."
+    }
     return "$out".Trim()
 }
 
+# Runs az with the remaining arguments; returns true when the resource exists.
 function Test-AzResource {
-    $null = & @('az') + $args 2>$null
+    $null = & az @args 2>$null
     return ($LASTEXITCODE -eq 0)
-}
-
-function New-AzResource {
-    param([string]$Label)
-    $null = & @('az') + $args 2>$null
-    if ($LASTEXITCODE -ne 0) { throw "az $Label failed. If the error mentions MFA or claims, run the az login command az printed, then rerun this script." }
 }
 
 Write-Host 'Loading .env ...' -ForegroundColor Gray
@@ -61,7 +61,7 @@ $hostPoolName   = Get-RequiredEnvironmentVariable -Name 'TF_VAR_HOST_POOL_NAME'
 $rgName         = "$hostPoolName-rg"
 
 Write-Host "Resource group: $rgName" -ForegroundColor Gray
-if (-not (Test-AzResource 'group' 'show' '-g' $rgName '--query' 'id' '-o' 'tsv')) {
+if (-not (Test-AzResource group show -g $rgName --query id -o tsv)) {
     throw "Cannot read resource group $rgName. Run az logout and az login (with MFA) first, then rerun this script."
 }
 
@@ -77,10 +77,10 @@ if ($LASTEXITCODE -eq 0 -and $sessionsJson) {
 }
 
 # Discovery: resolve names from live state instead of assuming.
-$vnetName    = Get-AzValue 'vnet list'    'network' 'vnet' 'list' '-g' $rgName '--query' '[0].name' '-o' 'tsv'
-$nsgName     = Get-AzValue 'nsg list'     'network' 'nsg'  'list'  '-g' $rgName '--query' '[0].name' '-o' 'tsv'
-$rgLocation  = Get-AzValue 'rg location'   'group' 'show' '-g' $rgName '--query' 'location' '-o' 'tsv'
-$vnetId      = Get-AzValue 'vnet id'       'network' 'vnet' 'show' '-g' $rgName '-n' $vnetName '--query' 'id' '-o' 'tsv'
+$vnetName   = Invoke-Az network vnet list -g $rgName --query '[0].name' -o tsv
+$nsgName    = Invoke-Az network nsg list -g $rgName --query '[0].name' -o tsv
+$rgLocation = Invoke-Az group show -g $rgName --query location -o tsv
+$vnetId     = Invoke-Az network vnet show -g $rgName -n $vnetName --query id -o tsv
 if (-not $vnetName -or -not $nsgName) { throw "Could not discover the VNet or NSG in $rgName." }
 $hostPoolId = "/subscriptions/$subscriptionId/resourceGroups/$rgName/providers/Microsoft.DesktopVirtualization/hostPools/$hostPoolName"
 Write-Host "VNet: $vnetName | NSG: $nsgName | Location: $rgLocation" -ForegroundColor Gray
@@ -88,37 +88,36 @@ Write-Host "VNet: $vnetName | NSG: $nsgName | Location: $rgLocation" -Foreground
 # 1. Private-endpoints subnet (kept by pawOpen, it is free).
 $peSubnetName = 'private-endpoints'
 $peSubnetPrefix = '10.250.2.0/26'
-$existingSubnet = Get-AzValue 'subnet show' 'network' 'vnet' 'subnet' 'show' '-g' $rgName '--vnet-name' $vnetName '-n' $peSubnetName '--query' 'addressPrefix[0]' '-o' 'tsv'
-if ($existingSubnet) {
-    $peSubnetPrefix = $existingSubnet
+if (Test-AzResource network vnet subnet show -g $rgName --vnet-name $vnetName -n $peSubnetName) {
+    $peSubnetPrefix = Invoke-Az network vnet subnet show -g $rgName --vnet-name $vnetName -n $peSubnetName --query 'addressPrefix[0]' -o tsv
     Write-Host "Subnet $peSubnetName exists ($peSubnetPrefix)." -ForegroundColor Gray
 } else {
     Write-Host "Creating subnet $peSubnetName ($peSubnetPrefix) ..." -ForegroundColor Cyan
-    New-AzResource 'subnet create' 'network' 'vnet' 'subnet' 'create' '-g' $rgName '--vnet-name' $vnetName '-n' $peSubnetName '--address-prefixes' $peSubnetPrefix '-o' 'none'
+    $null = Invoke-Az network vnet subnet create -g $rgName --vnet-name $vnetName -n $peSubnetName --address-prefixes $peSubnetPrefix -o none
 }
-$peSubnetId = Get-AzValue 'subnet id' 'network' 'vnet' 'subnet' 'show' '-g' $rgName '--vnet-name' $vnetName '-n' $peSubnetName '--query' 'id' '-o' 'tsv'
+$peSubnetId = Invoke-Az network vnet subnet show -g $rgName --vnet-name $vnetName -n $peSubnetName --query id -o tsv
 
 # 2. Private DNS zone + VNet link (kept by pawOpen, free).
 $zoneName = 'privatelink.wvd.microsoft.com'
-if (-not (Test-AzResource 'dns zone show' 'network' 'private-dns' 'zone' 'show' '-g' $rgName '-n' $zoneName)) {
+if (-not (Test-AzResource network private-dns zone show -g $rgName -n $zoneName)) {
     Write-Host "Creating private DNS zone $zoneName ..." -ForegroundColor Cyan
-    New-AzResource 'zone create' 'network' 'private-dns' 'zone' 'create' '-g' $rgName '-n' $zoneName '-o' 'none'
+    $null = Invoke-Az network private-dns zone create -g $rgName -n $zoneName -o none
 }
 $linkName = "$vnetName-link"
-if (-not (Test-AzResource 'dns link show' 'network' 'private-dns' 'link' 'vnet' 'show' '-g' $rgName '-z' $zoneName '-n' $linkName)) {
+if (-not (Test-AzResource network private-dns link vnet show -g $rgName -z $zoneName -n $linkName)) {
     Write-Host "Creating VNet link $linkName ..." -ForegroundColor Cyan
-    New-AzResource 'link create' 'network' 'private-dns' 'link' 'vnet' 'create' '-g' $rgName '-z' $zoneName '-n' $linkName '-v' $vnetId '-e' 'False' '-o' 'none'
+    $null = Invoke-Az network private-dns link vnet create -g $rgName -z $zoneName -n $linkName -v $vnetId -e False -o none
 }
-$zoneId = Get-AzValue 'zone id' 'network' 'private-dns' 'zone' 'show' '-g' $rgName '-n' $zoneName '--query' 'id' '-o' 'tsv'
+$zoneId = Invoke-Az network private-dns zone show -g $rgName -n $zoneName --query id -o tsv
 
 # 3. Private endpoint to the host pool connection sub-resource.
 $peName = "$hostPoolName-lockdown-pe"
-if (-not (Test-AzResource 'pe show' 'network' 'private-endpoint' 'show' '-g' $rgName '-n' $peName)) {
+if (-not (Test-AzResource network private-endpoint show -g $rgName -n $peName)) {
     Write-Host "Creating private endpoint $peName ..." -ForegroundColor Cyan
-    New-AzResource 'pe create' 'network' 'private-endpoint' 'create' '-g' $rgName '-n' $peName '-l' $rgLocation '--subnet' $peSubnetId '--private-connection-resource-id' $hostPoolId '--connection-name' "$hostPoolName-conn" '--group-id' 'connection' '-o' 'none'
+    $null = Invoke-Az network private-endpoint create -g $rgName -n $peName -l $rgLocation --subnet $peSubnetId --private-connection-resource-id $hostPoolId --connection-name "$hostPoolName-conn" --group-id connection -o none
 }
-$peId = Get-AzValue 'pe id' 'network' 'private-endpoint' 'show' '-g' $rgName '-n' $peName '--query' 'id' '-o' 'tsv'
-$peIp = Get-AzValue 'pe ip' 'network' 'private-endpoint' 'show' '-g' $rgName '-n' $peName '--query' 'ipConfigurations[0].privateIpAddress' '-o' 'tsv'
+$peId = Invoke-Az network private-endpoint show -g $rgName -n $peName --query id -o tsv
+$peIp = Invoke-Az network private-endpoint show -g $rgName -n $peName --query 'ipConfigurations[0].privateIpAddress' -o tsv
 
 # 4. Attach the zone to the endpoint so its FQDNs resolve to the private IP.
 $zoneGroupBody = @{
@@ -128,9 +127,11 @@ $zoneGroupBody = @{
         )
     }
 } | ConvertTo-Json -Depth 6
-Write-Host "Attaching DNS zone group ..." -ForegroundColor Cyan
+Write-Host 'Attaching DNS zone group ...' -ForegroundColor Cyan
 $null = az rest --method put --url "$peId/privateDnsZoneGroups/default?api-version=2024-03-01" --body $zoneGroupBody -o none 2>$null
-if ($LASTEXITCODE -ne 0) { throw "Could not attach the private DNS zone group. If the error mentions MFA or claims, run the az login command az printed, then rerun this script." }
+if ($LASTEXITCODE -ne 0) {
+    throw "Could not attach the private DNS zone group. If the error mentioned MFA or a claims challenge, run the az login command it printed, then rerun this script."
+}
 
 # 5. NSG allow-list + deny (exact reverse of what pawOpen.ps1 deletes).
 $rules = @(
@@ -142,7 +143,7 @@ $rules = @(
 )
 foreach ($r in $rules) {
     Write-Host ("NSG rule: " + $r.name) -ForegroundColor Cyan
-    New-AzResource 'nsg rule create' 'network' 'nsg' 'rule' 'create' '-g' $rgName '--nsg-name' $nsgName '-n' $r.name '--priority' $r.priority '--direction' 'Outbound' '--access' $r.access '--protocol' $r.protocol '--source-port-range' '*' '--destination-port-range' $r.ports '--source-address-prefix' 'VirtualNetwork' '--destination-address-prefix' $r.dest '-o' 'none'
+    $null = Invoke-Az network nsg rule create -g $rgName --nsg-name $nsgName -n $r.name --priority $r.priority --direction Outbound --access $r.access --protocol $r.protocol --source-port-range '*' --destination-port-range $r.ports --source-address-prefix VirtualNetwork --destination-address-prefix $r.dest -o none
 }
 
 # 6. Show the DNS records the endpoint registered (the verification handle).

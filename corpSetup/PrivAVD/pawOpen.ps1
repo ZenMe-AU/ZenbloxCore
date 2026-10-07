@@ -35,6 +35,11 @@ function Get-RequiredEnvironmentVariable {
     return $value
 }
 
+function Test-AzResource {
+    $null = & az @args 2>$null
+    return ($LASTEXITCODE -eq 0)
+}
+
 Write-Host 'Loading .env ...' -ForegroundColor Gray
 Import-DotEnv -Path $envFile
 $subscriptionId = Get-RequiredEnvironmentVariable -Name 'TF_VAR_SUBSCRIPTION_ID'
@@ -42,10 +47,9 @@ $hostPoolName   = Get-RequiredEnvironmentVariable -Name 'TF_VAR_HOST_POOL_NAME'
 $rgName         = "$hostPoolName-rg"
 
 $vnetName = & az network vnet list -g $rgName --query '[0].name' -o tsv 2>$null
-if ($LASTEXITCODE -ne 0 -or -not $vnetName) {
+if ($LASTEXITCODE -ne 0 -or -not "$vnetName".Trim()) {
     throw "Cannot read resource group $rgName. Run az logout and az login (with MFA) first, then rerun this script."
 }
-$nsgName = "$vnetName".Trim()
 $nsgName = "$($hostPoolName)-session-hosts-nsg"
 $liveNsg = & az network nsg list -g $rgName --query '[0].name' -o tsv 2>$null
 if ($LASTEXITCODE -eq 0 -and "$liveNsg".Trim()) { $nsgName = "$liveNsg".Trim() }
@@ -59,11 +63,10 @@ $ruleNames = @(
     'LockdownDeny-InternetOutbound'
 )
 foreach ($name in $ruleNames) {
-    & az network nsg rule show -g $rgName --nsg-name $nsgName -n $name -o none 2>$null
-    if ($LASTEXITCODE -eq 0) {
+    if (Test-AzResource network nsg rule show -g $rgName --nsg-name $nsgName -n $name) {
         Write-Host "Deleting NSG rule: $name" -ForegroundColor Cyan
         & az network nsg rule delete -g $rgName --nsg-name $nsgName -n $name -o none 2>$null
-        if ($LASTEXITCODE -ne 0) { throw "Failed to delete NSG rule $name. If the error mentions MFA or claims, run the az login command az printed, then rerun this script." }
+        if ($LASTEXITCODE -ne 0) { throw "Failed to delete NSG rule $name. If the error mentioned MFA or a claims challenge, run the az login command it printed, then rerun this script." }
     } else {
         Write-Host "NSG rule not present (already removed): $name" -ForegroundColor Gray
     }
@@ -71,13 +74,12 @@ foreach ($name in $ruleNames) {
 
 # 2. Delete the private endpoint (the only resource with real cost).
 $peName = "$hostPoolName-lockdown-pe"
-& az network private-endpoint show -g $rgName -n $peName -o none 2>$null
-if ($LASTEXITCODE -eq 0) {
+if (Test-AzResource network private-endpoint show -g $rgName -n $peName) {
     Write-Host "Deleting private endpoint $peName ..." -ForegroundColor Cyan
     & az network private-endpoint delete -g $rgName -n $peName -o none 2>$null
-    if ($LASTEXITCODE -ne 0) { throw "Failed to delete the private endpoint. If the error mentions MFA or claims, run the az login command az printed, then rerun this script." }
+    if ($LASTEXITCODE -ne 0) { throw "Failed to delete the private endpoint. If the error mentioned MFA or a claims challenge, run the az login command it printed, then rerun this script." }
 } else {
-    Write-Host "Private endpoint not present (already removed)." -ForegroundColor Gray
+    Write-Host 'Private endpoint not present (already removed).' -ForegroundColor Gray
 }
 
 Write-Host ''

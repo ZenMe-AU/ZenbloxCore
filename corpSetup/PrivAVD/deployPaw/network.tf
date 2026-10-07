@@ -84,6 +84,21 @@ resource "azurerm_network_security_group" "session_hosts" {
     source_address_prefix      = "VirtualNetwork"
     destination_address_prefix = "VirtualNetwork"
   }
+
+  dynamic "security_rule" {
+    for_each = var.LOCKDOWN ? local.lockdown_rules : []
+    content {
+      name                       = security_rule.value.name
+      priority                   = security_rule.value.priority
+      direction                  = "Outbound"
+      access                     = security_rule.value.access
+      protocol                   = security_rule.value.protocol
+      source_port_range          = "*"
+      destination_port_range     = security_rule.value.ports
+      source_address_prefix      = "VirtualNetwork"
+      destination_address_prefix = security_rule.value.dest
+    }
+  }
 }
 
 /*
