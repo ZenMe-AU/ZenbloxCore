@@ -1,42 +1,48 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { useEffect, useState } from "react";
 import { Box, Typography } from "@mui/material";
-
+import { PIPELINE } from "./logic/pipeline";
 import { type CardChrome, type CardHook, type CardId } from "./types";
 import { groupSx, EXPANDED_W } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
-import { PIPELINE } from "./logic/pipeline";
-import { useGithubLoginCard } from "./hooks/useGithubLoginCard";
-import { useRepoCard } from "./hooks/useRepoCard";
+import { useGithubLoginCard } from "./cards/GithubLogin/useGithubLoginCard";
+import { useRepoCard } from "./cards/Repo/useRepoCard";
 import { useGithubVariables } from "./hooks/useGithubVariables";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
-import { useDeploymentPlan } from "./hooks/useDeploymentPlan";
-import { useCorpStageCards } from "./hooks/useCorpStageCards";
+import { useDeploymentPlan } from "./cards/Stage/useDeploymentPlan";
+import { useCorpStageCards } from "./cards/Stage/useCorpStageCards";
 import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
-import { useAzureAppRegistrationCard } from "./hooks/useAzureAppRegistrationCard";
-import { useAzureSubscriptionCard } from "./hooks/useAzureSubscriptionCard";
-import { useCreateDomainCard } from "./hooks/useCreateDomainCard";
-import { useCoreInfraCard } from "./hooks/useCoreInfraCard";
-import { useRemoteTerminalInfraCard } from "./hooks/useRemoteTerminalInfraCard";
-import { useBackendDeployCard } from "./hooks/useBackendDeployCard";
-import { useAccessPassCard } from "./hooks/useAccessPassCard";
-import { useAwsLoginCard } from "./hooks/useAwsLoginCard";
-import { useAwsSetupCard } from "./hooks/useAwsSetupCard";
+import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
+import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
+import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
+import { useCoreInfraCard } from "./cards/CoreInfra/useCoreInfraCard";
+import { useRemoteTerminalInfraCard } from "./cards/RemoteTerminalInfra/useRemoteTerminalInfraCard";
+import { useBackendDeployCard } from "./cards/BackendDeploy/useBackendDeployCard";
+import { useAccessPassCard } from "./cards/AccessPass/useAccessPassCard";
+import { useAwsLoginCard } from "./cards/AwsLogin/useAwsLoginCard";
+import { useWebDeployCard } from "./cards/WebDeploy/useWebDeployCard";
+import { useAwsSetupCard } from "./cards/AwsSetup/useAwsSetupCard";
 
-import NavBar from "./components/NavBar";
+import Header from "./components/Header";
 import RestoreToast from "./components/RestoreToast";
-import GithubLoginCard from "./cards/GithubLoginCard";
-import RepoCard from "./cards/RepoCard";
+import GithubLoginCard from "./cards/GithubLogin/GithubLoginCard";
+import RepoCard from "./cards/Repo/RepoCard";
 import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
-import AzureAppRegistrationCard from "./cards/AzureAppRegistrationCard";
-import AzureSubscriptionCard from "./cards/AzureSubscriptionCard";
-import CoreInfraCard from "./cards/CoreInfraCard";
-import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfraCard";
-import BackendDeployCard from "./cards/BackendDeployCard";
-import CreateDomainCard from "./cards/CreateDomainCard";
-import AccessPassCard from "./cards/AccessPassCard";
-import AwsLoginCard from "./cards/AwsLoginCard";
-import AwsSetupCard from "./cards/AwsSetupCard";
-import StageCard from "./cards/StageCard";
+import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
+import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCard";
+import CoreInfraCard from "./cards/CoreInfra/CoreInfraCard";
+import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
+import BackendDeployCard from "./cards/BackendDeploy/BackendDeployCard";
+import WebDeployCard from "./cards/WebDeploy/WebDeployCard";
+import CreateDomainCard from "./cards/CreateDomain/CreateDomainCard";
+import AccessPassCard from "./cards/AccessPass/AccessPassCard";
+import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
+import AwsSetupCard from "./cards/AwsSetup/AwsSetupCard";
+import StageCard from "./cards/Stage/StageCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -61,7 +67,7 @@ function AppDashboard() {
   const githubRepoEnv = addCard(
     useRepoCard({
       user: githubLogin.account,
-    }),
+    })
   );
   const githubVariables = useGithubVariables({
     account: githubRepoEnv.repo.selectedAccount,
@@ -77,7 +83,7 @@ function AppDashboard() {
   const azureLogin = addCard(
     useAzureLoginCard({
       savedTenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-    }),
+    })
   );
 
   const awsLogin = addCard(useAwsLoginCard());
@@ -86,7 +92,7 @@ function AppDashboard() {
     useAccessPassCard({
       azureAccount: azureLogin.account,
       confirmedTenantId: azureLogin.confirmedTenantId,
-    }),
+    })
   );
 
   const azureSubscription = addCard(
@@ -95,7 +101,7 @@ function AppDashboard() {
       confirmedTenantId: azureLogin.confirmedTenantId,
       manualTenantId: azureLogin.manualTenantId,
       savedSubscriptionId: githubVariableValues.AZURE_SUBSCRIPTION_ID ?? "",
-    }),
+    })
   );
 
   const azureAppSetup = addCard(
@@ -109,7 +115,7 @@ function AppDashboard() {
       tenantId: azureLogin.confirmedTenantId || undefined,
       variableValues: githubVariableValues,
       manualTenantId: azureLogin.manualTenantId,
-    }),
+    })
   );
 
   const awsSetup = addCard(
@@ -121,7 +127,7 @@ function AppDashboard() {
       variableValues: githubVariableValues,
       awsReady: awsLogin.done,
       awsAccount: awsLogin.account,
-    }),
+    })
   );
   const infra = addCard(
     useCoreInfraCard({
@@ -130,7 +136,7 @@ function AppDashboard() {
       corpName,
       spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-    }),
+    })
   );
   const remoteTerminalInfra = addCard(
     useRemoteTerminalInfraCard({
@@ -142,7 +148,7 @@ function AppDashboard() {
       githubAccount: githubRepoEnv.repo.selectedAccount,
       githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
       githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,
-    }),
+    })
   );
   const backendDeploy = addCard(
     useBackendDeployCard({
@@ -153,7 +159,19 @@ function AppDashboard() {
       githubAccount: githubRepoEnv.repo.selectedAccount,
       repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
       selectedEnv: githubRepoEnv.env.selectedEnv,
-    }),
+    })
+  );
+  const webDeploy = addCard(
+    useWebDeployCard({
+      variableValues: githubVariableValues,
+      azureAccount: azureLogin.account,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
+      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
+      corpName,
+      githubAccount: githubRepoEnv.repo.selectedAccount,
+      repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
+      selectedEnv: githubRepoEnv.env.selectedEnv,
+    })
   );
   const createDomain = addCard(
     useCreateDomainCard({
@@ -163,7 +181,7 @@ function AppDashboard() {
       dnsName,
       spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-    }),
+    })
   );
 
   const plan = useDeploymentPlan({
@@ -204,7 +222,7 @@ function AppDashboard() {
       tenant: azureLogin.confirmedTenantId || undefined,
       subscription: azureSubscription.selectedSubscriptionId || undefined,
     },
-    urlRestore.completed && !githubLogin.loggingIn,
+    urlRestore.completed && !githubLogin.loggingIn
   );
 
   // ── Accordion + completion flags ───────────────────────────────────────────
@@ -225,9 +243,7 @@ function AppDashboard() {
   // you came from stays open too.
   const openCard = (id: CardId) => {
     setExpandedIds((cur) => new Set(cur).add(id));
-    requestAnimationFrame(() =>
-      document.getElementById(`card-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }),
-    );
+    requestAnimationFrame(() => document.getElementById(`card-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
   };
 
   const cardProps = (id: CardId): CardChrome => {
@@ -273,21 +289,8 @@ function AppDashboard() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      <Box
-        sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}
-      >
-        <NavBar
-          authLoading={githubLogin.loggingIn}
-          user={githubLogin.account}
-          selectedRepo={githubRepoEnv.repo.selectedRepo}
-          siblingPages={[
-            { label: "Access Pass", href: "/accessPass.html" },
-            { label: "Private Account", href: "/privAccount.html" },
-            { label: "AWS Hosting", href: "/awsHosting.html", carryQuery: true },
-            { label: "Cost Management", href: "/costManagement.html", carryQuery: true },
-            { label: "User Access", href: "/userAccess.html", carryQuery: true },
-          ]}
-        />
+      <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+        <Header />
 
         <Box sx={{ maxWidth: EXPANDED_W, mx: "auto", px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 5 } }}>
           {/* Intro */}
@@ -302,11 +305,11 @@ function AppDashboard() {
             }}
           >
             <Typography sx={{ color: "#475569", lineHeight: 1.7 }}>
-              ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers of
-              your choosing. Before starting, you will need the following: <br />
+              ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers of your choosing. Before starting, you will
+              need the following: <br />
               1. A personal email address, using Google, or any other email hosting provider. <br />
-              2. An organisation name and domain name. We recommend that you register the domain name with Godaddy
-              https://www.godaddy.com/ because we will have automations in place with them. <br />
+              2. An organisation name and domain name. We recommend that you register the domain name with Godaddy https://www.godaddy.com/ because we will have
+              automations in place with them. <br />
               Complete the cards below in any order — each shows what it needs before it can run.
             </Typography>
           </Box>
@@ -394,6 +397,20 @@ function AppDashboard() {
 
             <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
 
+            <WebDeployCard
+              card={cardProps("web_deploy")}
+              web={webDeploy}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+              githubUrl={githubRepoEnv.githubEnvUrl}
+              repoFullName={
+                githubRepoEnv.repo.selectedAccount && githubRepoEnv.repo.selectedRepo
+                  ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
+                  : null
+              }
+            />
             <AwsSetupCard
               card={cardProps("aws_setup")}
               awsSetup={awsSetup}
@@ -413,11 +430,7 @@ function AppDashboard() {
         </Box>
       </Box>
 
-      <RestoreToast
-        loading={urlRestore.restoring}
-        warnings={urlRestore.warnings}
-        onDismiss={urlRestore.dismissWarnings}
-      />
+      <RestoreToast loading={urlRestore.restoring} warnings={urlRestore.warnings} onDismiss={urlRestore.dismissWarnings} />
     </>
   );
 }

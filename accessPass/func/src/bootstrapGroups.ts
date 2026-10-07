@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 
 const GRAPH = "https://graph.microsoft.com/v1.0";
@@ -11,12 +16,7 @@ type BootstrapGroupsRequest = {
 function buildCorsHeaders(request: HttpRequest): Record<string, string> {
   const configuredOrigin = String(process.env.ACCESS_PASS_ALLOWED_ORIGIN || "*").trim() || "*";
   const requestOrigin = request.headers.get("origin");
-  const allowOrigin =
-    configuredOrigin === "*"
-      ? "*"
-      : requestOrigin && requestOrigin === configuredOrigin
-        ? requestOrigin
-        : configuredOrigin;
+  const allowOrigin = configuredOrigin === "*" ? "*" : requestOrigin && requestOrigin === configuredOrigin ? requestOrigin : configuredOrigin;
 
   return {
     "Access-Control-Allow-Origin": allowOrigin,
@@ -33,9 +33,7 @@ async function getGraphToken(tenantId: string): Promise<string> {
   const effectiveTenantId = configuredTenant || tenantId;
 
   if (!effectiveTenantId || !clientId || !clientSecret) {
-    throw new Error(
-      "Missing ACCESS_PASS_AAD_TENANT_ID, ACCESS_PASS_AAD_CLIENT_ID, or ACCESS_PASS_AAD_CLIENT_SECRET",
-    );
+    throw new Error("Missing ACCESS_PASS_AAD_TENANT_ID, ACCESS_PASS_AAD_CLIENT_ID, or ACCESS_PASS_AAD_CLIENT_SECRET");
   }
 
   const tokenRes = await fetch(`https://login.microsoftonline.com/${effectiveTenantId}/oauth2/v2.0/token`, {
@@ -89,10 +87,7 @@ async function graphRequest<T = unknown>(token: string, path: string, init: Requ
 async function resolveGroupId(token: string, displayName: string): Promise<string> {
   const escaped = displayName.replace(/'/g, "''");
   const filter = encodeURIComponent(`displayName eq '${escaped}'`);
-  const data = await graphRequest<{ value?: Array<{ id?: string; displayName?: string }> }>(
-    token,
-    `/groups?$filter=${filter}&$select=id,displayName&$top=1`,
-  );
+  const data = await graphRequest<{ value?: Array<{ id?: string; displayName?: string }> }>(token, `/groups?$filter=${filter}&$select=id,displayName&$top=1`);
 
   const group = data?.value?.[0];
   if (!group?.id) {
@@ -105,15 +100,12 @@ async function resolveGroupId(token: string, displayName: string): Promise<strin
 async function resolveAdministrativeUnitId(token: string, displayName: string): Promise<string> {
   const escaped = displayName.replace(/'/g, "''");
   const filter = encodeURIComponent(`displayName eq '${escaped}'`);
-  const res = await fetch(
-    `https://graph.microsoft.com/beta/administrativeUnits?$filter=${filter}&$select=id,displayName&$top=1`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+  const res = await fetch(`https://graph.microsoft.com/beta/administrativeUnits?$filter=${filter}&$select=id,displayName&$top=1`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-  );
+  });
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -149,9 +141,7 @@ async function addMemberByRef(token: string, path: string, directoryObjectId: st
   const lower = body.toLowerCase();
   const alreadyMember =
     (res.status === 400 || res.status === 409) &&
-    (lower.includes("already exist") ||
-      lower.includes("added object references already exist") ||
-      lower.includes("object references already exist"));
+    (lower.includes("already exist") || lower.includes("added object references already exist") || lower.includes("object references already exist"));
 
   if (alreadyMember) {
     return;
@@ -184,9 +174,7 @@ async function addUserToAdministrativeUnit(token: string, auId: string, userId: 
   const lower = body.toLowerCase();
   const alreadyMember =
     (res.status === 400 || res.status === 409) &&
-    (lower.includes("already exist") ||
-      lower.includes("added object references already exist") ||
-      lower.includes("object references already exist"));
+    (lower.includes("already exist") || lower.includes("added object references already exist") || lower.includes("object references already exist"));
 
   if (alreadyMember) {
     return;
@@ -223,12 +211,8 @@ app.http("accessPassBootstrapGroups", {
       }
 
       const token = await getGraphToken(tenantId);
-      const resetManagersGroupName = String(
-        process.env.ACCESS_PASS_RESET_MANAGERS_GROUP_NAME || "Pass Reset Managers",
-      ).trim();
-      const resetTargetUsersAuName = String(
-        process.env.ACCESS_PASS_RESET_TARGET_USERS_AU_NAME || "Pass Reset Targets",
-      ).trim();
+      const resetManagersGroupName = String(process.env.ACCESS_PASS_RESET_MANAGERS_GROUP_NAME || "Pass Reset Managers").trim();
+      const resetTargetUsersAuName = String(process.env.ACCESS_PASS_RESET_TARGET_USERS_AU_NAME || "Pass Reset Targets").trim();
 
       const resetManagersGroupId = await resolveGroupId(token, resetManagersGroupName);
       const resetTargetUsersAuId = await resolveAdministrativeUnitId(token, resetTargetUsersAuName);

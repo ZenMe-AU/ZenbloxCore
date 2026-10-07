@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import type { AccountInfo } from "@azure/msal-browser";
 
 export type AzureAccount = AccountInfo;
@@ -14,6 +19,7 @@ export type CardId =
   | "core_infra"
   | "remote_terminal_infra"
   | "backend_deploy"
+  | "web_deploy"
   | "create_domain"
   | "access_pass"
   | "global_groups"

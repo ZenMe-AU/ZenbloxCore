@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { parse } from "dotenv";
 import JSZip from "jszip";
 import type { Account, Branch, GhEnv, PullRequest, Repo, WorkflowRun, UpsertSecretResult } from "../types";
@@ -46,7 +51,7 @@ export function createGithubApi(token: string) {
       if (!res.ok) throw new Error(`GitHub API ${res.status}: ${url}`);
       const data = await res.json();
       // Some endpoints return { total_count, items: [...] } instead of a bare array
-      const page: T[] = Array.isArray(data) ? data : (Object.values(data as object).find(Array.isArray) as T[] ?? []);
+      const page: T[] = Array.isArray(data) ? data : ((Object.values(data as object).find(Array.isArray) as T[]) ?? []);
       results.push(...page);
       const link = res.headers.get("Link");
       url = link?.match(/<([^>]+)>;\s*rel="next"/)?.[1] ?? null;
@@ -72,25 +77,14 @@ export function createGithubApi(token: string) {
   // ── Orgs & Repos ──────────────────────────────────────────────────────────────
 
   async function fetchOrgList(): Promise<Account[]> {
-    const [user, orgs] = await Promise.all([
-      fetchGithubUser(token),
-      paginate<{ login: string; id: number }>("/user/orgs"),
-    ]);
-    return [
-      { login: user.login, type: "User", id: user.id },
-      ...orgs.map((o) => ({ login: o.login, type: "Organization" as const, id: o.id })),
-    ];
+    const [user, orgs] = await Promise.all([fetchGithubUser(token), paginate<{ login: string; id: number }>("/user/orgs")]);
+    return [{ login: user.login, type: "User", id: user.id }, ...orgs.map((o) => ({ login: o.login, type: "Organization" as const, id: o.id }))];
   }
 
   async function fetchRepos(account: Account): Promise<Repo[]> {
-    const path =
-      account.type === "Organization"
-        ? `/orgs/${account.login}/repos?type=all`
-        : `/user/repos?type=owner`;
+    const path = account.type === "Organization" ? `/orgs/${account.login}/repos?type=all` : `/user/repos?type=owner`;
     const all = await paginate<{ id: number; name: string; owner: { type: string } }>(path);
-    return all
-      .filter((r) => r.owner.type === account.type)
-      .map((r) => ({ id: r.id, name: r.name }));
+    return all.filter((r) => r.owner.type === account.type).map((r) => ({ id: r.id, name: r.name }));
   }
 
   // ── Template ──────────────────────────────────────────────────────────────────
@@ -105,8 +99,13 @@ export function createGithubApi(token: string) {
   // ── Repo generation ───────────────────────────────────────────────────────────
 
   async function generateRepo(
-    account: Account, targetName: string, isPrivate: boolean, includeAllBranch: boolean, createEnvs: boolean,
-    templateRepo: string, validEnvs: readonly string[],
+    account: Account,
+    targetName: string,
+    isPrivate: boolean,
+    includeAllBranch: boolean,
+    createEnvs: boolean,
+    templateRepo: string,
+    validEnvs: readonly string[]
   ): Promise<{ repo: Repo; envSuccess: boolean; results: { envs: { name: string; success: boolean; error?: string }[] } }> {
     const [templateOwner, templateName] = templateRepo.split("/");
     const res = await gh(`/repos/${templateOwner}/${templateName}/generate`, {
@@ -120,10 +119,11 @@ export function createGithubApi(token: string) {
     const envResults = await Promise.all(
       validEnvs.map(async (envName) => {
         const r = await gh(`/repos/${account.login}/${data.name}/environments/${envName}`, {
-          method: "PUT", body: JSON.stringify({}),
+          method: "PUT",
+          body: JSON.stringify({}),
         });
         return { name: envName, success: r.ok, error: r.ok ? undefined : String(r.status) };
-      }),
+      })
     );
     return { repo, envSuccess: envResults.every((e) => e.success), results: { envs: envResults } };
   }
@@ -131,9 +131,7 @@ export function createGithubApi(token: string) {
   // ── Branches ──────────────────────────────────────────────────────────────────
 
   async function fetchBranches(account: Account, repo: string): Promise<Branch[]> {
-    const all = await paginate<{ name: string; commit: { sha: string }; protected: boolean }>(
-      `/repos/${account.login}/${repo}/branches`,
-    );
+    const all = await paginate<{ name: string; commit: { sha: string }; protected: boolean }>(`/repos/${account.login}/${repo}/branches`);
     return all.map((b) => ({ name: b.name, commit: b.commit.sha, protected: b.protected }));
   }
 
@@ -153,12 +151,22 @@ export function createGithubApi(token: string) {
 
   async function fetchPullRequests(account: Account, repo: string): Promise<PullRequest[]> {
     const all = await paginate<{
-      id: number; number: number; title: string; state: string; html_url: string;
-      base: { ref: string }; head: { sha: string };
+      id: number;
+      number: number;
+      title: string;
+      state: string;
+      html_url: string;
+      base: { ref: string };
+      head: { sha: string };
     }>(`/repos/${account.login}/${repo}/pulls?state=open`);
     return all.map((pr) => ({
-      id: pr.id, number: pr.number, title: pr.title, state: pr.state,
-      html_url: pr.html_url, base_branch: pr.base.ref, head_sha: pr.head.sha,
+      id: pr.id,
+      number: pr.number,
+      title: pr.title,
+      state: pr.state,
+      html_url: pr.html_url,
+      base_branch: pr.base.ref,
+      head_sha: pr.head.sha,
     }));
   }
 
@@ -168,11 +176,12 @@ export function createGithubApi(token: string) {
     const res = await gh(`/repos/${account.login}/${repo}/actions/runs?head_sha=${headSha}&per_page=100`);
     if (!res.ok) throw new Error(`Failed to fetch runs: ${res.status}`);
     const data = await res.json();
-    return (data.workflow_runs ?? []).map((r: {
-      id: number; head_sha: string; workflow_id: number; created_at: string; actor: { login: string };
-    }) => ({
-      id: r.id, head_sha: r.head_sha, workflow_id: String(r.workflow_id),
-      created_at: r.created_at, actor: r.actor?.login ?? "",
+    return (data.workflow_runs ?? []).map((r: { id: number; head_sha: string; workflow_id: number; created_at: string; actor: { login: string } }) => ({
+      id: r.id,
+      head_sha: r.head_sha,
+      workflow_id: String(r.workflow_id),
+      created_at: r.created_at,
+      actor: r.actor?.login ?? "",
     }));
   }
 
@@ -183,16 +192,16 @@ export function createGithubApi(token: string) {
     if (!res.ok) throw new Error(`Failed to fetch environments: ${res.status}`);
     const data = await res.json();
     return (data.environments ?? []).map((e: { name: string; id: number; url: string }) => ({
-      name: e.name, id: e.id, url: e.url,
+      name: e.name,
+      id: e.id,
+      url: e.url,
     }));
   }
 
   // ── Secrets ───────────────────────────────────────────────────────────────────
 
   async function fetchSecrets(account: Account, repo: string, envName: string): Promise<string[]> {
-    const all = await paginate<{ name: string }>(
-      `/repos/${account.login}/${repo}/environments/${encodeURIComponent(envName)}/secrets`,
-    );
+    const all = await paginate<{ name: string }>(`/repos/${account.login}/${repo}/environments/${encodeURIComponent(envName)}/secrets`);
     return all.map((s) => s.name);
   }
 
@@ -207,7 +216,12 @@ export function createGithubApi(token: string) {
   }
 
   async function upsertSecret(
-    account: Account, repo: string, name: string, encryptedValue: string, keyId: string, envName?: string,
+    account: Account,
+    repo: string,
+    name: string,
+    encryptedValue: string,
+    keyId: string,
+    envName?: string
   ): Promise<UpsertSecretResult> {
     const path = envName
       ? `/repos/${account.login}/${repo}/environments/${encodeURIComponent(envName)}/secrets/${name}`
@@ -223,22 +237,22 @@ export function createGithubApi(token: string) {
   // ── Variables ─────────────────────────────────────────────────────────────────
 
   async function fetchVariables(account: Account, repo: string, envName: string): Promise<Record<string, string>> {
-    const all = await paginate<{ name: string; value: string }>(
-      `/repos/${account.login}/${repo}/environments/${encodeURIComponent(envName)}/variables`,
-    );
+    const all = await paginate<{ name: string; value: string }>(`/repos/${account.login}/${repo}/environments/${encodeURIComponent(envName)}/variables`);
     return Object.fromEntries(all.map((v) => [v.name, v.value]));
   }
 
   async function createVariable(account: Account, repo: string, name: string, value: string, envName: string): Promise<void> {
     const res = await gh(`/repos/${account.login}/${repo}/environments/${encodeURIComponent(envName)}/variables`, {
-      method: "POST", body: JSON.stringify({ name, value }),
+      method: "POST",
+      body: JSON.stringify({ name, value }),
     });
     if (!res.ok) throw new Error(`Failed to create variable "${name}": ${res.status}`);
   }
 
   async function updateVariable(account: Account, repo: string, name: string, value: string, envName: string): Promise<void> {
     const res = await gh(`/repos/${account.login}/${repo}/environments/${encodeURIComponent(envName)}/variables/${name}`, {
-      method: "PATCH", body: JSON.stringify({ name, value }),
+      method: "PATCH",
+      body: JSON.stringify({ name, value }),
     });
     if (!res.ok) throw new Error(`Failed to update variable "${name}": ${res.status}`);
   }
@@ -268,7 +282,9 @@ export function createGithubApi(token: string) {
       const zip = await downloadZip(account, repo, envId);
       const file = zip.file("corp.env");
       return file ? parse(await file.async("string")) : null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   async function fetchDeployLog(account: Account, repo: string, logId: number): Promise<string | null> {
@@ -276,7 +292,9 @@ export function createGithubApi(token: string) {
       const zip = await downloadZip(account, repo, logId);
       const file = Object.values(zip.files).find((f) => !f.dir);
       return file ? file.async("string") : null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   async function fetchPlan(id: string, account: Account, repo: string) {
@@ -288,9 +306,7 @@ export function createGithubApi(token: string) {
 
   // ── Workflow dispatch ─────────────────────────────────────────────────────────
 
-  async function triggerWorkflow(
-    account: Account, repo: string, workflowId: string, githubEnvName: string, ref: string,
-  ): Promise<void> {
+  async function triggerWorkflow(account: Account, repo: string, workflowId: string, githubEnvName: string, ref: string): Promise<void> {
     const res = await gh(`/repos/${account.login}/${repo}/actions/workflows/${workflowId}/dispatches`, {
       method: "POST",
       body: JSON.stringify({ ref, inputs: { github_env_name: githubEnvName } }),
@@ -298,15 +314,11 @@ export function createGithubApi(token: string) {
     if (!res.ok) throw new Error(`Failed to trigger workflow: ${res.status}`);
   }
 
-  async function triggerWorkflowFromPR(
-    account: Account, repo: string, workflowId: string, githubEnvName: string, commitSha: string,
-  ): Promise<void> {
+  async function triggerWorkflowFromPR(account: Account, repo: string, workflowId: string, githubEnvName: string, commitSha: string): Promise<void> {
     return triggerWorkflow(account, repo, workflowId, githubEnvName, commitSha);
   }
 
-  async function deployChangeset(
-    account: Account, repo: string, runId: string, dir: string, githubEnvName: string, ref: string,
-  ): Promise<void> {
+  async function deployChangeset(account: Account, repo: string, runId: string, dir: string, githubEnvName: string, ref: string): Promise<void> {
     const res = await gh(`/repos/${account.login}/${repo}/actions/workflows/deployChangeset.yml/dispatches`, {
       method: "POST",
       body: JSON.stringify({ ref, inputs: { github_env_name: githubEnvName, run_id: runId, dir } }),
@@ -315,11 +327,30 @@ export function createGithubApi(token: string) {
   }
 
   return {
-    verifyAuth, fetchOrgList, fetchRepos, checkTemplate, generateRepo,
-    fetchBranches, createBranch, fetchPullRequests, fetchRuns, fetchEnvs,
-    fetchSecrets, fetchPublicKey, upsertSecret, fetchVariables, createVariable,
-    updateVariable, fetchStatus, fetchEnv, getPlanEnv, fetchDeployLog,
-    fetchPlan, triggerWorkflow, triggerWorkflowFromPR, deployChangeset,
+    verifyAuth,
+    fetchOrgList,
+    fetchRepos,
+    checkTemplate,
+    generateRepo,
+    fetchBranches,
+    createBranch,
+    fetchPullRequests,
+    fetchRuns,
+    fetchEnvs,
+    fetchSecrets,
+    fetchPublicKey,
+    upsertSecret,
+    fetchVariables,
+    createVariable,
+    updateVariable,
+    fetchStatus,
+    fetchEnv,
+    getPlanEnv,
+    fetchDeployLog,
+    fetchPlan,
+    triggerWorkflow,
+    triggerWorkflowFromPR,
+    deployChangeset,
   };
 }
 

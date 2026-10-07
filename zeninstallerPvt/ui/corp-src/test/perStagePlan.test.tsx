@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -11,7 +16,7 @@ const apiMocks = vi.hoisted(() => ({
 }));
 vi.mock("../api", () => apiMocks);
 
-const { useDeploymentPlan } = await import("../hooks/useDeploymentPlan");
+const { useDeploymentPlan } = await import("../cards/Stage/useDeploymentPlan");
 type Plan = ReturnType<typeof useDeploymentPlan>;
 
 const ACCOUNT = { login: "org-one", type: "Organization", id: 1 } as Account;
@@ -35,7 +40,7 @@ const reports = new Map<string, { stage: object; createdAt: number }>();
 function reportFor(dir: string, kind: "plan" | "deploy", stage: object, createdAt = 2000) {
   reports.set(`${kind}:${dir}`, { stage, createdAt });
   apiMocks.fetchStageReport.mockImplementation(
-    async (_a: unknown, _r: unknown, _e: unknown, d: string, k: "plan" | "deploy") => reports.get(`${k}:${d}`) ?? null,
+    async (_a: unknown, _r: unknown, _e: unknown, d: string, k: "plan" | "deploy") => reports.get(`${k}:${d}`) ?? null
   );
 }
 

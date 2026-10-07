@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import type { AccountInfo } from "@azure/msal-browser";
 import { getMsal } from "./msal";
 import { GRAPH_SCOPES, ARM_SCOPES } from "../../access-pass-src/config/azureConfig";
@@ -68,11 +73,7 @@ export async function listSubscriptions(account: AccountInfo, overrideTenantId?:
 
 // ── App registration ───────────────────────────────────────────────────────────
 
-export async function getExistingApp(
-  account: AccountInfo,
-  displayName: string,
-  overrideTenantId?: string,
-): Promise<{ appId: string; id: string } | null> {
+export async function getExistingApp(account: AccountInfo, displayName: string, overrideTenantId?: string): Promise<{ appId: string; id: string } | null> {
   const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, `/applications?$filter=displayName eq '${displayName}'&$select=appId,id`);
   return data.value?.[0] ? { appId: data.value[0].appId, id: data.value[0].id } : null;
@@ -82,7 +83,7 @@ export async function createAppRegistration(
   account: AccountInfo,
   displayName: string,
   permissions: readonly string[],
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<{ appId: string; id: string }> {
   const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, "/applications", {
@@ -137,7 +138,7 @@ export async function ensureFederatedCredential(
   org: string,
   repo: string,
   environment: string,
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<void> {
   const subject = `repo:${org}/${repo}:environment:${environment}`;
   const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "-");
@@ -164,7 +165,7 @@ export async function ensureRbacRole(
   subscriptionId: string,
   spObjectId: string,
   roleName: string,
-  overrideTenantId?: string,
+  overrideTenantId?: string
 ): Promise<void> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const scope = `/subscriptions/${subscriptionId}`;
@@ -173,10 +174,10 @@ export async function ensureRbacRole(
   const existing = await gFetch(
     token,
     ARM,
-    `${scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${spObjectId}')`,
+    `${scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${spObjectId}')`
   );
   const alreadyAssigned = existing?.value?.some((a: { properties: { roleDefinitionId: string } }) =>
-    a.properties.roleDefinitionId.toLowerCase().endsWith(roleId.toLowerCase()),
+    a.properties.roleDefinitionId.toLowerCase().endsWith(roleId.toLowerCase())
   );
   if (alreadyAssigned) return;
 
@@ -195,12 +196,7 @@ export async function ensureRbacRole(
 
 // ── Admin consent ──────────────────────────────────────────────────────────────
 
-export async function grantAdminConsent(
-  account: AccountInfo,
-  spObjectId: string,
-  permissions: readonly string[],
-  overrideTenantId?: string,
-): Promise<void> {
+export async function grantAdminConsent(account: AccountInfo, spObjectId: string, permissions: readonly string[], overrideTenantId?: string): Promise<void> {
   const token = await getToken(account, GRAPH_SCOPES, overrideTenantId);
 
   const graphSP = await gFetch(token, GRAPH, "/servicePrincipals?$filter=appId eq '00000003-0000-0000-c000-000000000000'&$select=id");

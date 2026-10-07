@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 const url = import.meta.env.VITE_API_URL;
 const functionKey = import.meta.env.VITE_ACCESS_PASS_FUNCTION_KEY as string | undefined;
 

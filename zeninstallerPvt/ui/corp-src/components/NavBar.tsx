@@ -1,15 +1,9 @@
-import {
-  Box,
-  Button,
-  CircularProgress,
-  Dialog,
-  IconButton,
-  Menu,
-  MenuItem,
-  Typography,
-  useMediaQuery,
-  useTheme,
-} from "@mui/material";
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
+import { Box, Button, CircularProgress, Dialog, IconButton, Menu, MenuItem, Typography, useMediaQuery, useTheme } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
@@ -31,13 +25,7 @@ function pageHref(page: SiblingPage): string {
   return page.carryQuery ? `${page.href}${window.location.search}` : page.href;
 }
 
-export default function NavBar({
-  authLoading = false,
-  user = null,
-  selectedRepo = null,
-  title,
-  siblingPages = [],
-}: Props) {
+export default function NavBar({ authLoading = false, user = null, selectedRepo = null, title, siblingPages = [] }: Props) {
   const [copied, setCopied] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const theme = useTheme();
@@ -83,9 +71,7 @@ export default function NavBar({
         >
           ZB
         </Box>
-        <Typography sx={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", letterSpacing: "-0.01em" }}>
-          {title ?? document.title}
-        </Typography>
+        <Typography sx={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", letterSpacing: "-0.01em" }}>{title ?? document.title}</Typography>
       </Box>
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -140,11 +126,7 @@ export default function NavBar({
 
         {siblingPages.length > 0 && (
           <>
-            <IconButton
-              size="small"
-              onClick={(e) => setAnchorEl(e.currentTarget)}
-              sx={{ display: { xs: "inline-flex", md: "none" }, color: "#64748b" }}
-            >
+            <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ display: { xs: "inline-flex", md: "none" }, color: "#64748b" }}>
               <MenuIcon fontSize="small" />
             </IconButton>
 

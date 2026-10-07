@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 // ── App registration client ID (ZenInstaller SPA) ─────────────────────────────
 
 export const AZURE_CLIENT_ID = import.meta.env.VITE_AZURE_CLIENT_ID as string | undefined;
@@ -9,20 +14,15 @@ export const AZURE_CLIENT_ID = import.meta.env.VITE_AZURE_CLIENT_ID as string | 
 export const LOGIN_SCOPES = ["openid", "profile", "User.Read"];
 
 // App-registration card: create/read the app + SP, manage federated credentials.
-export const APP_SCOPES = [
-  "https://graph.microsoft.com/Application.ReadWrite.All",
-  "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All",
-];
+export const APP_SCOPES = ["https://graph.microsoft.com/Application.ReadWrite.All", "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All"];
 
 export const ARM_SCOPES = ["https://management.azure.com/user_impersonation"];
+export const STORAGE_SCOPES = ["https://storage.azure.com/user_impersonation"];
 export const DOMAIN_SCOPES = ["https://graph.microsoft.com/Domain.ReadWrite.All"];
 export const ORGANIZATION_SCOPES = ["https://graph.microsoft.com/Organization.Read.All"];
 
 // Domain card: granting DomainReadWriteAll to the pipeline's service principal.
-export const GRANT_CONSENT_SCOPES = [
-  "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All",
-  "https://graph.microsoft.com/Application.Read.All",
-];
+export const GRANT_CONSENT_SCOPES = ["https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All", "https://graph.microsoft.com/Application.Read.All"];
 
 export const ACCESS_PASS_SCOPES = [
   "https://graph.microsoft.com/User.ReadWrite.All",
@@ -31,6 +31,7 @@ export const ACCESS_PASS_SCOPES = [
 ];
 
 export const GROUPS_SCOPES = ["https://graph.microsoft.com/Group.ReadWrite.All"];
+export const ROLE_MANAGEMENT_SCOPES = ["https://graph.microsoft.com/RoleManagement.ReadWrite.Directory"];
 
 // ── Individual Graph application permissions ───────────────────────────────────
 
@@ -49,6 +50,31 @@ export const GRAPH_PERMISSIONS = {
 } as const;
 
 export type GraphPermissionKey = keyof typeof GRAPH_PERMISSIONS;
+
+/*
+ * The delegated permissions the private installer's own sign-in app declares, by resource. Mirrors
+ * what the cards actually ask for at runtime; the ids behind these names are looked up at creation.
+ */
+export const PRIVATE_INSTALLER_DELEGATED: Record<string, readonly string[]> = {
+  // Microsoft Graph
+  "00000003-0000-0000-c000-000000000000": [
+    "User.Read",
+    "Application.ReadWrite.All",
+    "AppRoleAssignment.ReadWrite.All",
+    "Application.Read.All",
+    "Domain.ReadWrite.All",
+  ],
+  // Azure Service Management
+  "797f4846-ba00-4fd7-ba43-dac1f8f63013": ["user_impersonation"],
+  // Azure Storage
+  "e406a681-f3d4-42a8-90b6-c2b029497af1": ["user_impersonation"],
+};
+
+// ── Entra directory roles ─────────────────────────────────────────────────────
+// Template ids, which is what PIM's roleDefinitionId takes for built-in roles.
+export const DIRECTORY_ROLE_IDS = {
+  "Global Administrator": "62e90394-69f5-4237-9190-012177145e10",
+} as const;
 
 // ── RBAC built-in role IDs ─────────────────────────────────────────────────────
 
@@ -73,11 +99,7 @@ export const BACKEND_VERSION_KEYS = {
 } as const;
 
 // ── Resource provider namespaces ───────────────────────────────────────────────
-export const CORE_INFRA_PROVIDERS = [
-  "Microsoft.OperationalInsights",
-  "Microsoft.Insights",
-  "Microsoft.Storage",
-] as const;
+export const CORE_INFRA_PROVIDERS = ["Microsoft.OperationalInsights", "Microsoft.Insights", "Microsoft.Storage"] as const;
 export const DNS_PROVIDERS = ["Microsoft.Network"] as const;
 export const REMOTE_TERMINAL_PROVIDERS = [
   "Microsoft.OperationalInsights",

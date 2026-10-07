@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 // ── Session-token lifetime ──────────────────────────────────────────────────────
 // Kept short to limit how long the exchanged session credentials remain valid.
 // Non-MFA sessions are refreshed silently near expiry (the long-term keys stay in

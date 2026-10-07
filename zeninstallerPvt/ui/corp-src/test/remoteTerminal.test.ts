@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { describe, it, expect } from "vitest";
 import { parseSocketEvent } from "../logic/remoteTerminal";
 import { stageLabel } from "../config/remoteTerminal";
@@ -28,12 +33,7 @@ describe("parseSocketEvent", () => {
       kind: "runner",
       message: { type: "terminal", data: "hello" },
     });
-    expect(
-      parseSocketEvent(
-        group(JSON.stringify({ type: "deviceCode", cloud: "azure", url: "https://aka.ms/x", code: "ABC123" })),
-        SESSION,
-      ),
-    ).toEqual({
+    expect(parseSocketEvent(group(JSON.stringify({ type: "deviceCode", cloud: "azure", url: "https://aka.ms/x", code: "ABC123" })), SESSION)).toEqual({
       kind: "runner",
       message: { type: "deviceCode", cloud: "azure", url: "https://aka.ms/x", code: "ABC123" },
     });
@@ -41,9 +41,10 @@ describe("parseSocketEvent", () => {
 
   // AWS hands the code back through the console, so its prompt carries a URL and nothing else.
   it("keeps a device code that has no code, which is how AWS arrives", () => {
-    expect(
-      parseSocketEvent(group(JSON.stringify({ type: "deviceCode", cloud: "aws", url: "https://signin.aws" })), SESSION),
-    ).toEqual({ kind: "runner", message: { type: "deviceCode", cloud: "aws", url: "https://signin.aws" } });
+    expect(parseSocketEvent(group(JSON.stringify({ type: "deviceCode", cloud: "aws", url: "https://signin.aws" })), SESSION)).toEqual({
+      kind: "runner",
+      message: { type: "deviceCode", cloud: "aws", url: "https://signin.aws" },
+    });
   });
 
   it("treats a payload that is not JSON as raw terminal bytes", () => {

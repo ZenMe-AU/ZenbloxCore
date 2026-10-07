@@ -1,9 +1,14 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { Box } from "@mui/material";
 import { ACTION_CONFIG } from "../../access-pass-src/config/planConfig";
 import type { ActionType } from "../../access-pass-src/types";
 
 export default function SummaryChip({ type, count }: { type: ActionType; count: number }) {
-  const cfg     = ACTION_CONFIG[type];
+  const cfg = ACTION_CONFIG[type];
   const isEmpty = count === 0;
 
   return (
@@ -25,7 +30,9 @@ export default function SummaryChip({ type, count }: { type: ActionType; count: 
       }}
     >
       <span>{cfg.symbol}</span>
-      <span>{count} {cfg.label}</span>
+      <span>
+        {count} {cfg.label}
+      </span>
     </Box>
   );
 }

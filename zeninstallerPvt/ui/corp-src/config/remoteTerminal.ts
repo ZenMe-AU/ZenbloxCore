@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 // Matches SESSION_TTL in the remote-login runner, so both sides expire together.
 export const REMOTE_TERMINAL_TTL_SECONDS = 1800;
 

@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 export async function handler(event) {
   const response = event.Records[0].cf.response;
   const request = event.Records[0].cf.request;

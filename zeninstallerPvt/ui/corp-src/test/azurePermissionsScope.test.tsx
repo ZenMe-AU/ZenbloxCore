@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -68,12 +73,7 @@ describe("each card grants on its own", () => {
       await perms.a!.ensure();
     });
     expect(graph.grantAdminConsent).toHaveBeenCalledWith(expect.anything(), "sp-1", ["perm-a"], undefined);
-    expect(graph.grantAdminConsent).not.toHaveBeenCalledWith(
-      expect.anything(),
-      "sp-1",
-      expect.arrayContaining(["perm-b"]),
-      undefined,
-    );
+    expect(graph.grantAdminConsent).not.toHaveBeenCalledWith(expect.anything(), "sp-1", expect.arrayContaining(["perm-b"]), undefined);
   });
 
   it("does nothing at all for a card that needs no permissions", async () => {

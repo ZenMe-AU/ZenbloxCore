@@ -150,12 +150,10 @@ function main(corpEnvFile) {
     exportCreatedUsersCsv(workingDirName);
   }
 
-
-
   // Users and generated passwords are create-only inputs; stop managing them.
   try {
     execSync("terraform state rm azuread_user.users", {
-      stdio: "pipe", 
+      stdio: "pipe",
       shell: true,
       cwd: workingDirName,
     });

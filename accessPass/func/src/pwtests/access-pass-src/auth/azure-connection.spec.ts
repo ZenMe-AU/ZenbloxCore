@@ -40,11 +40,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       const auth = getAccessPassUserAuth(user);
       if (!auth.exists) {
         throw new Error(
-          [
-            `Missing auth files for ${user.id}.`,
-            `Expected storage: ${auth.storageStateFile}`,
-            `Expected session: ${auth.sessionStorageFile}`,
-          ].join(" "),
+          [`Missing auth files for ${user.id}.`, `Expected storage: ${auth.storageStateFile}`, `Expected session: ${auth.sessionStorageFile}`].join(" ")
         );
       }
 
@@ -83,9 +79,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
         try {
           await expectAuthenticatedAccessPassState(authenticatedPage, user);
-          await expect(
-            authenticatedPage.getByText(new RegExp(escapeRegExp(user.expectedPostLoginText), "i")).first(),
-          ).toBeVisible({ timeout: 45_000 });
+          await expect(authenticatedPage.getByText(new RegExp(escapeRegExp(user.expectedPostLoginText), "i")).first()).toBeVisible({ timeout: 45_000 });
           await expect(authenticatedPage.getByTestId("txtAzureUsername")).toBeVisible();
 
           await expectPageSnapshot(authenticatedPage, testInfo, "after-connect.png", {

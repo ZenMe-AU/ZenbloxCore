@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { expect, test } from "@playwright/test";
 import { ACCESS_PASS_URL, viewports } from "../../testInit";
 import { expectPageSnapshot } from "../testHelper";
@@ -17,9 +22,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expect(page.getByRole("button", { name: /Connect Azure/i })).toBeVisible();
       await expect(page.getByText(/Azure Access Pass/i).first()).toBeVisible();
       await expect(
-        page.getByText(
-          /Complete the Azure Login card first\. Access pass creation will unlock after Azure sign-in and tenant confirmation\./i,
-        ),
+        page.getByText(/Complete the Azure Login card first\. Access pass creation will unlock after Azure sign-in and tenant confirmation\./i)
       ).toBeVisible();
 
       await expectPageSnapshot(page, testInfo, "rendered.png", { userId: "unauth", viewportName, stabilizeAuth: true });
