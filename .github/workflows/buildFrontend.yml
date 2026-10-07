@@ -48,15 +48,22 @@ jobs:
         working-directory: ${{ env.FRONTEND_DIR }}
         run: pnpm install --frozen-lockfile
 
-      # Vite bakes these into the bundle, so the environment's values decide what the site talks to.
+      - name: set environment variables
+        shell: bash
+        env:
+          ALL_VARS: ${{ toJSON(vars) }}
+        run: |
+          # The heredoc form is what survives a value that contains newlines, such as a pasted key.
+          jq -r --arg keys "$VITE_KEYS" \
+            'with_entries(select(.key | IN(($keys | split(" "))[]))) | to_entries[]
+             | "\(.key)<<__VAR__\n\(.value)\n__VAR__"' <<< "$ALL_VARS" >> "$GITHUB_ENV"
+          jq -r --arg keys "$VITE_KEYS" \
+            'with_entries(select(.key | IN(($keys | split(" "))[]))) | keys[] | "  \(.)"' <<< "$ALL_VARS"
+
+      # Vite bakes them into the bundle, so the environment's values decide what the site talks to.
       - name: Build the static site
         working-directory: ${{ env.FRONTEND_DIR }}
         run: pnpm run build
-        env:
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
-          VITE_AZURE_CLIENT_ID: ${{ vars.VITE_AZURE_CLIENT_ID }}
-          VITE_GITHUB_CLIENT_ID: ${{ vars.VITE_GITHUB_CLIENT_ID }}
-          VITE_APPINSIGHTS_CONNECTION_STRING: ${{ vars.VITE_APPINSIGHTS_CONNECTION_STRING }}
 
       # The card uploads whatever is in here blob by blob, so the zip root must be the site root.
       - name: Upload the site
