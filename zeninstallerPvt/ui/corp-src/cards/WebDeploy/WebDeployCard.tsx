@@ -53,6 +53,9 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
     run,
   } = web;
 
+  // Carries this page's query across so the site opens on the same repo and environment.
+  const siteLink = siteUrl ? `${siteUrl}/${window.location.search}` : null;
+
   return (
     <Card
       title="Private Zeninstaller Frontend"
@@ -134,25 +137,29 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
               Latest build:{" "}
               <Box component="span" sx={{ color: "#0f172a" }}>
-                {loadingLatest ? "checking..." : latest ? `${latest.sha.slice(0, 7)} · ${when(latest.builtAt)}` : "none yet"}
+                {loadingLatest ? "checking..." : latest ? `${latest.sha.slice(0, 7)} (v${latest.version}) · ${when(latest.builtAt)}` : "none yet"}
               </Box>
             </Typography>
             <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
               Live on the site:{" "}
               <Box component="span" sx={{ color: "#0f172a" }}>
-                {loadingDeployed ? "checking..." : deployed ? `${deployed.sha.slice(0, 7)} · ${when(deployed.builtAt)}` : "nothing deployed"}
+                {loadingDeployed
+                  ? "checking..."
+                  : deployed
+                    ? `${deployed.sha.slice(0, 7)} (v${deployed.version}) · ${when(deployed.builtAt)}`
+                    : "nothing deployed"}
               </Box>
             </Typography>
           </Box>
         </Box>
 
-        {/* The endpoint only exists once static hosting is on; what is live is said just above. */}
-        {siteUrl && (
+        {/* Until something is deployed the endpoint is a 404, so the link waits for it. */}
+        {siteLink && deployed && (
           <Box>
-            <Typography sx={{ ...labelSx, mb: 0.75 }}>Site</Typography>
+            <Typography sx={{ ...labelSx, mb: 0.75 }}>Continue in Zeninstaller Private</Typography>
             <Typography
               component="a"
-              href={siteUrl}
+              href={siteLink}
               target="_blank"
               rel="noopener noreferrer"
               sx={{
@@ -164,7 +171,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
                 "&:hover": { textDecoration: "underline" },
               }}
             >
-              {siteUrl}
+              {siteLink}
             </Typography>
           </Box>
         )}
@@ -240,10 +247,11 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
         </Box>
 
         {steps.length > 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid #e2e8f0", pl: 1.5 }}>
             {steps.map((s) => (
               <StepRow key={s.id} step={s} />
             ))}
+            {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
           </Box>
         )}
       </Box>

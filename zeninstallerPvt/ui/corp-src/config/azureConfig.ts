@@ -108,3 +108,10 @@ export const REMOTE_TERMINAL_PROVIDERS = [
   "Microsoft.SignalRService",
   "Microsoft.Web",
 ] as const;
+export const PRIVATE_FRONTEND_PROVIDERS = [
+  "Microsoft.OperationalInsights",
+  "Microsoft.Insights",
+  "Microsoft.Storage",
+  "Microsoft.SignalRService",
+  "Microsoft.Web",
+] as const;
