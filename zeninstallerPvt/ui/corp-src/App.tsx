@@ -20,6 +20,7 @@ import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzu
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
 import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
 import { useCoreInfraCard } from "./cards/CoreInfra/useCoreInfraCard";
+import { usePrivateFrontendInfraCard } from "./cards/PrivateFrontendInfra/usePrivateFrontendInfraCard";
 import { useRemoteTerminalInfraCard } from "./cards/RemoteTerminalInfra/useRemoteTerminalInfraCard";
 import { useBackendDeployCard } from "./cards/BackendDeploy/useBackendDeployCard";
 import { useAccessPassCard } from "./cards/AccessPass/useAccessPassCard";
@@ -35,6 +36,7 @@ import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCard";
 import CoreInfraCard from "./cards/CoreInfra/CoreInfraCard";
+import PrivateFrontendInfraCard from "./cards/PrivateFrontendInfra/PrivateFrontendInfraCard";
 import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
 import BackendDeployCard from "./cards/BackendDeploy/BackendDeployCard";
 import WebDeployCard from "./cards/WebDeploy/WebDeployCard";
@@ -101,6 +103,16 @@ function AppDashboard() {
       confirmedTenantId: azureLogin.confirmedTenantId,
       manualTenantId: azureLogin.manualTenantId,
       savedSubscriptionId: githubVariableValues.AZURE_SUBSCRIPTION_ID ?? "",
+    })
+  );
+
+  const privateFrontendInfra = addCard(
+    usePrivateFrontendInfraCard({
+      variableValues: githubVariableValues,
+      azureAccount: azureLogin.account,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
+      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
+      allowedOrigins: [window.location.origin],
     })
   );
 
@@ -366,6 +378,18 @@ function AppDashboard() {
               corpName={corpName}
               dnsName={dnsName}
               subscriptionId={azureSubscription.selectedSubscriptionId}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+              githubUrl={githubRepoEnv.githubEnvUrl}
+            />
+	    
+            <PrivateFrontendInfraCard
+              card={cardProps("private_frontend_infra")}
+              infra={privateFrontendInfra}
+              subscriptionId={azureSubscription.selectedSubscriptionId}
+              tenantId={githubVariableValues.AZURE_TENANT_ID ?? ""}
               githubAccount={githubRepoEnv.repo.selectedAccount}
               repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
               selectedEnv={githubRepoEnv.env.selectedEnv}
