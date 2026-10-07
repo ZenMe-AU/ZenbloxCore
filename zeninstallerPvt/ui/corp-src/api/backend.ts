@@ -17,6 +17,7 @@ import { ARM_SCOPES } from "../config/azureConfig";
 import type { SessionCredentials } from "../logic/remoteTerminal";
 
 const url = import.meta.env.VITE_API_URL;
+export const BACKEND_CONFIGURED = !!url;
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
