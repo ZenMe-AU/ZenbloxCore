@@ -238,7 +238,7 @@ try {
 
         $avdServicePrincipalId = az ad sp list --filter "appId eq '9cdead84-a844-4324-93f2-b2e6bb768d07'" --query "[0].id" --output tsv
         if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($avdServicePrincipalId)) {
-            $roleAssignments += @{ Address = "azurerm_role_assignment.avd_power_management"; Scope = $resourceGroupId; Role = "Desktop Virtualization Power On Off Contributor"; PrincipalId = $avdServicePrincipalId }
+            $roleAssignments += @{ Address = "azurerm_role_assignment.avd_power_management"; Scope = "/subscriptions/$subscriptionId"; Role = "Desktop Virtualization Power On Off Contributor"; PrincipalId = $avdServicePrincipalId }
         }
 
         foreach ($assignment in $roleAssignments) {
