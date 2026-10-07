@@ -110,3 +110,15 @@ variable "ENABLE_PIM" {
   type        = bool
   default     = false
 }
+
+variable "LOCKDOWN" {
+  description = "Deploy the PAW in locked-down mode: AVD private endpoint plus egress allow-list. pawOpen.ps1 reverses it on the live stack."
+  type        = bool
+  default     = false
+}
+
+variable "PRIVATE_ENDPOINTS_SUBNET_ADDRESS_PREFIX" {
+  description = "Address prefix for the private-endpoints subnet created in lockdown mode."
+  type        = string
+  default     = "10.250.2.0/26"
+}

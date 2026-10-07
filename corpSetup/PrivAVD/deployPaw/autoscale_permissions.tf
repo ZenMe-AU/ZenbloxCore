@@ -3,7 +3,7 @@ data "azuread_service_principal" "avd" {
 }
 
 resource "azurerm_role_assignment" "avd_power_management" {
-  scope                            = azurerm_resource_group.avd.id
+  scope                            = "/subscriptions/${var.SUBSCRIPTION_ID}"
   role_definition_name             = "Desktop Virtualization Power On Off Contributor"
   principal_id                     = data.azuread_service_principal.avd.object_id
   principal_type                   = "ServicePrincipal"
