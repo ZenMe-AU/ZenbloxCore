@@ -31,9 +31,14 @@ $packerVars = @(
 Push-Location $PSScriptRoot
 try {
     packer init $packerTemplate
+    if ($LASTEXITCODE -ne 0) { throw "packer init failed with exit code $LASTEXITCODE." }
+
     packer validate @packerVars $packerTemplate
+    if ($LASTEXITCODE -ne 0) { throw "packer validate failed with exit code $LASTEXITCODE. Check the .env values." }
+
     packer inspect $packerTemplate
     packer build @packerVars $packerTemplate
+    if ($LASTEXITCODE -ne 0) { throw "packer build FAILED with exit code $LASTEXITCODE. The image was NOT published to the gallery. Check the Packer output above; a common cause on this tenant is an expired az login (run the az login command with --claims-challenge that the error prints, then rerun)." }
 }
 finally {
     Pop-Location
