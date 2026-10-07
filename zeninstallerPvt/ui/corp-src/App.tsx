@@ -106,16 +106,6 @@ function AppDashboard() {
     })
   );
 
-  const privateFrontendInfra = addCard(
-    usePrivateFrontendInfraCard({
-      variableValues: githubVariableValues,
-      azureAccount: azureLogin.account,
-      subscriptionId: azureSubscription.selectedSubscriptionId,
-      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-      allowedOrigins: [window.location.origin],
-    })
-  );
-
   const azureAppSetup = addCard(
     useAzureAppRegistrationCard({
       azureAccount: azureLogin.account,
@@ -173,13 +163,22 @@ function AppDashboard() {
       selectedEnv: githubRepoEnv.env.selectedEnv,
     })
   );
+  const privateFrontendInfra = addCard(
+    usePrivateFrontendInfraCard({
+      variableValues: githubVariableValues,
+      azureAccount: azureLogin.account,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
+      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
+      allowedOrigins: [window.location.origin],
+    })
+  );
+
   const webDeploy = addCard(
     useWebDeployCard({
       variableValues: githubVariableValues,
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-      corpName,
       githubAccount: githubRepoEnv.repo.selectedAccount,
       repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
       selectedEnv: githubRepoEnv.env.selectedEnv,
@@ -384,18 +383,6 @@ function AppDashboard() {
               variables={githubVariables}
               githubUrl={githubRepoEnv.githubEnvUrl}
             />
-	    
-            <PrivateFrontendInfraCard
-              card={cardProps("private_frontend_infra")}
-              infra={privateFrontendInfra}
-              subscriptionId={azureSubscription.selectedSubscriptionId}
-              tenantId={githubVariableValues.AZURE_TENANT_ID ?? ""}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
 
             <RemoteTerminalInfraCard
               card={cardProps("remote_terminal_infra")}
@@ -419,7 +406,17 @@ function AppDashboard() {
               }
             />
 
-            <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
+            <PrivateFrontendInfraCard
+              card={cardProps("private_frontend_infra")}
+              infra={privateFrontendInfra}
+              subscriptionId={azureSubscription.selectedSubscriptionId}
+              tenantId={githubVariableValues.AZURE_TENANT_ID ?? ""}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+              githubUrl={githubRepoEnv.githubEnvUrl}
+            />
 
             <WebDeployCard
               card={cardProps("web_deploy")}
@@ -435,6 +432,9 @@ function AppDashboard() {
                   : null
               }
             />
+            
+            <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
+
             <AwsSetupCard
               card={cardProps("aws_setup")}
               awsSetup={awsSetup}

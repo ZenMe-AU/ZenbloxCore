@@ -467,6 +467,36 @@ export async function ensureStorageAccount(
   return "created";
 }
 
+export async function ensureBlobCors(
+  account: AzureAccount,
+  subscriptionId: string,
+  resourceGroup: string,
+  name: string,
+  allowedOrigins: string[],
+  overrideTenantId?: string
+): Promise<void> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const path = `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Storage/storageAccounts/${name}/blobServices/default?api-version=2023-01-01`;
+  await gFetch(token, ARM, path, {
+    method: "PUT",
+    body: JSON.stringify({
+      properties: {
+        cors: {
+          corsRules: [
+            {
+              allowedOrigins,
+              allowedMethods: ["GET", "HEAD", "OPTIONS", "PUT"],
+              allowedHeaders: ["*"],
+              exposedHeaders: ["*"],
+              maxAgeInSeconds: 3600,
+            },
+          ],
+        },
+      },
+    }),
+  });
+}
+
 export async function ensureBlobServiceProperties(
   account: AzureAccount,
   subscriptionId: string,
