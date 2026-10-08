@@ -80,7 +80,11 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expectVisibleWithin(azureCard.getByText(/Signed in as/i), "Azure signed-in status", 50_000);
       await azureCard.getByRole("button", { name: "Sign out", exact: true }).click();
       await expect(azureCard.getByText(/Signed in as/i)).toHaveCount(0);
+      await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toBeVisible();
       await expectSnapshot(page, azureCard, testInfo, "signed-out", viewportName);
+      await page.reload();
+      await expect(azureCard.getByText(/Signed in as/i)).toHaveCount(0);
+      await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toBeVisible();
     });
   });
 }

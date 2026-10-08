@@ -16,14 +16,24 @@ import {
   MOCK_BACKEND_URL,
 } from "../../testInit";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "./cardHelper.mts";
-import { createNewRepo } from "./testHelper.mts";
+import { chooseExistingRepo, createNewRepo } from "./testHelper.mts";
 
 const mockUser = { login: "mock-user", id: 12345 };
 const mockTenantId = "00000000-0000-0000-0000-000000000001";
+const mockSecondTenantId = "00000000-0000-0000-0000-000000000005";
+export const mockMsaTenantId = "9188040d-6c67-4c5b-b112-36a304b66dad";
 const mockSubscriptionId = "mock-subscription";
+const mockSecondSubscriptionId = "mock-subscription-second";
 const mockAppId = "00000000-0000-0000-0000-000000000002";
 const mockAppObjectId = "00000000-0000-0000-0000-000000000003";
-const mockSpObjectId = "00000000-0000-0000-0000-000000000004";
+export const mockServicePrincipalId = "00000000-0000-0000-0000-000000000004";
+const mockSpObjectId = mockServicePrincipalId;
+export const mockReaderRoleId = "acdd72a7-3385-48ef-bd42-f606fba81ae7";
+
+export type MockAzureTenant = { tenantId: string; displayName: string };
+export type MockAzureSubscription = { subscriptionId: string; displayName: string; tenantId: string; state: string };
+export type MockAzureRoleAssignmentWrite = { url: string; scope: string; roleDefinitionId: string; principalId: string; principalType?: string };
+export type MockAzureFederatedCredentialWrite = { url: string; name: string; issuer: string; subject: string; audiences: string[] };
 
 type MockGitHubOptions = {
 	initialVariables?: Record<string, string>;
@@ -35,6 +45,7 @@ export type MockGitHubState = {
   variables: Record<string, string>;
   repositoryName: string | null;
   branches: Set<string>;
+  oidcSubjectUpdates: Array<{ url: string; use_default: boolean; include_claim_keys: string[]; use_immutable_subject: boolean }>;
 };
 
 export type MockAzureState = {
@@ -42,6 +53,13 @@ export type MockAzureState = {
   servicePrincipalCreated: boolean;
   federatedSubjects: Set<string>;
   rbacAssigned: boolean;
+  tenants: MockAzureTenant[];
+  subscriptions: MockAzureSubscription[];
+  subscriptionResponseStatus: number;
+  roleAssignmentWrites: MockAzureRoleAssignmentWrite[];
+  federatedCredentialWrites: MockAzureFederatedCredentialWrite[];
+  applicationCreationFailuresRemaining: number;
+  applicationLookupFailureStatus: number | null;
 };
 
 export type CreateDomainAzureMockState = {
@@ -183,6 +201,7 @@ export async function installMockGitHub(page: Page, context: BrowserContext, opt
 		variables: { ...options.initialVariables },
 		repositoryName: options.repositoryName ?? null,
 		branches: new Set(options.branches ?? ["main"]),
+		oidcSubjectUpdates: [],
 	};
 
   await page.route(`${GITHUB_API_URL}/**`, async (route) => {
@@ -266,7 +285,15 @@ export async function installMockGitHub(page: Page, context: BrowserContext, opt
       state.branches.add(body.ref.replace("refs/heads/", ""));
       return json(route, {}, 201);
     }
-    if (path.endsWith("/actions/oidc/customization/sub") && request.method() === "PUT") return json(route, {});
+    if (path.endsWith("/actions/oidc/customization/sub") && request.method() === "PUT") {
+      const body = request.postDataJSON() as {
+        use_default: boolean;
+        include_claim_keys: string[];
+        use_immutable_subject: boolean;
+      };
+      state.oidcSubjectUpdates.push({ url: request.url(), ...body });
+      return json(route, {});
+    }
     if (request.method() === "GET" && path.startsWith("/repos/")) {
       return json(route, {
         id: 987654321,
@@ -327,30 +354,81 @@ export async function installMockBackend(page: Page, context?: BrowserContext) {
 }
 
 export async function installMockAzure(page: Page, initialState: Partial<MockAzureState> = {}): Promise<MockAzureState> {
-	const state: MockAzureState = {
-		appDisplayName: initialState.appDisplayName ?? null,
-		servicePrincipalCreated: initialState.servicePrincipalCreated ?? false,
-		federatedSubjects: initialState.federatedSubjects ?? new Set(),
-		rbacAssigned: initialState.rbacAssigned ?? false,
-	};
+  const roleAssignmentWrites = initialState.rbacAssigned
+    ? [
+        {
+          url: `${AZURE_MANAGEMENT_URL}/subscriptions/${mockSubscriptionId}/providers/Microsoft.Authorization/roleAssignments/mock-existing`,
+          scope: `/subscriptions/${mockSubscriptionId}`,
+          roleDefinitionId: `/providers/Microsoft.Authorization/roleDefinitions/${mockReaderRoleId}`,
+          principalId: mockSpObjectId,
+          principalType: "ServicePrincipal",
+        },
+      ]
+    : [];
+  const state: MockAzureState = {
+    appDisplayName: initialState.appDisplayName ?? null,
+    servicePrincipalCreated: initialState.servicePrincipalCreated ?? false,
+    federatedSubjects: initialState.federatedSubjects ?? new Set(),
+    rbacAssigned: initialState.rbacAssigned ?? false,
+    tenants: initialState.tenants ?? [{ tenantId: mockTenantId, displayName: "Mock tenant" }],
+    subscriptions: initialState.subscriptions ?? [
+      { subscriptionId: mockSubscriptionId, displayName: "Mock subscription", tenantId: mockTenantId, state: "Enabled" },
+    ],
+    subscriptionResponseStatus: initialState.subscriptionResponseStatus ?? 200,
+    roleAssignmentWrites,
+    federatedCredentialWrites: initialState.federatedCredentialWrites ?? [],
+    applicationCreationFailuresRemaining: initialState.applicationCreationFailuresRemaining ?? 0,
+    applicationLookupFailureStatus: initialState.applicationLookupFailureStatus ?? null,
+  };
 
   await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
-    const path = new URL(route.request().url()).pathname;
-    if (path.endsWith("/subscriptions")) {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname;
+    if (path.endsWith("/subscriptions") && request.method() === "GET") {
+      if (state.subscriptionResponseStatus !== 200) {
+        return json(route, { error: { code: "MockSubscriptionError", message: "Mock subscription request failed" } }, state.subscriptionResponseStatus);
+      }
+      return json(route, { value: state.subscriptions });
+    }
+    if (path.endsWith("/tenants") && request.method() === "GET") return json(route, { value: state.tenants });
+    if (/\/roleAssignments$/i.test(path) && request.method() === "GET") {
+      const scope = path.slice(0, path.toLowerCase().indexOf("/providers/microsoft.authorization/roleassignments"));
+      const principalMatch = url.searchParams.get("$filter")?.match(/assignedTo\('([^']+)'\)/i);
       return json(route, {
-        value: [{ subscriptionId: mockSubscriptionId, displayName: "Mock subscription", tenantId: mockTenantId, state: "Enabled" }],
+        value: roleAssignmentWrites
+          .filter(
+            (assignment) =>
+              assignment.scope.toLowerCase() === scope.toLowerCase() &&
+              (!principalMatch || assignment.principalId.toLowerCase() === principalMatch[1].toLowerCase())
+          )
+          .map((assignment) => ({
+            properties: {
+              roleDefinitionId: assignment.roleDefinitionId,
+              principalId: assignment.principalId,
+              principalType: assignment.principalType,
+            },
+          })),
       });
     }
-    if (path.endsWith("/tenants")) return json(route, { value: [{ tenantId: mockTenantId, displayName: "Mock tenant" }] });
-    if (path.includes("/roleAssignments") && route.request().method() === "GET") {
-      return json(route, {
-        value: state.rbacAssigned
-          ? [{ properties: { roleDefinitionId: "/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7" } }]
-          : [],
-      });
-    }
-    if (path.includes("/roleAssignments/") && route.request().method() === "PUT") {
-      state.rbacAssigned = true;
+    if (/\/roleAssignments\/[^/]+$/i.test(path) && request.method() === "PUT") {
+      const body = request.postDataJSON() as {
+        properties?: { roleDefinitionId?: string; principalId?: string; principalType?: string };
+      };
+      const scope = path.slice(0, path.toLowerCase().indexOf("/providers/microsoft.authorization/roleassignments"));
+      const assignment: MockAzureRoleAssignmentWrite = {
+        url: request.url(),
+        scope,
+        roleDefinitionId: body.properties?.roleDefinitionId ?? "",
+        principalId: body.properties?.principalId ?? "",
+        principalType: body.properties?.principalType,
+      };
+      roleAssignmentWrites.push(assignment);
+      state.rbacAssigned =
+        scope.toLowerCase() === `/subscriptions/${mockSubscriptionId}`.toLowerCase() &&
+        assignment.roleDefinitionId.toLowerCase().endsWith(mockReaderRoleId) &&
+        assignment.principalId === mockSpObjectId &&
+        assignment.principalType === "ServicePrincipal";
       return json(route, {});
     }
     return json(route, {});
@@ -360,11 +438,18 @@ export async function installMockAzure(page: Page, initialState: Partial<MockAzu
     const url = new URL(request.url());
     const path = url.pathname;
     if (path === "/v1.0/applications" && request.method() === "GET") {
+      if (state.applicationLookupFailureStatus !== null) {
+        return json(route, { error: { message: "Mock Graph permission denied" } }, state.applicationLookupFailureStatus);
+      }
       const filter = url.searchParams.get("$filter") ?? "";
       if (filter.startsWith("displayName eq")) return json(route, { value: state.appDisplayName ? [{ appId: mockAppId, id: mockAppObjectId }] : [] });
       if (filter.startsWith("appId eq")) return json(route, { value: state.appDisplayName ? [{ displayName: state.appDisplayName }] : [] });
     }
     if (path === "/v1.0/applications" && request.method() === "POST") {
+      if (state.applicationCreationFailuresRemaining > 0) {
+        state.applicationCreationFailuresRemaining -= 1;
+        return json(route, { error: { message: "Mock app creation failed" } }, 500);
+      }
       const body = request.postDataJSON() as { displayName: string };
       state.appDisplayName = body.displayName;
       return json(route, { appId: mockAppId, id: mockAppObjectId }, 201);
@@ -378,8 +463,9 @@ export async function installMockAzure(page: Page, initialState: Partial<MockAzu
     if (path.endsWith("/federatedIdentityCredentials") && request.method() === "GET")
       return json(route, { value: Array.from(state.federatedSubjects, (subject) => ({ subject })) });
     if (path.endsWith("/federatedIdentityCredentials") && request.method() === "POST") {
-      const body = request.postDataJSON() as { subject: string };
+      const body = request.postDataJSON() as { name: string; issuer: string; subject: string; audiences: string[] };
       state.federatedSubjects.add(body.subject);
+      state.federatedCredentialWrites.push({ url: request.url(), ...body });
       return json(route, {}, 201);
     }
     if (request.method() === "GET") return json(route, { value: [] });
@@ -481,8 +567,15 @@ export async function installCreateDomainAzureMock(
 	return state;
 }
 
-export async function signInMockAzure(page: Page, additionalGraphScopeSets: string[][] = []): Promise<string> {
+export async function signInMockAzure(
+  page: Page,
+  additionalGraphScopeSets: string[][] = [],
+  tenantIds: string[] = [mockTenantId],
+  options: { accountTenantId?: string; armTokenTenantIds?: string[] } = {}
+): Promise<string> {
 	const localUrl = page.url();
+	const accountTenantId = options.accountTenantId ?? mockTenantId;
+	const armTokenTenantIds = options.armTokenTenantIds ?? [...new Set([mockTenantId, ...tenantIds])];
 	await page.route(`${MICROSOFT_LOGIN_URL}/**`, async (route) => {
 		await route.abort("blockedbyclient");
 	});
@@ -495,11 +588,11 @@ export async function signInMockAzure(page: Page, additionalGraphScopeSets: stri
 	if (!clientId) throw new Error("The mocked Azure sign-in did not include a client ID.");
 
 	await page.goto(localUrl);
-	await page.evaluate(({ clientId, tenantId, azureManagementScope, graphApplicationScope, graphAppRoleAssignmentScope, additionalGraphScopeSets }) => {
+	await page.evaluate(({ clientId, tenantId, tenantIds, tokenTenantIds, azureManagementScope, graphApplicationScope, graphAppRoleAssignmentScope, additionalGraphScopeSets }) => {
 		const environment = "login.microsoftonline.com";
 		const homeAccountId = `mock-home.${tenantId}`;
 		const accountKey = `msal.3|${homeAccountId}|${environment}|${tenantId}`.toLowerCase();
-		const accessTokenKey = ["msal.3", homeAccountId, environment, "accesstoken", clientId, tenantId, azureManagementScope, ""].join("|").toLowerCase();
+		const tenantAccessTokenKeys = tokenTenantIds.map((id) => ["msal.3", homeAccountId, environment, "accesstoken", clientId, id, azureManagementScope, ""].join("|").toLowerCase());
 		const graphTarget = [graphApplicationScope, graphAppRoleAssignmentScope].join(" ");
 		const graphAccessTokenKey = ["msal.3", homeAccountId, environment, "accesstoken", clientId, tenantId, graphTarget, ""].join("|").toLowerCase();
 		const additionalGraphTargets = additionalGraphScopeSets.map((scopes) => scopes.join(" "));
@@ -526,14 +619,24 @@ export async function signInMockAzure(page: Page, additionalGraphScopeSets: stri
 			username,
 			authorityType: "MSSTS",
 			name: "Mock Azure User",
-			tenantProfiles: [{ tenantId, localAccountId: "mock-user-id", username, name: "Mock Azure User", isHomeTenant: true }],
+			...(tenantIds.length
+				? {
+						tenantProfiles: tenantIds.map((profileTenantId, index) => ({
+							tenantId: profileTenantId,
+							localAccountId: "mock-user-id",
+							username,
+							name: "Mock Azure User",
+							isHomeTenant: index === 0,
+						})),
+					}
+				: {}),
 		}));
 		sessionStorage.setItem(`msal.3.token.keys.${clientId}`, JSON.stringify({
 			idToken: [],
-			accessToken: [accessTokenKey, graphAccessTokenKey, ...additionalGraphAccessTokenKeys],
+			accessToken: [...tenantAccessTokenKeys, graphAccessTokenKey, ...additionalGraphAccessTokenKeys],
 			refreshToken: [],
 		}));
-		const token = {
+		const baseToken = {
 			homeAccountId,
 			credentialType: "AccessToken",
 			secret: "mock-access-token",
@@ -542,11 +645,15 @@ export async function signInMockAzure(page: Page, additionalGraphScopeSets: stri
 			extendedExpiresOn: (now + 7200).toString(),
 			environment,
 			clientId,
-			realm: tenantId,
-			target: azureManagementScope,
 			tokenType: "Bearer",
 		};
-		sessionStorage.setItem(accessTokenKey, JSON.stringify(token));
+		for (const [index, id] of tokenTenantIds.entries()) {
+			sessionStorage.setItem(
+				tenantAccessTokenKeys[index],
+				JSON.stringify({ ...baseToken, realm: id, target: azureManagementScope })
+			);
+		}
+		const token = { ...baseToken, realm: tenantId };
 		sessionStorage.setItem(graphAccessTokenKey, JSON.stringify({ ...token, target: graphTarget }));
 		// Consent bundles cover setup while individual entries satisfy later single-scope API calls.
 		for (const [index, key] of additionalGraphAccessTokenKeys.entries()) {
@@ -557,7 +664,9 @@ export async function signInMockAzure(page: Page, additionalGraphScopeSets: stri
 		}
 	}, {
 		clientId,
-		tenantId: mockTenantId,
+		tenantId: accountTenantId,
+		tenantIds,
+		tokenTenantIds: armTokenTenantIds,
 		azureManagementScope: AZURE_MANAGEMENT_SCOPE,
 		graphApplicationScope: GRAPH_APPLICATION_SCOPE,
 		graphAppRoleAssignmentScope: GRAPH_APP_ROLE_ASSIGNMENT_SCOPE,
@@ -594,7 +703,7 @@ export async function cacheMockAzureGraphScopeSets(page: Page, clientId: string,
 	}, { clientId, tenantId: mockTenantId, scopeSets });
 }
 
-export { mockSubscriptionId, mockTenantId };
+export { mockSubscriptionId, mockTenantId, mockSecondTenantId, mockSecondSubscriptionId };
 
 export async function prepareMockAzureSubscription(
 	page: Page,
@@ -605,22 +714,33 @@ export async function prepareMockAzureSubscription(
 		saveVariables?: boolean;
 		initialAzureState?: Partial<MockAzureState>;
 		additionalGraphScopeSets?: string[][];
+		tenantIds?: string[];
+		existingRepository?: boolean;
+		url?: string;
 	} = {},
 ) {
-	const github = await installMockGitHub(page, context, { initialVariables: options.initialVariables });
+	const github = await installMockGitHub(page, context, {
+		initialVariables: options.initialVariables,
+		repositoryName: options.existingRepository ? repoName : undefined,
+	});
 	const azure = await installMockAzure(page, options.initialAzureState);
-	await page.goto(CORP_URL);
+	await page.goto(options.url ?? CORP_URL);
 
 	const azureLoginCard = await expandAzureLoginCard(page);
-	await signInMockAzure(page, options.additionalGraphScopeSets);
+	await signInMockAzure(page, options.additionalGraphScopeSets, options.tenantIds);
 	await expect(azureLoginCard.getByText(/Signed in as/i)).toBeVisible();
+	await expect(azureLoginCard.getByText("Loading tenants...", { exact: true })).toBeHidden();
 	const tenantSelect = azureLoginCard.getByTestId("tenant-select");
 	await expect(tenantSelect).toBeVisible();
 	await tenantSelect.click();
 	await page.getByRole("option", { name: /Mock tenant/i }).click();
 
   const repoCard = await expandRepoCard(page);
-  await createNewRepo(page, repoCard, repoName);
+  if (options.existingRepository) {
+    await chooseExistingRepo(page, repoCard, repoName);
+  } else {
+    await createNewRepo(page, repoCard, repoName);
+  }
   await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
   const prodEnvironment = repoCard.getByText("PROD", { exact: true });
   await expect(prodEnvironment).toBeVisible();
@@ -633,13 +753,16 @@ export async function prepareMockAzureSubscription(
 
   const azureSubscriptionCard = await expandAzureSubscriptionCard(page);
   await expect(azureSubscriptionCard.getByText("Loading subscriptions...", { exact: true })).toBeHidden();
-  await expect(azureSubscriptionCard.getByRole("combobox")).toBeVisible();
+  const subscriptionState = azureSubscriptionCard
+    .getByRole("combobox")
+    .or(azureSubscriptionCard.getByText("This tenant has no subscriptions you can access.", { exact: true }))
+    .or(azureSubscriptionCard.getByText(/Couldn't load subscriptions for this tenant/));
+  await expect(subscriptionState).toBeVisible();
 
   if (options.saveVariables) {
-    const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables" });
-    await expect(saveButton).toBeEnabled();
-    await saveButton.click();
-    await expect(azureSubscriptionCard.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled();
+    const saveButton = azureSubscriptionCard.getByRole("button", { name: /^Save(?: \d+)? variables?$/ });
+    if (await saveButton.isEnabled()) await saveButton.click();
+    await expect(saveButton).toBeDisabled();
   }
 
   const tenantVariableInput = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true }).locator("..").locator("..").getByRole("textbox");
@@ -658,4 +781,8 @@ export async function prepareMockAzureSubscription(
   };
 }
 
-export const savedAzureVariables = { AZURE_TENANT_ID: mockTenantId, AZURE_SUBSCRIPTION_ID: mockSubscriptionId };
+export const savedAzureVariables = {
+  AZURE_TENANT_ID: mockTenantId,
+  AZURE_SUBSCRIPTION_ID: mockSubscriptionId,
+  VITE_AZURE_TENANT_ID: mockTenantId,
+};
