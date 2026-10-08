@@ -61,7 +61,7 @@ Every UI component will have exactly one Integration test which can be found wit
 For example, for a Card UI component located at /{PageName}/cards/login.ts the test will be located in /pwtests/{PageName}/integration-tests/cards-login.spec.ts
 
 ### Mock test
-Every UI component will have exactly one Mock test which can be found within the pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component /{PageName}/cards/login.ts should be mapped to /pwtests/{PageName}/mock-tests/cards-login.spec.ts
+Every UI component will have exactly one Mock test which can be found within the zeninstallerPvt/ui/pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component zeninstallerPvt/ui/pwtests/{PageName}/cards/login.ts should be mapped to zeninstallerPvt/ui/pwtests/{PageName}/mock-tests/cards-login.spec.ts
 
 ## Notes to AI:
 1. Always ask a human if they can be product owner and guide you through the steps.

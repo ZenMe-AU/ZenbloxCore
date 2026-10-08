@@ -28,11 +28,11 @@ When starting a review, ensure you have been told which UI components or test yo
 Once you know which UI components to review, you can find the tests for that UI component. Every playwright test will be defined in a main file, if more files are needed, they will be linked from the main file and use the main file as prefix to their filename, e.g. UIComponent-A.spec.ts could have UIComponent-A-Intro.spec.ts and UIComponent-A-Extra.spec.ts as sub files.
 
 ### Integration test
-Every UI component will have exactly one Integration test which can be found within the pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. 
-For example, for a Card UI component located at /{PageName}/cards/login.ts the test will be located in /pwtests/{PageName}/integration-tests/cards-login.spec.ts
+Every UI component will have exactly one Integration test which can be found within the zeninstallerPvt/ui/pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. 
+For example, for a Card UI component located at zeninstallerPvt/ui/pwtest/{PageName}/cards/login.ts the test will be located in zeninstallerPvt/ui/pwtests/{PageName}/integration-tests/cards-login.spec.ts
 
 ### Mock test
-Every UI component will have exactly one Mock test which can be found within the pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component /{PageName}/cards/login.ts should be mapped to /pwtests/{PageName}/mock-tests/cards-login.spec.ts
+Every UI component will have exactly one Mock test which can be found within the pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component zeninstallerPvt/ui/{PageName}/cards/login.ts should be mapped to zeninstallerPvt/ui/pwtests/{PageName}/mock-tests/cards-login.spec.ts
 
 ## Review manifest
 This agent's root folder is the folder where this definition file is found.
@@ -94,7 +94,7 @@ See the script comments for usage examples and parameter details.
 
 
 ## Code coverage
-1. Code coverage is recorded in v8 format in the coverage folder glob: pwtests/test-results/**/v8-coverage.json 
+1. Code coverage is recorded in v8 format in the coverage folder glob: zeninstallerPvt/ui/pwtests/test-results/**/v8-coverage.json 
 1. When reviewing the test files, make recommendations on how the code coverage of the reviewed test can be improved and then record this in the reviewsManifest.jsonl.
 2. Compare previously recorded code coverage to current code coverage when test file is reviewed.
 
