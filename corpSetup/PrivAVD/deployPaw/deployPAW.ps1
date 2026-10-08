@@ -164,7 +164,8 @@ try {
         if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace("$roleDefId")) {
             $assignmentsJson = az rest --method get --url "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&`$filter=atScope()" -o json 2>$null
             if ($LASTEXITCODE -eq 0 -and "$assignmentsJson".Trim()) {
-                $existing = @("$assignmentsJson" | ConvertFrom-Json) | Where-Object { "$($_.properties.roleDefinitionId)" -eq "$roleDefId".Trim() }
+                $assignmentsDoc = "$assignmentsJson" | ConvertFrom-Json
+            $existing = @($assignmentsDoc.value) | Where-Object { "$($_.properties.roleDefinitionId)" -eq "$roleDefId".Trim() -and "$($_.properties.scope)" -eq "/subscriptions/$subscriptionId" }
                 if ($existing.Count -ge 1) {
                     $orphanId = $existing[0].id
                     Write-Host "Importing existing subscription-scope autoscale role assignment: $orphanId"
