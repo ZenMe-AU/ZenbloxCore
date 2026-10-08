@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-// UI component: ../../../corp-src/cards/AzureSubscriptionCard.tsx
+// UI component: ../../../corp-src/cards/AzureSubscription/AzureSubscriptionCard.tsx
 import { expect, test } from "@playwright/test";
 import { CORP_URL, viewports } from "../../testInit";
 import { createNewRepo } from "../util/testHelper.mts";
@@ -11,7 +11,10 @@ import { expectSnapshot } from "../../util/testHelper.ts";
 import {
   installMockAzure,
   installMockGitHub,
+  mockSecondSubscriptionId,
+  mockSecondTenantId,
   mockSubscriptionId,
+  mockTenantId,
   prepareMockAzureSubscription,
   savedAzureVariables,
   signInMockAzure,
@@ -42,7 +45,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Happy path", async ({ page, context }, testInfo) => {
-      await installMockGitHub(page, context);
+      const github = await installMockGitHub(page, context);
       await installMockAzure(page);
       await page.goto(CORP_URL);
 
@@ -101,17 +104,30 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await expect(subscriptionOption).toBeVisible();
         await subscriptionOption.click();
         await expect(subscriptionSelect).toContainText("Mock subscription");
-        const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables" });
+        const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save 3 variables" });
         await expectSnapshot(page, azureSubscriptionCard, testInfo, "before-save", viewportName);
         await saveButton.click();
         await expect(azureSubscriptionCard.getByRole("button", { name: "Save variables" })).toBeDisabled();
+        expect(savedAzureVariables).toEqual({
+          AZURE_TENANT_ID: mockTenantId,
+          AZURE_SUBSCRIPTION_ID: mockSubscriptionId,
+          VITE_AZURE_TENANT_ID: mockTenantId,
+        });
+        await expect.poll(() => github.variables).toEqual(savedAzureVariables);
         await expectSnapshot(page, azureSubscriptionCard, testInfo, "end", viewportName);
+        await page.reload();
+        const persistedCard = await expandAzureSubscriptionCard(page);
+        await expect(persistedCard.getByText("AZURE_TENANT_ID", { exact: true }).locator("..").locator("..").getByRole("textbox")).toHaveValue(mockTenantId);
+        await expect(persistedCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true }).locator("..").locator("..").getByRole("textbox")).toHaveValue(mockSubscriptionId);
+        await expect(persistedCard.getByRole("button", { name: "Save variables" })).toBeDisabled();
+        await expectSnapshot(page, persistedCard, testInfo, "persisted-after-reload", viewportName);
       });
     });
 
     test("Selecting an existing repository with environment variables already saved", async ({ page, context }, testInfo) => {
       const result = await prepareMockAzureSubscription(page, context, `mock-existing-subscription-${viewportName.toLowerCase()}`, {
         initialVariables: savedAzureVariables,
+        existingRepository: true,
       });
       await expect(result.tenantVariableInput).not.toHaveValue("");
       await expect(result.subscriptionVariableInput).not.toHaveValue("");
@@ -169,7 +185,110 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expect(result.tenantVariableInput).toHaveValue("");
       await expect(result.subscriptionVariableInput).toHaveValue("");
       await expect(result.azureSubscriptionCard.getByText("2 not configured", { exact: true })).toBeVisible();
+      await expect(result.github.variables).toEqual({ VITE_AZURE_TENANT_ID: mockTenantId });
       await expectSnapshot(page, result.azureSubscriptionCard, testInfo, "edge-case-both-variables-removed", viewportName);
+    });
+
+    test("Subscription loading errors and no-access states are explicit", async ({ page, context }, testInfo) => {
+      test.setTimeout(120_000);
+      const result = await prepareMockAzureSubscription(page, context, `mock-subscription-no-access-${viewportName.toLowerCase()}`, {
+        tenantIds: [mockTenantId, mockSecondTenantId],
+        initialAzureState: {
+          tenants: [
+            { tenantId: mockTenantId, displayName: "Mock tenant" },
+            { tenantId: mockSecondTenantId, displayName: "Mock second tenant" },
+          ],
+          subscriptions: [
+            { subscriptionId: mockSubscriptionId, displayName: "Mock subscription", tenantId: mockTenantId, state: "Enabled" },
+          ],
+        },
+      });
+      const tenantSelect = result.azureLoginCard.getByTestId("tenant-select");
+      await tenantSelect.click();
+      await page.getByRole("option", { name: /Mock second tenant/ }).click();
+      await expect(result.azureSubscriptionCard.getByText("This tenant has no subscriptions you can access.", { exact: true })).toBeVisible();
+      await expect(result.azureSubscriptionCard.getByRole("combobox")).toHaveCount(0);
+      await expectSnapshot(page, result.azureSubscriptionCard, testInfo, "no-subscription-access", viewportName);
+    });
+
+    test("Switching tenants resets the selection and subscription list", async ({ page, context }, testInfo) => {
+      const result = await prepareMockAzureSubscription(page, context, `mock-subscription-switch-${viewportName.toLowerCase()}`, {
+        initialVariables: savedAzureVariables,
+        tenantIds: [mockTenantId, mockSecondTenantId],
+        initialAzureState: {
+          tenants: [
+            { tenantId: mockTenantId, displayName: "Mock tenant" },
+            { tenantId: mockSecondTenantId, displayName: "Mock second tenant" },
+          ],
+          subscriptions: [
+            { subscriptionId: mockSubscriptionId, displayName: "Mock subscription", tenantId: mockTenantId, state: "Enabled" },
+            { subscriptionId: mockSecondSubscriptionId, displayName: "Mock second subscription", tenantId: mockSecondTenantId, state: "Enabled" },
+          ],
+        },
+      });
+      const tenantSelect = result.azureLoginCard.getByTestId("tenant-select");
+      await expect(result.azureLoginCard.getByText("Loading tenants...", { exact: true })).toBeHidden();
+      await tenantSelect.click();
+      await page.getByRole("option", { name: /Mock second tenant/ }).click();
+      await expect(tenantSelect.locator("input")).toHaveValue(mockSecondTenantId);
+      const subscriptionSelect = result.azureSubscriptionCard.getByRole("combobox");
+      await expect(subscriptionSelect).toContainText("Mock second subscription");
+      await expect(result.subscriptionVariableInput).toHaveValue(mockSecondSubscriptionId);
+      await expectSnapshot(page, result.azureSubscriptionCard, testInfo, "tenant-switch-subscription", viewportName);
+    });
+
+    test("URL subscription selection takes precedence over the saved subscription", async ({ page, context }, testInfo) => {
+      const result = await prepareMockAzureSubscription(page, context, `mock-subscription-url-${viewportName.toLowerCase()}`, {
+        initialVariables: savedAzureVariables,
+        url: `${CORP_URL}?subscription=${mockSecondSubscriptionId}`,
+        initialAzureState: {
+          subscriptions: [
+            { subscriptionId: mockSubscriptionId, displayName: "Mock subscription", tenantId: mockTenantId, state: "Enabled" },
+            { subscriptionId: mockSecondSubscriptionId, displayName: "Mock second subscription", tenantId: mockTenantId, state: "Enabled" },
+          ],
+        },
+      });
+      await expect(result.azureSubscriptionCard.getByRole("combobox")).toContainText("Mock second subscription");
+      await expect(result.subscriptionVariableInput).toHaveValue(mockSubscriptionId);
+      await expect(result.azureSubscriptionCard.getByText("Unsaved change — save to apply.", { exact: true })).toBeVisible();
+      await expectSnapshot(page, result.azureSubscriptionCard, testInfo, "url-selection-precedence", viewportName);
+    });
+
+    test("Failed variable writes preserve the successful keys and allow retry", async ({ page, context }, testInfo) => {
+      const result = await prepareMockAzureSubscription(page, context, `mock-subscription-save-error-${viewportName.toLowerCase()}`, {
+        existingRepository: true,
+      });
+      let failedOneWrite = false;
+      await page.route("https://api.github.com/repos/**/environments/PROD/variables", async (route) => {
+        if (
+          route.request().method() !== "POST" ||
+          route.request().postDataJSON().name !== "VITE_AZURE_TENANT_ID" ||
+          failedOneWrite
+        ) {
+          await route.fallback();
+          return;
+        }
+        failedOneWrite = true;
+        await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ message: "mock write failure" }) });
+      });
+      const saveButton = result.azureSubscriptionCard.getByRole("button", { name: "Save 3 variables" });
+      await expect(saveButton).toBeEnabled();
+      await saveButton.click();
+      await expect.poll(() => Object.keys(result.github.variables).length).toBe(2);
+      expect(Object.keys(result.github.variables)).not.toContain("VITE_AZURE_TENANT_ID");
+      const retryButton = result.azureSubscriptionCard.getByRole("button", { name: /^Save 1 variable$/ });
+      await expect(retryButton).toBeEnabled();
+      await retryButton.click();
+      await expect.poll(() => result.github.variables).toEqual({
+        AZURE_TENANT_ID: mockTenantId,
+        AZURE_SUBSCRIPTION_ID: mockSubscriptionId,
+        VITE_AZURE_TENANT_ID: mockTenantId,
+      });
+      await page.reload();
+      const reloadedCard = await expandAzureSubscriptionCard(page);
+      await expect(reloadedCard.getByText("AZURE_TENANT_ID", { exact: true }).locator("..").locator("..").getByRole("textbox")).toHaveValue(mockTenantId);
+      await expect(reloadedCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true }).locator("..").locator("..").getByRole("textbox")).toHaveValue(mockSubscriptionId);
+      await expectSnapshot(page, reloadedCard, testInfo, "variables-persist-after-retry", viewportName);
     });
   });
 }
