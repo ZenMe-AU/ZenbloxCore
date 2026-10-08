@@ -1,0 +1,109 @@
+{
+  "folders": [
+    {
+      "name": "ROOT",
+      "path": "./",
+    },
+    {
+      "name": "Core Env Deployer",
+      "path": "corpSetup",
+    },
+    {
+      "name": "Portal Env Deployer",
+      "path": "portalEnv",
+    },
+    {
+      "name": "zeninstallerPvt-ui",
+      "path": "zeninstallerPvt/ui",
+    },
+    {
+      "name": "zeninstallerPvt-func",
+      "path": "zeninstallerPvt/func",
+    },
+    {
+      "name": "authGuardLambdaEdge",
+      "path": "./corpSetup/c25cloudfront/source/authGuardLambdaEdge",
+    },
+    {
+      "name": "loginApp",
+      "path": "./corpSetup/c25cloudfront/source/loginApp",
+    },
+    {
+      "name": "portal-ui",
+      "path": "./portal/ui",
+    },
+    {
+      "name": "portal-accessPass-ui",
+      "path": "./accessPass/ui",
+    },
+    {
+      "name": "portal-accessPass-func",
+      "path": "./accessPass/func",
+    },
+  ],
+  "launch": {
+    "version": "0.2.0",
+    "compounds": [],
+  },
+  "settings": {
+    // These settings apply to all workspaces.
+    "files.exclude": {
+      "node_modules/": false,
+    },
+    // Powershell settings
+    "powershell.cwd": "ROOT",
+    "powershell.scriptAnalysis.enable": true,
+    "debug.internalConsoleOptions": "neverOpen",
+    "editor.formatOnSave": true,
+    "[jsonc]": {
+      "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit",
+    },
+    // ESLint settings
+    "eslint.enable": true,
+    "eslint.format.enable": true,
+    "eslint.lintTask.enable": true,
+    "eslint.validate": [
+      "javascript",
+      "javascriptreact",
+      "typescript",
+      "typescriptreact"
+    ],
+    "[javascript]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[javascriptreact]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[typescript]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "[typescriptreact]": {
+      "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    },
+    "eslint.workingDirectories": [
+      {
+        "mode": "auto"
+      }
+    ],
+    // For Linux, set the NVM_DIR in VsCode to same NVM install dir as user shell
+    "terminal.integrated.automationProfile.linux": {
+      "path": "/bin/bash",
+      "args": [
+        "-ic"
+      ],
+    },
+    "terminal.integrated.env.linux": {
+      "NVM_DIR": "${env:HOME}/.nvm",
+    },
+    "playwright.configs": [
+      "zeninstallerPvt/ui/playwright.config.ts",
+      "zeninstallerPvt/func/playwright.config.ts",
+      "accessPass/ui/playwright.config.ts",
+      "accessPass/func/playwright.config.ts"
+    ],
+    "sarif-viewer.connectToGithubCodeScanning": "off",
+  },
+}
