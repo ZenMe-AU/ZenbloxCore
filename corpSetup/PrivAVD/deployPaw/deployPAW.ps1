@@ -155,27 +155,39 @@ try {
     # group deletion. A fresh workspace (new HOST_POOL_NAME, or a
     # delete-and-restart) then tries to create it again and Azure rejects the
     # apply with 409 RoleAssignmentExists. Import the orphan before planning
-    # so the apply is a no-op instead of a collision. ARM-only lookup - this
-    # works even when the Graph token is dead (it usually is; the Graph token
-    # dies long before the ARM token does).
-    $currentState = @(terraform state list 2>$null)
-    if (-not ($currentState | Where-Object { $_ -match '^azurerm_role_assignment\.avd_power_management$' })) {
-        $roleDefId = az rest --method get --url "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Authorization/roleDefinitions?api-version=2022-04-01&`$filter=roleName eq 'Desktop Virtualization Power On Off Contributor'" --query 'value[0].id' -o tsv 2>$null
-        if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace("$roleDefId")) {
-            $assignmentsJson = az rest --method get --url "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&`$filter=atScope()" -o json 2>$null
-            if ($LASTEXITCODE -eq 0 -and "$assignmentsJson".Trim()) {
+    # so the apply becomes a no-op instead of a collision. Every branch below
+    # prints a message, so a future failure names itself instead of dying
+    # silently (the previous version had silent skip paths - that is why it
+    # did nothing on the erv8 and erv9 runs).
+    try {
+        $currentState = @(terraform state list 2>&1)
+        $hasAutoscaleAssignment = [bool]($currentState | Where-Object { "$_" -match '^azurerm_role_assignment\.avd_power_management$' })
+        if (-not $hasAutoscaleAssignment) {
+            Write-Host "Self-heal: looking for the existing subscription-scope autoscale role assignment..."
+            # Role definition GUID for 'Desktop Virtualization Power On Off
+            # Contributor' - stable and identical in every tenant.
+            $autoscaleRoleGuid = "40c5ff49-9181-41f8-ae61-143b0e78555e"
+            $assignmentsJson = az rest --method get --url "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01" -o json
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace("$assignmentsJson")) {
                 $assignmentsDoc = "$assignmentsJson" | ConvertFrom-Json
-            $existing = @($assignmentsDoc.value) | Where-Object { "$($_.properties.roleDefinitionId)" -eq "$roleDefId".Trim() -and "$($_.properties.scope)" -eq "/subscriptions/$subscriptionId" }
+                $existing = @($assignmentsDoc.value) | Where-Object { ("$($_.properties.scope)") -eq "/subscriptions/$subscriptionId" -and ("$($_.properties.roleDefinitionId)") -like "*$autoscaleRoleGuid*" }
+                Write-Host ("Self-heal: found {0} subscription-scope autoscale assignment(s) in Azure." -f $existing.Count)
                 if ($existing.Count -ge 1) {
-                    $orphanId = $existing[0].id
-                    Write-Host "Importing existing subscription-scope autoscale role assignment: $orphanId"
+                    $orphanId = "$($existing[0].id)"
+                    Write-Host "Self-heal: importing $orphanId"
                     terraform import -input=false azurerm_role_assignment.avd_power_management $orphanId
-                    if ($LASTEXITCODE -ne 0) {
-                        Write-Host "WARNING: import of the autoscale role assignment failed; apply may fail with 409 RoleAssignmentExists."
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "Self-heal: import succeeded."
+                    } else {
+                        Write-Host "WARNING: self-heal import failed with exit code $LASTEXITCODE; the apply may fail with 409 RoleAssignmentExists."
                     }
                 }
+            } else {
+                Write-Host "WARNING: self-heal could not list role assignments (az rest exit code $LASTEXITCODE); the apply may fail with 409 RoleAssignmentExists."
             }
         }
+    } catch {
+        Write-Host "WARNING: self-heal skipped - $($_.Exception.Message)"
     }
     terraform validate
     if ($LASTEXITCODE -ne 0) {
