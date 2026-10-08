@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-// UI component: ../../../corp-src/cards/RepoDetail.tsx
+// UI component: ../../../corp-src/cards/Repo/RepoDetail.tsx
 import { expect, test } from "@playwright/test";
 import { CORP_URL, GITHUB_API_URL, GITHUB_API_URL_REGEX, viewports } from "../../testInit";
 import { createNewRepo } from "../util/testHelper.mts";
@@ -11,23 +11,18 @@ import { expectSnapshot, expectVisibleWithin, logMockAPI } from "../../util/test
 import { installMockGitHub } from "../util/mockTestHelper.mts";
 import { expandRepoCard } from "../util/cardHelper.mts";
 import { writeFile } from "fs/promises";
+import { installRelayNetworkGuard } from "../util/RemoteTerminalInfraCardMockHelper.mts";
+import { selectCloneOption } from "../util/RepoDetailHelper.mts";
+
+const unexpectedByPage = new WeakMap<import("@playwright/test").Page, string[]>();
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`Mock Tests - ${viewportName}`, () => {
     test.use({ viewport, deviceScaleFactor: 1 });
 
     test.beforeEach(async ({ page, context }) => {
-      // blocks unexpected POST requests (supposed to be mocked)
       await page.coverage.startJSCoverage({ resetOnNavigation: false });
-      await page.route(`${GITHUB_API_URL}/**`, async (route) => {
-        const request = route.request();
-        if (["GET", "HEAD", "OPTIONS"].includes(request.method())) {
-          await route.continue();
-          return;
-        }
-        console.info(`Blocked unexpected GitHub write: ${request.method()} ${request.url()}`);
-        await route.abort("blockedbyclient");
-      });
+      unexpectedByPage.set(page, await installRelayNetworkGuard(context));
       await installMockGitHub(page, context);
       await page.goto(CORP_URL);
     });
@@ -44,6 +39,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         path: file,
         contentType: "application/json",
       });
+      expect(unexpectedByPage.get(page), "No unexpected external requests").toEqual([]);
     });
 
     test("Happy path", async ({ page }, testInfo) => {
@@ -184,20 +180,130 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await expectVisibleWithin(createTestButton, "Button: Create New Branch: TEST", 30_000);
         const sourceBranchSelect = createTestButton.locator("..").getByRole("combobox");
         await sourceBranchSelect.click();
-        await page.getByRole("option", { name: "PROD", exact: true }).click();
-        await expect(sourceBranchSelect).toHaveText(/PROD/);
+        await page.getByRole("option", { name: /^main(?: protected)?$/ }).click();
+        await expect(sourceBranchSelect).toHaveText(/main/);
         await createTestButton.click();
         await expect
           .poll(() => createdBranches)
           .toEqual([
             { ref: "refs/heads/PROD", sha: mainSha },
-            { ref: "refs/heads/TEST", sha: prodSha },
+            { ref: "refs/heads/TEST", sha: mainSha },
           ]);
         await expect(createTestButton).toBeHidden({ timeout: 30_000 });
         await expect(missingTestBranch).toHaveCount(0);
         await expect(repoCard.getByText("Failed to create branch", { exact: true })).toHaveCount(0);
         await expectSnapshot(page, repoCard, testInfo, "end", viewportName);
       });
+    });
+
+    test("Clones a fresh repository without creating environments", async ({ page }, testInfo) => {
+      const name = `mock-no-env-${viewportName.toLowerCase()}`;
+      const environmentWrites: string[] = [];
+      let cloned = false;
+      await page.route(`${GITHUB_API_URL}/repos/ZenMe-AU/ZenbloxCore/generate`, async (route) => {
+        expect(route.request().postDataJSON()).toMatchObject({ name, private: true, include_all_branches: false });
+        cloned = true;
+        await route.fulfill({ status: 201, json: { id: 987654325, name } });
+      });
+      await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${name}/environments(?:/[^/?]+)?(?:\\?.*)?$`), async (route) => {
+        if (route.request().method() !== "GET") {
+          environmentWrites.push(route.request().method());
+          return route.fulfill({ json: {} });
+        }
+        return route.fulfill({ json: { total_count: 0, environments: [] } });
+      });
+      const card = await expandRepoCard(page);
+      const clone = await selectCloneOption(page, card, name);
+      await card.getByRole("switch", { name: "Create environments", exact: true }).uncheck();
+      await clone.click();
+      await expect(card.getByText("Valid", { exact: true })).toBeVisible();
+      await expect(card.getByText(/^No environment found/)).toBeVisible();
+      expect(cloned).toBe(true);
+      expect(environmentWrites).toEqual([]);
+      await expectSnapshot(page, card, testInfo, "fresh-clone-no-env", viewportName);
+    });
+
+    test("Branch creation failure can be retried", async ({ page }, testInfo) => {
+      const name = `mock-retry-${viewportName.toLowerCase()}`;
+      const card = await expandRepoCard(page);
+      await createNewRepo(page, card, name);
+      let attempts = 0;
+      await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/repos/[^/]+/${name}/git/refs(?:\\?.*)?$`), async (route) => {
+        attempts++;
+        expect(route.request().postDataJSON()).toEqual({ ref: "refs/heads/PROD", sha: "main-mock-sha" });
+        return route.fulfill({
+          status: attempts === 1 ? 403 : 201,
+          json: attempts === 1 ? { message: "Permission denied" } : { ref: "refs/heads/PROD", object: { sha: "main-mock-sha" } },
+        });
+      });
+      await card.getByText("PROD", { exact: true }).click();
+      const create = card.getByRole("button", { name: "Create New Branch: PROD", exact: true });
+      await create.click();
+      await expect(card.getByText("Failed to create branch", { exact: true })).toBeVisible();
+      await expect(create).toBeEnabled();
+      await create.click();
+      await expect(create).toBeHidden();
+      await expect(card.getByText("Failed to create branch", { exact: true })).toHaveCount(0);
+      expect(attempts).toBe(2);
+      await expectSnapshot(page, card, testInfo, "branch-recovered", viewportName);
+    });
+
+    test("Repository list refresh reports failures and recovers", async ({ page }, testInfo) => {
+      const card = await expandRepoCard(page);
+      await expect(card.getByRole("combobox").first()).toContainText("mock-user");
+      await page.clock.install();
+      await page.clock.pauseAt(new Date());
+      let fail = true;
+      let releaseRefresh!: () => void;
+      const refreshed = new Promise<void>((resolve) => { releaseRefresh = resolve; });
+      await page.route(new RegExp(`${GITHUB_API_URL_REGEX}/user/repos(?:\\?.*)?$`), async (route) => {
+        if (!fail) await refreshed;
+        await route.fulfill({ status: fail ? 500 : 200, json: fail ? { message: "Unavailable" } : [{ id: 888, name: "refreshed-repo", owner: { type: "User" } }] });
+      });
+      await card.getByRole("button", { name: "Refresh List", exact: true }).click();
+      await expect(card.getByRole("button", { name: "Failed", exact: true })).toBeEnabled();
+      fail = false;
+      await card.getByRole("button", { name: "Failed", exact: true }).click();
+      await expect(card.getByRole("button", { name: "Failed", exact: true })).toBeDisabled();
+      releaseRefresh();
+      await expect(card.getByRole("button", { name: "Done", exact: true })).toBeEnabled();
+      await page.clock.runFor(1500);
+      await expect(card.getByRole("button", { name: "Refresh List", exact: true })).toBeEnabled();
+      await card.getByRole("combobox", { name: "Select or type repo name..." }).click();
+      await expect(page.getByRole("option", { name: /refreshed-repo/ })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expectSnapshot(page, card, testInfo, "list-refreshed", viewportName);
+    });
+
+    test("Switching to an organization ignores a late personal repository list", async ({ page }, testInfo) => {
+      let releasePersonal!: () => void;
+      const personalReady = new Promise<void>((resolve) => { releasePersonal = resolve; });
+      let personalRequested!: () => void;
+      const requested = new Promise<void>((resolve) => { personalRequested = resolve; });
+      await page.route(`${GITHUB_API_URL}/user/orgs**`, (route) => route.fulfill({ json: [{ id: 777, login: "mock-org" }] }));
+      await page.route(`${GITHUB_API_URL}/user/repos**`, async (route) => {
+        personalRequested();
+        await personalReady;
+        await route.fulfill({ json: [{ id: 889, name: "late-personal-repo", owner: { type: "User" } }] });
+      });
+      await page.route(`${GITHUB_API_URL}/orgs/mock-org/repos**`, (route) =>
+        route.fulfill({ json: [{ id: 890, name: "organization-repo", owner: { type: "Organization" } }] }));
+      await page.reload();
+      await requested;
+      const card = await expandRepoCard(page);
+      await card.getByRole("combobox").first().click();
+      await page.getByRole("option", { name: "mock-org", exact: true }).click();
+      const personalResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/user/repos");
+      releasePersonal();
+      await personalResponse;
+      const input = card.getByRole("combobox", { name: "Select or type repo name..." });
+      await input.click();
+      await expect(page.getByRole("option", { name: /organization-repo/ })).toBeVisible();
+      await expect(page.getByRole("option", { name: /late-personal-repo/ })).toHaveCount(0);
+      await page.getByRole("option", { name: /organization-repo/ }).click();
+      await expect(input).toHaveValue("organization-repo");
+      await expect(card.getByText("Valid", { exact: true })).toBeVisible();
+      await expectSnapshot(page, card, testInfo, "organization-selected", viewportName);
     });
 
     test("Selecting valid repo with no environments", async ({ page }, testInfo) => {
@@ -327,7 +433,10 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify([{ name: "main", commit: { sha: mainSha }, protected: true }]),
+          body: JSON.stringify([
+            { name: "main", commit: { sha: mainSha }, protected: true },
+            ...createdBranches.map(({ ref, sha }) => ({ name: ref.replace("refs/heads/", ""), commit: { sha }, protected: false })),
+          ]),
         });
       });
 
@@ -400,6 +509,13 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expect(repoCard.getByText(/^No branch found matching environment "TEST"\.$/)).toHaveCount(0);
 
       await expectSnapshot(page, repoCard, testInfo, "test-branch-created-mock", viewportName);
+      await page.reload();
+      await expect(page.locator("#card-github_login")).toContainText(/Signed in as mock-user|Authenticated as mock-user/);
+      const restoredCard = await expandRepoCard(page);
+      await expect(restoredCard.getByText(/^No branch found matching environment "TEST"\.$/)).toHaveCount(0);
+      await expect(restoredCard.getByRole("button", { name: "Create New Branch: TEST" })).toHaveCount(0);
+      await expect(restoredCard.getByText("TEST", { exact: true })).toBeVisible();
+      await expectSnapshot(page, restoredCard, testInfo, "branches-restored", viewportName);
     });
 
     test("Selecting repo not a clone of source repo", async ({ page }, testInfo) => {
