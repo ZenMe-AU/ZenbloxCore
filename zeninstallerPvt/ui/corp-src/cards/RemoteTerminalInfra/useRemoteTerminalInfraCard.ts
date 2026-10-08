@@ -267,7 +267,7 @@ export function useRemoteTerminalInfraCard({
 
       // The redirect uri is the site this card just created, so the app is registered after it.
       updateStep("installerApp", "running");
-      const siteUrl = await getStaticWebsiteUrl(azureAccount, subscriptionId, resourceGroupName, webStorageAccountName, tenantId);
+      const siteUrl = await getStaticWebsiteUrl(azureAccount, subscriptionId, webStorageAccountName, tenantId);
       if (!siteUrl) throw new Error("The site's web endpoint is not available yet");
       const existingInstaller = await getExistingApp(azureAccount, getPrivateInstallerAppName(), tenantId);
       const installerApp =

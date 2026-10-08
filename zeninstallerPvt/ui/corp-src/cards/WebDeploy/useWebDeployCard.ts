@@ -8,7 +8,7 @@ import JSZip from "jszip";
 import { fetchArtifactZip, fetchStageReport, triggerWorkflow } from "../../api";
 import { getStaticWebsiteUrl } from "../../api/azureArm";
 import { readDeployedSite, recordDeployedSite, uploadStaticSite, type DeployedSite } from "../../api/azureBlob";
-import { getRootResourceGroupName, getWebStorageAccountName } from "../../logic/naming";
+import { getWebStorageAccountName } from "../../logic/naming";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import type { Account, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
 
@@ -27,7 +27,6 @@ export interface UseWebDeployCardParams {
   azureAccount: import("../../types").AzureAccount | null;
   subscriptionId: string;
   tenantId?: string;
-  corpName: string;
   githubAccount: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
@@ -69,7 +68,6 @@ export function useWebDeployCard({
   azureAccount,
   subscriptionId,
   tenantId,
-  corpName,
   githubAccount,
   repoName,
   selectedEnv,
@@ -84,10 +82,9 @@ export function useWebDeployCard({
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const storageAccountName = corpName ? getWebStorageAccountName(corpName) : "";
-  const resourceGroup = corpName ? getRootResourceGroupName(corpName) : "";
+  const storageAccountName = variableValues.SITE_STORAGE_ACCOUNT || getWebStorageAccountName(subscriptionId);
   const missingGithubClientId = !(variableValues.VITE_GITHUB_CLIENT_ID ?? "").trim();
-  const ready = !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv && !!corpName && !missingGithubClientId;
+  const ready = !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv && !missingGithubClientId;
 
   const readLatest = useCallback(async (): Promise<WebBuild | null> => {
     if (!githubAccount || !repoName || !selectedEnv) return null;
@@ -119,7 +116,7 @@ export function useWebDeployCard({
     setLoadingDeployed(true);
     try {
       // Before the environment card runs there is no account to ask, which is not an error here.
-      const url = await getStaticWebsiteUrl(azureAccount, subscriptionId, resourceGroup, storageAccountName, tenantId);
+      const url = await getStaticWebsiteUrl(azureAccount, subscriptionId, storageAccountName, tenantId);
       setSiteUrl(url);
       setDeployed(url ? await readDeployedSite(azureAccount, storageAccountName, tenantId) : null);
     } catch (e) {
@@ -127,7 +124,7 @@ export function useWebDeployCard({
     } finally {
       setLoadingDeployed(false);
     }
-  }, [azureAccount, subscriptionId, resourceGroup, storageAccountName, tenantId]);
+  }, [azureAccount, subscriptionId, storageAccountName, tenantId]);
 
   // Deferred so the loading flag is not set during the render that schedules this.
   useEffect(() => {
@@ -254,7 +251,7 @@ export function useWebDeployCard({
     summary,
     run,
     reset,
-    cardRequirements: ["github_login", "repo", "azure_login", "remote_terminal_infra"],
+    cardRequirements: ["github_login", "repo", "azure_login", "private_frontend_infra"],
     cardDependencyLabel: "Deploy the frontend",
   };
 }
