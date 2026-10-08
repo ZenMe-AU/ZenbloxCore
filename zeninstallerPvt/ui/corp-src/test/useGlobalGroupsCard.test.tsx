@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
@@ -10,7 +15,7 @@ import {
   type UseGlobalGroupsCard,
   type GroupRow,
   type SavedGroup,
-} from "../hooks/useGlobalGroupsCard";
+} from "../cards/GlobalGroups/useGlobalGroupsCard";
 
 async function waitFor(assertion: () => void, timeoutMs = 2000) {
   const start = Date.now();
@@ -47,7 +52,7 @@ const { configMocks } = vi.hoisted(() => ({
   configMocks: { azureClientId: "client-id" },
 }));
 
-vi.mock("../api/msal", () => ({
+vi.mock("../auth/msal", () => ({
   getMsal: apiMocks.getMsal,
 }));
 
@@ -74,9 +79,7 @@ vi.mock("../config/azureConfig", () => ({
   GROUPS_SCOPES: ["group.scope"],
 }));
 
-function HookHarness(
-  props: { onUpdate: (value: UseGlobalGroupsCard) => void } & Parameters<typeof useGlobalGroupsCard>[0],
-) {
+function HookHarness(props: { onUpdate: (value: UseGlobalGroupsCard) => void } & Parameters<typeof useGlobalGroupsCard>[0]) {
   const value = useGlobalGroupsCard(props);
   useEffect(() => {
     props.onUpdate(value);
@@ -96,7 +99,7 @@ function renderHook(params: Parameters<typeof useGlobalGroupsCard>[0]) {
         onUpdate={(v) => {
           latest = v;
         }}
-      />,
+      />
     );
   });
 
@@ -119,9 +122,7 @@ describe("useGlobalGroupsCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     configMocks.azureClientId = "client-id";
-    apiMocks.isConsentError.mockImplementation(
-      (msg: string) => msg.includes("interaction_required") || msg.includes("consent_required"),
-    );
+    apiMocks.isConsentError.mockImplementation((msg: string) => msg.includes("interaction_required") || msg.includes("consent_required"));
     apiMocks.listGroups.mockResolvedValue([]);
     apiMocks.getGroupParents.mockResolvedValue([]);
     apiMocks.getMsal.mockResolvedValue({ acquireTokenRedirect: vi.fn().mockResolvedValue(undefined) });
@@ -191,9 +192,7 @@ describe("useGlobalGroupsCard", () => {
       const harness = renderHook({ azureAccount: account, confirmedTenantId: "tenant-1" });
       await waitFor(() => expect(harness.current.loading).toBe(false));
 
-      expect(harness.current.rows).toEqual([
-        { id: "g1", groupName: "Team", description: "desc", memberOfGroupNames: ["Parent"], isNew: false },
-      ]);
+      expect(harness.current.rows).toEqual([{ id: "g1", groupName: "Team", description: "desc", memberOfGroupNames: ["Parent"], isNew: false }]);
       expect(harness.current.done).toBe(true);
       expect(harness.current.status).toBe("complete");
 
@@ -425,9 +424,7 @@ describe("useGlobalGroupsCard", () => {
         await harness.current.requestGroupsConsent();
       });
 
-      expect(acquireTokenRedirect).toHaveBeenCalledWith(
-        expect.objectContaining({ account, authority: "https://login.microsoftonline.com/tenant-1" }),
-      );
+      expect(acquireTokenRedirect).toHaveBeenCalledWith(expect.objectContaining({ account, authority: "https://login.microsoftonline.com/tenant-1" }));
 
       harness.unmount();
     });
@@ -451,11 +448,7 @@ describe("useGlobalGroupsCard", () => {
         await harness.current.sync();
       });
 
-      expect(apiMocks.createGroup).toHaveBeenCalledWith(
-        account,
-        expect.objectContaining({ displayName: "Team" }),
-        "tenant-1",
-      );
+      expect(apiMocks.createGroup).toHaveBeenCalledWith(account, expect.objectContaining({ displayName: "Team" }), "tenant-1");
       expect(apiMocks.addGroupMember).toHaveBeenCalledWith(account, "parent-1", "new-g1", "tenant-1");
       expect(harness.current.rows[0]).toMatchObject({ id: "new-g1", isNew: false });
       expect(harness.current.rowResults["new-g1"]?.status).toBe("done");
@@ -476,12 +469,7 @@ describe("useGlobalGroupsCard", () => {
         await harness.current.sync();
       });
 
-      expect(apiMocks.updateGroup).toHaveBeenCalledWith(
-        account,
-        "g1",
-        { displayName: "Team", description: "new" },
-        "tenant-1",
-      );
+      expect(apiMocks.updateGroup).toHaveBeenCalledWith(account, "g1", { displayName: "Team", description: "new" }, "tenant-1");
       expect(harness.current.rowResults["g1"]?.status).toBe("done");
 
       harness.unmount();

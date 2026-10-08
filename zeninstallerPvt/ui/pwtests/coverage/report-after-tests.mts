@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { dirname, resolve } from "node:path";
@@ -26,10 +31,8 @@ export default class CoverageReporter implements Reporter {
   //     [coverageScript],
   //     { cwd: webDir },
   //   );
-
   //   if (stdout) console.log(stdout);
   //   if (stderr) console.error(stderr);
-
   //   await openCoverageReport();
   // }
 }

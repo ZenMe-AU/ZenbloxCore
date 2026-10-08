@@ -1,17 +1,21 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 /// <reference types="node" />
 
 import { defineConfig, devices } from "@playwright/test";
 import * as dotenv from "dotenv";
 import path from "node:path";
-import { fileURLToPath, } from "node:url";
+import { fileURLToPath } from "node:url";
 
-process.env.NODE_ENV = process.env.NODE_ENV || 'dev';
+process.env.NODE_ENV = process.env.NODE_ENV || "dev";
 // Enable Playwright API logs for normal and coverage runs, preserving other namespaces.
-process.env.DEBUG = [process.env.DEBUG, 'pw:api'].filter(Boolean).join(',');
-const currentFilePath = fileURLToPath(import.meta.url,);
-const currentDirectory = path.dirname(currentFilePath,);
-dotenv.config({ path: path.resolve(currentDirectory, ".env",), });
-
+process.env.DEBUG = [process.env.DEBUG, "pw:api"].filter(Boolean).join(",");
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirectory = path.dirname(currentFilePath);
+dotenv.config({ path: path.resolve(currentDirectory, ".env") });
 
 export default defineConfig({
   testDir: "./pwtests",
@@ -22,8 +26,9 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [
-    ["html", { outputFolder: './pwtests/playwright-report', open: "never" }],
-    ["./pwtests/coverage/report-after-tests.mts"],
+    // A terminal reporter is what streams worker stdout/stderr (incl. pw:api) to the console.
+    ["line"],
+    ["html", { outputFolder: "./pwtests/playwright-report", open: "never" }],
   ],
   timeout: 60_000,
   expect: {
@@ -34,7 +39,7 @@ export default defineConfig({
       caret: "hide",
       scale: "css",
       maxDiffPixelRatio: 0.02,
-      pathTemplate: "{testDir}/{arg}{ext}"
+      pathTemplate: "{testDir}/{arg}{ext}",
     },
   },
 
@@ -77,7 +82,6 @@ export default defineConfig({
       },
       dependencies: ["Setup Corp Github Auth", "Setup Corp Azure Login"],
     },
-
   ],
 
   /**
@@ -90,4 +94,3 @@ export default defineConfig({
     timeout: 120_000,
   },
 });
-

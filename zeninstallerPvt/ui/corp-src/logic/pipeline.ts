@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import type { PipelineConfig, StageDefinition } from "../types";
 import { GRAPH_PERMISSIONS } from "../config/azureConfig";
 import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, C01_KEYS } from "./variables";
@@ -78,10 +83,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c21awsentrassoP2",
         label: "AWS Entra SSO P2",
-        azurePermissions: [
-          GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll,
-          GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration,
-        ],
+        azurePermissions: [GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll, GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration],
         prerequisites: [
           { type: "var", key: "NAME" },
           { type: "var", key: "DNS" },
@@ -113,7 +115,7 @@ function withStageWorkflows(config: PipelineSource): PipelineConfig {
 }
 
 export const PIPELINES: Record<string, PipelineConfig> = Object.fromEntries(
-  Object.entries(DEFINITIONS).map(([name, config]) => [name, withStageWorkflows(config)]),
+  Object.entries(DEFINITIONS).map(([name, config]) => [name, withStageWorkflows(config)])
 );
 
 // The only pipeline in use — cards import this directly instead of it being threaded through hooks.

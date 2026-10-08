@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, it, expect, beforeEach, vi } from "vitest";

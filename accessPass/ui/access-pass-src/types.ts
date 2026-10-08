@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 export type CardId = "auth" | "repo" | "azure_setup" | "azure_access_pass" | "aws_setup" | "pr" | "env" | "status_update" | "stages";

@@ -179,7 +179,7 @@ function grantAdminConsent(servicePrincipalObjectId) {
 
     try {
       executeCommand(
-        `az rest --method POST --uri "https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipalObjectId}/appRoleAssignments" --headers Content-Type=application/json --body @${tempFile}`,
+        `az rest --method POST --uri "https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipalObjectId}/appRoleAssignments" --headers Content-Type=application/json --body @${tempFile}`
       );
       console.log(`  ✓ Granted role ${roleId}`);
     } catch (error) {
@@ -224,7 +224,7 @@ async function deployTerraform() {
     APP_DISPLAY_NAME,
     () => appObjectId,
     tenantId,
-    (id) => `/applications/${id}`,
+    (id) => `/applications/${id}`
   );
 
   const existingClientId = appObjectId ? findAppClientId(appObjectId) : null;
@@ -233,7 +233,7 @@ async function deployTerraform() {
     "Service principal",
     () => (existingClientId ? findExistingServicePrincipalObjectId(existingClientId) : null),
     tenantId,
-    (id) => `/servicePrincipals/${id}`,
+    (id) => `/servicePrincipals/${id}`
   );
 
   importIfExists(
@@ -241,22 +241,16 @@ async function deployTerraform() {
     "Microsoft Graph API access",
     () => (appObjectId ? findExistingGraphApiAccessId(appObjectId) : null),
     tenantId,
-    () => `/applications/${appObjectId}/apiAccess/${GRAPH_RESOURCE_APP_ID}`,
+    () => `/applications/${appObjectId}/apiAccess/${GRAPH_RESOURCE_APP_ID}`
   );
 
-  importIfExists(
-    "azuread_group.pass_reset_managers",
-    GROUP_DISPLAY_NAME,
-    findExistingGroupObjectId,
-    tenantId,
-    (id) => `/groups/${id}`,
-  );
+  importIfExists("azuread_group.pass_reset_managers", GROUP_DISPLAY_NAME, findExistingGroupObjectId, tenantId, (id) => `/groups/${id}`);
   importIfExists(
     "azuread_administrative_unit.pass_reset_targets",
     ADMIN_UNIT_DISPLAY_NAME,
     findExistingAdministrativeUnitObjectId,
     tenantId,
-    (id) => `/directory/administrativeUnits/${id}`,
+    (id) => `/directory/administrativeUnits/${id}`
   );
 
   console.log("\nRunning terraform apply...");

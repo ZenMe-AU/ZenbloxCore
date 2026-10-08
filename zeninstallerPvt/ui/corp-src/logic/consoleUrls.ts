@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 /*
  * Deep links into the providers' own consoles, for each card's "view" action.
  * Azure resource links follow the documented portal form: #@{tenant}/resource{resourceId}/overview.
@@ -29,6 +34,12 @@ export const AZURE_APP_REGISTRATIONS_URL = `${AZURE_PORTAL}/#view/Microsoft_AAD_
 
 export function getEntraOverviewUrl(): string {
   return `${ENTRA}/#view/Microsoft_AAD_IAM/TenantOverview.ReactView`;
+}
+
+// Tenant-wide consent for everything the app declares — the one step the installer cannot do itself,
+// since granting consent needs a privilege the person running the cards may not have.
+export function getAdminConsentUrl(tenantId: string, clientId: string): string {
+  return `https://login.microsoftonline.com/${tenantId}/adminconsent?client_id=${clientId}`;
 }
 
 export function getEntraUsersUrl(): string {

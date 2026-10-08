@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 // Mirrors ZBCorpArchitecture util/namingConvention.cjs — keep in sync.
 
 export function getRootResourceGroupName(corpName: string): string {
@@ -23,6 +28,16 @@ export function getTerminalResourceGroupName(corpName: string): string {
 
 export function getTerminalStorageAccountName(corpName: string): string {
   return `${corpName}term`.toLowerCase();
+}
+
+// Static site hosting needs anonymous public reads, so it never shares an account with state.
+export function getWebStorageAccountName(corpName: string): string {
+  return `${corpName}pvtweb`.toLowerCase();
+}
+
+// The private installer's own sign-in app, so consent happens in the customer's tenant.
+export function getPrivateInstallerAppName(): string {
+  return "Zeninstaller Private";
 }
 
 export function getTerminalWebPubSubName(corpName: string): string {
@@ -73,13 +88,7 @@ export function getImmutableRepoSegment(org: string, orgId: number, repo: string
   return `repo:${org}@${orgId}/${repo}@${repoId}`;
 }
 
-export function getFederatedCredential(
-  org: string,
-  orgId: number,
-  repo: string,
-  repoId: number,
-  environment: string,
-): { name: string; subject: string } {
+export function getFederatedCredential(org: string, orgId: number, repo: string, repoId: number, environment: string): { name: string; subject: string } {
   // The "-id" suffix keeps this from colliding with a legacy-format credential left by an earlier run.
   return {
     name: getFederatedCredentialName(org, repo, environment, "-id"),
@@ -88,12 +97,6 @@ export function getFederatedCredential(
 }
 
 // The OIDC sub claim a GitHub Actions run emits — matched verbatim by Entra and by AWS IAM alike.
-export function getFederatedSubject(
-  org: string,
-  orgId: number,
-  repo: string,
-  repoId: number,
-  environment: string,
-): string {
+export function getFederatedSubject(org: string, orgId: number, repo: string, repoId: number, environment: string): string {
   return `${getImmutableRepoSegment(org, orgId, repo, repoId)}:environment:${environment}`;
 }

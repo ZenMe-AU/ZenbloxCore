@@ -7,8 +7,7 @@ import { ApplicationInsights } from "@microsoft/applicationinsights-web";
 import { ReactPlugin } from "@microsoft/applicationinsights-react-js";
 import { ClickAnalyticsPlugin } from "@microsoft/applicationinsights-clickanalytics-js";
 
-const appInsightsConnectionString =
-  import.meta.env.VITE_APPINSIGHTS_CONNECTION_STRING || "";
+const appInsightsConnectionString = import.meta.env.VITE_APPINSIGHTS_CONNECTION_STRING || "";
 
 export const reactPlugin = new ReactPlugin();
 
@@ -57,5 +56,3 @@ appInsights.addTelemetryInitializer((envelope) => {
 appInsights.loadAppInsights();
 
 export { appInsights };
-
-

@@ -1,10 +1,15 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { parse } from "dotenv";
 import JSZip from "jszip";
 import type { Account, Branch, GhEnv, PullRequest, Repo, StageReport, WorkflowRun, UpsertSecretResult } from "../types";
 import { toStageReport } from "../logic/stage";
 import { getStoredToken } from "../logic/tokenStore";
 import { GITHUB_TOKEN_KEYS } from "../config/githubConfig";
-import { requireMsToken } from "../cards/AzureLogin/msal";
+import { requireMsToken } from "../auth/msal";
 import { readBlobWithProgress, type DownloadProgress } from "../logic/download";
 import type { RemoteLoginDispatch } from "./github";
 import { REMOTE_TERMINAL_TTL_SECONDS } from "../config/remoteTerminal";
@@ -95,10 +100,7 @@ export async function fetchRepos(account: Account): Promise<Repo[]> {
 
 // ─── Template ─────────────────────────────────────────────────────────────────
 
-export async function checkTemplate(
-  account: Account,
-  repo: string,
-): Promise<{ isTemplate: boolean; templateName: string }> {
+export async function checkTemplate(account: Account, repo: string): Promise<{ isTemplate: boolean; templateName: string }> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
   const res = await fetchWithAuth(`${url}/checkTemplate?${params}`);
   if (!res.ok) throw new Error(`Failed to check template: ${res.status}`);
@@ -114,7 +116,7 @@ export async function generateRepo(
   includeAllBranch: boolean,
   createEnvs: boolean,
   templateRepo?: string,
-  validEnvs?: readonly string[],
+  validEnvs?: readonly string[]
 ): Promise<{
   repo: Repo;
   envSuccess: boolean;
@@ -148,12 +150,7 @@ export async function fetchBranches(account: Account, repo: string): Promise<Bra
   return data.branches || [];
 }
 
-export async function createBranch(
-  account: Account,
-  repo: string,
-  branchName: string,
-  sourceBranch: string,
-): Promise<Branch> {
+export async function createBranch(account: Account, repo: string, branchName: string, sourceBranch: string): Promise<Branch> {
   const res = await fetchWithAuth(`${url}/createBranch`, {
     method: "POST",
     body: JSON.stringify({ owner: account.login, type: account.type, repo, branch: branchName, source: sourceBranch }),
@@ -203,11 +200,7 @@ export async function fetchSecrets(account: Account, repo: string, envName: stri
   return (data.secrets || []) as string[];
 }
 
-export async function fetchPublicKey(
-  account: Account,
-  repo: string,
-  envName?: string,
-): Promise<{ key: string; keyId: string }> {
+export async function fetchPublicKey(account: Account, repo: string, envName?: string): Promise<{ key: string; keyId: string }> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
   if (envName) params.set("env", envName);
   const res = await fetchWithAuth(`${url}/getPublicKey?${params}`);
@@ -222,7 +215,7 @@ export async function upsertSecret(
   name: string,
   encryptedValue: string,
   keyId: string,
-  envName?: string,
+  envName?: string
 ): Promise<UpsertSecretResult> {
   const res = await fetchWithAuth(`${url}/upsertSecret`, {
     method: "PUT",
@@ -251,13 +244,7 @@ export async function fetchVariables(account: Account, repo: string, envName: st
   return data.variables || {};
 }
 
-export async function createVariable(
-  account: Account,
-  repo: string,
-  name: string,
-  value: string,
-  envName: string,
-): Promise<void> {
+export async function createVariable(account: Account, repo: string, name: string, value: string, envName: string): Promise<void> {
   const res = await fetchWithAuth(`${url}/createVariable`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -266,13 +253,7 @@ export async function createVariable(
   if (!res.ok) throw new Error(`Failed to create variable "${name}": ${res.status}`);
 }
 
-export async function updateVariable(
-  account: Account,
-  repo: string,
-  name: string,
-  value: string,
-  envName: string,
-): Promise<void> {
+export async function updateVariable(account: Account, repo: string, name: string, value: string, envName: string): Promise<void> {
   const res = await fetchWithAuth(`${url}/updateVariable`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -300,7 +281,7 @@ export async function fetchStageReport(
   repo: string,
   envName: string,
   dir: string,
-  kind: "plan" | "deploy" | "build",
+  kind: "plan" | "deploy" | "build"
 ): Promise<StageReport | null> {
   const params = new URLSearchParams({
     owner: account.login,
@@ -327,11 +308,7 @@ export async function fetchEnv(account: Account, repo: string): Promise<Record<s
   return parse(data.content);
 }
 // TODO: getPlanEnv need to replace downloadArtifacts with downloadArtifactZip
-export async function getPlanEnv(
-  account: Account,
-  repo: string,
-  envId: number,
-): Promise<Record<string, string> | null> {
+export async function getPlanEnv(account: Account, repo: string, envId: number): Promise<Record<string, string> | null> {
   const params = new URLSearchParams({ artifacts_id: String(envId), owner: account.login, type: account.type, repo });
   const res = await fetchWithAuth(`${url}/downloadArtifacts?${params}`);
   if (!res.ok) return null;
@@ -357,13 +334,7 @@ export async function setOidcImmutableSubject(account: Account, repo: string): P
 
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 
-export async function triggerWorkflow(
-  account: Account,
-  repo: string,
-  workflowId: string,
-  githubEnvName: string,
-  ref: string,
-) {
+export async function triggerWorkflow(account: Account, repo: string, workflowId: string, githubEnvName: string, ref: string) {
   const res = await fetchWithAuth(`${url}/triggerActions`, {
     method: "POST",
     body: JSON.stringify({
@@ -379,13 +350,7 @@ export async function triggerWorkflow(
   return res.json();
 }
 
-export async function triggerWorkflowFromPR(
-  account: Account,
-  repo: string,
-  workflowId: string,
-  githubEnvName: string,
-  commitSha: string,
-) {
+export async function triggerWorkflowFromPR(account: Account, repo: string, workflowId: string, githubEnvName: string, commitSha: string) {
   const res = await fetchWithAuth(`${url}/triggerActions`, {
     method: "POST",
     body: JSON.stringify({
@@ -401,12 +366,7 @@ export async function triggerWorkflowFromPR(
   return res.json();
 }
 
-export async function fetchArtifactZip(
-  account: Account,
-  repo: string,
-  artifactId: number,
-  onProgress?: DownloadProgress,
-): Promise<Blob> {
+export async function fetchArtifactZip(account: Account, repo: string, artifactId: number, onProgress?: DownloadProgress): Promise<Blob> {
   const params = new URLSearchParams({
     artifacts_id: String(artifactId),
     owner: account.login,

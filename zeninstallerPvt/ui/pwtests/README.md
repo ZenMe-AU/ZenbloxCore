@@ -34,14 +34,20 @@ Then run the following test while showing the browser: /pwtests/corp-src/setup/g
 Run the following test while showing the browser and letting the user authenticate: /pwtests/corp-src/setup/github-backend-login.setup.ts
 
 ## Notes to AI:
-1. Always ask a human if they can be product owner and guide you through the steps.
-2. Keep testing patterns in alignment, if it's not clear ask a human which pattern should be standard accross the test files.
-3. When modifying tests, run Playwright with a headed browser and live terminal output (use `--reporter=line`) so that the human can follow the process. Do not open the HTML report during the run. Once the tests are confirmed working, headed mode is no longer needed.
-4. If an of the integration tests for a card fails, ask the product owner if it's ok to continue with updating the mock test. By default only update mock tests that match integration tests that passed. For integration tests that fail, only check for glaring differences and recommend the product owner to request an update to them if needed.
-5. When starting a new integration test, list the cards that are missing integration tests for the product owner to select which one to proceed with.
-6. When creating a new integration test, use the AzureSubscriptionCard.spec.ts integration test as the example test file but also check for standards from the other integration tests.
-7. When creating a new mock test, use the RepoDetail.spec.ts mock test as the example test file.
-8. The expected user interaction is the "Happy Path" in the example test file and the other tests separate from the Happy Path are considered edge cases.
-9. When creating the mock tests, follow the same structure as the existing integration tests with the Happy Path created first and then the edge case tests.
-10. For any test being created, add an expectSnapshot() at the start of the Happy Path and at the end of each test.step(). For edge cases, add an expectSnapshot() only at the end of the test.
+Refer to the AI agent guidance at [PlaywrightTest-developer.md](/agents/playwrightTest-developer.md)
 
+## Backend deployment card tests
+[BackendDeployCard integration tests](./corp-src/integration-tests/BackendDeployCard.spec.mts)
+reuse `pwtests-Desktop` and `pwtests-Mobile` with their existing `PROD` environment,
+Azure target, and relay connection variables. They require saved GitHub PAT and
+Azure sessions and an already configured Private Zeninstaller Environment.
+Missing configuration fails the test; it does not create repositories, save
+replacement variables, or provision infrastructure.
+Running the integration happy path triggers `buildBackend.yml` and may deploy
+backend code and update backend version settings on the existing Function App.
+The happy path is skipped unless `RUN_BACKEND_DEPLOY_INTEGRATION=true` is set.
+Enable it only with approval for those live changes.
+[BackendDeployCard mock tests](./corp-src/mock-tests/BackendDeployCard.spec.mts)
+simulate authentication, builds, artifact downloads, deployment, and version
+read-back. They also cover missing artifacts, build failures, upload recovery,
+and signed-out gating without contacting external services.
