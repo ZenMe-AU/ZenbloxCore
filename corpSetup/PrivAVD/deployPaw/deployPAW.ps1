@@ -150,6 +150,32 @@ try {
         & (Join-Path $scriptDirectory "importPAW.ps1")
     }
 
+    # --- Self-heal: subscription-scoped autoscale role assignment ---
+    # The autoscale role lives at subscription scope, so it SURVIVES resource
+    # group deletion. A fresh workspace (new HOST_POOL_NAME, or a
+    # delete-and-restart) then tries to create it again and Azure rejects the
+    # apply with 409 RoleAssignmentExists. Import the orphan before planning
+    # so the apply is a no-op instead of a collision. ARM-only lookup - this
+    # works even when the Graph token is dead (it usually is; the Graph token
+    # dies long before the ARM token does).
+    $currentState = @(terraform state list 2>$null)
+    if (-not ($currentState | Where-Object { $_ -match '^azurerm_role_assignment\.avd_power_management$' })) {
+        $roleDefId = az rest --method get --url "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Authorization/roleDefinitions?api-version=2022-04-01&`$filter=roleName eq 'Desktop Virtualization Power On Off Contributor'" --query 'value[0].id' -o tsv 2>$null
+        if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace("$roleDefId")) {
+            $assignmentsJson = az rest --method get --url "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&`$filter=atScope()" -o json 2>$null
+            if ($LASTEXITCODE -eq 0 -and "$assignmentsJson".Trim()) {
+                $existing = @("$assignmentsJson" | ConvertFrom-Json) | Where-Object { "$($_.properties.roleDefinitionId)" -eq "$roleDefId".Trim() }
+                if ($existing.Count -ge 1) {
+                    $orphanId = $existing[0].id
+                    Write-Host "Importing existing subscription-scope autoscale role assignment: $orphanId"
+                    terraform import -input=false azurerm_role_assignment.avd_power_management $orphanId
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-Host "WARNING: import of the autoscale role assignment failed; apply may fail with 409 RoleAssignmentExists."
+                    }
+                }
+            }
+        }
+    }
     terraform validate
     if ($LASTEXITCODE -ne 0) {
         throw "terraform validate failed with exit code $LASTEXITCODE."
