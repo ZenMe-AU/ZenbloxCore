@@ -14,7 +14,7 @@ import { AZURE_DNS_ZONES_URL, getAzureResourceUrl } from "../../logic/consoleUrl
 import { dnsZoneScope } from "../../api/azureArm";
 import { getRootResourceGroupName } from "../../logic/naming";
 import { getVariableDisplayName } from "../../logic/variables";
-import { MONO as mono, labelSx } from "../../config/styles";
+import { UI_FONT as uiFont, labelSx } from "../../config/styles";
 import { DNS_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
@@ -125,10 +125,10 @@ export default function CreateDomainCard({
         {checkingStatus && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
             <CircularProgress size={12} />
-            <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", ...mono }}>Checking whether this domain is already set up...</Typography>
+            <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", ...uiFont }}>Checking whether this domain is already set up...</Typography>
           </Box>
         )}
-        {checkStatusError && <Typography sx={{ fontSize: "0.68rem", color: "#d97706", ...mono }}>Couldn't check existing setup: {checkStatusError}</Typography>}
+        {checkStatusError && <Typography sx={{ fontSize: "0.68rem", color: "#d97706", ...uiFont }}>Couldn't check existing setup: {checkStatusError}</Typography>}
         {/* Planned resources */}
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -139,7 +139,7 @@ export default function CreateDomainCard({
                   ["DNS zone", dnsName],
                   ["Custom domain", dnsName],
                 ].map(([label, value]) => (
-                  <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+                  <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
                     {label}:{" "}
                     <Box component="span" sx={{ color: "#0f172a" }}>
                       {value}
@@ -157,7 +157,7 @@ export default function CreateDomainCard({
                 alignSelf: "flex-start",
                 background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                 textTransform: "none",
-                ...mono,
+                ...uiFont,
                 fontSize: "0.85rem",
                 py: 0.85,
                 px: 2.5,
@@ -186,7 +186,7 @@ export default function CreateDomainCard({
                   alignSelf: "flex-start",
                   mt: 0.5,
                   textTransform: "none",
-                  ...mono,
+                  ...uiFont,
                   fontSize: "0.72rem",
                   color: "#64748b",
                   "&:hover": { color: "#2563eb" },
@@ -202,7 +202,7 @@ export default function CreateDomainCard({
             <Typography sx={{ ...labelSx, mb: 0.75 }}>Verified domains in this tenant</Typography>
             <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
               {verifiedDomains.map((d) => (
-                <Typography key={d.name} sx={{ fontSize: "0.75rem", color: "#0f172a", ...mono }}>
+                <Typography key={d.name} sx={{ fontSize: "0.75rem", color: "#0f172a", ...uiFont }}>
                   {d.name}
                   {d.isDefault && (
                     <Box component="span" sx={{ color: "#64748b" }}>
@@ -243,7 +243,7 @@ export default function CreateDomainCard({
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
               {nameServers.map((ns) => (
-                <Typography key={ns} sx={{ fontSize: "0.75rem", color: "#1e3a8a", ...mono }}>
+                <Typography key={ns} sx={{ fontSize: "0.75rem", color: "#1e3a8a", ...uiFont }}>
                   {ns}
                 </Typography>
               ))}
@@ -270,7 +270,7 @@ export default function CreateDomainCard({
                     startIcon={verifying ? <CircularProgress size={12} /> : undefined}
                     sx={{
                       textTransform: "none",
-                      ...mono,
+                      ...uiFont,
                       fontSize: "0.78rem",
                       borderColor: "#bfdbfe",
                       color: "#1d4ed8",

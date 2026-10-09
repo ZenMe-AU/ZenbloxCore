@@ -75,7 +75,7 @@ export default function EnvDetail({
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography sx={{ fontSize: "0.78rem", color: "#64748b", lineHeight: 1.6 }}>
           Pick the environment to configure.{" "}
-          <Box component="span" sx={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
+          <Box component="span" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
             {validEnvs.join(", ")}
           </Box>{" "}
           are set up separately — everything below applies to the one you pick.
@@ -106,10 +106,10 @@ export default function EnvDetail({
         {loading ? (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <CircularProgress size={14} sx={{ color: "#cbd5e1" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>Loading environments...</Typography>
+            <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8" }}>Loading environments...</Typography>
           </Box>
         ) : filteredEnvs.length === 0 ? (
-          <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>
+          <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8" }}>
             No environment found, create one manually on GitHub.
           </Typography>
         ) : (
@@ -132,7 +132,7 @@ export default function EnvDetail({
                     background: isSelected ? "#2563eb" : "#ffffff",
                     color: isSelected ? "#ffffff" : "#475569",
                     fontSize: "0.82rem",
-                    fontFamily: "'IBM Plex Mono', monospace",
+                    fontFamily: "monospace",
                     fontWeight: isSelected ? 700 : 400,
                     cursor: lockedByPR ? "default" : "pointer",
                     userSelect: "none",
@@ -148,7 +148,7 @@ export default function EnvDetail({
                   {isSelected && lockedByPR && <LockIcon sx={{ fontSize: 13 }} />}
                   {env.name}
                   {isSelected && lockedByPR && (
-                    <Typography component="span" sx={{ fontSize: "0.65rem", fontFamily: "'IBM Plex Mono', monospace", opacity: 0.75, ml: 0.25 }}>
+                    <Typography component="span" sx={{ fontSize: "0.65rem", opacity: 0.75, ml: 0.25 }}>
                       from PR
                     </Typography>
                   )}
@@ -168,7 +168,6 @@ export default function EnvDetail({
               fontSize: "0.7rem",
               color: "#64748b",
               textTransform: "none",
-              fontFamily: "'IBM Plex Mono', monospace",
               "&:hover": { color: "#0f172a" },
             }}
           >

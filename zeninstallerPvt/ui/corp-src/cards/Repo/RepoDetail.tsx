@@ -52,7 +52,7 @@ function TemplateBadge({ status }: { status: TemplateStatus }) {
         border: `1px solid ${cfg.color}44`,
         color: cfg.color,
         fontSize: "0.72rem",
-        fontFamily: "'IBM Plex Mono', monospace",
+        fontFamily: "monospace",
         fontWeight: 600,
         whiteSpace: "nowrap",
       }}
@@ -69,7 +69,7 @@ const inputSx = {
   "& .MuiInputBase-root": {
     background: "#f8fafc",
     color: "#0f172a",
-    fontFamily: "'IBM Plex Mono', monospace",
+    fontFamily: "monospace",
     fontSize: "0.8rem",
     borderRadius: "6px",
   },
@@ -81,7 +81,7 @@ const inputSx = {
 const selectSx = {
   background: "#f8fafc",
   color: "#0f172a",
-  fontFamily: "'IBM Plex Mono', monospace",
+  fontFamily: "monospace",
   fontSize: "0.8rem",
   "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
   "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
@@ -199,7 +199,7 @@ export default function RepoDetail({
           sx={{ minWidth: 180, ...selectSx }}
         >
           {accounts.map((acc) => (
-            <MenuItem key={acc.id} value={String(acc.id)} sx={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem", color: "#0f172a" }}>
+            <MenuItem key={acc.id} value={String(acc.id)} sx={{ fontFamily: "monospace", fontSize: "0.82rem", color: "#0f172a" }}>
               <Box data-sensitive="true" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 {acc.type === "User" ? <PersonIcon sx={{ fontSize: 16, color: "#64748b" }} /> : <BusinessIcon sx={{ fontSize: 16, color: "#64748b" }} />}
                 {acc.login}
@@ -240,7 +240,7 @@ export default function RepoDetail({
             getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
             isOptionEqualToValue={(o, v) => o.name === v.name}
             renderOption={({ key, ...props }, option) => (
-              <Box key={key} component="li" {...props} sx={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.82rem" }}>
+              <Box key={key} component="li" {...props} sx={{ fontFamily: "monospace", fontSize: "0.82rem" }}>
                 {option.isNew ? (
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "#2563eb" }}>
                     <AddIcon sx={{ fontSize: 16 }} />
@@ -282,7 +282,7 @@ export default function RepoDetail({
           <TemplateBadge status={templateStatus} />
           {templateName && (
             <>
-              <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>origin template:</Typography>
+              <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8" }}>origin template:</Typography>
               <Box
                 sx={{
                   px: 1,
@@ -291,7 +291,7 @@ export default function RepoDetail({
                   background: "#f1f5f9",
                   border: "1px solid #e2e8f0",
                   fontSize: "0.68rem",
-                  fontFamily: "'IBM Plex Mono', monospace",
+                  fontFamily: "monospace",
                   color: "#64748b",
                 }}
               >
@@ -318,7 +318,7 @@ export default function RepoDetail({
           <WarningAmberIcon sx={{ fontSize: 16, color: "#ea580c", flexShrink: 0 }} />
           <Typography sx={{ fontSize: "0.78rem", color: "#ea580c" }}>
             This repo is not a clone of the template. Only repos cloned from{" "}
-            <Box component="span" sx={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
+            <Box component="span" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
               {defaultTemplateRepo}
             </Box>{" "}
             can be used.
@@ -330,8 +330,8 @@ export default function RepoDetail({
       <Collapse in={isNewRepo} sx={{ display: isNewRepo ? "block" : "none" }}>
         <Box sx={{ p: 2.5, border: "1px solid #bfdbfe", borderRadius: "10px", background: "#eff6ff" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2.5 }}>
-            <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", fontFamily: "'IBM Plex Mono', monospace" }}>Clone from template</Typography>
-            <Typography sx={{ fontSize: "0.75rem", color: "#2563eb", fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600 }}>
+            <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8" }}>Clone from template</Typography>
+            <Typography sx={{ fontSize: "0.75rem", color: "#2563eb", fontFamily: "monospace", fontWeight: 600 }}>
               {defaultTemplateRepo}
             </Typography>
           </Box>
@@ -346,7 +346,7 @@ export default function RepoDetail({
                   sx={{ "& .Mui-checked + .MuiSwitch-track": { background: "#93c5fd" } }}
                 />
               }
-              label={<Typography sx={{ fontSize: "0.78rem", color: "#475569", fontFamily: "'IBM Plex Mono', monospace" }}>Private</Typography>}
+              label={<Typography sx={{ fontSize: "0.78rem", color: "#475569" }}>Private</Typography>}
             />
             <FormControlLabel
               control={
@@ -359,7 +359,7 @@ export default function RepoDetail({
               }
               label={
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography sx={{ fontSize: "0.78rem", color: "#475569", fontFamily: "'IBM Plex Mono', monospace" }}>Clone all branches</Typography>
+                  <Typography sx={{ fontSize: "0.78rem", color: "#475569" }}>Clone all branches</Typography>
                   <Tooltip title="When enabled, all branches from the template will be copied. Otherwise only the default branch is cloned.">
                     <InfoOutlinedIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
                   </Tooltip>
@@ -378,7 +378,7 @@ export default function RepoDetail({
               }
               label={
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography sx={{ fontSize: "0.78rem", color: "#475569", fontFamily: "'IBM Plex Mono', monospace" }}>Create environments</Typography>
+                  <Typography sx={{ fontSize: "0.78rem", color: "#475569" }}>Create environments</Typography>
                   <Tooltip title="Automatically creates PROD and TEST GitHub environments in the new repo.">
                     <InfoOutlinedIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
                   </Tooltip>
@@ -428,7 +428,7 @@ export default function RepoDetail({
             size="small"
             sx={{
               background: "#2563eb",
-              fontFamily: "'IBM Plex Mono', monospace",
+              fontFamily: "monospace",
               fontSize: "0.8rem",
               textTransform: "none",
               py: 0.75,

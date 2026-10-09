@@ -8,8 +8,9 @@
  * component files that each redeclared their own identical copies.
  */
 
-// IBM Plex Mono font family — by far the most-repeated inline style in corp-src.
-export const MONO = { fontFamily: "'IBM Plex Mono', monospace" } as const;
+// Shared face for ordinary interface text.
+export const UI_FONT = { fontFamily: "sans-serif, Arial" } as const;
+export const MONO_FONT = { fontFamily: "monospace" } as const;
 
 // Slim "Refresh" text button used by every card that re-fetches remote state.
 export const refreshBtnSx = {
@@ -17,7 +18,7 @@ export const refreshBtnSx = {
   color: "#94a3b8",
   fontSize: "0.72rem",
   textTransform: "none" as const,
-  ...MONO,
+  ...UI_FONT,
   "&:hover": { color: "#475569" },
 };
 
@@ -27,7 +28,7 @@ export const labelSx = {
   color: "#94a3b8",
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
-  ...MONO,
+  ...UI_FONT,
 };
 
 /*
@@ -40,5 +41,5 @@ export const sectionLabelSx = {
   color: "#0f172a",
   textTransform: "uppercase" as const,
   letterSpacing: "0.1em",
-  ...MONO,
+  ...UI_FONT,
 };

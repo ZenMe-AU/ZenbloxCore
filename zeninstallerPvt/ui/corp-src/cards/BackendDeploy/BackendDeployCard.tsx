@@ -11,7 +11,7 @@ import StepRow from "../StepRow";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
-import { MONO as mono, labelSx } from "../../config/styles";
+import { UI_FONT as uiFont, labelSx } from "../../config/styles";
 import type { CardChrome } from "../../types";
 
 const when = (unixSeconds: number) => new Date(unixSeconds * 1000).toLocaleString();
@@ -39,7 +39,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.6 }}>
           Builds the Zeninstaller backend in GitHub Actions, then pushes the package straight from this browser to{" "}
-          <Box component="span" sx={mono}>
+          <Box component="span" sx={uiFont}>
             {appName || "the Function App"}
           </Box>
           .
@@ -48,13 +48,13 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
         <Box>
           <Typography sx={{ ...labelSx, mb: 0.75 }}>Versions</Typography>
           <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
-            <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+            <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
               Latest build:{" "}
               <Box component="span" sx={{ color: "#0f172a" }}>
                 {loadingLatest ? "checking..." : latest ? `${latest.sha.slice(0, 7)} · ${when(latest.builtAt)}` : "none yet"}
               </Box>
             </Typography>
-            <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+            <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
               Live on the app:{" "}
               <Box component="span" sx={{ color: "#0f172a" }}>
                 {loadingDeployed
@@ -81,7 +81,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
             size="small"
             sx={{
               textTransform: "none",
-              ...mono,
+              ...uiFont,
               fontSize: "0.75rem",
               borderColor: "#bfdbfe",
               color: "#1d4ed8",
@@ -104,7 +104,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
             size="small"
             sx={{
               background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-              ...mono,
+              ...uiFont,
               fontSize: "0.75rem",
               textTransform: "none",
               "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
@@ -125,14 +125,14 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           {!loadingLatest && latest && !updateAvailable && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...mono }}>The Function App is running the latest build.</Typography>
+              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...uiFont }}>The Function App is running the latest build.</Typography>
             </Box>
           )}
 
           {!loadingLatest && updateAvailable && deployed && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>Ready to deploy the new build</Typography>
+              <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...uiFont }}>Ready to deploy the new build</Typography>
             </Box>
           )}
         </Box>

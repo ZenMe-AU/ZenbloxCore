@@ -16,7 +16,7 @@ import { CLOUD_DOCS } from "./docsConfig";
 import type { UseAwsLoginCard } from "./useAwsLoginCard";
 import type { CardChrome } from "../../types";
 
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+const uiFont = { fontFamily: "sans-serif, Arial" };
 type Props = {
   card: CardChrome;
   awsLogin: UseAwsLoginCard;
@@ -128,7 +128,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                   placeholder="AKIA..."
                   disabled={!!account || loggingIn || card.locked}
                   sx={{ maxWidth: 340 }}
-                  InputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                  InputProps={{ style: { fontFamily: "monospace", fontSize: "0.8rem" } }}
                 />
                 <TextField
                   size="small"
@@ -141,7 +141,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                   disabled={!!account || loggingIn || card.locked}
                   sx={{ maxWidth: 340 }}
                   InputProps={{
-                    style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" },
+                    style: { fontFamily: "monospace", fontSize: "0.8rem" },
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton size="small" type="button" onClick={() => setShowSecret((v) => !v)} edge="end" tabIndex={-1}>
@@ -160,10 +160,10 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
               {done ? "Signed in as " : "Authenticating as "}
-              <Box component="span" sx={{ fontWeight: 600, ...mono }}>
+              <Box component="span" sx={{ fontWeight: 600, ...uiFont }}>
                 {account.username}
               </Box>
-              <Box component="span" sx={mono}>
+              <Box component="span" sx={uiFont}>
                 {" "}
                 ({account.accountId})
               </Box>
@@ -176,7 +176,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                 fontSize: "0.68rem",
                 color: "#94a3b8",
                 textTransform: "none",
-                ...mono,
+                ...uiFont,
                 py: 0.25,
                 "&:hover": { color: "#ef4444" },
               }}
@@ -197,10 +197,10 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                 onChange={(e) => setSelectedMfaSerial(e.target.value)}
                 helperText="Pick the device you have on hand"
                 sx={{ maxWidth: 280 }}
-                InputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                InputProps={{ style: { fontFamily: "monospace", fontSize: "0.8rem" } }}
               >
                 {usableDevices.map((d) => (
-                  <MenuItem key={d.serialNumber} value={d.serialNumber} sx={{ fontSize: "0.8rem", ...mono }}>
+                  <MenuItem key={d.serialNumber} value={d.serialNumber} sx={{ fontSize: "0.8rem", ...uiFont }}>
                     {d.name}
                   </MenuItem>
                 ))}
@@ -219,7 +219,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
               helperText={usableDevices.length > 1 ? "Code from the selected device" : `Code from ${usableDevices[0]?.name ?? "your MFA device"}`}
               inputProps={{
                 maxLength: 6,
-                style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem", letterSpacing: "0.2em" },
+                style: { fontFamily: "monospace", fontSize: "0.8rem", letterSpacing: "0.2em" },
               }}
               sx={{ maxWidth: 160 }}
             />
@@ -247,7 +247,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                 alignSelf: "flex-start",
                 background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                 textTransform: "none",
-                ...mono,
+                ...uiFont,
                 fontSize: "0.85rem",
                 py: 1,
                 px: 2.5,

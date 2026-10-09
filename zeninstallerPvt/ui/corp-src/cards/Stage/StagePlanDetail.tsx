@@ -7,7 +7,7 @@ import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/materia
 import { ACTION_CONFIG } from "./stageConfig";
 import { getActionType } from "../../logic/stage";
 import type { PlanItem, PlanSummary } from "../../types";
-import { MONO as mono } from "../../config/styles";
+import { MONO_FONT, UI_FONT as uiFont } from "../../config/styles";
 
 function SummaryPill({ label, count, color }: { label: string; count: number; color: string }) {
   return (
@@ -19,7 +19,7 @@ function SummaryPill({ label, count, color }: { label: string; count: number; co
         border: `1px solid ${color}33`,
         color,
         fontSize: "0.65rem",
-        ...mono,
+        ...uiFont,
       }}
     >
       {label} {count}
@@ -40,7 +40,7 @@ function BehindPill({ planSha, latestSha }: { planSha?: string; latestSha?: stri
           background: "#d977060d",
           color: "#d97706",
           fontSize: "0.65rem",
-          ...mono,
+          ...uiFont,
           textTransform: "none",
           letterSpacing: 0,
           cursor: "default",
@@ -61,7 +61,7 @@ function DeployButton({ onDeploy, disabled }: { onDeploy: () => void; disabled?:
       onClick={() => void onDeploy()}
       sx={{
         background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-        ...mono,
+        ...uiFont,
         fontSize: "0.72rem",
         textTransform: "none",
         py: 0.45,
@@ -100,12 +100,12 @@ export default function StagePlanDetail({
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 1 }}>
         <CircularProgress size={13} sx={{ color: "#cbd5e1" }} />
-        <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", ...mono }}>Loading plan...</Typography>
+        <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", ...uiFont }}>Loading plan...</Typography>
       </Box>
     );
   }
 
-  if (error) return <Typography sx={{ fontSize: "0.75rem", color: "#ef4444", ...mono }}>{error}</Typography>;
+  if (error) return <Typography sx={{ fontSize: "0.75rem", color: "#ef4444", ...uiFont }}>{error}</Typography>;
 
   const hasChanges = summary.create + summary.update + summary.delete + summary.replace > 0;
 
@@ -116,7 +116,7 @@ export default function StagePlanDetail({
           sx={{
             fontSize: "0.68rem",
             color: "#94a3b8",
-            ...mono,
+            ...uiFont,
             letterSpacing: "0.08em",
             textTransform: "uppercase",
           }}
@@ -143,7 +143,7 @@ export default function StagePlanDetail({
               {summary.replace > 0 && <SummaryPill label="replace" count={summary.replace} color="#7c3aed" />}
             </>
           ) : (
-            <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...mono }}>No changes detected.</Typography>
+            <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...uiFont }}>No changes detected.</Typography>
           )}
         </Box>
         {onDeploy && <DeployButton onDeploy={onDeploy} disabled={stagesStale} />}
@@ -167,8 +167,8 @@ export default function StagePlanDetail({
                   background: idx % 2 === 0 ? "#ffffff" : "#fafafa",
                 }}
               >
-                <Box sx={{ width: 26, color: cfg.color, fontSize: "0.72rem", fontWeight: 700, ...mono, flexShrink: 0 }}>{cfg.symbol}</Box>
-                <Typography sx={{ fontSize: "0.75rem", color: "#334155", wordBreak: "break-all", ...mono }}>{item.address}</Typography>
+                <Box sx={{ width: 26, color: cfg.color, fontSize: "0.72rem", fontWeight: 700, ...uiFont, flexShrink: 0 }}>{cfg.symbol}</Box>
+                <Typography sx={{ fontSize: "0.75rem", color: "#334155", wordBreak: "break-all", ...MONO_FONT }}>{item.address}</Typography>
               </Box>
             );
           })}

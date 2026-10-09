@@ -19,7 +19,7 @@ const inputSx = {
   "& .MuiInputBase-root": {
     background: "#f8fafc",
     color: "#0f172a",
-    fontFamily: "'IBM Plex Mono', monospace",
+    fontFamily: "monospace",
     fontSize: "0.78rem",
     borderRadius: "6px",
   },
@@ -83,7 +83,7 @@ function VariableRow({
         <Typography
           sx={{
             fontSize: "0.78rem",
-            fontFamily: "'IBM Plex Mono', monospace",
+            fontFamily: "monospace",
             color: isDirty ? "#92400e" : "#0f172a",
             whiteSpace: "nowrap",
           }}
@@ -149,7 +149,7 @@ function VariableRow({
               background: "#fffbeb",
               border: "1px solid #fde68a",
               fontSize: "0.62rem",
-              fontFamily: "'IBM Plex Mono', monospace",
+              fontFamily: "monospace",
               color: "#b45309",
               flexShrink: 0,
               cursor: "help",
@@ -168,7 +168,7 @@ function VariableRow({
       )}
 
       {isSuccess && (
-        <Typography sx={{ fontSize: "0.62rem", color: "#16a34a", fontFamily: "'IBM Plex Mono', monospace", whiteSpace: "nowrap" }}>just updated</Typography>
+        <Typography sx={{ fontSize: "0.62rem", color: "#16a34a", whiteSpace: "nowrap" }}>just updated</Typography>
       )}
 
       {!isDirty && !isSuccess && !isError && validStatus === true && (
@@ -183,7 +183,7 @@ function VariableRow({
             background: "#f0fdf4",
             border: "1px solid #bbf7d0",
             fontSize: "0.62rem",
-            fontFamily: "'IBM Plex Mono', monospace",
+            fontFamily: "monospace",
             color: "#16a34a",
             flexShrink: 0,
           }}
@@ -205,7 +205,7 @@ function VariableRow({
             background: "#fef2f2",
             border: "1px solid #fecaca",
             fontSize: "0.62rem",
-            fontFamily: "'IBM Plex Mono', monospace",
+            fontFamily: "monospace",
             color: "#ef4444",
             flexShrink: 0,
           }}

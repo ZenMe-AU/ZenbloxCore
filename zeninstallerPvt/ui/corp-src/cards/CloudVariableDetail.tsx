@@ -14,7 +14,7 @@ import RefreshButton from "../components/RefreshButton";
 import SaveButton from "../components/SaveButton";
 import { useVariableEditor } from "../hooks/util/useVariableEditor";
 import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
-import { MONO as mono, sectionLabelSx } from "../config/styles";
+import { UI_FONT as uiFont, sectionLabelSx } from "../config/styles";
 
 type Props = {
   account: Account | null;
@@ -171,7 +171,7 @@ export default function CloudVariableDetail({
               fontSize: "0.7rem",
               color: "#64748b",
               textTransform: "none",
-              ...mono,
+              ...uiFont,
               "&:hover": { color: "#0f172a" },
             }}
           >

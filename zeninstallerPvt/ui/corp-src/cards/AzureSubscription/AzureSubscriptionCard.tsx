@@ -17,7 +17,7 @@ import CloudVariableDetail from "../CloudVariableDetail";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
-import { MONO as mono, labelSx } from "../../config/styles";
+import { UI_FONT as uiFont, labelSx } from "../../config/styles";
 
 type Props = {
   card: CardChrome;
@@ -112,7 +112,7 @@ export default function AzureSubscriptionCard({
               fontSize: "0.68rem",
               color: "#2563eb",
               textTransform: "none",
-              ...mono,
+              ...uiFont,
               py: 0,
               px: 0.5,
               "&:hover": { textDecoration: "underline" },
@@ -137,23 +137,23 @@ export default function AzureSubscriptionCard({
               }}
               displayEmpty
               renderValue={(v) => {
-                if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>Select a subscription</Typography>;
+                if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...uiFont }}>Select a subscription</Typography>;
                 const name = subscriptionOptions.find((s) => s.id === v)?.displayName ?? v;
                 return (
-                  <Typography data-sensitive="true" sx={{ fontSize: "0.8rem", ...mono }}>
+                  <Typography data-sensitive="true" sx={{ fontSize: "0.8rem", ...uiFont }}>
                     {name}
                   </Typography>
                 );
               }}
-              sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
+              sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...uiFont }}
             >
               {subscriptionOptions.map((s) => (
                 <MenuItem key={s.id} value={s.id} sx={{ py: 0.75 }}>
                   <Box>
-                    <Typography data-sensitive="true" sx={{ fontSize: "0.8rem", ...mono }}>
+                    <Typography data-sensitive="true" sx={{ fontSize: "0.8rem", ...uiFont }}>
                       {s.displayName}
                     </Typography>
-                    <Typography data-sensitive="true" sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>
+                    <Typography data-sensitive="true" sx={{ fontSize: "0.68rem", color: "#94a3b8", ...uiFont }}>
                       {s.id}
                     </Typography>
                   </Box>
@@ -168,7 +168,7 @@ export default function AzureSubscriptionCard({
           ) : (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <CircularProgress size={12} sx={{ color: "#cbd5e1" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", ...mono }}>Loading subscriptions...</Typography>
+              <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", ...uiFont }}>Loading subscriptions...</Typography>
             </Box>
           )}
         </Box>

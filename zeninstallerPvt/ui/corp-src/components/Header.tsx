@@ -29,7 +29,6 @@ export default function Header() {
           fontSize: "0.7rem",
           fontWeight: 800,
           color: "#fff",
-          fontFamily: "'IBM Plex Mono', monospace",
         }}
       >
         ZB

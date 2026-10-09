@@ -6,7 +6,7 @@
 import { Box, Button, CircularProgress, MenuItem, Select, TextField, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { CLOUD_DOCS } from "./config";
-import { MONO as mono, labelSx } from "../../config/styles";
+import { UI_FONT as uiFont, labelSx } from "../../config/styles";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getEntraOverviewUrl } from "../../logic/consoleUrls";
@@ -85,7 +85,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                     alignSelf: "flex-start",
                     background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                     textTransform: "none",
-                    ...mono,
+                    ...uiFont,
                     fontSize: "0.85rem",
                     py: 1,
                     px: 2.5,
@@ -128,7 +128,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
                 Signed in as{" "}
-                <Box component="span" data-sensitive="true" data-id="txtAzureUsername" sx={{ fontWeight: 600, ...mono }}>
+                <Box component="span" data-sensitive="true" data-id="txtAzureUsername" sx={{ fontWeight: 600, ...uiFont }}>
                   {azureAccount.username}
                 </Box>
               </Typography>
@@ -140,7 +140,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                   fontSize: "0.68rem",
                   color: "#94a3b8",
                   textTransform: "none",
-                  ...mono,
+                  ...uiFont,
                   py: 0.25,
                   "&:hover": { color: "#ef4444" },
                 }}
@@ -182,7 +182,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
               {!tenantsLoaded ? (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
                   <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
-                  <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", ...mono }}>Loading tenants...</Typography>
+                  <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", ...uiFont }}>Loading tenants...</Typography>
                 </Box>
               ) : tenants.length > 0 ? (
                 // Fetched (or MSA-fallback) list available — plain dropdown, picking loads that tenant immediately.
@@ -194,10 +194,10 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                   onChange={(e) => selectTenant(e.target.value)}
                   displayEmpty
                   renderValue={(v) => {
-                    if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>Select a tenant</Typography>;
-                    return <Typography sx={{ fontSize: "0.8rem", ...mono }}>{tenantDisplayName(tenants, v)}</Typography>;
+                    if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...uiFont }}>Select a tenant</Typography>;
+                    return <Typography sx={{ fontSize: "0.8rem", ...uiFont }}>{tenantDisplayName(tenants, v)}</Typography>;
                   }}
-                  sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
+                  sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...uiFont }}
                 >
                   {tenants.map((t) => (
                     <MenuItem
@@ -209,8 +209,8 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                       data-tenant-name={t.displayName}
                     >
                       <Box>
-                        <Typography sx={{ fontSize: "0.8rem", ...mono }}>{t.displayName}</Typography>
-                        <Typography data-sensitive="true" sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>
+                        <Typography sx={{ fontSize: "0.8rem", ...uiFont }}>{t.displayName}</Typography>
+                        <Typography data-sensitive="true" sx={{ fontSize: "0.68rem", color: "#94a3b8", ...uiFont }}>
                           {t.tenantId}
                         </Typography>
                       </Box>
@@ -236,7 +236,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                     value={manualTenantId}
                     onChange={(e) => setManualTenantId(e.target.value)}
                     sx={{ minWidth: { xs: 0, sm: 320 }, width: "100%" }}
-                    inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                    inputProps={{ style: { fontFamily: "monospace", fontSize: "0.8rem" } }}
                   />
                   <Button
                     variant="contained"
@@ -246,7 +246,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                     sx={{
                       background: "#2563eb",
                       textTransform: "none",
-                      ...mono,
+                      ...uiFont,
                       fontSize: "0.78rem",
                       "&:hover": { background: "#1d4ed8" },
                     }}

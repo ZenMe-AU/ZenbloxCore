@@ -21,7 +21,7 @@ function showPageError() {
   const root = document.getElementById("root");
   if (root && root.childElementCount === 0) {
     root.innerHTML =
-      '<div style="padding:32px;font-family:sans-serif;color:#b91c1c;text-align:center">' +
+      '<div style="padding:32px;font-family:sans-serif,Arial;color:#b91c1c;text-align:center">' +
       "Something went wrong while loading — please refresh the page." +
       "</div>";
   }

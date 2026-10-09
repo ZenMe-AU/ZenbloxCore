@@ -12,7 +12,7 @@ import "@xterm/xterm/css/xterm.css";
 import type { UseRemoteTerminal } from "./useRemoteTerminal";
 import type { Cloud, TerminalStatus } from "../../logic/remoteTerminal";
 import { stageLabel } from "../../config/remoteTerminal";
-import { MONO as mono } from "../../config/styles";
+import { MONO_FONT } from "../../config/styles";
 import { TERMINAL_COLORS } from "../../config/remoteTerminal";
 
 const STATUS_COLOR: Record<TerminalStatus, string> = {
@@ -45,7 +45,7 @@ const darkBtnSx = {
   background: TERMINAL_COLORS.border,
   color: TERMINAL_COLORS.text,
   border: `1px solid #45475a`,
-  ...mono,
+  ...MONO_FONT,
   fontSize: "0.7rem",
   textTransform: "none" as const,
   py: 0.4,
@@ -82,7 +82,7 @@ function StatusBar({ session }: { session: UseRemoteTerminal }) {
           "@keyframes pulse": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0.3 } },
         }}
       />
-      <Typography sx={{ fontSize: "0.72rem", color: TERMINAL_COLORS.text, fontWeight: 600, ...mono }}>{text}</Typography>
+      <Typography sx={{ fontSize: "0.72rem", color: TERMINAL_COLORS.text, fontWeight: 600, ...MONO_FONT }}>{text}</Typography>
       {session.stage && (
         <Typography
           sx={{
@@ -92,14 +92,14 @@ function StatusBar({ session }: { session: UseRemoteTerminal }) {
             px: 0.75,
             py: 0.15,
             borderRadius: "4px",
-            ...mono,
+            ...MONO_FONT,
           }}
         >
           {stageLabel(session.stage)}
         </Typography>
       )}
       {session.sessionId && (
-        <Typography sx={{ fontSize: "0.65rem", color: TERMINAL_COLORS.muted, ml: "auto", ...mono }}>{session.sessionId.slice(0, 8)}</Typography>
+        <Typography sx={{ fontSize: "0.65rem", color: TERMINAL_COLORS.muted, ml: "auto", ...MONO_FONT }}>{session.sessionId.slice(0, 8)}</Typography>
       )}
       {/* Gone once the session is over — the panel stays, but there is nothing left to end. */}
       {session.status !== "closed" && session.status !== "idle" && (
@@ -136,7 +136,7 @@ function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code
         textAlign: "center",
       }}
     >
-      <Typography sx={{ fontSize: "0.72rem", color: TERMINAL_COLORS.accent, fontWeight: 600, mb: 1, ...mono }}>
+      <Typography sx={{ fontSize: "0.72rem", color: TERMINAL_COLORS.accent, fontWeight: 600, mb: 1, ...MONO_FONT }}>
         {cloud === "aws" ? "AWS Console Sign-In" : "Azure Device Code Login"}
       </Typography>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
@@ -152,7 +152,7 @@ function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code
                 px: 1.5,
                 py: 0.5,
                 borderRadius: "6px",
-                ...mono,
+                ...MONO_FONT,
               }}
             >
               {code}
@@ -179,7 +179,7 @@ function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code
           {cloud === "aws" ? "Open AWS Sign-In" : "Open Microsoft Device Login"}
         </Button>
       </Box>
-      <Typography sx={{ fontSize: "0.65rem", color: TERMINAL_COLORS.muted, mt: 1, ...mono }}>
+      <Typography sx={{ fontSize: "0.65rem", color: TERMINAL_COLORS.muted, mt: 1, ...MONO_FONT }}>
         {cloud === "aws"
           ? "Sign in, then paste the authorization code it gives you into the terminal below."
           : "Enter the code on the Microsoft page — it cannot be pre-filled from the link."}
@@ -231,7 +231,7 @@ export default function RemoteTerminal({ session }: { session: UseRemoteTerminal
             px: 1.5,
             py: 0.875,
             textAlign: "center",
-            ...mono,
+            ...MONO_FONT,
           }}
         >
           {session.loggedIn.map((c) => CLOUD_NAME[c]).join(" and ")} sign-in completed.
@@ -245,7 +245,7 @@ export default function RemoteTerminal({ session }: { session: UseRemoteTerminal
             px: 1.5,
             py: 0.75,
             borderBottom: `1px solid ${TERMINAL_COLORS.border}`,
-            ...mono,
+            ...MONO_FONT,
           }}
         >
           {session.error}

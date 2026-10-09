@@ -13,7 +13,7 @@ import Card from "../../components/Card";
 import CopyRow from "../../components/CopyRow";
 import ViewLink from "../../components/ViewLink";
 import { getEntraUsersUrl } from "../../logic/consoleUrls";
-import { MONO as mono } from "../../config/styles";
+import { UI_FONT as uiFont } from "../../config/styles";
 
 const COMPLETED_USERS_KEY = "zeninstaller_corp_access_pass_completed_users";
 const DELIVERY_CONFIRMED_USERS_KEY = "zeninstaller_corp_access_pass_delivery_confirmed_users";
@@ -198,12 +198,12 @@ export default function AccessPassCard({ card, accessPass }: Props) {
             gap: 1.25,
           }}
         >
-          <Typography sx={{ fontSize: "0.78rem", color: "#0f172a", ...mono, fontWeight: 600 }}>Select Entra user</Typography>
+          <Typography sx={{ fontSize: "0.78rem", color: "#0f172a", ...uiFont, fontWeight: 600 }}>Select Entra user</Typography>
           <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexDirection: "column", width: "100%" }}>
             {managerUsersLoading && (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress size={14} sx={{ color: "#2563eb" }} />
-                <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>Loading users...</Typography>
+                <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...uiFont }}>Loading users...</Typography>
               </Box>
             )}
 
@@ -220,9 +220,9 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                 <Table size="small" sx={{ minWidth: 640 }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>Name</TableCell>
-                      <TableCell sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>UPN</TableCell>
-                      <TableCell align="right" sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>
+                      <TableCell sx={{ ...uiFont, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>Name</TableCell>
+                      <TableCell sx={{ ...uiFont, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>UPN</TableCell>
+                      <TableCell align="right" sx={{ ...uiFont, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>
                         {" "}
                         Action{" "}
                       </TableCell>
@@ -243,7 +243,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                           <TableRow sx={rowHighlightSx}>
                             <TableCell
                               sx={{
-                                ...mono,
+                                ...uiFont,
                                 fontSize: "0.76rem",
                                 color: "#334155",
                                 ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : {}),
@@ -254,7 +254,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                             <TableCell
                               data-sensitive="true"
                               sx={{
-                                ...mono,
+                                ...uiFont,
                                 fontSize: "0.72rem",
                                 color: "#64748b",
                                 ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : {}),
@@ -283,7 +283,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     disabled={disabled || running || (showingConfirmationForUser && !photoIdConfirmed)}
                                     sx={{
                                       textTransform: "none",
-                                      ...mono,
+                                      ...uiFont,
                                       fontSize: "0.72rem",
                                       py: 0.35,
                                       px: 1.2,
@@ -310,7 +310,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     pl: 1.25,
                                   }}
                                 >
-                                  <Typography sx={{ fontSize: "0.72rem", color: "#92400e", ...mono }}>
+                                  <Typography sx={{ fontSize: "0.72rem", color: "#92400e", ...uiFont }}>
                                     If you continue, all existing access for this user will be deleted and a 1 hour temporary access pass will be created.
                                   </Typography>
                                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
@@ -327,7 +327,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                       }}
                                       style={{ margin: 0, width: 14, height: 14 }}
                                     />
-                                    <Typography sx={{ fontSize: "0.7rem", color: "#92400e", ...mono }}>
+                                    <Typography sx={{ fontSize: "0.7rem", color: "#92400e", ...uiFont }}>
                                       Confirm that you have viewed the photo ID and confirm it to be the person selected
                                     </Typography>
                                   </Box>
@@ -347,7 +347,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                       disabled={disabled || running || !photoIdConfirmed}
                                       sx={{
                                         textTransform: "none",
-                                        ...mono,
+                                        ...uiFont,
                                         fontSize: "0.72rem",
                                         py: 0.35,
                                         px: 1.2,
@@ -378,7 +378,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                   {hydratedSelectedUserSteps.map((s) => (
                                     <StepRow key={`${user.id}-${s.id}`} step={s} />
                                   ))}
-                                  {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>Running...</Typography>}
+                                  {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...uiFont, mt: 0.25 }}>Running...</Typography>}
                                   {!running && (
                                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.25 }}>
                                       {consentRequired && (
@@ -388,7 +388,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                           onClick={() => void requestAccessPassConsent()}
                                           sx={{
                                             textTransform: "none",
-                                            ...mono,
+                                            ...uiFont,
                                             fontSize: "0.7rem",
                                             minWidth: 0,
                                             px: 1,
@@ -404,7 +404,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                           sx={{
                                             alignSelf: "flex-start",
                                             textTransform: "none",
-                                            ...mono,
+                                            ...uiFont,
                                             fontSize: "0.72rem",
                                             color: "#64748b",
                                             px: 0.5,
@@ -459,7 +459,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                       }}
                                       style={{ margin: 0, width: 14, height: 14 }}
                                     />
-                                    <Typography sx={{ fontSize: "0.7rem", color: "#1e3a8a", ...mono }}>
+                                    <Typography sx={{ fontSize: "0.7rem", color: "#1e3a8a", ...uiFont }}>
                                       Confirm that the person has successfully logged in and created their long term access pass on{" "}
                                       <a href="https://mysignins.microsoft.com/" target="_blank" rel="noopener noreferrer">
                                         https://mysignins.microsoft.com/
@@ -470,7 +470,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     {isCompletedUser ? (
                                       <Typography
                                         sx={{
-                                          ...mono,
+                                          ...uiFont,
                                           fontSize: "0.72rem",
                                           color: "#1d4ed8",
                                           fontWeight: 600,
@@ -491,7 +491,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                         disabled={!isDeliveryConfirmed}
                                         sx={{
                                           textTransform: "none",
-                                          ...mono,
+                                          ...uiFont,
                                           fontSize: "0.72rem",
                                           py: 0.35,
                                           px: 1.2,
@@ -533,7 +533,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                     variant="outlined"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    sx={{ textTransform: "none", ...mono, minWidth: 0, px: 1 }}
+                    sx={{ textTransform: "none", ...uiFont, minWidth: 0, px: 1 }}
                   >
                     Prev
                   </Button>
@@ -543,7 +543,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                       size="small"
                       variant={page === currentPage ? "contained" : "outlined"}
                       onClick={() => setCurrentPage(page)}
-                      sx={{ textTransform: "none", ...mono, minWidth: 32, px: 0.75 }}
+                      sx={{ textTransform: "none", ...uiFont, minWidth: 32, px: 0.75 }}
                     >
                       {page}
                     </Button>
@@ -553,14 +553,14 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                     variant="outlined"
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    sx={{ textTransform: "none", ...mono, minWidth: 0, px: 1 }}
+                    sx={{ textTransform: "none", ...uiFont, minWidth: 0, px: 1 }}
                   >
                     Next
                   </Button>
                 </Box>
 
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <Typography sx={{ fontSize: "0.7rem", color: "#475569", ...mono }}>
+                  <Typography sx={{ fontSize: "0.7rem", color: "#475569", ...uiFont }}>
                     Page {currentPage} of {totalPages}
                   </Typography>
                   <TextField
@@ -569,9 +569,9 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                     onChange={(e) => setPageInput(e.target.value.replace(/[^0-9]/g, ""))}
                     onKeyDown={(e) => e.key === "Enter" && goToPage()}
                     placeholder="Page"
-                    inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.75rem", width: 48 } }}
+                    inputProps={{ style: { fontFamily: "monospace", fontSize: "0.75rem", width: 48 } }}
                   />
-                  <Button size="small" variant="outlined" onClick={goToPage} sx={{ textTransform: "none", ...mono }}>
+                  <Button size="small" variant="outlined" onClick={goToPage} sx={{ textTransform: "none", ...uiFont }}>
                     Go
                   </Button>
                 </Box>
@@ -579,18 +579,18 @@ export default function AccessPassCard({ card, accessPass }: Props) {
             )}
 
             {!managerUsersLoading && managerUsers.length === 0 && !managerUsersError && (
-              <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>No users found that are managed by your signed-in account.</Typography>
+              <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...uiFont }}>No users found that are managed by your signed-in account.</Typography>
             )}
 
             {managerUsersError && (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{managerUsersError}</Typography>
+                <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...uiFont }}>{managerUsersError}</Typography>
                 {consentRequired && (
                   <Button
                     size="small"
                     variant="outlined"
                     onClick={() => void requestAccessPassConsent()}
-                    sx={{ textTransform: "none", ...mono, fontSize: "0.7rem", minWidth: 0, px: 1 }}
+                    sx={{ textTransform: "none", ...uiFont, fontSize: "0.7rem", minWidth: 0, px: 1 }}
                   >
                     Grant consent
                   </Button>
@@ -599,7 +599,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
             )}
           </Box>
         </Box>
-        {managerUsersError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{managerUsersError}</Typography>}
+        {managerUsersError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...uiFont }}>{managerUsersError}</Typography>}
       </Box>
     </Card>
   );

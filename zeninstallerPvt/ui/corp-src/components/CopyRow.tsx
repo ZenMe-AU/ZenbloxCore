@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import { MONO as mono, labelSx } from "../config/styles";
+import { MONO_FONT, UI_FONT as uiFont, labelSx } from "../config/styles";
 
 // A labelled value with a copy button. `masked` hides the value but still copies the real one.
 export default function CopyRow({ label, value, masked = false }: { label: string; value: string; masked?: boolean }) {
@@ -25,7 +25,7 @@ export default function CopyRow({ label, value, masked = false }: { label: strin
         sx={{
           fontSize: "0.78rem",
           color: "#1e293b",
-          ...mono,
+          ...MONO_FONT,
           ...(masked ? { flex: "0 0 auto" } : { flex: 1, wordBreak: "break-all" }),
         }}
       >
@@ -33,7 +33,7 @@ export default function CopyRow({ label, value, masked = false }: { label: strin
       </Typography>
       <Button size="small" onClick={copy} sx={{ minWidth: 0, p: 0.5, color: "#94a3b8", "&:hover": { color: "#2563eb" } }}>
         <ContentCopyIcon sx={{ fontSize: 13 }} />
-        <Typography sx={{ fontSize: "0.65rem", ml: 0.5, ...mono }}>{copied ? "Copied" : "Copy"}</Typography>
+        <Typography sx={{ fontSize: "0.65rem", ml: 0.5, ...uiFont }}>{copied ? "Copied" : "Copy"}</Typography>
       </Button>
     </Box>
   );

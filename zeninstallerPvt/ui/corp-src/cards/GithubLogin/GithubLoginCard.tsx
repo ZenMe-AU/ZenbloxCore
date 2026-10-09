@@ -8,7 +8,7 @@ import { Box, Button, CircularProgress, IconButton, InputAdornment, TextField, T
 import ClearIcon from "@mui/icons-material/Clear";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import { MONO as monoSx } from "../../config/styles";
+import { UI_FONT as uiFontSx } from "../../config/styles";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getGithubUserUrl, GITHUB_LOGIN_URL } from "../../logic/github";
@@ -90,11 +90,11 @@ export default function GithubLoginCard({ card, auth }: Props) {
         {!user && (
           <Box sx={{ mb: 2 }}>
             <Typography sx={{ fontSize: "0.72rem", color: "#64748b", mb: 1 }}>
-              <Box component="span" sx={{ ...monoSx, fontWeight: 600 }}>
+              <Box component="span" sx={{ ...uiFontSx, fontWeight: 600 }}>
                 Backend
               </Box>{" "}
               signs you in through GitHub's OAuth flow and keeps your access token on the server.{" "}
-              <Box component="span" sx={{ ...monoSx, fontWeight: 600 }}>
+              <Box component="span" sx={{ ...uiFontSx, fontWeight: 600 }}>
                 Direct (PAT)
               </Box>{" "}
               skips the backend entirely — paste your own Personal Access Token and the browser talks to GitHub directly.
@@ -105,7 +105,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
               onChange={handleModeChange}
               size="small"
               sx={{
-                "& .MuiToggleButton-root": { ...monoSx, fontSize: "0.7rem", textTransform: "none", px: 1.5, py: 0.4 },
+                "& .MuiToggleButton-root": { ...uiFontSx, fontSize: "0.7rem", textTransform: "none", px: 1.5, py: 0.4 },
               }}
             >
               <ToggleButton value="backend">Backend</ToggleButton>
@@ -117,7 +117,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
         {authLoading ? (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
             <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
-            <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", ...monoSx }}>{signingIn ? "Signing you in..." : "Verifying access..."}</Typography>
+            <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", ...uiFontSx }}>{signingIn ? "Signing you in..." : "Verifying access..."}</Typography>
           </Box>
         ) : !user ? (
           mode === "direct" ? (
@@ -145,7 +145,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                 }}
                 error={!!patError}
                 helperText={patError || "Personal Access Token with repo + workflow scopes"}
-                inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                inputProps={{ style: { fontFamily: "monospace", fontSize: "0.8rem" } }}
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
@@ -173,7 +173,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                     </InputAdornment>
                   ),
                 }}
-                FormHelperTextProps={{ sx: { ...monoSx, fontSize: "0.68rem" } }}
+                FormHelperTextProps={{ sx: { ...uiFontSx, fontSize: "0.68rem" } }}
               />
               <Button
                 variant="contained"
@@ -184,7 +184,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                   alignSelf: "flex-start",
                   background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                   textTransform: "none",
-                  ...monoSx,
+                  ...uiFontSx,
                   fontSize: "0.8rem",
                   py: 0.75,
                   px: 2,
@@ -205,7 +205,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
               sx={{
                 background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                 textTransform: "none",
-                ...monoSx,
+                ...uiFontSx,
                 fontSize: "0.85rem",
                 py: 1,
                 px: 2.5,
@@ -225,7 +225,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
           <Box>
             <Typography sx={{ fontSize: "0.78rem", color: "#64748b", mb: 2 }}>
               Authenticated as{" "}
-              <Box component="span" data-sensitive="true" sx={{ ...monoSx, fontWeight: 600 }}>
+              <Box component="span" data-sensitive="true" sx={{ ...uiFontSx, fontWeight: 600 }}>
                 {user.login}
               </Box>
               {mode === "direct" && (
@@ -246,7 +246,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                   color: "#94a3b8",
                   fontSize: "0.72rem",
                   textTransform: "none",
-                  ...monoSx,
+                  ...uiFontSx,
                   py: 0.5,
                   "&:hover": { borderColor: "#fecaca", color: "#ef4444" },
                 }}

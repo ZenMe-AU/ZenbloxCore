@@ -17,7 +17,7 @@ import { resourceGroupScope } from "../../api/azureArm";
 import { getVariableDisplayName, CORP_NAME_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
-import { MONO as mono, labelSx } from "../../config/styles";
+import { UI_FONT as uiFont, labelSx } from "../../config/styles";
 import type { Account, CardChrome, AzureAccount, GhEnv } from "../../types";
 
 type Props = {
@@ -38,7 +38,7 @@ function Intro({ containerName }: { containerName: string }) {
   return (
     <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
       Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
-      <Box component="span" sx={mono}>
+      <Box component="span" sx={uiFont}>
         {containerName}
       </Box>{" "}
       container Terraform uses for state, granting GitHub Actions access to it.
@@ -182,7 +182,7 @@ export default function CoreInfraCard({
                   ["Storage account", storageAccountName],
                   ["State container", containerName],
                 ].map(([label, value]) => (
-                  <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+                  <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
                     {label}:{" "}
                     <Box component="span" sx={{ color: "#0f172a" }}>
                       {value}
@@ -194,16 +194,16 @@ export default function CoreInfraCard({
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
                   {editingLocation ? (
                     <>
-                      <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>Location:</Typography>
+                      <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>Location:</Typography>
                       {locations.length > 0 ? (
                         <Select
                           size="small"
                           value={location}
                           onChange={(e) => setLocation(e.target.value)}
-                          sx={{ fontSize: "0.75rem", ...mono, minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
+                          sx={{ fontSize: "0.75rem", ...uiFont, minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
                         >
                           {locations.map((l) => (
-                            <MenuItem key={l.name} value={l.name} sx={{ fontSize: "0.78rem", ...mono }}>
+                            <MenuItem key={l.name} value={l.name} sx={{ fontSize: "0.78rem", ...uiFont }}>
                               {l.displayName}{" "}
                               <Box component="span" sx={{ color: "#94a3b8", ml: 0.5 }}>
                                 ({l.name})
@@ -218,7 +218,7 @@ export default function CoreInfraCard({
                           onChange={(e) => setLocation(e.target.value)}
                           placeholder={locationsLoading ? "Loading regions..." : "e.g. australiaeast"}
                           sx={{ minWidth: 220 }}
-                          inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                          inputProps={{ style: { fontFamily: "monospace", fontSize: "0.8rem" } }}
                         />
                       )}
                       {locationsLoading && <CircularProgress size={12} />}
@@ -228,7 +228,7 @@ export default function CoreInfraCard({
                     </>
                   ) : (
                     <>
-                      <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+                      <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
                         Location:{" "}
                         <Box component="span" sx={{ color: "#0f172a" }}>
                           {locationDisplayName}
@@ -241,7 +241,7 @@ export default function CoreInfraCard({
                   )}
                 </Box>
                 {locationsError && (
-                  <Typography sx={{ fontSize: "0.68rem", color: "#d97706", ...mono }}>
+                  <Typography sx={{ fontSize: "0.68rem", color: "#d97706", ...uiFont }}>
                     Couldn't load Azure region list — type the region name manually.
                   </Typography>
                 )}
@@ -256,7 +256,7 @@ export default function CoreInfraCard({
                 alignSelf: "flex-start",
                 background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                 textTransform: "none",
-                ...mono,
+                ...uiFont,
                 fontSize: "0.85rem",
                 py: 0.85,
                 px: 2.5,
@@ -286,7 +286,7 @@ export default function CoreInfraCard({
                   alignSelf: "flex-start",
                   mt: 0.5,
                   textTransform: "none",
-                  ...mono,
+                  ...uiFont,
                   fontSize: "0.72rem",
                   color: "#64748b",
                   "&:hover": { color: "#2563eb" },

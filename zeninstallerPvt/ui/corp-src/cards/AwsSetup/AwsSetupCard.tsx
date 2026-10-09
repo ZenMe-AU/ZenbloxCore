@@ -21,13 +21,13 @@ import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import type { SetupStep, UseAwsSetupCard } from "./useAwsSetupCard";
 import type { Account, CardChrome, GhEnv } from "../../types";
 
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+const uiFont = { fontFamily: "sans-serif, Arial" };
 const labelSx = {
   fontSize: "0.68rem",
   color: "#94a3b8",
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
-  ...mono,
+  ...uiFont,
 };
 
 type Props = {
@@ -71,8 +71,8 @@ function StepRow({ step }: { step: SetupStep }) {
     <Box sx={{ display: "grid", gridTemplateColumns: "18px 1fr", alignItems: "start", py: 0.5 }}>
       <Box sx={{ display: "flex", alignItems: "center", height: "1.2em" }}>{icon}</Box>
       <Box>
-        <Typography sx={{ fontSize: "0.78rem", color: step.status === "error" ? "#ef4444" : "#475569", ...mono }}>{step.label}</Typography>
-        {step.detail && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>{step.detail}</Typography>}
+        <Typography sx={{ fontSize: "0.78rem", color: step.status === "error" ? "#ef4444" : "#475569", ...uiFont }}>{step.label}</Typography>
+        {step.detail && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...uiFont, mt: 0.25 }}>{step.detail}</Typography>}
       </Box>
     </Box>
   );
@@ -171,7 +171,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 value={roleName}
                 onChange={(e) => setRoleName(e.target.value)}
                 sx={{ minWidth: 280 }}
-                inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                inputProps={{ style: { fontFamily: "monospace", fontSize: "0.8rem" } }}
                 disabled={card.locked}
               />
             </Box>
@@ -184,7 +184,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 sx={{
                   background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                   textTransform: "none",
-                  ...mono,
+                  ...uiFont,
                   fontSize: "0.85rem",
                   py: 1,
                   px: 2.5,
@@ -220,7 +220,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                   alignSelf: "flex-start",
                   mt: 0.5,
                   textTransform: "none",
-                  ...mono,
+                  ...uiFont,
                   fontSize: "0.72rem",
                   color: "#64748b",
                   "&:hover": { color: "#2563eb" },
@@ -239,7 +239,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
           sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
         >
           <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...uiFont, whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter application connection detail"}
           </Typography>
           <KeyboardArrowDownIcon

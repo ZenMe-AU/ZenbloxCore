@@ -12,7 +12,7 @@ import type { Branch } from "../../types";
 const selectSx = {
   background: "#f8fafc",
   color: "#0f172a",
-  fontFamily: "'IBM Plex Mono', monospace",
+  fontFamily: "monospace",
   fontSize: "0.8rem",
   "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
   "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
@@ -54,7 +54,6 @@ export default function EnvBranchDetail({
           startIcon={creatingBranch ? <CircularProgress size={12} sx={{ color: "#93c5fd" }} /> : <AddIcon />}
           sx={{
             background: "#2563eb",
-            fontFamily: "'IBM Plex Mono', monospace",
             fontSize: "0.8rem",
             textTransform: "none",
             py: 0.75,
@@ -67,12 +66,12 @@ export default function EnvBranchDetail({
         </Button>
 
         <>
-          <Typography sx={{ fontSize: "0.72rem", color: "#64748b", fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>
+          <Typography sx={{ fontSize: "0.72rem", color: "#64748b", flexShrink: 0 }}>
             Clone the new branch from existing branch:
           </Typography>
           <Select size="small" value={sourceBranch} onChange={(e) => onSourceBranchChange(e.target.value)} sx={{ mr: 3, minWidth: 140, ...selectSx }}>
             {branches.map((b) => (
-              <MenuItem key={b.name} value={b.name} sx={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" }}>
+              <MenuItem key={b.name} value={b.name} sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <CallSplitIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
                   {b.name}

@@ -5,7 +5,7 @@
 
 import { Box, Button } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import { MONO as mono } from "../config/styles";
+import { UI_FONT as uiFont } from "../config/styles";
 
 type Props = {
   href: string;
@@ -30,7 +30,7 @@ export default function ViewLink({ href, label = "View" }: Props) {
         color: "#475569",
         fontSize: "0.72rem",
         textTransform: "none",
-        ...mono,
+        ...uiFont,
         "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
       }}
     >

@@ -21,7 +21,7 @@ const inputSx = {
   "& .MuiInputBase-root": {
     background: "#f8fafc",
     color: "#0f172a",
-    fontFamily: "'IBM Plex Mono', monospace",
+    fontFamily: "monospace",
     fontSize: "0.8rem",
     borderRadius: "6px",
   },
@@ -45,7 +45,6 @@ function ValidationBadge({ valid, pendingValidation }: { valid: boolean | null; 
           background: "#fefce8",
           border: "1px solid #fde68a",
           fontSize: "0.62rem",
-          fontFamily: "'IBM Plex Mono', monospace",
           color: "#92400e",
           whiteSpace: "nowrap",
         }}
@@ -67,7 +66,6 @@ function ValidationBadge({ valid, pendingValidation }: { valid: boolean | null; 
           background: "#f0fdf4",
           border: "1px solid #bbf7d0",
           fontSize: "0.62rem",
-          fontFamily: "'IBM Plex Mono', monospace",
           color: "#16a34a",
         }}
       >
@@ -89,7 +87,6 @@ function ValidationBadge({ valid, pendingValidation }: { valid: boolean | null; 
           background: "#fef2f2",
           border: "1px solid #fecaca",
           fontSize: "0.62rem",
-          fontFamily: "'IBM Plex Mono', monospace",
           color: "#ef4444",
         }}
       >
@@ -169,7 +166,7 @@ function SecretKeyRow({
       <Typography
         sx={{
           fontSize: "0.78rem",
-          fontFamily: "'IBM Plex Mono', monospace",
+          fontFamily: "monospace",
           color: hasPending ? "#92400e" : "#0f172a",
           flex: 1,
         }}
@@ -183,7 +180,7 @@ function SecretKeyRow({
           <Typography
             sx={{
               fontSize: "0.72rem",
-              fontFamily: "'IBM Plex Mono', monospace",
+              fontFamily: "monospace",
               color: "#d97706",
               letterSpacing: showValue ? "normal" : "0.1em",
             }}
@@ -206,7 +203,7 @@ function SecretKeyRow({
 
       {/* Just updated */}
       {isSuccess && (
-        <Typography sx={{ fontSize: "0.62rem", color: "#16a34a", fontFamily: "'IBM Plex Mono', monospace", whiteSpace: "nowrap" }}>just updated</Typography>
+        <Typography sx={{ fontSize: "0.62rem", color: "#16a34a", whiteSpace: "nowrap" }}>just updated</Typography>
       )}
 
       {/* Update error */}
@@ -218,7 +215,7 @@ function SecretKeyRow({
 
       {/* Not set label */}
       {!isSet && !hasPending && !isError && (
-        <Typography sx={{ fontSize: "0.65rem", color: "#cbd5e1", fontFamily: "'IBM Plex Mono', monospace" }}>not set</Typography>
+        <Typography sx={{ fontSize: "0.65rem", color: "#cbd5e1" }}>not set</Typography>
       )}
 
       {/* Edit button */}
@@ -266,7 +263,7 @@ function SecretDialog({
     >
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
         <Box>
-          <Typography sx={{ fontFamily: "'IBM Plex Mono', monospace", fontWeight: 700, fontSize: "0.9rem", color: "#0f172a" }}>{secretKey}</Typography>
+          <Typography sx={{ fontFamily: "monospace", fontWeight: 700, fontSize: "0.9rem", color: "#0f172a" }}>{secretKey}</Typography>
           <Typography sx={{ fontSize: "0.72rem", color: "#64748b", mt: 0.25 }}>Enter the secret value</Typography>
         </Box>
         <IconButton onClick={handleClose} size="small" sx={{ color: "#94a3b8" }}>
@@ -303,7 +300,6 @@ function SecretDialog({
             sx={{
               background: "#2563eb",
               textTransform: "none",
-              fontFamily: "'IBM Plex Mono', monospace",
               fontSize: "0.8rem",
               "&:hover": { background: "#1d4ed8" },
               "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },

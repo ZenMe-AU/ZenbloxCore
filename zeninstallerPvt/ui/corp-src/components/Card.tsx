@@ -13,7 +13,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { CardStatus, CardChrome } from "../types";
-import { MONO as mono } from "../config/styles";
+import { UI_FONT as uiFont } from "../config/styles";
 import { CARD_W, EXPANDED_W } from "../config/cardLayout";
 
 const BORDER: Record<CardStatus, string> = {
@@ -140,7 +140,7 @@ export default function Card({
               fontSize: "0.8rem",
               fontWeight: 600,
               color: muted ? "#94a3b8" : "#0f172a",
-              ...mono,
+              ...uiFont,
               letterSpacing: "-0.01em",
               whiteSpace: "nowrap",
               overflow: "hidden",
@@ -163,7 +163,7 @@ export default function Card({
                         : status === "error"
                           ? "#dc2626"
                           : "#64748b",
-                ...mono,
+                ...uiFont,
                 mt: 0.25,
                 whiteSpace: "nowrap",
                 overflow: "hidden",
@@ -208,7 +208,7 @@ export default function Card({
                   sx={{
                     fontSize: "0.7rem",
                     color: "#64748b",
-                    ...mono,
+                    ...uiFont,
                     textTransform: "uppercase",
                     letterSpacing: "0.08em",
                   }}

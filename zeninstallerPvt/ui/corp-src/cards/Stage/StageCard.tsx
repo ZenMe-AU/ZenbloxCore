@@ -34,7 +34,7 @@ import { computePlanSummary, isPlanBehind } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl } from "../../logic/github";
-import { MONO as mono } from "../../config/styles";
+import { MONO_FONT, UI_FONT as uiFont } from "../../config/styles";
 import Card from "../../components/Card";
 import VariablesCard from "../../components/VariablesCard";
 import StagePlanDetail from "./StagePlanDetail";
@@ -146,7 +146,7 @@ function StageVarEditor({
           size="small"
           sx={{
             background: "#2563eb",
-            ...mono,
+            ...uiFont,
             fontSize: "0.75rem",
             textTransform: "none",
             py: 0.75,
@@ -164,7 +164,7 @@ function StageVarEditor({
 
 // Shared by the plan and deploy failures — both publish the same kind of single-file log artifact.
 function FailureLog({ fetched, text }: { fetched: boolean; text: string | null }) {
-  if (!fetched) return <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...mono }}>Loading log...</Typography>;
+  if (!fetched) return <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...uiFont }}>Loading log...</Typography>;
   if (!text) return null;
   return (
     <Box
@@ -178,7 +178,7 @@ function FailureLog({ fetched, text }: { fetched: boolean; text: string | null }
         overflowY: "auto",
       }}
     >
-      <Typography component="pre" sx={{ fontSize: "0.68rem", color: "#b91c1c", whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...mono }}>
+      <Typography component="pre" sx={{ fontSize: "0.68rem", color: "#b91c1c", whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...MONO_FONT }}>
         {text}
       </Typography>
     </Box>
@@ -217,7 +217,7 @@ function RunStatusUpdateButton({
         alignSelf: "flex-start",
         borderColor: "#bfdbfe",
         color: "#1d4ed8",
-        ...mono,
+        ...uiFont,
         fontSize: "0.75rem",
         textTransform: "none",
         py: 0.55,
@@ -410,7 +410,7 @@ export default function StageCard({
               sx={{
                 fontSize: "0.68rem",
                 color: "#94a3b8",
-                ...mono,
+                ...uiFont,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
                 mb: 1,
@@ -455,7 +455,7 @@ export default function StageCard({
                       ) : (
                         <RadioButtonUncheckedIcon sx={{ fontSize: 13, color: "#cbd5e1", flexShrink: 0 }} />
                       )}
-                      <Typography sx={{ fontSize: "0.72rem", color: met ? "#475569" : "#94a3b8", ...mono, flex: 1 }}>{label}</Typography>
+                      <Typography sx={{ fontSize: "0.72rem", color: met ? "#475569" : "#94a3b8", ...uiFont, flex: 1 }}>{label}</Typography>
                       {isExpandable &&
                         (isOpen ? <ExpandLessIcon sx={{ fontSize: 14, color: "#cbd5e1" }} /> : <ExpandMoreIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />)}
                     </Box>
@@ -483,7 +483,7 @@ export default function StageCard({
                                     color: "#64748b",
                                     minWidth: "11rem",
                                     flexShrink: 0,
-                                    ...mono,
+                                    ...uiFont,
                                   }}
                                 >
                                   {k}
@@ -494,7 +494,7 @@ export default function StageCard({
                                     color: variableValues[k] ? "#0f172a" : "#cbd5e1",
                                     wordBreak: "break-all",
                                     flex: 1,
-                                    ...mono,
+                                    ...uiFont,
                                   }}
                                 >
                                   {variableValues[k] || "not set"}
@@ -540,7 +540,7 @@ export default function StageCard({
         <RemoteTerminal session={remoteTerminal} />
 
         {!hasDetails && stage.status !== "pending" && (
-          <Typography sx={{ fontSize: "0.72rem", color: stage.status === "failed" ? "#ef4444" : "#cbd5e1", ...mono }}>
+          <Typography sx={{ fontSize: "0.72rem", color: stage.status === "failed" ? "#ef4444" : "#cbd5e1", ...uiFont }}>
             No plan available for this stage.
           </Typography>
         )}
@@ -553,7 +553,7 @@ export default function StageCard({
               sx={{
                 fontSize: "0.68rem",
                 color: "#94a3b8",
-                ...mono,
+                ...uiFont,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
                 mb: 0.75,
@@ -571,13 +571,13 @@ export default function StageCard({
               ) : stage.deployStatus === "failed" ? (
                 <WarningAmberIcon sx={{ fontSize: 13, color: "#ef4444", flexShrink: 0 }} />
               ) : null}
-              {stage.deployedAt && <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>{relativeTime(stage.deployedAt)}</Typography>}
+              {stage.deployedAt && <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...uiFont }}>{relativeTime(stage.deployedAt)}</Typography>}
               {/* The apply's own run, not the plan's — the header link points at the plan. */}
               {repoFullName && stage.deployRunId && <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} />}
             </Box>
             {/* 13px icon + the 8px gap above. */}
             <Box sx={{ pl: "21px" }}>
-              {stage.deployStatus === "cancelled" && <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...mono }}>Cancelled</Typography>}
+              {stage.deployStatus === "cancelled" && <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...uiFont }}>Cancelled</Typography>}
               {stage.deployStatus === "failed" && <FailureLog fetched={deployLogFetched} text={deployLog?.text ?? null} />}
             </Box>
           </Box>

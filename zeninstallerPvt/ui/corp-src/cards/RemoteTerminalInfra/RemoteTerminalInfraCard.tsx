@@ -12,7 +12,7 @@ import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getAdminConsentUrl, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
-import { MONO as mono, labelSx } from "../../config/styles";
+import { UI_FONT as uiFont, labelSx } from "../../config/styles";
 import CloudVariableDetail from "../CloudVariableDetail";
 import { DEPLOYMENT_TERMINAL_KEYS } from "../../logic/variables";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
@@ -83,7 +83,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
                 ["App registration", infra.pipelineAppName],
                 ["Sign-in app registration", "Zeninstaller Private"],
               ].map(([label, value]) => (
-                <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+                <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
                   {label}:{" "}
                   <Box component="span" sx={{ color: "#0f172a" }}>
                     {value}
@@ -102,7 +102,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
             size="small"
             sx={{
               background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-              ...mono,
+              ...uiFont,
               fontSize: "0.75rem",
               textTransform: "none",
               py: 0.6,
@@ -137,7 +137,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
               rel="noopener noreferrer"
               sx={{
                 fontSize: "0.72rem",
-                ...mono,
+                ...uiFont,
                 color: "#1d4ed8",
                 wordBreak: "break-all",
                 textDecoration: "none",
@@ -163,7 +163,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
           sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
         >
           <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...uiFont, whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter connection detail"}
           </Typography>
           <KeyboardArrowDownIcon

@@ -17,7 +17,7 @@ import ViewLink from "../../components/ViewLink";
 import { AZURE_APP_REGISTRATIONS_URL, getAppRegistrationUrl } from "./consoleUrls";
 import { AZURE_APP_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
-import { MONO as mono, labelSx } from "../../config/styles";
+import { UI_FONT as uiFont, labelSx } from "../../config/styles";
 
 type Props = {
   card: CardChrome;
@@ -247,7 +247,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                       sx={{ minWidth: 280 }}
                       inputProps={{
                         "data-sensitive": true,
-                        style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" },
+                        style: { fontFamily: "monospace", fontSize: "0.8rem" },
                       }}
                     />
                   </Box>
@@ -260,7 +260,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                       sx={{
                         background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                         textTransform: "none",
-                        ...mono,
+                        ...uiFont,
                         fontSize: "0.85rem",
                         py: 0.85,
                         px: 2.5,
@@ -297,7 +297,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                         alignSelf: "flex-start",
                         mt: 0.5,
                         textTransform: "none",
-                        ...mono,
+                        ...uiFont,
                         fontSize: "0.72rem",
                         color: "#64748b",
                         "&:hover": { color: "#2563eb" },
@@ -318,7 +318,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
           sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
         >
           <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...uiFont, whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter application connection detail"}
           </Typography>
           <KeyboardArrowDownIcon

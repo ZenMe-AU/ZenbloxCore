@@ -12,7 +12,7 @@ import StepRow from "../StepRow";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
-import { MONO as mono, labelSx } from "../../config/styles";
+import { UI_FONT as uiFont, labelSx } from "../../config/styles";
 import CloudVariableDetail from "../CloudVariableDetail";
 import { FRONTEND_VARIABLE_KEYS } from "../../logic/variables";
 import { GITHUB_OAUTH_DOC } from "./config";
@@ -67,11 +67,11 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.6 }}>
           Builds the Zeninstaller frontend in GitHub Actions, then writes the files straight from this browser into the{" "}
-          <Box component="span" sx={mono}>
+          <Box component="span" sx={uiFont}>
             $web
           </Box>{" "}
           container of{" "}
-          <Box component="span" sx={mono}>
+          <Box component="span" sx={uiFont}>
             {storageAccountName || "the site's storage account"}
           </Box>
           .
@@ -113,7 +113,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
         {staleVariables.length > 0 && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>
+            <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...uiFont }}>
               Changed since the last build: {staleVariables.join(", ")} — build again to pick them up.
             </Typography>
           </Box>
@@ -122,7 +122,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
         {missingGithubClientId && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>
+            <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...uiFont }}>
               Set VITE_GITHUB_CLIENT_ID on this environment first — the build bakes it in.
             </Typography>
           </Box>
@@ -131,13 +131,13 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
         <Box>
           <Typography sx={{ ...labelSx, mb: 0.75 }}>Versions</Typography>
           <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
-            <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+            <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
               Latest build:{" "}
               <Box component="span" sx={{ color: "#0f172a" }}>
                 {loadingLatest ? "checking..." : latest ? `${latest.sha.slice(0, 7)} · ${when(latest.builtAt)}` : "none yet"}
               </Box>
             </Typography>
-            <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+            <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
               Live on the site:{" "}
               <Box component="span" sx={{ color: "#0f172a" }}>
                 {loadingDeployed ? "checking..." : deployed ? `${deployed.sha.slice(0, 7)} · ${when(deployed.builtAt)}` : "nothing deployed"}
@@ -157,7 +157,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
               rel="noopener noreferrer"
               sx={{
                 fontSize: "0.75rem",
-                ...mono,
+                ...uiFont,
                 color: "#1d4ed8",
                 wordBreak: "break-all",
                 textDecoration: "none",
@@ -183,7 +183,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             size="small"
             sx={{
               textTransform: "none",
-              ...mono,
+              ...uiFont,
               fontSize: "0.75rem",
               borderColor: "#bfdbfe",
               color: "#1d4ed8",
@@ -206,7 +206,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             size="small"
             sx={{
               background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-              ...mono,
+              ...uiFont,
               fontSize: "0.75rem",
               textTransform: "none",
               "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
@@ -227,14 +227,14 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           {!loadingLatest && latest && !updateAvailable && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...mono }}>The site is serving the latest build.</Typography>
+              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...uiFont }}>The site is serving the latest build.</Typography>
             </Box>
           )}
 
           {!loadingLatest && updateAvailable && deployed && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>Ready to deploy the new build</Typography>
+              <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...uiFont }}>Ready to deploy the new build</Typography>
             </Box>
           )}
         </Box>

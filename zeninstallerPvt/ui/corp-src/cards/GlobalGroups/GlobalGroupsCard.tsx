@@ -18,7 +18,7 @@ import RefreshButton from "../../components/RefreshButton";
 import { useRefreshIndicator } from "../../hooks/util/useRefreshIndicator";
 import type { CardChrome } from "../../types";
 import { isRowDirty, wouldCreateCycle, type UseGlobalGroupsCard, type GroupRow, type GroupRowResult } from "./useGlobalGroupsCard";
-import { MONO as mono } from "../../config/styles";
+import { UI_FONT as uiFont } from "../../config/styles";
 
 function RowStatusIcon({ row, result, dirty }: { row: GroupRow; result: GroupRowResult | undefined; dirty: boolean }) {
   const status = result?.status;
@@ -43,7 +43,7 @@ const ghostFieldSx = (muted: boolean) => ({
     padding: "1px 4px",
     fontSize: muted ? "0.68rem" : "0.78rem",
     color: muted ? "#94a3b8" : "#0f172a",
-    ...(muted ? {} : mono),
+    ...(muted ? {} : uiFont),
   },
 });
 
@@ -135,7 +135,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
               size="small"
               variant="outlined"
               onClick={() => void requestGroupsConsent()}
-              sx={{ textTransform: "none", ...mono, fontSize: "0.7rem", minWidth: 0, px: 1, flexShrink: 0 }}
+              sx={{ textTransform: "none", ...uiFont, fontSize: "0.7rem", minWidth: 0, px: 1, flexShrink: 0 }}
             >
               Grant consent
             </Button>
@@ -145,7 +145,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
         {loading && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
             <CircularProgress size={12} />
-            <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", ...mono }}>Loading groups from Entra...</Typography>
+            <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", ...uiFont }}>Loading groups from Entra...</Typography>
           </Box>
         )}
 
@@ -207,12 +207,12 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                       }}
                     >
                       {row.memberOfGroupNames.length === 0 ? (
-                        <Typography sx={{ fontSize: "0.65rem", color: "#cbd5e1", ...mono }}>no memberships</Typography>
+                        <Typography sx={{ fontSize: "0.65rem", color: "#cbd5e1", ...uiFont }}>no memberships</Typography>
                       ) : (
                         <>
-                          <Chip label={row.memberOfGroupNames[0]} size="small" sx={{ height: 18, fontSize: "0.62rem", ...mono }} />
+                          <Chip label={row.memberOfGroupNames[0]} size="small" sx={{ height: 18, fontSize: "0.62rem", ...uiFont }} />
                           {row.memberOfGroupNames.length > 1 && (
-                            <Chip label={`+${row.memberOfGroupNames.length - 1}`} size="small" sx={{ height: 18, fontSize: "0.62rem", ...mono }} />
+                            <Chip label={`+${row.memberOfGroupNames.length - 1}`} size="small" sx={{ height: 18, fontSize: "0.62rem", ...uiFont }} />
                           )}
                         </>
                       )}
@@ -257,18 +257,18 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                       disabled={disabled}
                       sx={{ flex: 1 }}
                       renderOption={(props, option) => (
-                        <Box component="li" {...props} sx={{ py: 0.75, fontSize: "0.8rem", ...mono }}>
+                        <Box component="li" {...props} sx={{ py: 0.75, fontSize: "0.8rem", ...uiFont }}>
                           {option}
                         </Box>
                       )}
                       renderInput={(params) => (
-                        <TextField {...params} autoFocus placeholder="Member of..." sx={{ "& .MuiInputBase-input": { fontSize: "0.8rem", ...mono } }} />
+                        <TextField {...params} autoFocus placeholder="Member of..." sx={{ "& .MuiInputBase-input": { fontSize: "0.8rem", ...uiFont } }} />
                       )}
                     />
                     <Button
                       size="small"
                       onClick={() => setExpandedMemberOfId(null)}
-                      sx={{ textTransform: "none", ...mono, fontSize: "0.68rem", color: "#64748b", mt: 0.5 }}
+                      sx={{ textTransform: "none", ...uiFont, fontSize: "0.68rem", color: "#64748b", mt: 0.5 }}
                     >
                       Done
                     </Button>
@@ -310,7 +310,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                         startIcon={deleting ? <CircularProgress size={12} sx={{ color: "#fca5a5" }} /> : undefined}
                         sx={{
                           textTransform: "none",
-                          ...mono,
+                          ...uiFont,
                           fontSize: "0.72rem",
                           background: "#dc2626",
                           "&:hover": { background: "#b91c1c" },
@@ -322,7 +322,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                         size="small"
                         onClick={cancelDeleteRow}
                         disabled={deleting}
-                        sx={{ textTransform: "none", ...mono, fontSize: "0.72rem", color: "#64748b" }}
+                        sx={{ textTransform: "none", ...uiFont, fontSize: "0.72rem", color: "#64748b" }}
                       >
                         Cancel
                       </Button>
@@ -348,7 +348,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
             }}
           >
             <AddIcon sx={{ fontSize: 14 }} />
-            <Typography sx={{ fontSize: "0.72rem", ...mono, color: "inherit" }}>Add group</Typography>
+            <Typography sx={{ fontSize: "0.72rem", ...uiFont, color: "inherit" }}>Add group</Typography>
           </Box>
         </Box>
 
@@ -361,7 +361,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
             sx={{
               background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
               textTransform: "none",
-              ...mono,
+              ...uiFont,
               fontSize: "0.78rem",
               py: 0.65,
               px: 2,
@@ -379,7 +379,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
             disabled={disabled}
             sx={{
               textTransform: "none",
-              ...mono,
+              ...uiFont,
               fontSize: "0.72rem",
               color: "#64748b",
               "&:hover": { color: "#2563eb" },

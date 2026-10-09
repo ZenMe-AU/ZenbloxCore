@@ -25,7 +25,6 @@ const subLabelSx = {
   color: "#cbd5e1",
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
-  fontFamily: "'IBM Plex Mono', monospace",
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────

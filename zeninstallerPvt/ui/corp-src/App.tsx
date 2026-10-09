@@ -289,7 +289,7 @@ function AppDashboard() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+      <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a" }}>
         <Header />
 
         <Box sx={{ maxWidth: EXPANDED_W, mx: "auto", px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 5 } }}>

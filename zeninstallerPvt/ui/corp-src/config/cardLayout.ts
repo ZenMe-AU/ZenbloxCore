@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { MONO as mono } from "./styles";
+import { UI_FONT as uiFont } from "./styles";
 
 /*
  * App.tsx's own card-grid layout constants — not reused elsewhere, unlike
@@ -26,7 +26,7 @@ export const CARD_ROW_BREAKPOINT = EXPANDED_W + 64;
 export const groupLabelSx = {
   fontSize: "0.72rem",
   color: "#94a3b8",
-  ...mono,
+  ...uiFont,
   mt: 3.5,
   mb: 1.25,
   letterSpacing: "0.02em",

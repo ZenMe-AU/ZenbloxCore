@@ -265,7 +265,7 @@ export function useRemoteTerminal(opts: {
     const term = new Terminal({
       cols: TERMINAL_COLS,
       rows: TERMINAL_ROWS,
-      fontFamily: "'IBM Plex Mono', monospace",
+      fontFamily: "monospace",
       fontSize: 12,
       cursorBlink: true,
       scrollback: 5000,
