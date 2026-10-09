@@ -47,7 +47,7 @@ export function remoteTerminalStepLabels(corpName: string) {
 		`Create Function App ${corpName}-terminal-app`,
 		"Grant the Function App its data-plane roles",
 		`Create app registration ${corpName}-terminal-pipeline`,
-		"Create its service principal",
+		`List ${corpName}-terminal-pipeline under enterprise applications`,
 		"Add GitHub OIDC credentials for PROD, TEST",
 		"Grant it Web PubSub Service Owner",
 	];
