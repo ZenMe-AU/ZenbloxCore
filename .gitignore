@@ -28,9 +28,9 @@ package-lock.json
 api/src/module/shared/db/migration
 
 # Playwright
-/pwtest/test-results/
+test-results/
 .auth/
-
+playwright-report/
 
 # Terraform files
 *.tfstate
