@@ -25,7 +25,7 @@ export default function ConfigErrorNotice() {
       }}
     >
       <ErrorOutlineIcon sx={{ fontSize: 16, color: "#ef4444", flexShrink: 0, mt: "1px" }} />
-      <Typography sx={{ fontSize: "0.78rem", color: "#991b1b", lineHeight: 1.6 }}>
+      <Typography sx={{ fontSize: "1rem", color: "#991b1b", lineHeight: 1.6 }}>
         This card isn't configured correctly and can't be used right now. Contact your administrator.
       </Typography>
     </Box>

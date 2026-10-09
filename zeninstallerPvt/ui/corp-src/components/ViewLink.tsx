@@ -28,7 +28,7 @@ export default function ViewLink({ href, label = "View" }: Props) {
         flexShrink: 0,
         borderColor: "#e2e8f0",
         color: "#475569",
-        fontSize: "0.72rem",
+        fontSize: "1rem",
         textTransform: "none",
         ...uiFont,
         "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },

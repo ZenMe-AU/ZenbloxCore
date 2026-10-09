@@ -32,7 +32,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.7 }}>
       Create an app registration for GitHub Actions and grant it access on your selected subscription. Name it and create it — the AZURE_CLIENT_ID connection
       variables are written to GitHub automatically.
     </Typography>
@@ -152,7 +152,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
             ) : (
               <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} />
             )}
-            <Typography sx={{ fontSize: "0.75rem", color: bannerState === "error" ? "#713f12" : "#15803d" }}>
+            <Typography sx={{ fontSize: "1rem", color: bannerState === "error" ? "#713f12" : "#15803d" }}>
               {bannerState === "saved" && "Connection details saved."}
               {bannerState === "no-changes" && "Connection details saved — no changes needed."}
               {bannerState === "error" && "Some connection details failed to save — check below."}
@@ -172,7 +172,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
               {!subscriptionId && (
                 <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
-                  <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+                  <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>
                     Pick a subscription in the <b>Azure subscription</b> card first — this app registration grants access on it.
                   </Typography>
                 </Box>
@@ -191,7 +191,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                   }}
                 >
                   <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+                  <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>
                     This app registration doesn't exist in the selected tenant — create a new one.
                   </Typography>
                 </Box>
@@ -210,7 +210,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                   }}
                 >
                   <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+                  <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>
                     Missing on the selected subscription: <b>{rbacMissingRoles.join(", ") || "access"}</b> — re-run to grant it.
                   </Typography>
                 </Box>
@@ -229,7 +229,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                   }}
                 >
                   <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+                  <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>
                     AZURE_PLAN_CLIENT_ID doesn't match AZURE_CLIENT_ID — re-run to bring it back in sync.
                   </Typography>
                 </Box>
@@ -247,7 +247,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                       sx={{ minWidth: 280 }}
                       inputProps={{
                         "data-sensitive": true,
-                        style: { fontFamily: "monospace", fontSize: "0.8rem" },
+                        style: { fontFamily: "monospace", fontSize: "1rem" },
                       }}
                     />
                   </Box>
@@ -261,7 +261,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                         background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                         textTransform: "none",
                         ...uiFont,
-                        fontSize: "0.85rem",
+                        fontSize: "1rem",
                         py: 0.85,
                         px: 2.5,
                         borderRadius: "8px",
@@ -275,7 +275,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                     {varHasAny && !rbacMissing && !spNotFound && (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                        <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
+                        <Typography sx={{ fontSize: "1rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
                       </Box>
                     )}
                   </Box>
@@ -288,7 +288,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                   {steps.map((s) => (
                     <StepRow key={s.id} step={s} />
                   ))}
-                  {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
+                  {running && <Typography sx={{ fontSize: "1rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
                   {!running && (
                     <Button
                       size="small"
@@ -298,7 +298,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                         mt: 0.5,
                         textTransform: "none",
                         ...uiFont,
-                        fontSize: "0.72rem",
+                        fontSize: "1rem",
                         color: "#64748b",
                         "&:hover": { color: "#2563eb" },
                       }}
@@ -318,7 +318,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
           sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
         >
           <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...uiFont, whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont, whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter application connection detail"}
           </Typography>
           <KeyboardArrowDownIcon

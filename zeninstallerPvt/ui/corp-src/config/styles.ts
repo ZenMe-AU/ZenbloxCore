@@ -16,7 +16,7 @@ export const MONO_FONT = { fontFamily: "monospace" } as const;
 export const refreshBtnSx = {
   flexShrink: 0,
   color: "#94a3b8",
-  fontSize: "0.72rem",
+  fontSize: "1rem",
   textTransform: "none" as const,
   ...UI_FONT,
   "&:hover": { color: "#475569" },
@@ -24,7 +24,7 @@ export const refreshBtnSx = {
 
 // Small uppercase field label used by the Azure / domain / terraform setup cards.
 export const labelSx = {
-  fontSize: "0.68rem",
+  fontSize: "1rem",
   color: "#94a3b8",
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
@@ -36,7 +36,7 @@ export const labelSx = {
  * EnvSecretsDetail overrides `color` to the muted #94a3b8.
  */
 export const sectionLabelSx = {
-  fontSize: "0.7rem",
+  fontSize: "1rem",
   fontWeight: 700,
   color: "#0f172a",
   textTransform: "uppercase" as const,

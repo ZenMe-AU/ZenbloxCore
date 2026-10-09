@@ -24,7 +24,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.7 }}>
       Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox.
     </Typography>
   );
@@ -89,7 +89,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
         {/* Mode toggle — hidden once logged in */}
         {!user && (
           <Box sx={{ mb: 2 }}>
-            <Typography sx={{ fontSize: "0.72rem", color: "#64748b", mb: 1 }}>
+            <Typography sx={{ fontSize: "1rem", color: "#64748b", mb: 1 }}>
               <Box component="span" sx={{ ...uiFontSx, fontWeight: 600 }}>
                 Backend
               </Box>{" "}
@@ -105,7 +105,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
               onChange={handleModeChange}
               size="small"
               sx={{
-                "& .MuiToggleButton-root": { ...uiFontSx, fontSize: "0.7rem", textTransform: "none", px: 1.5, py: 0.4 },
+                "& .MuiToggleButton-root": { ...uiFontSx, fontSize: "1rem", textTransform: "none", px: 1.5, py: 0.4 },
               }}
             >
               <ToggleButton value="backend">Backend</ToggleButton>
@@ -117,7 +117,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
         {authLoading ? (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
             <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
-            <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", ...uiFontSx }}>{signingIn ? "Signing you in..." : "Verifying access..."}</Typography>
+            <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFontSx }}>{signingIn ? "Signing you in..." : "Verifying access..."}</Typography>
           </Box>
         ) : !user ? (
           mode === "direct" ? (
@@ -145,7 +145,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                 }}
                 error={!!patError}
                 helperText={patError || "Personal Access Token with repo + workflow scopes"}
-                inputProps={{ style: { fontFamily: "monospace", fontSize: "0.8rem" } }}
+                inputProps={{ style: { fontFamily: "monospace", fontSize: "1rem" } }}
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
@@ -173,7 +173,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                     </InputAdornment>
                   ),
                 }}
-                FormHelperTextProps={{ sx: { ...uiFontSx, fontSize: "0.68rem" } }}
+                FormHelperTextProps={{ sx: { ...uiFontSx, fontSize: "1rem" } }}
               />
               <Button
                 variant="contained"
@@ -185,7 +185,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                   background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                   textTransform: "none",
                   ...uiFontSx,
-                  fontSize: "0.8rem",
+                  fontSize: "1rem",
                   py: 0.75,
                   px: 2,
                   borderRadius: "8px",
@@ -206,7 +206,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                 background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                 textTransform: "none",
                 ...uiFontSx,
-                fontSize: "0.85rem",
+                fontSize: "1rem",
                 py: 1,
                 px: 2.5,
                 borderRadius: "8px",
@@ -223,7 +223,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
           )
         ) : (
           <Box>
-            <Typography sx={{ fontSize: "0.78rem", color: "#64748b", mb: 2 }}>
+            <Typography sx={{ fontSize: "1rem", color: "#64748b", mb: 2 }}>
               Authenticated as{" "}
               <Box component="span" data-sensitive="true" sx={{ ...uiFontSx, fontWeight: 600 }}>
                 {user.login}
@@ -244,7 +244,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                 sx={{
                   borderColor: "#e2e8f0",
                   color: "#94a3b8",
-                  fontSize: "0.72rem",
+                  fontSize: "1rem",
                   textTransform: "none",
                   ...uiFontSx,
                   py: 0.5,

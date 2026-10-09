@@ -31,7 +31,7 @@ export default function RestoreToast({ loading, warnings, onDismiss }: Props) {
           severity="info"
           icon={<CircularProgress size={16} sx={{ color: "#2563eb" }} />}
           sx={{
-            fontSize: "0.78rem",
+            fontSize: "1rem",
             alignItems: "center",
             boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
             borderRadius: "10px",
@@ -45,7 +45,7 @@ export default function RestoreToast({ loading, warnings, onDismiss }: Props) {
           severity="warning"
           onClose={onDismiss}
           sx={{
-            fontSize: "0.78rem",
+            fontSize: "1rem",
             boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
             borderRadius: "10px",
           }}

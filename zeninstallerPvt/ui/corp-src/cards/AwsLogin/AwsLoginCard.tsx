@@ -24,7 +24,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.7 }}>
       Sign in with your AWS access key in this browser. We never send your long-term AWS access key or secret key to our servers; only short-term AWS session
       credentials are kept in this tab until they expire.
       <>
@@ -113,7 +113,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
         {!done && (
           <>
             <Box>
-              <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", mb: 1.5, lineHeight: 1.6 }}>
+              <Typography sx={{ fontSize: "1rem", color: "#94a3b8", mb: 1.5, lineHeight: 1.6 }}>
                 Generate access keys from your AWS account's Security credentials. They're exchanged for short-term session credentials and can be deleted after
                 setup.
               </Typography>
@@ -128,7 +128,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                   placeholder="AKIA..."
                   disabled={!!account || loggingIn || card.locked}
                   sx={{ maxWidth: 340 }}
-                  InputProps={{ style: { fontFamily: "monospace", fontSize: "0.8rem" } }}
+                  InputProps={{ style: { fontFamily: "monospace", fontSize: "1rem" } }}
                 />
                 <TextField
                   size="small"
@@ -141,7 +141,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                   disabled={!!account || loggingIn || card.locked}
                   sx={{ maxWidth: 340 }}
                   InputProps={{
-                    style: { fontFamily: "monospace", fontSize: "0.8rem" },
+                    style: { fontFamily: "monospace", fontSize: "1rem" },
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton size="small" type="button" onClick={() => setShowSecret((v) => !v)} edge="end" tabIndex={-1}>
@@ -158,7 +158,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
 
         {account && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>
+            <Typography sx={{ fontSize: "1rem", color: "#64748b" }}>
               {done ? "Signed in as " : "Authenticating as "}
               <Box component="span" sx={{ fontWeight: 600, ...uiFont }}>
                 {account.username}
@@ -173,7 +173,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
               onClick={logout}
               sx={{
                 minWidth: 0,
-                fontSize: "0.68rem",
+                fontSize: "1rem",
                 color: "#94a3b8",
                 textTransform: "none",
                 ...uiFont,
@@ -197,10 +197,10 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                 onChange={(e) => setSelectedMfaSerial(e.target.value)}
                 helperText="Pick the device you have on hand"
                 sx={{ maxWidth: 280 }}
-                InputProps={{ style: { fontFamily: "monospace", fontSize: "0.8rem" } }}
+                InputProps={{ style: { fontFamily: "monospace", fontSize: "1rem" } }}
               >
                 {usableDevices.map((d) => (
-                  <MenuItem key={d.serialNumber} value={d.serialNumber} sx={{ fontSize: "0.8rem", ...uiFont }}>
+                  <MenuItem key={d.serialNumber} value={d.serialNumber} sx={{ fontSize: "1rem", ...uiFont }}>
                     {d.name}
                   </MenuItem>
                 ))}
@@ -219,7 +219,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
               helperText={usableDevices.length > 1 ? "Code from the selected device" : `Code from ${usableDevices[0]?.name ?? "your MFA device"}`}
               inputProps={{
                 maxLength: 6,
-                style: { fontFamily: "monospace", fontSize: "0.8rem", letterSpacing: "0.2em" },
+                style: { fontFamily: "monospace", fontSize: "1rem", letterSpacing: "0.2em" },
               }}
               sx={{ maxWidth: 160 }}
             />
@@ -229,7 +229,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
         {fidoOnly && (
           <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.75, maxWidth: 420 }}>
             <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706", mt: "2px" }} />
-            <Typography sx={{ fontSize: "0.68rem", color: "#92400e", lineHeight: 1.6 }}>
+            <Typography sx={{ fontSize: "1rem", color: "#92400e", lineHeight: 1.6 }}>
               Your only MFA is a security key (FIDO), which AWS can't use for CLI/API sign-in. We'll continue without MFA — if your account requires MFA,
               register an authenticator-app (TOTP) device or use access keys that don't enforce MFA.
             </Typography>
@@ -248,7 +248,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                 background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                 textTransform: "none",
                 ...uiFont,
-                fontSize: "0.85rem",
+                fontSize: "1rem",
                 py: 1,
                 px: 2.5,
                 borderRadius: "8px",
@@ -265,7 +265,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
           </Box>
         )}
 
-        {signInError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{signInError}</Typography>}
+        {signInError && <Typography sx={{ fontSize: "1rem", color: "#ef4444" }}>{signInError}</Typography>}
       </Box>
     </Card>
   );

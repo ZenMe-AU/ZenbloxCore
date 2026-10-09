@@ -114,7 +114,7 @@ export default function CloudVariableDetail({
           {!variables.loading && notConfigured > 0 && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-              <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{notConfigured} not configured</Typography>
+              <Typography sx={{ fontSize: "1rem", color: "#ea580c" }}>{notConfigured} not configured</Typography>
             </Box>
           )}
         </Box>
@@ -168,7 +168,7 @@ export default function CloudVariableDetail({
             onClick={() => window.open(githubUrl, "_blank")}
             sx={{
               flexShrink: 0,
-              fontSize: "0.7rem",
+              fontSize: "1rem",
               color: "#64748b",
               textTransform: "none",
               ...uiFont,

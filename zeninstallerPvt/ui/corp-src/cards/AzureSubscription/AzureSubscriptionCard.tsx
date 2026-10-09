@@ -37,7 +37,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.7 }}>
       Pick the subscription to deploy into. This is where the resource group, storage account and DNS zone will be created, and it's saved to GitHub so the
       pipeline uses the same target.
     </Typography>
@@ -109,7 +109,7 @@ export default function AzureSubscriptionCard({
             onClick={onOpenAzureLogin}
             sx={{
               minWidth: 0,
-              fontSize: "0.68rem",
+              fontSize: "1rem",
               color: "#2563eb",
               textTransform: "none",
               ...uiFont,
@@ -122,7 +122,7 @@ export default function AzureSubscriptionCard({
           </Button>
         </Box>
 
-        {subsError && !subscriptionNoAccess && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{subsError}</Typography>}
+        {subsError && !subscriptionNoAccess && <Typography sx={{ fontSize: "1rem", color: "#ef4444" }}>{subsError}</Typography>}
 
         {/* Subscription */}
         <Box>
@@ -137,23 +137,23 @@ export default function AzureSubscriptionCard({
               }}
               displayEmpty
               renderValue={(v) => {
-                if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...uiFont }}>Select a subscription</Typography>;
+                if (!v) return <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont }}>Select a subscription</Typography>;
                 const name = subscriptionOptions.find((s) => s.id === v)?.displayName ?? v;
                 return (
-                  <Typography data-sensitive="true" sx={{ fontSize: "0.8rem", ...uiFont }}>
+                  <Typography data-sensitive="true" sx={{ fontSize: "1rem", ...uiFont }}>
                     {name}
                   </Typography>
                 );
               }}
-              sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...uiFont }}
+              sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "1rem", ...uiFont }}
             >
               {subscriptionOptions.map((s) => (
                 <MenuItem key={s.id} value={s.id} sx={{ py: 0.75 }}>
                   <Box>
-                    <Typography data-sensitive="true" sx={{ fontSize: "0.8rem", ...uiFont }}>
+                    <Typography data-sensitive="true" sx={{ fontSize: "1rem", ...uiFont }}>
                       {s.displayName}
                     </Typography>
-                    <Typography data-sensitive="true" sx={{ fontSize: "0.68rem", color: "#94a3b8", ...uiFont }}>
+                    <Typography data-sensitive="true" sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont }}>
                       {s.id}
                     </Typography>
                   </Box>
@@ -163,18 +163,18 @@ export default function AzureSubscriptionCard({
           ) : subscriptionNoAccess ? (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
               <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#d97706" }}>This tenant has no subscriptions you can access.</Typography>
+              <Typography sx={{ fontSize: "1rem", color: "#d97706" }}>This tenant has no subscriptions you can access.</Typography>
             </Box>
           ) : (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <CircularProgress size={12} sx={{ color: "#cbd5e1" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", ...uiFont }}>Loading subscriptions...</Typography>
+              <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont }}>Loading subscriptions...</Typography>
             </Box>
           )}
         </Box>
 
         {!selectedEnv && (
-          <Typography sx={{ fontSize: "0.72rem", color: "#d97706" }}>
+          <Typography sx={{ fontSize: "1rem", color: "#d97706" }}>
             Select a repository & environment to save the tenant and subscription to GitHub.
           </Typography>
         )}
@@ -193,7 +193,7 @@ export default function AzureSubscriptionCard({
             subscriptionDrift ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                 <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                <Typography sx={{ fontSize: "0.72rem", color: "#d97706" }}>Unsaved change — save to apply.</Typography>
+                <Typography sx={{ fontSize: "1rem", color: "#d97706" }}>Unsaved change — save to apply.</Typography>
               </Box>
             ) : undefined
           }

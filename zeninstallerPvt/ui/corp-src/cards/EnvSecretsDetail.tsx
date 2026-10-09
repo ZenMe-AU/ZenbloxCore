@@ -20,7 +20,7 @@ import { sectionLabelSx as sectionLabelBase } from "../config/styles";
 const sectionLabelSx = { ...sectionLabelBase, color: "#94a3b8" };
 
 const subLabelSx = {
-  fontSize: "0.67rem",
+  fontSize: "1rem",
   fontWeight: 600,
   color: "#cbd5e1",
   textTransform: "uppercase" as const,
@@ -121,7 +121,7 @@ export default function EnvSecretsDetail({
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 1 }}>
         <Box>
           <Typography sx={{ ...sectionLabelSx, mb: 0.75 }}>Secrets</Typography>
-          <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>The following GitHub Actions secrets must be configured.</Typography>
+          <Typography sx={{ fontSize: "1rem", color: "#64748b" }}>The following GitHub Actions secrets must be configured.</Typography>
         </Box>
         <RefreshButton
           busy={rechecking}
@@ -143,7 +143,7 @@ export default function EnvSecretsDetail({
             return n > 0 && azureSecretsStatus.configured !== null ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                 <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
+                <Typography sx={{ fontSize: "1rem", color: "#ea580c" }}>{n} not configured</Typography>
               </Box>
             ) : null;
           })()}
@@ -168,7 +168,7 @@ export default function EnvSecretsDetail({
             return n > 0 && awsSecretsStatus.configured !== null ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                 <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
+                <Typography sx={{ fontSize: "1rem", color: "#ea580c" }}>{n} not configured</Typography>
               </Box>
             ) : null;
           })()}

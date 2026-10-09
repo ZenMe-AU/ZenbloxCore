@@ -13,7 +13,7 @@ const selectSx = {
   background: "#f8fafc",
   color: "#0f172a",
   fontFamily: "monospace",
-  fontSize: "0.8rem",
+  fontSize: "1rem",
   "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
   "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
   "& .MuiSvgIcon-root": { color: "#94a3b8" },
@@ -54,7 +54,7 @@ export default function EnvBranchDetail({
           startIcon={creatingBranch ? <CircularProgress size={12} sx={{ color: "#93c5fd" }} /> : <AddIcon />}
           sx={{
             background: "#2563eb",
-            fontSize: "0.8rem",
+            fontSize: "1rem",
             textTransform: "none",
             py: 0.75,
             px: 2,
@@ -66,17 +66,17 @@ export default function EnvBranchDetail({
         </Button>
 
         <>
-          <Typography sx={{ fontSize: "0.72rem", color: "#64748b", flexShrink: 0 }}>
+          <Typography sx={{ fontSize: "1rem", color: "#64748b", flexShrink: 0 }}>
             Clone the new branch from existing branch:
           </Typography>
           <Select size="small" value={sourceBranch} onChange={(e) => onSourceBranchChange(e.target.value)} sx={{ mr: 3, minWidth: 140, ...selectSx }}>
             {branches.map((b) => (
-              <MenuItem key={b.name} value={b.name} sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
+              <MenuItem key={b.name} value={b.name} sx={{ fontFamily: "monospace", fontSize: "1rem" }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <CallSplitIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
                   {b.name}
                   {b.protected && (
-                    <Box component="span" sx={{ fontSize: "0.62rem", color: "#f97316", ml: 0.5 }}>
+                    <Box component="span" sx={{ fontSize: "1rem", color: "#f97316", ml: 0.5 }}>
                       protected
                     </Box>
                   )}
@@ -101,7 +101,7 @@ export default function EnvBranchDetail({
           }}
         >
           <ErrorOutlineIcon sx={{ fontSize: 15, color: "#ef4444" }} />
-          <Typography sx={{ fontSize: "0.75rem", color: "#ef4444" }}>{createBranchError}</Typography>
+          <Typography sx={{ fontSize: "1rem", color: "#ef4444" }}>{createBranchError}</Typography>
         </Box>
       )}
     </Box>

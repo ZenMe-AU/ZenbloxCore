@@ -129,10 +129,10 @@ Define a small shared type scale and semantic roles rather than choosing sizes p
 | Page title | 1.25–1.5rem | App name or page-level heading |
 | Card/section heading | 1rem–1.125rem | Card titles and section headings |
 | Body | 1rem | Instructions and primary explanatory copy |
-| Supporting | 0.875rem | Helper text, captions, and secondary actions |
-| Metadata | 0.75rem | Non-essential IDs or timestamps only; never primary instructions, errors, or controls |
+| Supporting | 1rem | Helper text, captions, and secondary actions |
+| Metadata | 0.875rem | IDs, timestamps, and other secondary details |
 
-Use a body line-height around 1.5–1.6, regular weight for prose, and semibold weight for headings. Keep labels distinct through weight and spacing rather than making them monospace. Treat 0.875rem (14px at the default browser size) as the minimum for meaningful supporting text; keep smaller metadata visibly secondary and non-critical. Preserve `rem` units, allow text to wrap, and avoid truncating instructions or error messages.
+Use a body line-height around 1.5–1.6, regular weight for prose, and semibold weight for headings. Keep labels distinct through weight and spacing rather than making them monospace. Use 1rem (16px at the default browser size) as the minimum for main and supporting text, with 0.875rem (14px) as the metadata base. Preserve `rem` units, allow text to wrap, and avoid truncating instructions or error messages.
 
 Apply the scale through CSS variables and MUI theme defaults so CSS classes and `sx`-based components render the same roles consistently. Migrate incrementally: first the page shell and shared card components, then individual cards. Do not redesign card layout and typography in the same step unless screenshot comparison confirms the combined change remains easy to scan.
 
@@ -189,7 +189,7 @@ Measured signals: 95 `onClick` handlers (the card header and requirement rows in
 | 2 | High | **No visible keyboard focus.** There is no `:focus-visible` rule; MUI buttons keep their ripple focus only, and the plain `Box` click targets get none. | Add a global `:focus-visible` ring in `App.css` (2px, 3:1 against both white and slate surfaces), confirm it is not clipped by `overflow: hidden` on the card shell, and give hover cues an equivalent focus cue. |
 | 3 | High | **Status conveyed by icon and colour only.** | Add visually hidden status text or `aria-label`s on the icons ("Complete", "Warning", "Error"). Use `role="status"` / `aria-live="polite"` for loading, success and error messages such as `loginError`. |
 | 4 | High | **Colour contrast.** `#94a3b8` (about 2.6:1 on white) is the most-used text colour. `#cbd5e1` is lower. The orange `#ea580c`/`#d97706` summaries are borderline. | Use `#64748b` or darker for text. Locked and disabled states may be exempt, but status summaries and labels are not. Define accessible token values once in the shared stylesheet. |
-| 5 | Medium | **Small text.** Sizes are 0.68–0.8rem (about 11–13px). Truncated titles and summaries use ellipsis. | Use at least 0.875rem for meaningful supporting text; reserve 0.75rem for non-essential metadata. Keep `rem` units so browser zoom works. Add a `title` or tooltip for truncated text and expose the full text to screen readers. |
+| 5 | Medium | **Small text.** Sizes are 0.68–0.8rem (about 11–13px). Truncated titles and summaries use ellipsis. | Use at least 1rem for main/supporting text and 0.875rem for metadata. Keep `rem` units so browser zoom works. Add a `title` or tooltip for truncated text and expose the full text to screen readers. |
 | 6 | Medium | **No reduced-motion handling.** Card width, border and background transitions plus MUI `Collapse` always animate. | Add `@media (prefers-reduced-motion: reduce)` in `App.css` and set `transitions.create` durations to 0 in the theme under that query. |
 | 7 | Medium | **`ViewLink` is a `Button` calling `window.open`**, and its text is hidden below the `sm` breakpoint. | Use `<a href target="_blank" rel="noopener noreferrer">` so it can be opened in a new tab by keyboard or context menu. Keep the `aria-label` on narrow screens and add "(opens in new tab)". |
 | 8 | Medium | **Labels aren't tied to controls.** `labelSx` is applied to a `Typography` beside the `Select`/`TextField`. | Use `InputLabel`/the `label` prop, or `aria-labelledby`. |
@@ -220,7 +220,7 @@ Each step is one reviewable change that leaves the app working. After every step
 - Run the Playwright mock tests within the zeninstallerPvt-ui folder and note the starting result.
 - **Baseline run (2026-10-08): partial.** Ran the `Test Corp` project against `pwtests/corp-src/mock-tests` with `--no-deps`, `BASE_URL=http://localhost:5173`, and a temporary dummy `VITE_APPINSIGHTS_CONNECTION_STRING` (no `.env` or source files changed). Result: 46 passed, 18 failed. Failures were confined to `BackendDeployCard` (10), `CreateDomainCard` (2), and `RemoteTerminalInfraCard` (6); their flows were blocked because `--no-deps` skipped the auth setup projects, leaving prerequisite cards locked. The focused Azure Login test and screenshot assertions reached by the suite matched the existing baselines. Do not interpret the 18 failures as styling regressions; rerun with required auth state available if full behavioral coverage is needed.
 - Record the font rule: `sans-serif` is primary for all main interface content, Arial is fallback only, and `monospace` is only for technical elements. Do not add web-font downloads or other font families.
-- Confirm the minimum text size (recommended 0.875rem).
+- Confirm the minimum text size (1rem for main/supporting text; 0.875rem for metadata).
 
 ### Step 1. Remove dead code and fix fonts
 
@@ -232,6 +232,8 @@ Each step is one reviewable change that leaves the app working. After every step
 
 - Create `corp-src/theme.ts` (`createTheme`, `cssVariables: true`) with the palette, typography scale, shape and component overrides from section 3. Map existing colours to tokens: `#0f172a` text.primary, `#475569` text.secondary, `#64748b` text.muted (never lighter), `#2563eb`/`#1d4ed8` primary main/dark, `#ef4444`/`#dc2626` error, `#d97706`/`#ea580c` warning (darkened for text contrast), `#22c55e`/`#16a34a` success, `#e2e8f0` divider.
 - Wrap the app in `ThemeProvider` and `CssBaseline` in `corp.tsx`. Visuals should barely change.
+- **Completed (2026-10-09).** Added the CSS-variable MUI theme with the shared palette, type scale, shape, button/form/link/typography/chip defaults and technical monospace elements. The existing `ThemeProvider`/`CssBaseline` wrapper was already in place. `pnpm build`, focused theme lint and the Azure Login desktop/mobile mock (4 tests) passed; existing screenshots matched and were not updated. Full `pnpm lint` and `pnpm test` still report failures in untouched files (existing lint violations, Access Pass telemetry test setup, and a browser-test module load failure).
+- **Typography floor updated (2026-10-09).** Set the root and theme base to 16px/1rem, raised theme variants and MUI text-control defaults to at least 1rem, and raised explicit sub-1rem `fontSize` overrides across `corp-src`. Metadata uses a 0.875rem caption base. Update relevant visual baselines only after reviewing the resulting UI.
 
 ### Step 3. Global stylesheet
 
@@ -264,7 +266,7 @@ Each step is one reviewable change that leaves the app working. After every step
 
 ### Step 8. Migrate the remaining cards, one PR each
 
-Order by size and reuse: `GithubLoginCard`, `AwsLoginCard`, `AzureSubscriptionCard`, `AzureAppRegistrationCard`, `CoreInfraCard`, `CreateDomainCard`, `RemoteTerminalInfraCard`, `BackendDeployCard`, `WebDeployCard`, `AwsSetupCard`, `StageCard`/`StagePlanDetail`/`RemoteTerminal`, `RepoCard` + `RepoDetail`/`EnvDetail`/`EnvBranchDetail`, `GlobalGroupsCard`, `AccessPassCard`, and the shared `StepRow`, `CopyRow`, `VariablesCard`, `SecretsCard`, `RestoreToast`, `CloudVariableDetail`, `EnvSecretsDetail`. Per card: use theme variants and building blocks, keep `sx` for layout only, add labels to every control, add live regions for status/errors, and avoid sizes below 0.875rem for meaningful text (0.75rem for IDs and timestamps only).
+Order by size and reuse: `GithubLoginCard`, `AwsLoginCard`, `AzureSubscriptionCard`, `AzureAppRegistrationCard`, `CoreInfraCard`, `CreateDomainCard`, `RemoteTerminalInfraCard`, `BackendDeployCard`, `WebDeployCard`, `AwsSetupCard`, `StageCard`/`StagePlanDetail`/`RemoteTerminal`, `RepoCard` + `RepoDetail`/`EnvDetail`/`EnvBranchDetail`, `GlobalGroupsCard`, `AccessPassCard`, and the shared `StepRow`, `CopyRow`, `VariablesCard`, `SecretsCard`, `RestoreToast`, `CloudVariableDetail`, `EnvSecretsDetail`. Per card: use theme variants and building blocks, keep `sx` for layout only, add labels to every control, add live regions for status/errors, and keep main/supporting text at or above 1rem and metadata at or above 0.875rem.
 
 ### Step 9. Guardrails
 
@@ -288,7 +290,7 @@ Per the repository `README.md` rules, decisions live in the folder where they ap
 1. MUI theme is the single source of truth for colour, type and shape; `sx` is for layout and dynamic values only.
 2. `App.css` holds global, non-component rules only.
 3. `sans-serif` is the primary font for main UI content; Arial is fallback only; `monospace` is reserved for technical values. No other font overrides or web-font downloads.
-4. Minimum 0.875rem for meaningful text; contrast >= 4.5:1.
+4. Minimum 1rem for main/supporting text and 0.875rem for metadata; contrast >= 4.5:1.
 5. Interactive elements are native or MUI-semantic (button, link, input), never `onClick` on a `Box`.
 6. Test hooks (`id="card-<id>"`, `data-id`, `data-sensitive`, accessible names) are part of the UI contract.
 

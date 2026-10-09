@@ -18,7 +18,7 @@ function SummaryPill({ label, count, color }: { label: string; count: number; co
         borderRadius: "4px",
         border: `1px solid ${color}33`,
         color,
-        fontSize: "0.65rem",
+        fontSize: "1rem",
         ...uiFont,
       }}
     >
@@ -39,7 +39,7 @@ function BehindPill({ planSha, latestSha }: { planSha?: string; latestSha?: stri
           border: "1px solid #d9770633",
           background: "#d977060d",
           color: "#d97706",
-          fontSize: "0.65rem",
+          fontSize: "1rem",
           ...uiFont,
           textTransform: "none",
           letterSpacing: 0,
@@ -62,7 +62,7 @@ function DeployButton({ onDeploy, disabled }: { onDeploy: () => void; disabled?:
       sx={{
         background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
         ...uiFont,
-        fontSize: "0.72rem",
+        fontSize: "1rem",
         textTransform: "none",
         py: 0.45,
         px: 1.5,
@@ -100,12 +100,12 @@ export default function StagePlanDetail({
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 1 }}>
         <CircularProgress size={13} sx={{ color: "#cbd5e1" }} />
-        <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", ...uiFont }}>Loading plan...</Typography>
+        <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont }}>Loading plan...</Typography>
       </Box>
     );
   }
 
-  if (error) return <Typography sx={{ fontSize: "0.75rem", color: "#ef4444", ...uiFont }}>{error}</Typography>;
+  if (error) return <Typography sx={{ fontSize: "1rem", color: "#ef4444", ...uiFont }}>{error}</Typography>;
 
   const hasChanges = summary.create + summary.update + summary.delete + summary.replace > 0;
 
@@ -114,7 +114,7 @@ export default function StagePlanDetail({
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
         <Typography
           sx={{
-            fontSize: "0.68rem",
+            fontSize: "1rem",
             color: "#94a3b8",
             ...uiFont,
             letterSpacing: "0.08em",
@@ -143,7 +143,7 @@ export default function StagePlanDetail({
               {summary.replace > 0 && <SummaryPill label="replace" count={summary.replace} color="#7c3aed" />}
             </>
           ) : (
-            <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...uiFont }}>No changes detected.</Typography>
+            <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont }}>No changes detected.</Typography>
           )}
         </Box>
         {onDeploy && <DeployButton onDeploy={onDeploy} disabled={stagesStale} />}
@@ -167,8 +167,8 @@ export default function StagePlanDetail({
                   background: idx % 2 === 0 ? "#ffffff" : "#fafafa",
                 }}
               >
-                <Box sx={{ width: 26, color: cfg.color, fontSize: "0.72rem", fontWeight: 700, ...uiFont, flexShrink: 0 }}>{cfg.symbol}</Box>
-                <Typography sx={{ fontSize: "0.75rem", color: "#334155", wordBreak: "break-all", ...MONO_FONT }}>{item.address}</Typography>
+                <Box sx={{ width: 26, color: cfg.color, fontSize: "1rem", fontWeight: 700, ...uiFont, flexShrink: 0 }}>{cfg.symbol}</Box>
+                <Typography sx={{ fontSize: "1rem", color: "#334155", wordBreak: "break-all", ...MONO_FONT }}>{item.address}</Typography>
               </Box>
             );
           })}

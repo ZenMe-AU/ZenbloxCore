@@ -46,7 +46,7 @@ const darkBtnSx = {
   color: TERMINAL_COLORS.text,
   border: `1px solid #45475a`,
   ...MONO_FONT,
-  fontSize: "0.7rem",
+  fontSize: "1rem",
   textTransform: "none" as const,
   py: 0.4,
   px: 1.25,
@@ -82,11 +82,11 @@ function StatusBar({ session }: { session: UseRemoteTerminal }) {
           "@keyframes pulse": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0.3 } },
         }}
       />
-      <Typography sx={{ fontSize: "0.72rem", color: TERMINAL_COLORS.text, fontWeight: 600, ...MONO_FONT }}>{text}</Typography>
+      <Typography sx={{ fontSize: "1rem", color: TERMINAL_COLORS.text, fontWeight: 600, ...MONO_FONT }}>{text}</Typography>
       {session.stage && (
         <Typography
           sx={{
-            fontSize: "0.65rem",
+            fontSize: "1rem",
             color: TERMINAL_COLORS.accent,
             background: TERMINAL_COLORS.border,
             px: 0.75,
@@ -99,7 +99,7 @@ function StatusBar({ session }: { session: UseRemoteTerminal }) {
         </Typography>
       )}
       {session.sessionId && (
-        <Typography sx={{ fontSize: "0.65rem", color: TERMINAL_COLORS.muted, ml: "auto", ...MONO_FONT }}>{session.sessionId.slice(0, 8)}</Typography>
+        <Typography sx={{ fontSize: "1rem", color: TERMINAL_COLORS.muted, ml: "auto", ...MONO_FONT }}>{session.sessionId.slice(0, 8)}</Typography>
       )}
       {/* Gone once the session is over — the panel stays, but there is nothing left to end. */}
       {session.status !== "closed" && session.status !== "idle" && (
@@ -136,7 +136,7 @@ function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code
         textAlign: "center",
       }}
     >
-      <Typography sx={{ fontSize: "0.72rem", color: TERMINAL_COLORS.accent, fontWeight: 600, mb: 1, ...MONO_FONT }}>
+      <Typography sx={{ fontSize: "1rem", color: TERMINAL_COLORS.accent, fontWeight: 600, mb: 1, ...MONO_FONT }}>
         {cloud === "aws" ? "AWS Console Sign-In" : "Azure Device Code Login"}
       </Typography>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
@@ -179,7 +179,7 @@ function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code
           {cloud === "aws" ? "Open AWS Sign-In" : "Open Microsoft Device Login"}
         </Button>
       </Box>
-      <Typography sx={{ fontSize: "0.65rem", color: TERMINAL_COLORS.muted, mt: 1, ...MONO_FONT }}>
+      <Typography sx={{ fontSize: "1rem", color: TERMINAL_COLORS.muted, mt: 1, ...MONO_FONT }}>
         {cloud === "aws"
           ? "Sign in, then paste the authorization code it gives you into the terminal below."
           : "Enter the code on the Microsoft page — it cannot be pre-filled from the link."}
@@ -224,7 +224,7 @@ export default function RemoteTerminal({ session }: { session: UseRemoteTerminal
       {session.loggedIn.length > 0 && (
         <Typography
           sx={{
-            fontSize: "0.72rem",
+            fontSize: "1rem",
             color: TERMINAL_COLORS.green,
             background: TERMINAL_COLORS.successBg,
             borderBottom: `1px solid ${TERMINAL_COLORS.green}`,
@@ -240,7 +240,7 @@ export default function RemoteTerminal({ session }: { session: UseRemoteTerminal
       {session.error && (
         <Typography
           sx={{
-            fontSize: "0.7rem",
+            fontSize: "1rem",
             color: TERMINAL_COLORS.red,
             px: 1.5,
             py: 0.75,

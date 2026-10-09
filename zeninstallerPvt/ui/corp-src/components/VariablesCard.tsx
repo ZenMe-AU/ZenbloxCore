@@ -20,7 +20,7 @@ const inputSx = {
     background: "#f8fafc",
     color: "#0f172a",
     fontFamily: "monospace",
-    fontSize: "0.78rem",
+    fontSize: "1rem",
     borderRadius: "6px",
   },
   "& .MuiInputBase-input": { py: "5px", px: "10px" },
@@ -82,7 +82,7 @@ function VariableRow({
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: "10.5rem", flexShrink: 0 }}>
         <Typography
           sx={{
-            fontSize: "0.78rem",
+            fontSize: "1rem",
             fontFamily: "monospace",
             color: isDirty ? "#92400e" : "#0f172a",
             whiteSpace: "nowrap",
@@ -148,7 +148,7 @@ function VariableRow({
               borderRadius: "4px",
               background: "#fffbeb",
               border: "1px solid #fde68a",
-              fontSize: "0.62rem",
+              fontSize: "1rem",
               fontFamily: "monospace",
               color: "#b45309",
               flexShrink: 0,
@@ -168,7 +168,7 @@ function VariableRow({
       )}
 
       {isSuccess && (
-        <Typography sx={{ fontSize: "0.62rem", color: "#16a34a", whiteSpace: "nowrap" }}>just updated</Typography>
+        <Typography sx={{ fontSize: "1rem", color: "#16a34a", whiteSpace: "nowrap" }}>just updated</Typography>
       )}
 
       {!isDirty && !isSuccess && !isError && validStatus === true && (
@@ -182,7 +182,7 @@ function VariableRow({
             borderRadius: "4px",
             background: "#f0fdf4",
             border: "1px solid #bbf7d0",
-            fontSize: "0.62rem",
+            fontSize: "1rem",
             fontFamily: "monospace",
             color: "#16a34a",
             flexShrink: 0,
@@ -204,7 +204,7 @@ function VariableRow({
             borderRadius: "4px",
             background: "#fef2f2",
             border: "1px solid #fecaca",
-            fontSize: "0.62rem",
+            fontSize: "1rem",
             fontFamily: "monospace",
             color: "#ef4444",
             flexShrink: 0,

@@ -33,7 +33,7 @@ export default function SaveButton({ verb, noun, count, loading, disabled, onCli
       sx={{
         background: "#2563eb",
         ...UI_FONT,
-        fontSize: "0.75rem",
+        fontSize: "1rem",
         textTransform: "none",
         py: 0.75,
         px: 2,

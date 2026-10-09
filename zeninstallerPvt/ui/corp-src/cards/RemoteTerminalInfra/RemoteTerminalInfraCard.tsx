@@ -62,7 +62,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
   return (
     <Card title="Private Zeninstaller Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.6 }}>
+        <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.6 }}>
           The relay behind the stage-card terminal: Web PubSub, the session table, and the Function App that issues group-scoped tokens. Everything connects by
           managed identity — no access key is stored.
         </Typography>
@@ -83,7 +83,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
                 ["App registration", infra.pipelineAppName],
                 ["Sign-in app registration", "Zeninstaller Private"],
               ].map(([label, value]) => (
-                <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
+                <Typography key={label} sx={{ fontSize: "1rem", color: "#64748b", ...uiFont }}>
                   {label}:{" "}
                   <Box component="span" sx={{ color: "#0f172a" }}>
                     {value}
@@ -103,7 +103,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
             sx={{
               background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
               ...uiFont,
-              fontSize: "0.75rem",
+              fontSize: "1rem",
               textTransform: "none",
               py: 0.6,
               px: 2,
@@ -127,7 +127,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
         {infra.result && infra.resultMatches && (
           <Box>
             <Typography sx={{ ...labelSx, mb: 0.75 }}>Admin consent</Typography>
-            <Typography sx={{ fontSize: "0.72rem", color: "#475569", mb: 0.5 }}>
+            <Typography sx={{ fontSize: "1rem", color: "#475569", mb: 0.5 }}>
               An administrator opens this once so everyone else can sign in without being prompted.
             </Typography>
             <Typography
@@ -136,7 +136,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
               target="_blank"
               rel="noopener noreferrer"
               sx={{
-                fontSize: "0.72rem",
+                fontSize: "1rem",
                 ...uiFont,
                 color: "#1d4ed8",
                 wordBreak: "break-all",
@@ -163,7 +163,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
           sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
         >
           <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...uiFont, whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont, whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter connection detail"}
           </Typography>
           <KeyboardArrowDownIcon

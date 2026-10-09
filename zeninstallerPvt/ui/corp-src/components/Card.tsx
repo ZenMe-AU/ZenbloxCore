@@ -137,7 +137,7 @@ export default function Card({
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             sx={{
-              fontSize: "0.8rem",
+              fontSize: "1rem",
               fontWeight: 600,
               color: muted ? "#94a3b8" : "#0f172a",
               ...uiFont,
@@ -152,7 +152,7 @@ export default function Card({
           {showSummary && (
             <Typography
               sx={{
-                fontSize: "0.72rem",
+                fontSize: "1rem",
                 color:
                   status === "unavailable"
                     ? "#64748b"
@@ -206,7 +206,7 @@ export default function Card({
               >
                 <Typography
                   sx={{
-                    fontSize: "0.7rem",
+                    fontSize: "1rem",
                     color: "#64748b",
                     ...uiFont,
                     textTransform: "uppercase",
@@ -237,7 +237,7 @@ export default function Card({
                     }}
                   >
                     <ChevronRightIcon sx={{ fontSize: 15, color: "#2563eb", flexShrink: 0 }} />
-                    <Typography className="req-label" sx={{ fontSize: "0.76rem", color: "#2563eb", fontWeight: 500 }}>
+                    <Typography className="req-label" sx={{ fontSize: "1rem", color: "#2563eb", fontWeight: 500 }}>
                       {r.label}
                     </Typography>
                   </Box>

@@ -36,7 +36,7 @@ type Props = {
 
 function Intro({ dnsName }: { dnsName: string }) {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.7 }}>
       Creates the DNS zone for <b>{dnsName || "your domain"}</b>, adds it to Entra ID as a custom domain, then verifies it and sets it as primary.
     </Typography>
   );
@@ -112,12 +112,12 @@ export default function CreateDomainCard({
         {/* Gating hints */}
         {!azureAccount && (
           <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
-            <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>Sign in with Azure first — this card reuses that session.</Typography>
+            <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>Sign in with Azure first — this card reuses that session.</Typography>
           </Box>
         )}
         {azureAccount && missing.length > 0 && (
           <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
-            <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+            <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>
               Missing before setup can run: <b>{missing.join(", ")}</b>.
             </Typography>
           </Box>
@@ -125,10 +125,10 @@ export default function CreateDomainCard({
         {checkingStatus && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
             <CircularProgress size={12} />
-            <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", ...uiFont }}>Checking whether this domain is already set up...</Typography>
+            <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont }}>Checking whether this domain is already set up...</Typography>
           </Box>
         )}
-        {checkStatusError && <Typography sx={{ fontSize: "0.68rem", color: "#d97706", ...uiFont }}>Couldn't check existing setup: {checkStatusError}</Typography>}
+        {checkStatusError && <Typography sx={{ fontSize: "1rem", color: "#d97706", ...uiFont }}>Couldn't check existing setup: {checkStatusError}</Typography>}
         {/* Planned resources */}
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -139,7 +139,7 @@ export default function CreateDomainCard({
                   ["DNS zone", dnsName],
                   ["Custom domain", dnsName],
                 ].map(([label, value]) => (
-                  <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
+                  <Typography key={label} sx={{ fontSize: "1rem", color: "#64748b", ...uiFont }}>
                     {label}:{" "}
                     <Box component="span" sx={{ color: "#0f172a" }}>
                       {value}
@@ -158,7 +158,7 @@ export default function CreateDomainCard({
                 background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                 textTransform: "none",
                 ...uiFont,
-                fontSize: "0.85rem",
+                fontSize: "1rem",
                 py: 0.85,
                 px: 2.5,
                 borderRadius: "8px",
@@ -177,7 +177,7 @@ export default function CreateDomainCard({
             {steps.map((s) => (
               <StepRow key={s.id} step={s} />
             ))}
-            {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
+            {running && <Typography sx={{ fontSize: "1rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
             {!running && (
               <Button
                 size="small"
@@ -187,7 +187,7 @@ export default function CreateDomainCard({
                   mt: 0.5,
                   textTransform: "none",
                   ...uiFont,
-                  fontSize: "0.72rem",
+                  fontSize: "1rem",
                   color: "#64748b",
                   "&:hover": { color: "#2563eb" },
                 }}
@@ -202,7 +202,7 @@ export default function CreateDomainCard({
             <Typography sx={{ ...labelSx, mb: 0.75 }}>Verified domains in this tenant</Typography>
             <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
               {verifiedDomains.map((d) => (
-                <Typography key={d.name} sx={{ fontSize: "0.75rem", color: "#0f172a", ...uiFont }}>
+                <Typography key={d.name} sx={{ fontSize: "1rem", color: "#0f172a", ...uiFont }}>
                   {d.name}
                   {d.isDefault && (
                     <Box component="span" sx={{ color: "#64748b" }}>
@@ -236,14 +236,14 @@ export default function CreateDomainCard({
               gap: 1,
             }}
           >
-            <Typography sx={{ fontSize: "0.78rem", color: "#1e40af", fontWeight: 600 }}>Point your domain at Azure DNS</Typography>
-            <Typography sx={{ fontSize: "0.72rem", color: "#1e40af" }}>
+            <Typography sx={{ fontSize: "1rem", color: "#1e40af", fontWeight: 600 }}>Point your domain at Azure DNS</Typography>
+            <Typography sx={{ fontSize: "1rem", color: "#1e40af" }}>
               At your domain registrar, replace the NS records for <b>{dnsName}</b> with the Azure name servers below. Microsoft can only verify the domain once
               DNS resolves through Azure.
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
               {nameServers.map((ns) => (
-                <Typography key={ns} sx={{ fontSize: "0.75rem", color: "#1e3a8a", ...uiFont }}>
+                <Typography key={ns} sx={{ fontSize: "1rem", color: "#1e3a8a", ...uiFont }}>
                   {ns}
                 </Typography>
               ))}
@@ -256,7 +256,7 @@ export default function CreateDomainCard({
             {domainVerified && isPrimary ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                 <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} />
-                <Typography sx={{ fontSize: "0.78rem", color: "#15803d" }}>
+                <Typography sx={{ fontSize: "1rem", color: "#15803d" }}>
                   Domain <b>{dnsName}</b> is verified and set as the primary domain.
                 </Typography>
               </Box>
@@ -271,7 +271,7 @@ export default function CreateDomainCard({
                     sx={{
                       textTransform: "none",
                       ...uiFont,
-                      fontSize: "0.78rem",
+                      fontSize: "1rem",
                       borderColor: "#bfdbfe",
                       color: "#1d4ed8",
                       "&:hover": { borderColor: "#93c5fd", background: "#eff6ff" },
@@ -282,11 +282,11 @@ export default function CreateDomainCard({
                   {!domainVerified && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       <WarningAmberIcon sx={{ fontSize: 13, color: "#d97706" }} />
-                      <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>DNS propagation can take minutes to hours</Typography>
+                      <Typography sx={{ fontSize: "1rem", color: "#d97706" }}>DNS propagation can take minutes to hours</Typography>
                     </Box>
                   )}
                 </Box>
-                {verifyError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{verifyError}</Typography>}
+                {verifyError && <Typography sx={{ fontSize: "1rem", color: "#ef4444" }}>{verifyError}</Typography>}
               </Box>
             )}
           </Box>

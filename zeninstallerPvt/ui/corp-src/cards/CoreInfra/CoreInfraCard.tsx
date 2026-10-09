@@ -36,7 +36,7 @@ type Props = {
 
 function Intro({ containerName }: { containerName: string }) {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.7 }}>
       Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
       <Box component="span" sx={uiFont}>
         {containerName}
@@ -112,12 +112,12 @@ export default function CoreInfraCard({
         {/* Gating hints */}
         {!azureAccount && (
           <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
-            <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>Sign in with Azure first — this card reuses that session.</Typography>
+            <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>Sign in with Azure first — this card reuses that session.</Typography>
           </Box>
         )}
         {azureAccount && missing.length > 0 && (
           <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
-            <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+            <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>
               Missing before setup can run: <b>{missing.join(", ")}</b>
             </Typography>
           </Box>
@@ -146,7 +146,7 @@ export default function CoreInfraCard({
             }}
           >
             <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+            <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>
               The resource group doesn't exist in the selected subscription anymore — re-run to recreate it.
             </Typography>
           </Box>
@@ -165,7 +165,7 @@ export default function CoreInfraCard({
             }}
           >
             <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>GitHub Actions has no access on the resource group — re-run to grant it.</Typography>
+            <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>GitHub Actions has no access on the resource group — re-run to grant it.</Typography>
           </Box>
         )}
 
@@ -182,7 +182,7 @@ export default function CoreInfraCard({
                   ["Storage account", storageAccountName],
                   ["State container", containerName],
                 ].map(([label, value]) => (
-                  <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
+                  <Typography key={label} sx={{ fontSize: "1rem", color: "#64748b", ...uiFont }}>
                     {label}:{" "}
                     <Box component="span" sx={{ color: "#0f172a" }}>
                       {value}
@@ -194,16 +194,16 @@ export default function CoreInfraCard({
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
                   {editingLocation ? (
                     <>
-                      <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>Location:</Typography>
+                      <Typography sx={{ fontSize: "1rem", color: "#64748b", ...uiFont }}>Location:</Typography>
                       {locations.length > 0 ? (
                         <Select
                           size="small"
                           value={location}
                           onChange={(e) => setLocation(e.target.value)}
-                          sx={{ fontSize: "0.75rem", ...uiFont, minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
+                          sx={{ fontSize: "1rem", ...uiFont, minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
                         >
                           {locations.map((l) => (
-                            <MenuItem key={l.name} value={l.name} sx={{ fontSize: "0.78rem", ...uiFont }}>
+                            <MenuItem key={l.name} value={l.name} sx={{ fontSize: "1rem", ...uiFont }}>
                               {l.displayName}{" "}
                               <Box component="span" sx={{ color: "#94a3b8", ml: 0.5 }}>
                                 ({l.name})
@@ -218,7 +218,7 @@ export default function CoreInfraCard({
                           onChange={(e) => setLocation(e.target.value)}
                           placeholder={locationsLoading ? "Loading regions..." : "e.g. australiaeast"}
                           sx={{ minWidth: 220 }}
-                          inputProps={{ style: { fontFamily: "monospace", fontSize: "0.8rem" } }}
+                          inputProps={{ style: { fontFamily: "monospace", fontSize: "1rem" } }}
                         />
                       )}
                       {locationsLoading && <CircularProgress size={12} />}
@@ -228,7 +228,7 @@ export default function CoreInfraCard({
                     </>
                   ) : (
                     <>
-                      <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
+                      <Typography sx={{ fontSize: "1rem", color: "#64748b", ...uiFont }}>
                         Location:{" "}
                         <Box component="span" sx={{ color: "#0f172a" }}>
                           {locationDisplayName}
@@ -241,7 +241,7 @@ export default function CoreInfraCard({
                   )}
                 </Box>
                 {locationsError && (
-                  <Typography sx={{ fontSize: "0.68rem", color: "#d97706", ...uiFont }}>
+                  <Typography sx={{ fontSize: "1rem", color: "#d97706", ...uiFont }}>
                     Couldn't load Azure region list — type the region name manually.
                   </Typography>
                 )}
@@ -257,7 +257,7 @@ export default function CoreInfraCard({
                 background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                 textTransform: "none",
                 ...uiFont,
-                fontSize: "0.85rem",
+                fontSize: "1rem",
                 py: 0.85,
                 px: 2.5,
                 borderRadius: "8px",
@@ -277,7 +277,7 @@ export default function CoreInfraCard({
             {steps.map((s) => (
               <StepRow key={s.id} step={s} />
             ))}
-            {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
+            {running && <Typography sx={{ fontSize: "1rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
             {!running && (
               <Button
                 size="small"
@@ -287,7 +287,7 @@ export default function CoreInfraCard({
                   mt: 0.5,
                   textTransform: "none",
                   ...uiFont,
-                  fontSize: "0.72rem",
+                  fontSize: "1rem",
                   color: "#64748b",
                   "&:hover": { color: "#2563eb" },
                 }}

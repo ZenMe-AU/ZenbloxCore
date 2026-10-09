@@ -24,7 +24,7 @@ export const EXPANDED_W = 1280;
 export const CARD_ROW_BREAKPOINT = EXPANDED_W + 64;
 
 export const groupLabelSx = {
-  fontSize: "0.72rem",
+  fontSize: "1rem",
   color: "#94a3b8",
   ...uiFont,
   mt: 3.5,

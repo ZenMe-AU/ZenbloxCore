@@ -73,7 +73,7 @@ export default function EnvDetail({
 
       {/* Header row */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "#64748b", lineHeight: 1.6 }}>
+        <Typography sx={{ fontSize: "1rem", color: "#64748b", lineHeight: 1.6 }}>
           Pick the environment to configure.{" "}
           <Box component="span" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
             {validEnvs.join(", ")}
@@ -106,10 +106,10 @@ export default function EnvDetail({
         {loading ? (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <CircularProgress size={14} sx={{ color: "#cbd5e1" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8" }}>Loading environments...</Typography>
+            <Typography sx={{ fontSize: "1rem", color: "#94a3b8" }}>Loading environments...</Typography>
           </Box>
         ) : filteredEnvs.length === 0 ? (
-          <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8" }}>
+          <Typography sx={{ fontSize: "1rem", color: "#94a3b8" }}>
             No environment found, create one manually on GitHub.
           </Typography>
         ) : (
@@ -131,7 +131,7 @@ export default function EnvDetail({
                     borderColor: isSelected ? "#2563eb" : "#e2e8f0",
                     background: isSelected ? "#2563eb" : "#ffffff",
                     color: isSelected ? "#ffffff" : "#475569",
-                    fontSize: "0.82rem",
+                    fontSize: "1rem",
                     fontFamily: "monospace",
                     fontWeight: isSelected ? 700 : 400,
                     cursor: lockedByPR ? "default" : "pointer",
@@ -148,7 +148,7 @@ export default function EnvDetail({
                   {isSelected && lockedByPR && <LockIcon sx={{ fontSize: 13 }} />}
                   {env.name}
                   {isSelected && lockedByPR && (
-                    <Typography component="span" sx={{ fontSize: "0.65rem", opacity: 0.75, ml: 0.25 }}>
+                    <Typography component="span" sx={{ fontSize: "1rem", opacity: 0.75, ml: 0.25 }}>
                       from PR
                     </Typography>
                   )}
@@ -165,7 +165,7 @@ export default function EnvDetail({
             onClick={() => window.open(githubEnvironmentsUrl, "_blank")}
             sx={{
               flexShrink: 0,
-              fontSize: "0.7rem",
+              fontSize: "1rem",
               color: "#64748b",
               textTransform: "none",
               "&:hover": { color: "#0f172a" },
@@ -182,7 +182,7 @@ export default function EnvDetail({
       {branchMatchError && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
           <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
-          <Typography sx={{ fontSize: "0.75rem", color: "#ef4444" }}>{branchMatchError}</Typography>
+          <Typography sx={{ fontSize: "1rem", color: "#ef4444" }}>{branchMatchError}</Typography>
         </Box>
       )}
 
@@ -190,7 +190,7 @@ export default function EnvDetail({
       {branchMatchWarning && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
           <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706", flexShrink: 0 }} />
-          <Typography sx={{ fontSize: "0.75rem", color: "#d97706" }}>{branchMatchWarning}</Typography>
+          <Typography sx={{ fontSize: "1rem", color: "#d97706" }}>{branchMatchWarning}</Typography>
         </Box>
       )}
 

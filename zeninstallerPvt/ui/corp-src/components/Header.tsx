@@ -26,14 +26,14 @@ export default function Header() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "0.7rem",
+          fontSize: "1rem",
           fontWeight: 800,
           color: "#fff",
         }}
       >
         ZB
       </Box>
-      <Typography sx={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", letterSpacing: "-0.01em" }}>{document.title}</Typography>
+      <Typography sx={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a", letterSpacing: "-0.01em" }}>{document.title}</Typography>
     </Box>
   );
 }

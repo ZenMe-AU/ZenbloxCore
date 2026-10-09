@@ -23,7 +23,7 @@ export default function CopyRow({ label, value, masked = false }: { label: strin
       <Typography sx={{ ...labelSx, minWidth: 180 }}>{label}</Typography>
       <Typography
         sx={{
-          fontSize: "0.78rem",
+          fontSize: "1rem",
           color: "#1e293b",
           ...MONO_FONT,
           ...(masked ? { flex: "0 0 auto" } : { flex: 1, wordBreak: "break-all" }),
@@ -33,7 +33,7 @@ export default function CopyRow({ label, value, masked = false }: { label: strin
       </Typography>
       <Button size="small" onClick={copy} sx={{ minWidth: 0, p: 0.5, color: "#94a3b8", "&:hover": { color: "#2563eb" } }}>
         <ContentCopyIcon sx={{ fontSize: 13 }} />
-        <Typography sx={{ fontSize: "0.65rem", ml: 0.5, ...uiFont }}>{copied ? "Copied" : "Copy"}</Typography>
+        <Typography sx={{ fontSize: "1rem", ml: 0.5, ...uiFont }}>{copied ? "Copied" : "Copy"}</Typography>
       </Button>
     </Box>
   );

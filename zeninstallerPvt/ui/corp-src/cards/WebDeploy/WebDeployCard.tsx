@@ -65,7 +65,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
       {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.6 }}>
+        <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.6 }}>
           Builds the Zeninstaller frontend in GitHub Actions, then writes the files straight from this browser into the{" "}
           <Box component="span" sx={uiFont}>
             $web
@@ -88,7 +88,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
         />
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: -1 }}>
-          <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8" }}>Where does this come from?</Typography>
+          <Typography sx={{ fontSize: "1rem", color: "#94a3b8" }}>Where does this come from?</Typography>
           <Box
             component="a"
             href={GITHUB_OAUTH_DOC}
@@ -103,7 +103,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
               "&:hover": { textDecoration: "underline" },
             }}
           >
-            <Typography component="span" sx={{ fontSize: "0.7rem", color: "inherit" }}>
+            <Typography component="span" sx={{ fontSize: "1rem", color: "inherit" }}>
               Creating the GitHub OAuth app
             </Typography>
             <OpenInNewIcon sx={{ fontSize: 11 }} />
@@ -113,7 +113,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
         {staleVariables.length > 0 && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...uiFont }}>
+            <Typography sx={{ fontSize: "1rem", color: "#92400e", ...uiFont }}>
               Changed since the last build: {staleVariables.join(", ")} — build again to pick them up.
             </Typography>
           </Box>
@@ -122,7 +122,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
         {missingGithubClientId && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...uiFont }}>
+            <Typography sx={{ fontSize: "1rem", color: "#92400e", ...uiFont }}>
               Set VITE_GITHUB_CLIENT_ID on this environment first — the build bakes it in.
             </Typography>
           </Box>
@@ -131,13 +131,13 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
         <Box>
           <Typography sx={{ ...labelSx, mb: 0.75 }}>Versions</Typography>
           <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
-            <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
+            <Typography sx={{ fontSize: "1rem", color: "#64748b", ...uiFont }}>
               Latest build:{" "}
               <Box component="span" sx={{ color: "#0f172a" }}>
                 {loadingLatest ? "checking..." : latest ? `${latest.sha.slice(0, 7)} · ${when(latest.builtAt)}` : "none yet"}
               </Box>
             </Typography>
-            <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...uiFont }}>
+            <Typography sx={{ fontSize: "1rem", color: "#64748b", ...uiFont }}>
               Live on the site:{" "}
               <Box component="span" sx={{ color: "#0f172a" }}>
                 {loadingDeployed ? "checking..." : deployed ? `${deployed.sha.slice(0, 7)} · ${when(deployed.builtAt)}` : "nothing deployed"}
@@ -156,7 +156,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
               target="_blank"
               rel="noopener noreferrer"
               sx={{
-                fontSize: "0.75rem",
+                fontSize: "1rem",
                 ...uiFont,
                 color: "#1d4ed8",
                 wordBreak: "break-all",
@@ -171,7 +171,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
 
         {error && (
           <Box sx={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", px: 2, py: 1.25 }}>
-            <Typography sx={{ fontSize: "0.75rem", color: "#991b1b" }}>{error}</Typography>
+            <Typography sx={{ fontSize: "1rem", color: "#991b1b" }}>{error}</Typography>
           </Box>
         )}
 
@@ -184,7 +184,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             sx={{
               textTransform: "none",
               ...uiFont,
-              fontSize: "0.75rem",
+              fontSize: "1rem",
               borderColor: "#bfdbfe",
               color: "#1d4ed8",
               "&:hover": { borderColor: "#93c5fd", background: "#eff6ff" },
@@ -207,7 +207,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             sx={{
               background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
               ...uiFont,
-              fontSize: "0.75rem",
+              fontSize: "1rem",
               textTransform: "none",
               "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
               "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
@@ -227,14 +227,14 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           {!loadingLatest && latest && !updateAvailable && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...uiFont }}>The site is serving the latest build.</Typography>
+              <Typography sx={{ fontSize: "1rem", color: "#15803d", ...uiFont }}>The site is serving the latest build.</Typography>
             </Box>
           )}
 
           {!loadingLatest && updateAvailable && deployed && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...uiFont }}>Ready to deploy the new build</Typography>
+              <Typography sx={{ fontSize: "1rem", color: "#92400e", ...uiFont }}>Ready to deploy the new build</Typography>
             </Box>
           )}
         </Box>

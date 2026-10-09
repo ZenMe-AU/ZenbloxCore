@@ -23,7 +23,7 @@ import type { Account, CardChrome, GhEnv } from "../../types";
 
 const uiFont = { fontFamily: "sans-serif, Arial" };
 const labelSx = {
-  fontSize: "0.68rem",
+  fontSize: "1rem",
   color: "#94a3b8",
   textTransform: "uppercase" as const,
   letterSpacing: "0.08em",
@@ -43,7 +43,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.7 }}>
       Create an AWS IAM role GitHub Actions can assume through OIDC, then save the role ARN to this GitHub environment so the deployment stages can use the same
       AWS target.
     </Typography>
@@ -71,8 +71,8 @@ function StepRow({ step }: { step: SetupStep }) {
     <Box sx={{ display: "grid", gridTemplateColumns: "18px 1fr", alignItems: "start", py: 0.5 }}>
       <Box sx={{ display: "flex", alignItems: "center", height: "1.2em" }}>{icon}</Box>
       <Box>
-        <Typography sx={{ fontSize: "0.78rem", color: step.status === "error" ? "#ef4444" : "#475569", ...uiFont }}>{step.label}</Typography>
-        {step.detail && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...uiFont, mt: 0.25 }}>{step.detail}</Typography>}
+        <Typography sx={{ fontSize: "1rem", color: step.status === "error" ? "#ef4444" : "#475569", ...uiFont }}>{step.label}</Typography>
+        {step.detail && <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont, mt: 0.25 }}>{step.detail}</Typography>}
       </Box>
     </Box>
   );
@@ -154,7 +154,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
             ) : (
               <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} />
             )}
-            <Typography sx={{ fontSize: "0.75rem", color: bannerState === "error" ? "#713f12" : "#15803d" }}>
+            <Typography sx={{ fontSize: "1rem", color: bannerState === "error" ? "#713f12" : "#15803d" }}>
               {bannerState === "saved" && "Connection details saved."}
               {bannerState === "no-changes" && "Connection details saved — no changes needed."}
               {bannerState === "error" && "Some connection details failed to save — check below."}
@@ -171,7 +171,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 value={roleName}
                 onChange={(e) => setRoleName(e.target.value)}
                 sx={{ minWidth: 280 }}
-                inputProps={{ style: { fontFamily: "monospace", fontSize: "0.8rem" } }}
+                inputProps={{ style: { fontFamily: "monospace", fontSize: "1rem" } }}
                 disabled={card.locked}
               />
             </Box>
@@ -185,7 +185,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                   background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                   textTransform: "none",
                   ...uiFont,
-                  fontSize: "0.85rem",
+                  fontSize: "1rem",
                   py: 1,
                   px: 2.5,
                   borderRadius: "8px",
@@ -199,7 +199,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
               {varHasAny && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                   <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                  <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
+                  <Typography sx={{ fontSize: "1rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
                 </Box>
               )}
             </Box>
@@ -211,7 +211,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
             {steps.map((s) => (
               <StepRow key={s.id} step={s} />
             ))}
-            {loading && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
+            {loading && <Typography sx={{ fontSize: "1rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
             {!loading && (
               <Button
                 size="small"
@@ -221,7 +221,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                   mt: 0.5,
                   textTransform: "none",
                   ...uiFont,
-                  fontSize: "0.72rem",
+                  fontSize: "1rem",
                   color: "#64748b",
                   "&:hover": { color: "#2563eb" },
                 }}
@@ -232,14 +232,14 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
           </Box>
         )}
 
-        {error && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{error}</Typography>}
+        {error && <Typography sx={{ fontSize: "1rem", color: "#ef4444" }}>{error}</Typography>}
 
         <Box
           onClick={() => setVarExpanded((e) => !e)}
           sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
         >
           <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...uiFont, whiteSpace: "nowrap" }}>
+          <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont, whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter application connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
