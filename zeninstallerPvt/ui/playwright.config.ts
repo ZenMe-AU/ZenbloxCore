@@ -79,8 +79,7 @@ export default defineConfig({
       retries: 1,
       use: {
         ...devices["Desktop Chrome"],
-      },
-      dependencies: ["Setup Corp Github Auth", "Setup Corp Azure Login"],
+      }
     },
   ],
 
