@@ -7,27 +7,16 @@
 import { expect, test } from "@playwright/test";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
-import { expectSnapshot, safePathSegment, expectVisibleWithin } from "../../util/testHelper.ts";
+import { expectSnapshot, safePathSegment, expectVisibleWithin, attachJSCoverage } from "../../util/testHelper.ts";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN, viewports } from "../../testInit";
 import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
-import { writeFile } from "fs/promises";
 
 test.beforeEach(async ({ page }) => {
   await page.coverage.startJSCoverage({ resetOnNavigation: false });
 });
 
 test.afterEach(async ({ page }, testInfo) => {
-  if (page.isClosed()) {
-    return;
-  }
-
-  const entries = await page.coverage.stopJSCoverage();
-  const file = testInfo.outputPath("v8-coverage.json");
-  await writeFile(file, JSON.stringify(entries), "utf8");
-  await testInfo.attach("v8-coverage", {
-    path: file,
-    contentType: "application/json",
-  });
+  await attachJSCoverage(page, testInfo);
 });
 
 async function prepareAppRegistrationCard(page: import("@playwright/test").Page, context: import("@playwright/test").BrowserContext, repoName: string) {

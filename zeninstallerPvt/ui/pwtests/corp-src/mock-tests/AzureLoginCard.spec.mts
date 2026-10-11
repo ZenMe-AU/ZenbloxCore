@@ -17,10 +17,9 @@ import {
   signInMockAzure,
 } from "../util/mockTestHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
-import { expectSnapshot } from "../../util/testHelper.ts";
+import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import { createNewRepo } from "../util/testHelper.mts";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
-import { writeFile } from "fs/promises";
 
 const mockTenants = [
   { tenantId: mockTenantId, displayName: "Mock tenant" },
@@ -36,17 +35,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test.afterEach(async ({ page }, testInfo) => {
-      if (page.isClosed()) {
-        return;
-      }
-
-      const entries = await page.coverage.stopJSCoverage();
-      const file = testInfo.outputPath("v8-coverage.json");
-      await writeFile(file, JSON.stringify(entries), "utf8");
-      await testInfo.attach("v8-coverage", {
-        path: file,
-        contentType: "application/json",
-      });
+      await attachJSCoverage(page, testInfo);
     });
 
     test("Happy path", async ({ page }, testInfo) => {

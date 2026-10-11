@@ -4,6 +4,7 @@
  */
 
 import { expect, Locator, Page, Route, TestInfo } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
 
 // printing debug and API info when running test
@@ -53,18 +54,10 @@ function snapshotPath(testInfo: TestInfo, viewportName: string, fileSubstring: s
 }
 
 // takes snapshot of a specific card element, rather than the whole page
-export async function expectSnapshot(
-  page: Page,
-  locator: Locator,
-  testInfo: TestInfo,
-  snapshotName: string,
-  viewportName: string,
-  options: Pick<PageSnapshotOptions, "mask"> = {},
-): Promise<void> {
+export async function expectSnapshot(page: Page, locator: Locator, testInfo: TestInfo, snapshotName: string, viewportName: string, options: Pick<PageSnapshotOptions, "mask"> = {},): Promise<void> {
   await page.waitForLoadState("domcontentloaded").catch(() => undefined);
   await page.waitForLoadState("networkidle").catch(() => undefined);
-  await page
-    .locator("body")
+  await page.locator("body")
     .evaluate(async () => document.fonts?.ready)
     .catch(() => undefined);
   await page.waitForTimeout(300).catch(() => undefined);
@@ -126,22 +119,26 @@ export async function expectVisibleWithin(locator: Locator, label: string, timeo
 }
 
 export async function waitForLocatorContentLoaded(locator: Locator, emptyPlaceholder = "No options", label: string, timeoutMs = 500) {
-  await expect
-    .poll(
-      async () => {
-        const texts = (await locator.allTextContents()).map((value) => value.trim()).filter(Boolean);
-        if (!texts.length) {
-          return false;
-        }
+  await expect.poll(
+      async () => {const texts = (await locator.allTextContents()).map((value) => value.trim()).filter(Boolean);
+        if (!texts.length) { return false; }
         if (texts.length === 1 && texts[0] === emptyPlaceholder) {
           return false;
         }
         return true;
       },
-      {
-        timeout: timeoutMs,
-        message: `${label} content did not load`,
-      }
+      { timeout: timeoutMs, message: `${label} content did not load` }
     )
     .toBeTruthy();
+}
+
+export async function attachJSCoverage(page: Page, testInfo: TestInfo): Promise<void> {
+  if (page.isClosed()) {
+    return;
+  }
+
+  const entries = await page.coverage.stopJSCoverage();
+  const file = testInfo.outputPath("v8-coverage.json");
+  await writeFile(file, JSON.stringify(entries), "utf8");
+  await testInfo.attach("v8-coverage", { path: file, contentType: "application/json" });
 }

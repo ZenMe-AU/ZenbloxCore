@@ -22,7 +22,8 @@ export async function openRemoteTerminalCard(page: Page) {
 }
 
 export function connectionInput(card: Locator, key: string) {
-	return card.getByText(key, { exact: true }).locator("../..").getByRole("textbox");
+	const label = key === "VITE_AZURE_CLIENT_ID" ? "Sign-in App Client ID" : key;
+	return card.getByText(label, { exact: true }).locator("../..").getByRole("textbox");
 }
 
 export async function openConnectionDetails(card: Locator) {
@@ -32,7 +33,7 @@ export async function openConnectionDetails(card: Locator) {
 	await expect(card.getByRole("progressbar")).toHaveCount(0, { timeout: 60_000 });
 }
 
-export function remoteTerminalStepLabels(corpName: string) {
+export function remoteTerminalStepLabels(corpName: string, webStorageAccountName: string) {
 	return [
 		"Register required Azure resource providers",
 		`Create resource group root-${corpName}`,
@@ -41,13 +42,20 @@ export function remoteTerminalStepLabels(corpName: string) {
 		`Create storage account ${corpName.toLowerCase()}term`,
 		"Create sessions table",
 		"Create deployment container",
+		`Create storage account ${webStorageAccountName}`,
+		"Allow this page to reach the blob service",
+		"Consent to the storage data plane",
+		"Enable static website hosting",
+		"Grant yourself Storage Blob Data Contributor on it",
+		"Create app registration Zeninstaller Private",
+		"List Zeninstaller Private under enterprise applications",
 		`Create Web PubSub ${corpName}-wpubsub`,
 		"Configure hub terminal",
 		"Create Flex Consumption plan",
 		`Create Function App ${corpName}-terminal-app`,
 		"Grant the Function App its data-plane roles",
 		`Create app registration ${corpName}-terminal-pipeline`,
-		"Create its service principal",
+		`List ${corpName}-terminal-pipeline under enterprise applications`,
 		"Add GitHub OIDC credentials for PROD, TEST",
 		"Grant it Web PubSub Service Owner",
 	];

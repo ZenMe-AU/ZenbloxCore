@@ -7,9 +7,8 @@
 import { expect, test } from "@playwright/test";
 import { getCorpGithubAuthMode, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, viewports } from "../../testInit";
-import { expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
+import { attachJSCoverage, expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
 import { expandGithubLoginCard } from "../util/cardHelper.mts";
-import { writeFile } from "fs/promises";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`GitHub Login Card - ${viewportName}`, () => {
@@ -20,17 +19,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test.afterEach(async ({ page }, testInfo) => {
-      if (page.isClosed()) {
-        return;
-      }
-
-      const entries = await page.coverage.stopJSCoverage();
-      const file = testInfo.outputPath("v8-coverage.json");
-      await writeFile(file, JSON.stringify(entries), "utf8");
-      await testInfo.attach("v8-coverage", {
-        path: file,
-        contentType: "application/json",
-      });
+      await attachJSCoverage(page, testInfo);
     });
 
     test("Happy path", async ({ page, context }, testInfo) => {

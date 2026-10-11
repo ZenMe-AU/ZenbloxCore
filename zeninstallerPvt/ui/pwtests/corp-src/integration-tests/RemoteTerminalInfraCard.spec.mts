@@ -1,9 +1,8 @@
 /// <reference types="node" />
 // UI component: ../../../corp-src/cards/RemoteTerminalInfraCard.tsx
-import { writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { CORP_URL, viewports } from "../../testInit";
-import { expectSnapshot } from "../../util/testHelper.ts";
+import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import { expectSuccessfulSteps } from "../util/mockTestHelper.mts";
 import {
 	connectionInput,
@@ -18,11 +17,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.afterEach(async ({ page }, testInfo) => {
-	if (page.isClosed()) return;
-	const entries = await page.coverage.stopJSCoverage();
-	const file = testInfo.outputPath("v8-coverage.json");
-	await writeFile(file, JSON.stringify(entries), "utf8");
-	await testInfo.attach("v8-coverage", { path: file, contentType: "application/json" });
+	await attachJSCoverage(page, testInfo);
 });
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
@@ -30,8 +25,14 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		test.use({ viewport, deviceScaleFactor: 1 });
 
 		test("Happy path", async ({ page, context }, testInfo) => {
+			test.skip(process.env.RUN_REMOTE_TERMINAL_INFRA_INTEGRATION !== "true",
+				"Set RUN_REMOTE_TERMINAL_INFRA_INTEGRATION=true only after approving live Azure provisioning and GitHub variable writes.");
 			test.setTimeout(1_200_000);
 			const { card, corpName, tenantId } = await prepareExistingRelayRepository(page, context, viewportName);
+			const siteStorageRow = card.getByText(/^Site storage account:/);
+			await expect(siteStorageRow).toBeVisible();
+			const webStorageAccountName = (await siteStorageRow.innerText()).split(":").slice(1).join(":").trim();
+			expect(webStorageAccountName).not.toBe("");
 			await expectSnapshot(page, card, testInfo, "start", viewportName);
 
 			await test.step("Create the relay in the existing repository environment", async () => {
@@ -39,12 +40,14 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(create).toBeEnabled();
 				await create.click();
 				await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 600_000 });
-				await expectSuccessfulSteps(card, remoteTerminalStepLabels(corpName));
+				await expectSuccessfulSteps(card, remoteTerminalStepLabels(corpName, webStorageAccountName));
 				await openConnectionDetails(card);
 				await expect(connectionInput(card, "WEBPUBSUB_ENDPOINT")).toHaveValue(`${corpName}-wpubsub.webpubsub.azure.com`);
-				await expect(connectionInput(card, "BACKEND_API")).toHaveValue(`https://${corpName}-terminal-app.azurewebsites.net`);
+				await expect(connectionInput(card, "VITE_API_URL")).toHaveValue(`https://${corpName}-terminal-app.azurewebsites.net`);
 				await expect(connectionInput(card, "WEBPUBSUB_TENANT_ID")).toHaveValue(tenantId);
 				await expect(connectionInput(card, "WEBPUBSUB_CLIENT_ID")).toHaveValue(/^[0-9a-f-]{36}$/i);
+				await expect(connectionInput(card, "VITE_AZURE_CLIENT_ID")).toHaveValue(/^[0-9a-f-]{36}$/i);
+				await expect(connectionInput(card, "VITE_APPINSIGHTS_CONNECTION_STRING")).toHaveValue(/^InstrumentationKey=.+;IngestionEndpoint=https:\/\//);
 				await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled({ timeout: 60_000 });
 				await expect(card.getByText(/\d+ not configured|Failed to/i)).toHaveCount(0);
 				await expectSnapshot(page, card, testInfo, "created", viewportName);
@@ -60,7 +63,9 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(connectionInput(card, "WEBPUBSUB_CLIENT_ID")).toHaveValue(clientId);
 				await expect(connectionInput(card, "WEBPUBSUB_TENANT_ID")).toHaveValue(tenantId);
 				await expect(connectionInput(card, "WEBPUBSUB_ENDPOINT")).toHaveValue(`${corpName}-wpubsub.webpubsub.azure.com`);
-				await expect(connectionInput(card, "BACKEND_API")).toHaveValue(`https://${corpName}-terminal-app.azurewebsites.net`);
+				await expect(connectionInput(card, "VITE_API_URL")).toHaveValue(`https://${corpName}-terminal-app.azurewebsites.net`);
+				await expect(connectionInput(card, "VITE_AZURE_CLIENT_ID")).toHaveValue(/^[0-9a-f-]{36}$/i);
+				await expect(connectionInput(card, "VITE_APPINSIGHTS_CONNECTION_STRING")).toHaveValue(/^InstrumentationKey=.+;IngestionEndpoint=https:\/\//);
 				await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
 				await expectSnapshot(page, card, testInfo, "persisted", viewportName);
 			});
@@ -68,14 +73,14 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await test.step("Re-run setup without replacing the pipeline identity", async () => {
 				await card.getByRole("button", { name: "Re-run", exact: true }).click();
 				await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 600_000 });
-				await expectSuccessfulSteps(card, remoteTerminalStepLabels(corpName));
+				await expectSuccessfulSteps(card, remoteTerminalStepLabels(corpName, webStorageAccountName));
 				await expect(connectionInput(card, "WEBPUBSUB_CLIENT_ID")).toHaveValue(clientId);
 				await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled({ timeout: 60_000 });
 				await expectSnapshot(page, card, testInfo, "rerun", viewportName);
 			});
 
 			await test.step("Keep an unsaved connection edit while details are collapsed", async () => {
-				const input = connectionInput(card, "BACKEND_API");
+				const input = connectionInput(card, "VITE_API_URL");
 				const original = await input.inputValue();
 				await input.fill("https://unsaved.example");
 				await expect(card.getByRole("button", { name: "Save 1 variable", exact: true })).toBeEnabled();

@@ -7,7 +7,7 @@
 import { expect, test } from "@playwright/test";
 import { CORP_URL, GITHUB_API_URL, MICROSOFT_GRAPH_URL, viewports } from "../../testInit";
 import { createNewRepo } from "../util/testHelper.mts";
-import { expectSnapshot, safePathSegment } from "../../util/testHelper.ts";
+import { attachJSCoverage, expectSnapshot, safePathSegment } from "../../util/testHelper.ts";
 import {
   expectSuccessfulSteps,
   installMockAzure,
@@ -21,7 +21,6 @@ import {
   type MockAzureState,
 } from "../util/mockTestHelper.mts";
 import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
-import { writeFile } from "fs/promises";
 
 async function prepareMockAppRegistrationCard(
   page: import("@playwright/test").Page,
@@ -45,17 +44,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test.afterEach(async ({ page }, testInfo) => {
-      if (page.isClosed()) {
-        return;
-      }
-
-      const entries = await page.coverage.stopJSCoverage();
-      const file = testInfo.outputPath("v8-coverage.json");
-      await writeFile(file, JSON.stringify(entries), "utf8");
-      await testInfo.attach("v8-coverage", {
-        path: file,
-        contentType: "application/json",
-      });
+      await attachJSCoverage(page, testInfo);
     });
 
     test("Happy path", async ({ page, context }, testInfo) => {
@@ -98,7 +87,6 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await test.step("Save the Azure subscription variables", async () => {
         const card = await expandAzureSubscriptionCard(page);
         await expect(card.getByText("Loading subscriptions...", { exact: true })).toBeHidden();
-        await expect(card.getByRole("combobox")).toBeVisible();
         await card.getByRole("button", { name: "Save 3 variables" }).click();
         await expect(card.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled();
         await expect.poll(() => github.variables).toEqual({

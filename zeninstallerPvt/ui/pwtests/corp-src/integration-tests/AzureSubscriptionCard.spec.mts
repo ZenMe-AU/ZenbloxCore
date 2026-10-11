@@ -4,11 +4,10 @@
  */
 
 // UI component: ../../../corp-src/cards/AzureSubscriptionCard.tsx
-import { writeFile } from "node:fs/promises";
 import { BrowserContext, expect, Locator, Page, test } from "@playwright/test";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
-import { expectSnapshot, safePathSegment, expectVisibleWithin } from "../../util/testHelper.ts";
+import { attachJSCoverage, expectSnapshot, safePathSegment, expectVisibleWithin } from "../../util/testHelper.ts";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN, viewports } from "../../testInit";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
@@ -17,17 +16,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.afterEach(async ({ page }, testInfo) => {
-  if (page.isClosed()) {
-    return;
-  }
-
-  const entries = await page.coverage.stopJSCoverage();
-  const file = testInfo.outputPath("v8-coverage.json");
-  await writeFile(file, JSON.stringify(entries), "utf8");
-  await testInfo.attach("v8-coverage", {
-    path: file,
-    contentType: "application/json",
-  });
+  await attachJSCoverage(page, testInfo);
 });
 
 export async function openExistingAzureSubscription(

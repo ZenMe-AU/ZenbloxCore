@@ -7,10 +7,9 @@
 import { expect, test } from "@playwright/test";
 import { CORP_URL, GITHUB_API_URL, GITHUB_API_URL_REGEX, viewports } from "../../testInit";
 import { createNewRepo } from "../util/testHelper.mts";
-import { expectSnapshot, expectVisibleWithin, logMockAPI } from "../../util/testHelper.ts";
+import { attachJSCoverage, expectSnapshot, expectVisibleWithin, logMockAPI } from "../../util/testHelper.ts";
 import { installMockGitHub } from "../util/mockTestHelper.mts";
 import { expandRepoCard } from "../util/cardHelper.mts";
-import { writeFile } from "fs/promises";
 import { installRelayNetworkGuard } from "../util/RemoteTerminalInfraCardMockHelper.mts";
 import { selectCloneOption } from "../util/RepoDetailHelper.mts";
 
@@ -32,13 +31,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         return;
       }
 
-      const entries = await page.coverage.stopJSCoverage();
-      const file = testInfo.outputPath("v8-coverage.json");
-      await writeFile(file, JSON.stringify(entries), "utf8");
-      await testInfo.attach("v8-coverage", {
-        path: file,
-        contentType: "application/json",
-      });
+      await attachJSCoverage(page, testInfo);
       expect(unexpectedByPage.get(page), "No unexpected external requests").toEqual([]);
     });
 
