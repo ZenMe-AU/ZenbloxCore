@@ -4,8 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/CreateDomain/CreateDomainCard.tsx
-import { expect, test } from "@playwright/test";
-import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN, viewports } from "../../testInit";
+import { test, expect } from "@playwright/test";
+import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
 import { attachJSCoverage, expectSnapshot, expectVisibleWithin, safePathSegment } from "../../util/testHelper.ts";
 import {
 	expandAzureAppRegistrationCard,
@@ -130,11 +130,10 @@ test.afterEach(async ({ page }, testInfo) => {
   await attachJSCoverage(page, testInfo);
 });
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`Create Domain Card - ${viewportName}`, () => {
-    test.use({ viewport, deviceScaleFactor: 1 });
+  test.describe("Create Domain Card", () => {
 
 		test("Happy path", async ({ page, context }, testInfo) => {
+    	const viewportName = testInfo.project.name;
     	test.skip(
     		process.env.RUN_CREATE_DOMAIN_LIVE_PROVISIONING !== "true",
     		"Set RUN_CREATE_DOMAIN_LIVE_PROVISIONING=true only for an approved, disposable DNS domain and Azure tenant."
@@ -254,4 +253,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 	});
-}

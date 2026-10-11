@@ -3,8 +3,8 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
-import { AZURE_MANAGEMENT_URL, CORP_URL, viewports } from "../../testInit";
+import { test, expect, type BrowserContext, type Page } from "@playwright/test";
+import { AZURE_MANAGEMENT_URL, CORP_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import { expandAzureAppRegistrationCard, expandAzureSubscriptionCard } from "../util/cardHelper.mts";
 import {
@@ -173,9 +173,7 @@ async function runCoreInfrastructure(card: import("@playwright/test").Locator) {
   await expectSuccessfulSteps(card, coreInfraStepLabels("pwtests"));
 }
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`Core Infrastructure Card Mock - ${viewportName}`, () => {
-    test.use({ viewport, deviceScaleFactor: 1 });
+  test.describe("Core Infrastructure Card Mock", () => {
 
     test.beforeEach(async ({ page }) => {
       await page.coverage.startJSCoverage({ resetOnNavigation: false });
@@ -186,6 +184,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Happy path", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(240_000);
       const { card, prepared, azureMock, resourceWrites, unexpectedRequests } = await prepareCoreInfraCard(
         page,
@@ -259,6 +258,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Allows manual region entry when Azure region lookup fails", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(240_000);
       const { card, resourceWrites, unexpectedRequests } = await prepareCoreInfraCard(page, context, viewportName, {
         failRegionLookup: true,
@@ -281,6 +281,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Retries a transient resource-group provisioning failure", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(240_000);
       const { card, azureMock, getResourceGroupPutAttempts, unexpectedRequests } = await prepareCoreInfraCard(
         page,
@@ -304,6 +305,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Does not reuse infrastructure status after the subscription target drifts", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(240_000);
       const { card, prepared, azureMock, unexpectedRequests } = await prepareCoreInfraCard(page, context, viewportName, {
         includeSecondSubscription: true,
@@ -370,6 +372,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Recreates missing infrastructure and repairs revoked resource-group access", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(240_000);
       const { card, azureMock, unexpectedRequests } = await prepareCoreInfraCard(page, context, viewportName);
       await saveCoreCompanyCode(card);
@@ -395,6 +398,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Shows prerequisites before infrastructure setup", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       await installMockGitHub(page, context);
       await page.goto(CORP_URL);
       const card = page.locator("#card-core_infra");
@@ -408,4 +412,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expectSnapshot(page, card, testInfo, "prerequisites-required", viewportName);
     });
   });
-}

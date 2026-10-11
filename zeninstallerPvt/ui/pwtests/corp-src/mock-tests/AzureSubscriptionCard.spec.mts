@@ -4,8 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/AzureSubscription/AzureSubscriptionCard.tsx
-import { expect, test } from "@playwright/test";
-import { CORP_URL, viewports } from "../../testInit";
+import { test, expect } from "@playwright/test";
+import { CORP_URL } from "../../testInit";
 import { createNewRepo } from "../util/testHelper.mts";
 import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import {
@@ -21,9 +21,7 @@ import {
 } from "../util/mockTestHelper.mts";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`Azure Subscription Card Mock - ${viewportName}`, () => {
-    test.use({ viewport, deviceScaleFactor: 1 });
+  test.describe("Azure Subscription Card Mock", () => {
 
     test.beforeEach(async ({ page }) => {
       await page.coverage.startJSCoverage({ resetOnNavigation: false });
@@ -34,6 +32,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Happy path", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const github = await installMockGitHub(page, context);
       await installMockAzure(page);
       await page.goto(CORP_URL);
@@ -114,6 +113,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Selecting an existing repository with environment variables already saved", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const result = await prepareMockAzureSubscription(page, context, `mock-existing-subscription-${viewportName.toLowerCase()}`, {
         initialVariables: savedAzureVariables,
         existingRepository: true,
@@ -126,6 +126,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Modifying one existing prefilled variable", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const result = await prepareMockAzureSubscription(page, context, `mock-modify-one-${viewportName.toLowerCase()}`, {
         initialVariables: savedAzureVariables,
       });
@@ -140,6 +141,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Modifying all existing prefilled variables", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const result = await prepareMockAzureSubscription(page, context, `mock-modify-all-${viewportName.toLowerCase()}`, {
         initialVariables: savedAzureVariables,
       });
@@ -163,6 +165,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Both prefilled variables are removed before saving", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const result = await prepareMockAzureSubscription(page, context, `mock-remove-all-${viewportName.toLowerCase()}`, {
         initialVariables: savedAzureVariables,
       });
@@ -179,6 +182,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Subscription loading errors and no-access states are explicit", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(120_000);
       const result = await prepareMockAzureSubscription(page, context, `mock-subscription-no-access-${viewportName.toLowerCase()}`, {
         tenantIds: [mockTenantId, mockSecondTenantId],
@@ -201,6 +205,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Switching tenants resets the selection and subscription list", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const result = await prepareMockAzureSubscription(page, context, `mock-subscription-switch-${viewportName.toLowerCase()}`, {
         initialVariables: savedAzureVariables,
         tenantIds: [mockTenantId, mockSecondTenantId],
@@ -227,6 +232,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("URL subscription selection takes precedence over the saved subscription", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const result = await prepareMockAzureSubscription(page, context, `mock-subscription-url-${viewportName.toLowerCase()}`, {
         initialVariables: savedAzureVariables,
         url: `${CORP_URL}?subscription=${mockSecondSubscriptionId}`,
@@ -244,6 +250,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Failed variable writes preserve the successful keys and allow retry", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const result = await prepareMockAzureSubscription(page, context, `mock-subscription-save-error-${viewportName.toLowerCase()}`, {
         existingRepository: true,
       });
@@ -280,4 +287,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expectSnapshot(page, reloadedCard, testInfo, "variables-persist-after-retry", viewportName);
     });
   });
-}

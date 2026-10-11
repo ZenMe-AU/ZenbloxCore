@@ -4,8 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/CoreInfra/CoreInfraCard.tsx
-import { expect, test } from "@playwright/test";
-import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN, viewports } from "../../testInit";
+import { test, expect } from "@playwright/test";
+import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
 import { attachJSCoverage, expectSnapshot, expectVisibleWithin, safePathSegment } from "../../util/testHelper.ts";
 import {
 	expandAzureAppRegistrationCard,
@@ -116,11 +116,10 @@ test.afterEach(async ({ page }, testInfo) => {
   await attachJSCoverage(page, testInfo);
 });
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`Core Infrastructure Card - ${viewportName}`, () => {
-    test.use({ viewport, deviceScaleFactor: 1 });
+  test.describe("Core Infrastructure Card", () => {
 
     test("Happy path", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.skip(
         process.env.RUN_CORE_INFRA_LIVE_PROVISIONING !== "true",
         "Set RUN_CORE_INFRA_LIVE_PROVISIONING=true only for an approved isolated Azure subscription."
@@ -231,4 +230,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       });
     });
   });
-}

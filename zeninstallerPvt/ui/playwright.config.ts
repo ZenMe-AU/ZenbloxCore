@@ -9,6 +9,7 @@ import { defineConfig, devices } from "@playwright/test";
 import * as dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { viewports } from "./pwtests/testInit";
 
 process.env.NODE_ENV = process.env.NODE_ENV || "dev";
 // Enable Playwright API logs for normal and coverage runs, preserving other namespaces.
@@ -52,33 +53,25 @@ export default defineConfig({
 
   projects: [
     {
-      name: "Setup Corp Github Auth",
-      testMatch: /github-pat-login\.setup\.mts/,
-      fullyParallel: false,
-      retries: 0,
-      use: {
-        ...devices["Desktop Chrome"],
-      },
-    },
-
-    {
-      name: "Setup Corp Azure Login",
-      testMatch: /corp-src\/setup\/azure-login\.setup\.mts/,
-      fullyParallel: false,
-      retries: 0,
-      use: {
-        ...devices["Desktop Chrome"],
-      },
-    },
-
-    {
-      name: "Test Corp",
-      testMatch: /corp-src\/.*\.spec\.mts/,
+      name: "Desktop",
+      testMatch: /corp-src\/.*\.(?:spec|setup)\.mts$/,
       fullyParallel: false,
       workers: 1,
       retries: 1,
       use: {
         ...devices["Desktop Chrome"],
+        viewport: viewports.Desktop,
+      },
+    },
+    {
+      name: "Mobile",
+      testMatch: /corp-src\/.*\.(?:spec|setup)\.mts$/,
+      fullyParallel: false,
+      workers: 1,
+      retries: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: viewports.Mobile,
       },
     },
   ],

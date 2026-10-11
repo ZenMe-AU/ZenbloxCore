@@ -4,15 +4,13 @@
  */
 
 // UI component: ../../../corp-src/cards/GithubLogin/GithubLoginCard.tsx
-import { expect, test } from "@playwright/test";
-import { GITHUB_API_URL, viewports } from "../../testInit";
+import { test, expect } from "@playwright/test";
+import { GITHUB_API_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import { installGithubOAuthCallback, prepareGithubLoginMock } from "../util/GithubLoginCardMockHelper.mts";
 import { expandGithubLoginCard } from "../util/cardHelper.mts";
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`GitHub Login Card Mock - ${viewportName}`, () => {
-    test.use({ viewport, deviceScaleFactor: 1 });
+  test.describe("GitHub Login Card Mock", () => {
 
     test.beforeEach(async ({ page }) => {
       await page.coverage.startJSCoverage({ resetOnNavigation: false });
@@ -23,6 +21,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Happy path", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
       const card = await test.step("Expand unauthenticated card", async () => {
         const result = await expandGithubLoginCard(page);
@@ -60,6 +59,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("OAuth handoff, callback, refresh and logout", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
       const { exchanges, authorizations } = await installGithubOAuthCallback(page);
       const card = await expandGithubLoginCard(page);
@@ -81,6 +81,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
     for (const status of [401, 500]) {
       test(`Rejected PAT (${status}) can be retried`, async ({ page, context }, testInfo) => {
+        const viewportName = testInfo.project.name;
         const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
         let fail = true;
         let failures = 0;
@@ -112,6 +113,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     }
 
     test("Expired stored PAT stays unauthenticated", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
       await page.route(`${GITHUB_API_URL}/user`, (route) => {
         expect(route.request().headers().authorization).toBe("Bearer ghp_expired_mock");
@@ -127,6 +129,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Rejects an invalid PAT", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
       const card = await expandGithubLoginCard(page);
       await card.getByRole("button", { name: "Direct (PAT)", exact: true }).click();
@@ -140,6 +143,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Switches from direct mode back to backend mode", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
       const card = await expandGithubLoginCard(page);
       await card.getByRole("button", { name: "Direct (PAT)", exact: true }).click();
@@ -150,6 +154,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Direct-only configuration supports token controls", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const { unexpectedRequests } = await prepareGithubLoginMock(page, context, false);
       const card = await expandGithubLoginCard(page);
       await expect(card.getByRole("button", { name: "Backend", exact: true })).toHaveCount(0);
@@ -168,4 +173,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expectSnapshot(page, card, testInfo, "direct-only-cleared", viewportName);
     });
   });
-}

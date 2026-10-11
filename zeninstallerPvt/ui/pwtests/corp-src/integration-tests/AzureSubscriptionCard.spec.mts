@@ -4,11 +4,11 @@
  */
 
 // UI component: ../../../corp-src/cards/AzureSubscriptionCard.tsx
-import { BrowserContext, expect, Locator, Page, test } from "@playwright/test";
+import { test, BrowserContext, expect, Locator, Page } from "@playwright/test";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
 import { attachJSCoverage, expectSnapshot, safePathSegment, expectVisibleWithin } from "../../util/testHelper.ts";
-import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN, viewports } from "../../testInit";
+import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
 test.beforeEach(async ({ page }) => {
@@ -111,11 +111,10 @@ export async function openExistingAzureSubscription(
   return { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput, saveButton };
 }
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`Azure Subscription Card - ${viewportName}`, () => {
-    test.use({ viewport, deviceScaleFactor: 1 });
+  test.describe("Azure Subscription Card", () => {
     // The happy path is the main scenario for this card, showing the expect standard use case.
     test("Happy path", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(300_000);
       const repoName = safePathSegment(`${TEST_REPO_MAIN}-${viewportName}`);
       await restoreGithubSessionStorage(context);
@@ -219,6 +218,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		})
 
     test("Selecting an existing repository with environment variables already saved", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(300_000);
       const { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput, saveButton } = await openExistingAzureSubscription(
         page,
@@ -235,6 +235,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Modifying one existing prefilled variable", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(300_000);
       const { azureSubscriptionCard, subscriptionVariableInput, saveButton } = await openExistingAzureSubscription(page, context, viewportName);
       const savedSubscriptionId = await subscriptionVariableInput.inputValue();
@@ -252,6 +253,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Modifying all existing prefilled variables", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(300_000);
       const { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput, saveButton } = await openExistingAzureSubscription(
         page,
@@ -281,6 +283,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Both prefilled variables are removed before saving", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(300_000);
       const { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput } = await openExistingAzureSubscription(page, context, viewportName);
       const savedTenantId = await tenantVariableInput.inputValue();
@@ -314,4 +317,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       }
     });
   });
-}

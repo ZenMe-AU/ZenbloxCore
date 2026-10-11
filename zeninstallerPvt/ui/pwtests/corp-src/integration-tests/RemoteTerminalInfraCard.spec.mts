@@ -1,7 +1,7 @@
 /// <reference types="node" />
 // UI component: ../../../corp-src/cards/RemoteTerminalInfraCard.tsx
-import { expect, test } from "@playwright/test";
-import { CORP_URL, viewports } from "../../testInit";
+import { test, expect } from "@playwright/test";
+import { CORP_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import { expectSuccessfulSteps } from "../util/mockTestHelper.mts";
 import {
@@ -20,11 +20,10 @@ test.afterEach(async ({ page }, testInfo) => {
 	await attachJSCoverage(page, testInfo);
 });
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-	test.describe(`Remote Terminal Infrastructure Card - ${viewportName}`, () => {
-		test.use({ viewport, deviceScaleFactor: 1 });
+	test.describe("Remote Terminal Infrastructure Card", () => {
 
 		test("Happy path", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			test.skip(process.env.RUN_REMOTE_TERMINAL_INFRA_INTEGRATION !== "true",
 				"Set RUN_REMOTE_TERMINAL_INFRA_INTEGRATION=true only after approving live Azure provisioning and GitHub variable writes.");
 			test.setTimeout(1_200_000);
@@ -95,6 +94,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Requires authentication before creating relay resources", async ({ page }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			await page.goto(CORP_URL);
 			const card = page.locator("#card-remote_terminal_infra");
 			await card.getByText("Private Zeninstaller Environment", { exact: true }).click();
@@ -103,4 +103,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expectSnapshot(page, card, testInfo, "authentication-required", viewportName);
 		});
 	});
-}

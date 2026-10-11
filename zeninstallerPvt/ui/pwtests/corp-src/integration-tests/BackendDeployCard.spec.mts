@@ -1,7 +1,7 @@
 /// <reference types="node" />
 // UI component: ../../../corp-src/cards/BackendDeployCard.tsx
-import { expect, test } from "@playwright/test";
-import { CORP_URL, viewports } from "../../testInit";
+import { test, expect } from "@playwright/test";
+import { CORP_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import { backendStepLabels, openBackendCard, prepareExistingBackend } from "../util/BackendDeployCardHelper.mts";
 import { expectSuccessfulSteps } from "../util/mockTestHelper.mts";
@@ -13,10 +13,9 @@ test.afterEach(async ({ page }, testInfo) => {
 	await attachJSCoverage(page, testInfo);
 });
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-	test.describe(`Backend Deploy Card - ${viewportName}`, () => {
-		test.use({ viewport, deviceScaleFactor: 1 });
+	test.describe("Backend Deploy Card", () => {
 		test("Happy path", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			test.skip(process.env.RUN_BACKEND_DEPLOY_INTEGRATION !== "true",
 				"Set RUN_BACKEND_DEPLOY_INTEGRATION=true only after approving live build and deployment.");
 			test.setTimeout(1_200_000);
@@ -65,6 +64,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 		});
 		test("Requires authentication before building or deploying", async ({ page }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			await page.goto(CORP_URL);
 			const card = page.locator("#card-backend_deploy");
 			await card.getByText("Private Zeninstaller Backend", { exact: true }).click();
@@ -73,4 +73,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expectSnapshot(page, card, testInfo, "authentication-required", viewportName);
 		});
 	});
-}

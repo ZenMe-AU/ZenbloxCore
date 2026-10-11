@@ -4,15 +4,13 @@
  */
 
 // UI component: ../../../corp-src/cards/AzureLogin/AzureLoginCard.tsx
-import { expect, test } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { restoreAzureSessionStorage } from "../util/setupHelper.mts";
-import { CORP_URL, viewports } from "../../testInit";
+import { CORP_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
 import { expandAzureLoginCard } from "../util/cardHelper.mts";
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`Azure Login Card - ${viewportName}`, () => {
-    test.use({ viewport, deviceScaleFactor: 1 });
+  test.describe("Azure Login Card", () => {
 
     test.beforeEach(async ({ page }) => {
       await page.coverage.startJSCoverage({ resetOnNavigation: false });
@@ -23,6 +21,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Happy path", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       await page.goto(CORP_URL);
 
       const azureCard = await test.step("Expand Unauthenticated Azure Login Card", async () => {
@@ -63,6 +62,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Signing Out button logs out current user", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       await restoreAzureSessionStorage(context);
       await page.goto(CORP_URL);
       const azureCard = await expandAzureLoginCard(page);
@@ -76,4 +76,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toBeVisible();
     });
   });
-}

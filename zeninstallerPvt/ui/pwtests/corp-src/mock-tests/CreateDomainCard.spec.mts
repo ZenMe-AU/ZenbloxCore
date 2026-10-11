@@ -1,6 +1,6 @@
 // UI component: ../../../corp-src/cards/CreateDomain/CreateDomainCard.tsx
-import { expect, test } from "@playwright/test";
-import { AZURE_MANAGEMENT_URL, CORP_URL, MICROSOFT_GRAPH_URL, viewports } from "../../testInit";
+import { test, expect } from "@playwright/test";
+import { AZURE_MANAGEMENT_URL, CORP_URL, MICROSOFT_GRAPH_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot, safePathSegment } from "../../util/testHelper.ts";
 import {
 	expectSuccessfulSteps,
@@ -233,11 +233,10 @@ test.afterEach(async ({ page }, testInfo) => {
 	await attachJSCoverage(page, testInfo);
 });
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-	test.describe(`Create Domain Card Mock - ${viewportName}`, () => {
-		test.use({ viewport, deviceScaleFactor: 1 });
+	test.describe("Create Domain Card Mock", () => {
 
 		test("Happy path", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			test.setTimeout(240_000);
 			const {
 				card,
@@ -334,6 +333,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Promotes an already verified non-primary domain", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			test.setTimeout(180_000);
 			const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
 				initialAzureState: {
@@ -358,6 +358,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Recognizes an already verified primary domain from Azure status", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			test.setTimeout(180_000);
 			const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
 				initialAzureState: {
@@ -377,6 +378,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Shows an explicit status-check error instead of assuming setup is complete", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			test.setTimeout(180_000);
 			const { card, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
 				failDomainStatusCheck: true,
@@ -389,6 +391,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Retries setup after a temporary DNS-zone failure", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			test.setTimeout(240_000);
 			const { card, azure, unexpectedRequests, getDnsZoneCreateAttempts } = await prepareDomainCard(
 				page,
@@ -416,6 +419,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Stops setup when Microsoft consent is denied", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			test.setTimeout(180_000);
 			const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
 				rejectConsent: true,
@@ -434,4 +438,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			expect(unexpectedRequests).toEqual([]);
 		});
 	});
-}

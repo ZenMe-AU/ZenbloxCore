@@ -4,84 +4,22 @@
  */
 
 // UI component: ../../../corp-src/cards/AzureAppRegistrationCard.tsx
-import { expect, test } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
 import { expectSnapshot, safePathSegment, expectVisibleWithin, attachJSCoverage } from "../../util/testHelper.ts";
-import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN, viewports } from "../../testInit";
+import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
 import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
+  test.describe("Azure App Registration Card", () => {
 
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
+    test.beforeEach(async ({ page }) => { await page.coverage.startJSCoverage({ resetOnNavigation: false }); });
+    test.afterEach(async ({ page }, testInfo) => { await attachJSCoverage(page, testInfo); });
 
-async function prepareAppRegistrationCard(page: import("@playwright/test").Page, context: import("@playwright/test").BrowserContext, repoName: string) {
-  await restoreGithubSessionStorage(context);
-  await restoreAzureSessionStorage(context);
-  await page.goto(CORP_URL);
-
-  const azureLoginCard = await expandAzureLoginCard(page);
-  const signedInText = azureLoginCard.getByText(/Signed in as/i);
-  const tenantSelect = azureLoginCard.getByTestId("tenant-select");
-  await expectVisibleWithin(signedInText, "Azure signed-in status", 50_000);
-  await expectVisibleWithin(tenantSelect, "Azure tenant selector", 50_000);
-  const tenantId = (await tenantSelect.locator("input").inputValue()).trim();
-  expect(tenantId, "The restored Azure tenant ID should not be empty").not.toBe("");
-  await tenantSelect.click();
-  await page.getByRole("option").filter({ hasText: tenantId }).click();
-
-	const repoCard = await expandRepoCard(page);
-	if (!(await checkRepoExists(page, repoCard, repoName))) {
-		await createNewRepo(page, repoCard, repoName);
-	}
-	await chooseExistingRepo(page, repoCard, repoName);
-
-	await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden({ timeout: 120_000 });
-	const prodEnvironment = repoCard.getByText("PROD", { exact: true });
-	if (!(await prodEnvironment.isVisible())) {
-		throw new Error(`The repository "${repoName}" does not have a visible PROD environment.`);
-	}
-	await prodEnvironment.click();
-	const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD" });
-	const subscriptionCard = await expandAzureSubscriptionCard(page);
-	const selectEnvironmentMessage = subscriptionCard.getByText(
-		"Select a repository & environment to save the tenant and subscription to GitHub.",
-		{ exact: true },
-	);
-	await expect.poll(async () => await createProdButton.isVisible() || await selectEnvironmentMessage.count() === 0, {
-		timeout: 30_000,
-		message: "PROD branch state did not finish loading",
-	}).toBeTruthy();
-	if (await createProdButton.isVisible()) {
-		await expect(createProdButton).toBeEnabled();
-		await createProdButton.click();
-		await expect(createProdButton).toBeHidden({ timeout: 30_000 });
-		await expect(repoCard.getByText("Failed to create branch", { exact: true })).toHaveCount(0);
-	}
-
-	await expect(selectEnvironmentMessage).toHaveCount(0);
-	await expect(subscriptionCard.getByText("Loading subscriptions...", { exact: true })).toBeHidden({ timeout: 60_000 });
-	await expectVisibleWithin(subscriptionCard.getByRole("combobox"), "Azure subscription selector", 50_000);
-	const saveButton = subscriptionCard.getByRole("button", { name: /^Save(?: 2)? variables$/ });
-	if ((await saveButton.count()) > 0 && await saveButton.isEnabled({ timeout: 0 })) {
-		await saveButton.click();
-		await expect(subscriptionCard.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
-	}
-
-  return expandAzureAppRegistrationCard(page);
-}
-
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`Azure App Registration Card - ${viewportName}`, () => {
-    test.use({ viewport, deviceScaleFactor: 1 });
-
-			test("Happy path", async ({ page, context }, testInfo) => {
+		test("Happy path", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			test.setTimeout(600_000);
-			//TODO: 
+
 			const runId = Date.now().toString(36);
 			const repoName = safePathSegment(`${TEST_REPO_MAIN}-${viewportName}`);
 			const appName = safePathSegment(`zeninstaller-${repoName}-${runId}`);
@@ -268,6 +206,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Reuses an existing app registration on retry", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(600_000);
       const runId = Date.now().toString(36);
       const repoName = safePathSegment(`${TEST_REPO_MAIN}-${viewportName}`);
@@ -291,4 +230,54 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expectSnapshot(page, card, testInfo, "existing-app-reused", viewportName);
     });
   });
+
+async function prepareAppRegistrationCard(page: import("@playwright/test").Page, context: import("@playwright/test").BrowserContext, repoName: string) {
+    await restoreGithubSessionStorage(context);
+    await restoreAzureSessionStorage(context);
+    await page.goto(CORP_URL);
+    const azureLoginCard = await expandAzureLoginCard(page);
+    const signedInText = azureLoginCard.getByText(/Signed in as/i);
+    const tenantSelect = azureLoginCard.getByTestId("tenant-select");
+    await expectVisibleWithin(signedInText, "Azure signed-in status", 50_000);
+    await expectVisibleWithin(tenantSelect, "Azure tenant selector", 50_000);
+    const tenantId = (await tenantSelect.locator("input").inputValue()).trim();
+    expect(tenantId, "The restored Azure tenant ID should not be empty").not.toBe("");
+    await tenantSelect.click();
+    await page.getByRole("option").filter({ hasText: tenantId }).click();
+    const repoCard = await expandRepoCard(page);
+    if (!(await checkRepoExists(page, repoCard, repoName))) {
+      await createNewRepo(page, repoCard, repoName);
+    }
+    await chooseExistingRepo(page, repoCard, repoName);
+    await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden({ timeout: 120_000 });
+    const prodEnvironment = repoCard.getByText("PROD", { exact: true });
+    if (!(await prodEnvironment.isVisible())) {
+      throw new Error(`The repository "${repoName}" does not have a visible PROD environment.`);
+    }
+    await prodEnvironment.click();
+    const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD" });
+    const subscriptionCard = await expandAzureSubscriptionCard(page);
+    const selectEnvironmentMessage = subscriptionCard.getByText(
+      "Select a repository & environment to save the tenant and subscription to GitHub.",
+      { exact: true },
+    );
+    await expect.poll(async () => await createProdButton.isVisible() || await selectEnvironmentMessage.count() === 0, {
+      timeout: 30_000,
+      message: "PROD branch state did not finish loading",
+    }).toBeTruthy();
+    if (await createProdButton.isVisible()) {
+      await expect(createProdButton).toBeEnabled();
+      await createProdButton.click();
+      await expect(createProdButton).toBeHidden({ timeout: 30_000 });
+      await expect(repoCard.getByText("Failed to create branch", { exact: true })).toHaveCount(0);
+    }
+    await expect(selectEnvironmentMessage).toHaveCount(0);
+    await expect(subscriptionCard.getByText("Loading subscriptions...", { exact: true })).toBeHidden({ timeout: 60_000 });
+    await expectVisibleWithin(subscriptionCard.getByRole("combobox"), "Azure subscription selector", 50_000);
+    const saveButton = subscriptionCard.getByRole("button", { name: /^Save(?: 2)? variables$/ });
+    if ((await saveButton.count()) > 0 && await saveButton.isEnabled({ timeout: 0 })) {
+      await saveButton.click();
+      await expect(subscriptionCard.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
+    }
+    return expandAzureAppRegistrationCard(page);
 }

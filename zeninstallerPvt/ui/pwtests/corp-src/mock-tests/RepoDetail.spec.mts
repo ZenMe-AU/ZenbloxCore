@@ -4,8 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/Repo/RepoDetail.tsx
-import { expect, test } from "@playwright/test";
-import { CORP_URL, GITHUB_API_URL, GITHUB_API_URL_REGEX, viewports } from "../../testInit";
+import { test, expect } from "@playwright/test";
+import { CORP_URL, GITHUB_API_URL, GITHUB_API_URL_REGEX } from "../../testInit";
 import { createNewRepo } from "../util/testHelper.mts";
 import { attachJSCoverage, expectSnapshot, expectVisibleWithin, logMockAPI } from "../../util/testHelper.ts";
 import { installMockGitHub } from "../util/mockTestHelper.mts";
@@ -15,9 +15,7 @@ import { selectCloneOption } from "../util/RepoDetailHelper.mts";
 
 const unexpectedByPage = new WeakMap<import("@playwright/test").Page, string[]>();
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`Mock Tests - ${viewportName}`, () => {
-    test.use({ viewport, deviceScaleFactor: 1 });
+  test.describe("Mock Tests", () => {
 
     test.beforeEach(async ({ page, context }) => {
       await page.coverage.startJSCoverage({ resetOnNavigation: false });
@@ -36,6 +34,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Happy path", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const newRepoName = `mock-clone-test-${viewportName.toLowerCase()}`;
       const newRepoId = 987654322;
       const mainSha = "main-commit-sha";
@@ -190,6 +189,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Clones a fresh repository without creating environments", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const name = `mock-no-env-${viewportName.toLowerCase()}`;
       const environmentWrites: string[] = [];
       let cloned = false;
@@ -217,6 +217,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Branch creation failure can be retried", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const name = `mock-retry-${viewportName.toLowerCase()}`;
       const card = await expandRepoCard(page);
       await createNewRepo(page, card, name);
@@ -242,6 +243,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Repository list refresh reports failures and recovers", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const card = await expandRepoCard(page);
       await expect(card.getByRole("combobox").first()).toContainText("mock-user");
       await page.clock.install();
@@ -269,6 +271,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Switching to an organization ignores a late personal repository list", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       let releasePersonal!: () => void;
       const personalReady = new Promise<void>((resolve) => { releasePersonal = resolve; });
       let personalRequested!: () => void;
@@ -300,6 +303,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Selecting valid repo with no environments", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const validRepoName = "valid-repo-no-env";
       const validRepoId = 987654323;
       const repoListPattern = new RegExp(`${GITHUB_API_URL_REGEX}/(?:user/repos|orgs/[^/]+/repos)(?:\\?.*)?$`);
@@ -357,6 +361,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Shows an error when cloning the template fails", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const repoName = `mock-clone-failure-${viewportName.toLowerCase()}`;
       let cloneRequests = 0;
       await page.route(`${GITHUB_API_URL}/repos/ZenMe-AU/ZenbloxCore/generate`, async (route) => {
@@ -394,6 +399,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Creates PROD branch, then creates TEST from PROD", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const repoName = "mock-branch-test";
       const repoId = 987654324;
       const mainSha = "main-commit-sha";
@@ -512,6 +518,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Selecting repo not a clone of source repo", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const invalidRepoName = "playwright-invalid-template-repo";
       const invalidRepoId = 987654321;
 
@@ -556,4 +563,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expectSnapshot(page, repoCard, testInfo, "invalid-repo-mock", viewportName);
     });
   });
-}

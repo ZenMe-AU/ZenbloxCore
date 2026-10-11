@@ -4,7 +4,7 @@
  */
 
 // UI component: ../../../corp-src/cards/AzureLogin/AzureLoginCard.tsx
-import { expect, test } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import {
   installMockAzure,
   installMockGitHub,
@@ -16,7 +16,7 @@ import {
   prepareMockAzureSubscription,
   signInMockAzure,
 } from "../util/mockTestHelper.mts";
-import { CORP_URL, viewports } from "../../testInit";
+import { CORP_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import { createNewRepo } from "../util/testHelper.mts";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
@@ -26,9 +26,7 @@ const mockTenants = [
   { tenantId: mockSecondTenantId, displayName: "Mock second tenant" },
 ];
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`Azure Login Card Mock - ${viewportName}`, () => {
-    test.use({ viewport, deviceScaleFactor: 1 });
+  test.describe("Azure Login Card Mock", () => {
 
     test.beforeEach(async ({ page }) => {
       await page.coverage.startJSCoverage({ resetOnNavigation: false });
@@ -39,6 +37,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Happy path", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const card = await test.step("Expand unauthenticated Azure login card", async () => {
         await page.goto(CORP_URL);
         const result = await expandAzureLoginCard(page);
@@ -64,6 +63,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Tenant changes invalidate the previous subscription", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const repoName = `mock-azure-tenant-switch-${viewportName.toLowerCase()}`;
       await installMockGitHub(page, context);
       await installMockAzure(page, {
@@ -112,6 +112,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("An empty tenant list permits manual tenant confirmation", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       await installMockAzure(page, { tenants: [] });
       await page.goto(CORP_URL);
       const card = await expandAzureLoginCard(page);
@@ -137,6 +138,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("A saved tenant missing from the available tenant list is called out", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const missingTenantId = "00000000-0000-0000-0000-000000000099";
       await prepareMockAzureSubscription(page, context, `mock-saved-tenant-missing-${viewportName.toLowerCase()}`, {
         initialVariables: {
@@ -155,6 +157,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Azure sign-in requests the Microsoft authentication handoff", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       await installMockAzure(page);
       await page.route("https://login.microsoftonline.com/**", (route) => route.abort("blockedbyclient"));
       await page.goto(CORP_URL);
@@ -176,6 +179,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Signing Out button logs out current user", async ({ page }, testInfo) => {
+      const viewportName = testInfo.project.name;
       await page.goto(CORP_URL);
       await installMockAzure(page);
       const card = await expandAzureLoginCard(page);
@@ -190,4 +194,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expect(card.getByRole("button", { name: "Sign in with Azure", exact: true })).toBeVisible();
     });
   });
-}

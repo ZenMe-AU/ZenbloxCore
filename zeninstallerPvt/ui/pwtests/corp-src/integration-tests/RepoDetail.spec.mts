@@ -4,16 +4,14 @@
  */
 
 // UI component: ../../../corp-src/cards/RepoDetail.tsx
-import { expect, test } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { restoreGithubSessionStorage } from "../util/setupHelper.mts";
-import { CORP_URL, TEST_REPO_FROM_PROD, TEST_REPO_MAIN, TEST_REPO_NO_ENV, viewports } from "../../testInit";
+import { CORP_URL, TEST_REPO_FROM_PROD, TEST_REPO_MAIN, TEST_REPO_NO_ENV } from "../../testInit";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
 import { attachJSCoverage, expectSnapshot, safePathSegment, expectVisibleWithin, waitForLocatorContentLoaded } from "../../util/testHelper.ts";
 import { expandRepoCard } from "../util/cardHelper.mts";
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`RepoDetail Integrated - ${viewportName}`, () => {
-    test.use({ viewport, deviceScaleFactor: 1 });
+  test.describe("RepoDetail Integrated", () => {
 
     test.beforeEach(async ({ page }) => {
       await page.coverage.startJSCoverage({ resetOnNavigation: false });
@@ -24,6 +22,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Happy path", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       test.setTimeout(300_000);
       const repoName = safePathSegment(`${TEST_REPO_MAIN}-${viewportName}`);
       await restoreGithubSessionStorage(context);
@@ -93,7 +92,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
 
-		test("Creates valid repo with no environments", async ({ page, context}, testInfo) => {
+		test("Creates valid repo with no environments", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			await restoreGithubSessionStorage(context);
 			await page.goto(CORP_URL);
 			const reponame = safePathSegment(`${TEST_REPO_NO_ENV}-${viewportName}`);
@@ -140,7 +140,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expectSnapshot(page, repoCard, testInfo, "repo-no-env", viewportName);
     });
 
-		test("Creates PROD branch, then creates TEST from PROD", async ({ page, context}, testInfo) => {
+		test("Creates PROD branch, then creates TEST from PROD", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			test.setTimeout(300_000);
 			const repoName = safePathSegment(`${TEST_REPO_FROM_PROD}-${viewportName}`,);
 			await restoreGithubSessionStorage(context);
@@ -184,4 +185,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expectSnapshot(page, repoCard, testInfo, "prod-from-test-cloned", viewportName);
     });
   });
-}

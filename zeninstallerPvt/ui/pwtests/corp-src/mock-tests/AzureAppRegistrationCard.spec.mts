@@ -4,8 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/AzureAppRegistration/AzureAppRegistrationCard.tsx
-import { expect, test } from "@playwright/test";
-import { CORP_URL, GITHUB_API_URL, MICROSOFT_GRAPH_URL, viewports } from "../../testInit";
+import { test, expect } from "@playwright/test";
+import { CORP_URL, GITHUB_API_URL, MICROSOFT_GRAPH_URL } from "../../testInit";
 import { createNewRepo } from "../util/testHelper.mts";
 import { attachJSCoverage, expectSnapshot, safePathSegment } from "../../util/testHelper.ts";
 import {
@@ -35,9 +35,7 @@ async function prepareMockAppRegistrationCard(
   };
 }
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-  test.describe(`Azure App Registration Card Mock - ${viewportName}`, () => {
-    test.use({ viewport, deviceScaleFactor: 1 });
+  test.describe("Azure App Registration Card Mock", () => {
 
     test.beforeEach(async ({ page }) => {
       await page.coverage.startJSCoverage({ resetOnNavigation: false });
@@ -48,6 +46,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Happy path", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const runId = Date.now().toString(36);
       const repoName = safePathSegment(`mock-azure-app-${viewportName.toLowerCase()}`);
       const appName = `zeninstaller-${repoName}`;
@@ -183,6 +182,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Edge case - keeps creation disabled for a blank app name", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-blank-${viewportName.toLowerCase()}`);
       const appNameInput = prepared.appRegistrationCard.locator("input:visible").first();
       const createButton = prepared.appRegistrationCard.getByRole("button", { name: "Create app registration" });
@@ -192,6 +192,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Edge case - warns when the two saved client IDs differ", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-client-id-mismatch-${viewportName.toLowerCase()}`, {
         initialVariables: {
           AZURE_TENANT_ID: mockTenantId,
@@ -207,6 +208,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Edge case - reports and recovers from a provisioning failure", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-provision-retry-${viewportName.toLowerCase()}`, {
         initialAzureState: { applicationCreationFailuresRemaining: 1 },
       });
@@ -237,6 +239,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Edge case - surfaces a Microsoft Graph permission rejection", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-consent-rejected-${viewportName.toLowerCase()}`, {
         initialAzureState: { applicationLookupFailureStatus: 403 },
       });
@@ -252,6 +255,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Edge case - reuses an existing app registration on retry", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-retry-${viewportName.toLowerCase()}`);
       const appNameInput = prepared.appRegistrationCard.locator("input:visible").first();
       await appNameInput.fill("zeninstaller-existing-mock-app");
@@ -270,6 +274,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Edge case - warns when the saved app registration is missing", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       await context.addInitScript(() => {
         localStorage.setItem(
           "zeninstaller_azure_result",
@@ -293,6 +298,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Edge case - warns when the saved app registration has no subscription role", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       await context.addInitScript(() => {
         localStorage.setItem(
           "zeninstaller_azure_result",
@@ -341,6 +347,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Edge case - reports when connection details fail to auto-save", async ({ page, context }, testInfo) => {
+      const viewportName = testInfo.project.name;
       const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-autosave-error-${viewportName.toLowerCase()}`);
       let failedWrites = 0;
       await page.route(`${GITHUB_API_URL}/repos/**/environments/PROD/variables`, async (route) => {
@@ -381,4 +388,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expectSnapshot(page, persistedCard, testInfo, "connection-details-recovered-after-reload", viewportName);
     });
   });
-}

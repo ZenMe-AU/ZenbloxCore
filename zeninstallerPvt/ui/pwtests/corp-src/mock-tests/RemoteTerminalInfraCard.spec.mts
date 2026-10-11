@@ -1,7 +1,7 @@
 /// <reference types="node" />
 // UI component: ../../../corp-src/cards/RemoteTerminalInfra/RemoteTerminalInfraCard.tsx
-import { expect, test } from "@playwright/test";
-import { CORP_URL, viewports } from "../../testInit";
+import { test, expect } from "@playwright/test";
+import { CORP_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import { expectSuccessfulSteps } from "../util/mockTestHelper.mts";
 import {
@@ -25,11 +25,10 @@ const terminalKeys = [
 	"VITE_APPINSIGHTS_CONNECTION_STRING",
 ] as const;
 
-for (const [viewportName, viewport] of Object.entries(viewports)) {
-	test.describe(`Remote Terminal Infrastructure Card Mock - ${viewportName}`, () => {
-		test.use({ viewport, deviceScaleFactor: 1 });
+	test.describe("Remote Terminal Infrastructure Card Mock", () => {
 
 		test("Happy path provisions the website and both relay identities", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			test.setTimeout(180_000);
 			const { card, corpName, tenantId, webStorageName, siteUrl, github, graph, resources, writes, roles,
 				corsWrites, website, unexpectedRequests } = await prepareMockRelay(page, context, viewportName);
@@ -170,6 +169,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Shows provisioning failure and allows a successful retry", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			const { card, corpName, webStorageName, github, unexpectedRequests } =
 				await prepareMockRelay(page, context, viewportName, { failProvisioningOnce: true });
 			await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
@@ -187,7 +187,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			expect(unexpectedRequests).toEqual([]);
 		});
 
-		test("Stops at the storage data-plane consent boundary", async ({ page, context }) => {
+		test("Stops at the storage data-plane consent boundary", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			const { card, graph, resources, writes, website, unexpectedRequests } =
 				await prepareMockRelay(page, context, viewportName, { requireStorageConsent: true });
 			await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
@@ -204,6 +205,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Reports website CORS failure and retries provisioning", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			const { card, corpName, webStorageName, github, corsWrites, website, unexpectedRequests } =
 				await prepareMockRelay(page, context, viewportName, { failCorsOnce: true });
 			await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
@@ -224,6 +226,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Reports static website hosting failure and retries", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			const { card, corpName, webStorageName, github, website, unexpectedRequests } =
 				await prepareMockRelay(page, context, viewportName, { failStaticWebsiteOnce: true });
 			await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
@@ -241,6 +244,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Retries a failed installer service-principal creation", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			const { card, corpName, webStorageName, graph, github, unexpectedRequests } =
 				await prepareMockRelay(page, context, viewportName, { failInstallerPrincipalOnce: true });
 			await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
@@ -261,6 +265,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Retries one failed connection-variable write and verifies persistence", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			const { card, github, unexpectedRequests } =
 				await prepareMockRelay(page, context, viewportName, { failVariableWriteOnce: true });
 			await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
@@ -284,7 +289,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			expect(unexpectedRequests).toEqual([]);
 		});
 
-		test("Reports a missing GitHub repository instead of starting Azure writes", async ({ page, context }) => {
+		test("Reports a missing GitHub repository instead of starting Azure writes", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			const { card, github, resources, writes, graph, unexpectedRequests } =
 				await prepareMockRelay(page, context, viewportName, { omitRepository: true });
 			await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
@@ -297,6 +303,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 		});
 
 		test("Requires authentication before creating relay resources", async ({ page, context }, testInfo) => {
+			const viewportName = testInfo.project.name;
 			const unexpectedRequests = await installRelayNetworkGuard(context);
 			await page.goto(CORP_URL);
 			const card = page.locator("#card-remote_terminal_infra");
@@ -307,4 +314,3 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			expect(unexpectedRequests).toEqual([]);
 		});
 	});
-}
