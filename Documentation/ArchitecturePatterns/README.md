@@ -2,6 +2,10 @@
 
 This index lists all documented patterns and composite patterns used in this repository. Each entry has a short summary and links to a dedicated file with implementation details.
 
+## Enterprise patterns
+
+- [Privileged access management](privileged-access-management.md): Privileged access management design and controls used across enterprise environments.
+
 ## Patterns
 
 - [Pipeline (software)](pipeline-software.md): Documents the stage-based deployment flow that executes infrastructure bootstrap in a deterministic cXX sequence.
