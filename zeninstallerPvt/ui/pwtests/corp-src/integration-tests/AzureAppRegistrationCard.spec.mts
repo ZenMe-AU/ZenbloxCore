@@ -19,7 +19,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath(page, testInfo, { viewportName, repoName, appName });
 });
 
-test("Reuses an existing app registration on retry", async ({ page, context }, testInfo) => {
+test("Reuses existing app", async ({ page, context }, testInfo) => {
   const { viewportName, repoName, appName } = await prepareTest(page, context, testInfo);
   const card = await prepareAppRegistrationCard(page, context, repoName);
   const appNameInput = card.locator("input:visible").first();

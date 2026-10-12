@@ -17,6 +17,130 @@ import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/test
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { coreInfraStepLabels, expectSuccessfulSteps } from "../util/mockTestHelper.mts";
 
+test.beforeEach(async ({ page }) => {
+  await page.coverage.startJSCoverage({ resetOnNavigation: false });
+});
+
+test.afterEach(async ({ page }, testInfo) => {
+  await attachJSCoverage(page, testInfo);
+});
+
+test("Happy path", async ({ page, context }, testInfo) => {
+  await runHappyPath({ page, context }, testInfo);
+});
+
+async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
+  const viewportName = testInfo.project.name;
+  test.skip(
+    process.env.RUN_CORE_INFRA_LIVE_PROVISIONING !== "true",
+    "Set RUN_CORE_INFRA_LIVE_PROVISIONING=true only for an approved isolated Azure subscription."
+  );
+  const companyShortCode = process.env.PWTESTS_CORE_INFRA_COMPANY_CODE?.trim() ?? "";
+  test.skip(
+    !/^[a-z0-9]{3,21}$/.test(companyShortCode),
+    "Set PWTESTS_CORE_INFRA_COMPANY_CODE to a unique lowercase 3-21 character code for this disposable live run."
+  );
+  test.setTimeout(600_000);
+  let setupAlreadyExists = false;
+
+  await test.step("Prepare the selected Azure subscription", async () => {
+    await prepareExistingAzureSubscription(page, context, viewportName);
+  });
+
+  const terraformCard = page.locator("#card-core_infra");
+
+  await test.step("Open backend card where core infrastructure does not exist", async () => {
+    await expectVisibleWithin(terraformCard.getByText("Company short code"), "Company short code field", 50_000);
+
+    setupAlreadyExists = await terraformCard
+      .getByRole("button", { name: "Re-run setup" })
+      .isVisible()
+      .catch(() => false);
+    if (setupAlreadyExists) {
+      await expectVisibleWithin(terraformCard.getByRole("button", { name: "Re-run setup" }), "Re-run setup button", 50_000);
+      await expectSnapshot(page, terraformCard, testInfo, "already-existing-start", viewportName);
+    } else {
+      const companyInput = terraformCard.getByText("COMPANY_SHORT_CODE", { exact: true }).locator("../..").getByRole("textbox");
+      await companyInput.fill(companyShortCode);
+      const saveVariablesButton = terraformCard.getByRole("button", { name: /^Save\s+(?:\d+\s+)?variables?$/ });
+      if (await saveVariablesButton.isEnabled()) {
+        await saveVariablesButton.click();
+        await expect(terraformCard.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
+      }
+      await expect(companyInput).toHaveValue(companyShortCode);
+      await expectVisibleWithin(terraformCard.getByText("Create core infrastructure"), "Create core infrastructure button", 50_000);
+      await expectSnapshot(page, terraformCard, testInfo, "not-setup-start", viewportName);
+    }
+  });
+
+  if (setupAlreadyExists) {
+    await test.step.skip("Provision the Terraform state backend", async () => {});
+  } else {
+    await test.step("Provision the Terraform state backend", async () => {
+      const card = page.locator("#card-core_infra");
+      await card.getByRole("button", { name: "Create core infrastructure" }).click();
+      await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 500_000 });
+
+      await expectSuccessfulSteps(card, coreInfraStepLabels(companyShortCode));
+      await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Start over button", 50_000);
+      await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
+      await expectSnapshot(page, card, testInfo, "provisioned", viewportName);
+    });
+  }
+
+  await test.step("Verify the completed card state", async () => {
+    let card = page.locator("#card-core_infra");
+    const resources = card.getByText("Resources", { exact: true });
+    if (!(await resources.isVisible().catch(() => false))) {
+      await card.getByRole("button", { name: "Start over" }).click();
+      await page.reload();
+      card = page.locator("#card-core_infra");
+      if (
+        !(await card
+          .getByText("Company short code")
+          .isVisible()
+          .catch(() => false))
+      ) {
+        await card.getByText("Terraform state backend", { exact: true }).click();
+      }
+    }
+    await expectVisibleWithin(card.getByText("Terraform state backend"), "Terraform state backend title", 50_000);
+    await expectVisibleWithin(card.getByText(`Resource group: root-${companyShortCode}`, { exact: true }), "Persisted resource-group status", 50_000);
+    await expectVisibleWithin(card.getByText(/^State container: terraformstate$/, { exact: true }), "Persisted state-container name", 50_000);
+    await expectVisibleWithin(card.getByRole("button", { name: "Re-run setup" }), "Re-run setup button", 50_000);
+    await expectSnapshot(page, card, testInfo, "end", viewportName);
+  });
+
+  await test.step("Re-run existing core infrastructure setup", async () => {
+    const card = page.locator("#card-core_infra");
+    const resources = card.getByText("Resources", { exact: true });
+
+    if (!(await resources.isVisible().catch(() => false))) {
+      await card.getByRole("button", { name: "Start over" }).click();
+    }
+
+    await expectVisibleWithin(resources, "Infrastructure resources", 50_000);
+    const rerunButton = card.getByRole("button", { name: "Re-run setup" });
+    await expectVisibleWithin(rerunButton, "Re-run setup button", 50_000);
+    await rerunButton.click();
+    await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 500_000 });
+    await expectSuccessfulSteps(card, coreInfraStepLabels(companyShortCode));
+    for (const stepLabel of [
+      `Create resource group root-${companyShortCode}`,
+      `Create Log Analytics workspace ${companyShortCode}-law`,
+      `Create Application Insights ${companyShortCode}-appinsights`,
+      `Create storage account ${companyShortCode}pvt`,
+    ]) {
+      const row = card.getByText(stepLabel, { exact: true }).locator("../..");
+      await expect(row).toContainText("Already exists");
+    }
+    await expectVisibleWithin(card.getByText("Already exists", { exact: true }).first(), "Already exists status", 50_000);
+    await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Start over button", 50_000);
+    await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
+    await expectSnapshot(page, card, testInfo, "rerun-complete", viewportName);
+  });
+}
+
 async function prepareExistingAzureSubscription(
   page: import("@playwright/test").Page,
   context: import("@playwright/test").BrowserContext,
@@ -107,126 +231,3 @@ async function prepareExistingAzureSubscription(
   }
   await expect(appRegistrationRequirement).toBeHidden({ timeout: 60_000 });
 }
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
-
-  test.describe("Core Infrastructure Card", () => {
-
-    test("Happy path", async ({ page, context }, testInfo) => {
-      const viewportName = testInfo.project.name;
-      test.skip(
-        process.env.RUN_CORE_INFRA_LIVE_PROVISIONING !== "true",
-        "Set RUN_CORE_INFRA_LIVE_PROVISIONING=true only for an approved isolated Azure subscription."
-      );
-      const companyShortCode = process.env.PWTESTS_CORE_INFRA_COMPANY_CODE?.trim() ?? "";
-      test.skip(
-        !/^[a-z0-9]{3,21}$/.test(companyShortCode),
-        "Set PWTESTS_CORE_INFRA_COMPANY_CODE to a unique lowercase 3-21 character code for this disposable live run."
-      );
-      test.setTimeout(600_000);
-      let setupAlreadyExists = false;
-
-      await test.step("Prepare the selected Azure subscription", async () => {
-        await prepareExistingAzureSubscription(page, context, viewportName);
-      });
-
-      const terraformCard = page.locator("#card-core_infra");
-
-      await test.step("Open backend card where core infrastructure does not exist", async () => {
-        await expectVisibleWithin(terraformCard.getByText("Company short code"), "Company short code field", 50_000);
-
-        setupAlreadyExists = await terraformCard
-          .getByRole("button", { name: "Re-run setup" })
-          .isVisible()
-          .catch(() => false);
-        if (setupAlreadyExists) {
-          await expectVisibleWithin(terraformCard.getByRole("button", { name: "Re-run setup" }), "Re-run setup button", 50_000);
-          await expectSnapshot(page, terraformCard, testInfo, "already-existing-start", viewportName);
-        } else {
-          const companyInput = terraformCard.getByText("COMPANY_SHORT_CODE", { exact: true }).locator("../..").getByRole("textbox");
-          await companyInput.fill(companyShortCode);
-          const saveVariablesButton = terraformCard.getByRole("button", { name: /^Save\s+(?:\d+\s+)?variables?$/ });
-          if (await saveVariablesButton.isEnabled()) {
-            await saveVariablesButton.click();
-            await expect(terraformCard.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
-          }
-          await expect(companyInput).toHaveValue(companyShortCode);
-          await expectVisibleWithin(terraformCard.getByText("Create core infrastructure"), "Create core infrastructure button", 50_000);
-          await expectSnapshot(page, terraformCard, testInfo, "not-setup-start", viewportName);
-        }
-      });
-
-      if (setupAlreadyExists) {
-        await test.step.skip("Provision the Terraform state backend", async () => {});
-      } else {
-        await test.step("Provision the Terraform state backend", async () => {
-          const card = page.locator("#card-core_infra");
-          await card.getByRole("button", { name: "Create core infrastructure" }).click();
-          await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 500_000 });
-
-          await expectSuccessfulSteps(card, coreInfraStepLabels(companyShortCode));
-          await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Start over button", 50_000);
-          await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
-          await expectSnapshot(page, card, testInfo, "provisioned", viewportName);
-        });
-      }
-
-      await test.step("Verify the completed card state", async () => {
-        let card = page.locator("#card-core_infra");
-        const resources = card.getByText("Resources", { exact: true });
-        if (!(await resources.isVisible().catch(() => false))) {
-          await card.getByRole("button", { name: "Start over" }).click();
-          await page.reload();
-          card = page.locator("#card-core_infra");
-          if (
-            !(await card
-              .getByText("Company short code")
-              .isVisible()
-              .catch(() => false))
-          ) {
-            await card.getByText("Terraform state backend", { exact: true }).click();
-          }
-        }
-        await expectVisibleWithin(card.getByText("Terraform state backend"), "Terraform state backend title", 50_000);
-        await expectVisibleWithin(card.getByText(`Resource group: root-${companyShortCode}`, { exact: true }), "Persisted resource-group status", 50_000);
-        await expectVisibleWithin(card.getByText(/^State container: terraformstate$/, { exact: true }), "Persisted state-container name", 50_000);
-        await expectVisibleWithin(card.getByRole("button", { name: "Re-run setup" }), "Re-run setup button", 50_000);
-        await expectSnapshot(page, card, testInfo, "end", viewportName);
-      });
-
-      await test.step("Re-run existing core infrastructure setup", async () => {
-        const card = page.locator("#card-core_infra");
-        const resources = card.getByText("Resources", { exact: true });
-
-        if (!(await resources.isVisible().catch(() => false))) {
-          await card.getByRole("button", { name: "Start over" }).click();
-        }
-
-        await expectVisibleWithin(resources, "Infrastructure resources", 50_000);
-        const rerunButton = card.getByRole("button", { name: "Re-run setup" });
-        await expectVisibleWithin(rerunButton, "Re-run setup button", 50_000);
-        await rerunButton.click();
-        await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 500_000 });
-        await expectSuccessfulSteps(card, coreInfraStepLabels(companyShortCode));
-        for (const stepLabel of [
-          `Create resource group root-${companyShortCode}`,
-          `Create Log Analytics workspace ${companyShortCode}-law`,
-          `Create Application Insights ${companyShortCode}-appinsights`,
-          `Create storage account ${companyShortCode}pvt`,
-        ]) {
-          const row = card.getByText(stepLabel, { exact: true }).locator("../..");
-          await expect(row).toContainText("Already exists");
-        }
-        await expectVisibleWithin(card.getByText("Already exists", { exact: true }).first(), "Already exists status", 50_000);
-        await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Start over button", 50_000);
-        await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
-        await expectSnapshot(page, card, testInfo, "rerun-complete", viewportName);
-      });
-    });
-  });
