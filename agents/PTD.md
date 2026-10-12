@@ -42,19 +42,20 @@ Confirm the requested card/component and scope. When starting test development, 
 
 1. If a UI component is opened and this developer is run, look at the [reviews manifest](PTR/reviewManifest.jsonl) and show the user what was recommended to change and then let the user choose to fix any of the recommendations needed to be fixed.
 2. If there is no card opened, ask the product owner to specify which UI component they want to develop, look at the [reviews manifest](PTR/reviewManifest.jsonl) to show the user what was recommended to change and then let the user choose to fix any of the recommendations needed to be fixed.
+3. When modifying tests, initially use a headed browser and `--reporter=line` so the user can follow the run. Do not open the HTML report during that run. Headed mode is not required after confirming the test works.
+4. Keep mock data deterministic and assert important request payloads or resulting mock state where useful.
+5. Run the matching mock spec separately using its path under `mock-tests`. Do not run integration tests unless required auth/session state and external-service prerequisites are available and relevant real side effects are approved.
+6. Use configured Playwright projects and setup dependencies. If a prerequisite prevents execution, report the blocker rather than weakening the test. Do not use Vitest as a substitute for Playwright validation.
+7. Report which specs were changed, what was run, and any remaining auth, external-service, or product-owner validation.
 
 ## Test structure
 Every playwright test will be defined in a main file, if more files are needed, they will be linked from the main file and use the main file as prefix to their filename, e.g. UIComponent-A.spec.ts could have UIComponent-A-Intro.spec.ts and UIComponent-A-Extra.spec.ts as sub files.
 
 1. Put the primary user workflow first as `Happy path` followed by focused edge cases. Edge cases should cover meaningful alternate or failure states.
-2. Assert behavior as well as appearance: verify resulting text, control state, request/result, or another user-visible outcome. A screenshot alone is not a behavioral assertion.
-3. Follow the configured viewports in `zeninstallerPvt/ui/pwtests/testInit.ts` unless the user requests a narrower scope.
-4. Use the shared `expectSnapshot()` helper from `zeninstallerPvt/ui/pwtests/corp-src/util/testHelper.mts`. In the happy path, take the initial snapshot when the target component is rendered in its starting state, then snapshot at the end of every `test.step()`. For edge cases, snapshot only at the end of each test after asserting its final state.
-5. Keep mock data deterministic and assert important request payloads or resulting mock state where useful.
-6. When modifying tests, initially use a headed browser and `--reporter=line` so the user can follow the run. Do not open the HTML report during that run. Headed mode is not required after confirming the test works.
-7. Run the matching mock spec separately using its path under `mock-tests`. Do not run integration tests unless required auth/session state and external-service prerequisites are available and relevant real side effects are approved.
-8. Use configured Playwright projects and setup dependencies. If a prerequisite prevents execution, report the blocker rather than weakening the test. Do not use Vitest as a substitute for Playwright validation.
-9. Report which specs were changed, what was run, and any remaining auth, external-service, or product-owner validation.
+2. The body of the `Happy Path` for all tests is placed in the `runHappyPath` helper at the end of the file.
+3. Put all local helper functions specific to their corresponding test at the end of the test file.
+4. Assert behavior as well as appearance: verify resulting text, control state, request/result, or another user-visible outcome. A screenshot alone is not a behavioral assertion.
+5. Use the shared `expectSnapshot()` helper from `zeninstallerPvt/ui/pwtests/corp-src/util/testHelper.mts`. In the happy path, take the initial snapshot when the target component is rendered in its starting state called `start` with the last snapshot of the happy path called `end`. Always have a snapshot at the end of every `test.step()`. For edge cases, snapshot only at the end of each test after asserting its final state.
 
 ### Integration test
 Every UI component will have exactly one Integration test which can be found within the pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. 
