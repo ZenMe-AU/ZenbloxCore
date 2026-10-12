@@ -25,6 +25,244 @@ type CoreInfraMockOptions = {
   failFirstResourceGroupPut?: boolean;
 };
 
+
+test.beforeEach(async ({ page }) => {
+  await page.coverage.startJSCoverage({ resetOnNavigation: false });
+});
+
+test.afterEach(async ({ page }, testInfo) => {
+  await attachJSCoverage(page, testInfo);
+});
+
+test("Happy path", async ({ page, context }, testInfo) => {
+  await runHappyPath({ page, context }, testInfo);
+});
+
+test("Allows manual region entry when Azure region lookup fails", async ({ page, context }, testInfo) => {
+  const viewportName = testInfo.project.name;
+  test.setTimeout(240_000);
+  const { card, resourceWrites, unexpectedRequests } = await prepareCoreInfraCard(page, context, viewportName, {
+    failRegionLookup: true,
+  });
+  await saveCoreCompanyCode(card);
+  await expect(card.getByText("Couldn't load Azure region list — type the region name manually.", { exact: true })).toBeVisible();
+  const locationRow = card.getByText(/Location:/).locator("..");
+  await locationRow.getByRole("button").click();
+  const regionInput = locationRow.getByRole("textbox");
+  await regionInput.fill("westus2");
+  await locationRow.getByRole("button").click();
+  await expect(locationRow).toContainText("westus2");
+  await card.getByRole("button", { name: "Create core infrastructure" }).click();
+  await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
+  await expectSuccessfulSteps(card, coreInfraStepLabels("pwtests"));
+  const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/root-pwtests"));
+  expect(resourceGroupWrite?.body).toMatchObject({ location: "westus2" });
+  await expectSnapshot(page, card, testInfo, "manual-region-fallback", viewportName);
+});
+
+test("Retries a transient resource-group provisioning failure", async ({ page, context }, testInfo) => {
+  const viewportName = testInfo.project.name;
+  test.setTimeout(240_000);
+  const { card, azureMock, getResourceGroupPutAttempts, unexpectedRequests } = await prepareCoreInfraCard(
+    page,
+    context,
+    viewportName,
+    { failFirstResourceGroupPut: true },
+  );
+  await saveCoreCompanyCode(card);
+  await card.getByRole("button", { name: "Create core infrastructure" }).click();
+  await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
+  const resourceGroupRow = card.getByText("Create resource group root-pwtests", { exact: true }).locator("../..");
+  await expect(resourceGroupRow.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(1);
+  await expect(azureMock.createdResources).not.toContain("resource-group");
+  await card.getByRole("button", { name: "Start over" }).click();
+  await expect(card.getByRole("button", { name: "Create core infrastructure" })).toBeEnabled();
+  await runCoreInfrastructure(card);
+  expect(getResourceGroupPutAttempts()).toBe(2);
+  await expect(azureMock.createdResources).toContain("resource-group");
+  await expectSnapshot(page, card, testInfo, "resource-group-retry", viewportName);
+});
+
+test("Does not reuse infrastructure status after the subscription target drifts", async ({ page, context }, testInfo) => {
+  const viewportName = testInfo.project.name;
+  test.setTimeout(240_000);
+  const { card, prepared, azureMock, unexpectedRequests } = await prepareCoreInfraCard(page, context, viewportName, {
+    includeSecondSubscription: true,
+  });
+  await saveCoreCompanyCode(card);
+  await runCoreInfrastructure(card);
+  expect(azureMock.createdResources).toContain("resource-group");
+
+  const secondSubscriptionId = `/subscriptions/${mockSecondSubscriptionId}`;
+  await page.route(`${AZURE_MANAGEMENT_URL}${secondSubscriptionId}/providers/Microsoft.Authorization/roleAssignments**`, async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        value: [{
+          properties: {
+            roleDefinitionId: "/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
+            principalId: mockServicePrincipalId,
+            principalType: "ServicePrincipal",
+          },
+        }],
+      }),
+    });
+  });
+  await page.route(`${AZURE_MANAGEMENT_URL}${secondSubscriptionId}/resourcegroups/root-pwtests`, async (route) => {
+    if (route.request().method() === "GET") {
+      return route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        body: JSON.stringify({ error: { code: "ResourceNotFound" } }),
+      });
+    }
+    return route.fallback();
+  });
+  const subscriptionCard = await expandAzureSubscriptionCard(page);
+  await subscriptionCard.getByRole("combobox").click();
+  await page.getByRole("option", { name: /^Mock second subscription\b/ }).click();
+  const saveTargetButton = subscriptionCard.getByRole("button", { name: /^Save \d+ variables?$/ });
+  await expect(saveTargetButton).toBeEnabled();
+  await saveTargetButton.click();
+  await expect.poll(() => prepared.github.variables.AZURE_SUBSCRIPTION_ID).toBe(mockSecondSubscriptionId);
+  await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.toLowerCase();
+    if (request.method() === "GET" && path.endsWith(`/resourcegroups/root-pwtests`)) {
+      return route.fulfill({
+        status: 404,
+        contentType: "application/json",
+        body: JSON.stringify({ error: { code: "ResourceNotFound" } }),
+      });
+    }
+    return route.fallback();
+  });
+  await page.reload();
+  await prepareMockAppRegistration(page, viewportName);
+  const driftedCard = page.locator("#card-core_infra");
+  await openCoreInfraCard(driftedCard);
+  await expect(prepared.github.variables.AZURE_SUBSCRIPTION_ID).toBe(mockSecondSubscriptionId);
+  await expect(driftedCard.getByRole("button", { name: "Create core infrastructure" })).toBeEnabled();
+  await expect(driftedCard.getByRole("button", { name: "Re-run setup" })).toHaveCount(0);
+  await expectSnapshot(page, driftedCard, testInfo, "target-drift", viewportName);
+});
+
+test("Recreates missing infrastructure and repairs revoked resource-group access", async ({ page, context }, testInfo) => {
+  const viewportName = testInfo.project.name;
+  test.setTimeout(240_000);
+  const { card, azureMock, unexpectedRequests } = await prepareCoreInfraCard(page, context, viewportName);
+  await saveCoreCompanyCode(card);
+  await runCoreInfrastructure(card);
+  const groupScope = `/subscriptions/${mockSubscriptionId}/resourcegroups/root-pwtests`;
+  azureMock.createdResources.delete("resource-group");
+  azureMock.createdResources.delete("storage-container");
+  azureMock.roleAssignments.get(groupScope)?.delete("acdd72a7-3385-48ef-bd42-f606fba81ae7");
+
+  await page.reload();
+  await prepareMockAppRegistration(page, viewportName);
+  const recoveredCard = page.locator("#card-core_infra");
+  await openCoreInfraCard(recoveredCard);
+  await expect(recoveredCard.getByText("The resource group doesn't exist in the selected subscription anymore — re-run to recreate it.", { exact: true })).toBeVisible();
+  await recoveredCard.getByRole("button", { name: "Create core infrastructure" }).click();
+  await expect(recoveredCard.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
+  await expectSuccessfulSteps(recoveredCard, coreInfraStepLabels("pwtests"));
+  expect(azureMock.createdResources).toContain("resource-group");
+  expect(azureMock.createdResources).toContain("storage-container");
+  expect(azureMock.roleAssignments.get(groupScope)).toContain("acdd72a7-3385-48ef-bd42-f606fba81ae7");
+  await expectSnapshot(page, recoveredCard, testInfo, "resource-recovery", viewportName);
+});
+
+test("Shows prerequisites before infrastructure setup", async ({ page, context }, testInfo) => {
+  const viewportName = testInfo.project.name;
+  await installMockGitHub(page, context);
+  await page.goto(CORP_URL);
+  const card = page.locator("#card-core_infra");
+  await card.getByText("Terraform state backend", { exact: true }).click();
+
+  await expect(card.getByText("Complete these first", { exact: true })).toBeVisible();
+  for (const prerequisite of ["Sign in to Azure", "Select a repository & environment", "Select a subscription", "Complete the Azure app registration"]) {
+    await expect(card.getByText(prerequisite, { exact: true })).toBeVisible();
+  }
+  await expect(card.getByRole("button", { name: "Create core infrastructure" })).toHaveCount(0);
+  await expectSnapshot(page, card, testInfo, "prerequisites-required", viewportName);
+});
+
+async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
+  const viewportName = testInfo.project.name;
+  const companyShortCode = "pwtests";
+  test.setTimeout(240_000);
+  const { card, prepared, azureMock, resourceWrites, unexpectedRequests } = await prepareCoreInfraCard(
+    page,
+    context,
+    viewportName,
+  );
+  await expectSnapshot(page, card, testInfo, "start", viewportName);
+
+  await test.step("Open backend card where core infrastructure does not exist", async () => {
+    await saveCoreCompanyCode(card);
+    await expect(card.getByRole("button", { name: "Create core infrastructure" })).toBeEnabled();
+    await chooseAustraliaEast(card, page);
+    await expectSnapshot(page, card, testInfo, "not-setup-start", viewportName);
+  });
+
+  await test.step("Provision the Terraform state backend", async () => {
+    await runCoreInfrastructure(card);
+    await expect(card.getByRole("button", { name: "Start over" })).toBeVisible();
+    await expect([...azureMock.createdResources]).toEqual(
+      expect.arrayContaining(["resource-group", "log-analytics", "diagnostics", "app-insights", "storage-account", "storage-container"])
+    );
+    const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/root-pwtests"));
+    expect(resourceGroupWrite?.body).toMatchObject({ location: "australiaeast" });
+    await expectSnapshot(page, card, testInfo, "provisioned", viewportName);
+  });
+
+  await test.step("Verify the completed card state", async () => {
+    await card.getByRole("button", { name: "Start over" }).click();
+    await page.reload();
+    await prepareMockAppRegistration(page, viewportName);
+    const reloadedCard = page.locator("#card-core_infra");
+    await openCoreInfraCard(reloadedCard);
+    await expect(reloadedCard.getByText("Resources", { exact: true })).toBeVisible();
+    await expect(reloadedCard.getByText("Resource group: root-pwtests", { exact: true })).toBeVisible();
+    await expect(reloadedCard.getByText("State container: terraformstate", { exact: true })).toBeVisible();
+    await expectSnapshot(page, reloadedCard, testInfo, "end", viewportName);
+  });
+
+  await test.step("Re-run existing core infrastructure setup", async () => {
+    const reloadedCard = page.locator("#card-core_infra");
+    const resourcesBeforeRerun = [...azureMock.createdResources].sort();
+    const roleAssignmentsBeforeRerun = [...azureMock.roleAssignments.entries()]
+      .map(([scope, roles]) => [scope, [...roles].sort()] as const)
+      .sort(([left], [right]) => left.localeCompare(right));
+    const writesBeforeRerun = resourceWrites.length;
+    await reloadedCard.getByRole("button", { name: "Re-run setup" }).click();
+    await expect(reloadedCard.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
+    await expectSuccessfulSteps(reloadedCard, coreInfraStepLabels("pwtests"));
+    await expect(reloadedCard.getByText("Already exists", { exact: true }).first()).toBeVisible();
+    expect(resourceWrites).toHaveLength(writesBeforeRerun);
+    expect([...azureMock.createdResources].sort()).toEqual(resourcesBeforeRerun);
+    expect(
+      [...azureMock.roleAssignments.entries()]
+        .map(([scope, roles]) => [scope, [...roles].sort()] as const)
+        .sort(([left], [right]) => left.localeCompare(right)),
+    ).toEqual(roleAssignmentsBeforeRerun);
+    await expect(reloadedCard.getByRole("button", { name: "Start over" })).toBeVisible();
+    await expectSnapshot(page, reloadedCard, testInfo, "rerun-complete", viewportName);
+  });
+
+  const readerRoleId = "acdd72a7-3385-48ef-bd42-f606fba81ae7";
+  const storageReaderRoleId = "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1";
+  expect(azureMock.roleAssignments.get(`/subscriptions/${mockSubscriptionId}/resourcegroups/root-${companyShortCode}`)).toContain(readerRoleId);
+  expect(
+    azureMock.roleAssignments.get(
+      `/subscriptions/${mockSubscriptionId}/resourcegroups/root-${companyShortCode}/providers/microsoft.storage/storageaccounts/${companyShortCode}pvt`
+    )
+  ).toContain(storageReaderRoleId);
+  expect(prepared.github.variables.NAME).toBe("pwtests");
+}
+
 async function prepareMockAppRegistration(page: Page, viewportName: string) {
   const appRegistrationCard = await expandAzureAppRegistrationCard(page);
   const createButton = appRegistrationCard.getByRole("button", { name: "Create app registration", exact: true });
@@ -172,243 +410,3 @@ async function runCoreInfrastructure(card: import("@playwright/test").Locator) {
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
   await expectSuccessfulSteps(card, coreInfraStepLabels("pwtests"));
 }
-
-  test.describe("Core Infrastructure Card Mock", () => {
-
-    test.beforeEach(async ({ page }) => {
-      await page.coverage.startJSCoverage({ resetOnNavigation: false });
-    });
-
-    test.afterEach(async ({ page }, testInfo) => {
-      await attachJSCoverage(page, testInfo);
-    });
-
-    test("Happy path", async ({ page, context }, testInfo) => {
-      const viewportName = testInfo.project.name;
-      test.setTimeout(240_000);
-      const { card, prepared, azureMock, resourceWrites, unexpectedRequests } = await prepareCoreInfraCard(
-        page,
-        context,
-        viewportName,
-      );
-      await expectSnapshot(page, card, testInfo, "start", viewportName);
-
-      await test.step("Open backend card where core infrastructure does not exist", async () => {
-        await saveCoreCompanyCode(card);
-        await expect(card.getByRole("button", { name: "Create core infrastructure" })).toBeEnabled();
-        await chooseAustraliaEast(card, page);
-        await expectSnapshot(page, card, testInfo, "not-setup-start", viewportName);
-      });
-
-      await test.step("Provision the Terraform state backend", async () => {
-        await runCoreInfrastructure(card);
-        await expect(card.getByRole("button", { name: "Start over" })).toBeVisible();
-        await expect([...azureMock.createdResources]).toEqual(
-          expect.arrayContaining(["resource-group", "log-analytics", "diagnostics", "app-insights", "storage-account", "storage-container"])
-        );
-        const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/root-pwtests"));
-        expect(resourceGroupWrite?.body).toMatchObject({ location: "australiaeast" });
-        await expectSnapshot(page, card, testInfo, "provisioned", viewportName);
-      });
-
-      await test.step("Verify the completed card state", async () => {
-        await card.getByRole("button", { name: "Start over" }).click();
-        await page.reload();
-        await prepareMockAppRegistration(page, viewportName);
-        const reloadedCard = page.locator("#card-core_infra");
-        await openCoreInfraCard(reloadedCard);
-        await expect(reloadedCard.getByText("Resources", { exact: true })).toBeVisible();
-        await expect(reloadedCard.getByText("Resource group: root-pwtests", { exact: true })).toBeVisible();
-        await expect(reloadedCard.getByText("State container: terraformstate", { exact: true })).toBeVisible();
-        await expectSnapshot(page, reloadedCard, testInfo, "end", viewportName);
-      });
-
-      await test.step("Re-run existing core infrastructure setup", async () => {
-        const reloadedCard = page.locator("#card-core_infra");
-        const resourcesBeforeRerun = [...azureMock.createdResources].sort();
-        const roleAssignmentsBeforeRerun = [...azureMock.roleAssignments.entries()]
-          .map(([scope, roles]) => [scope, [...roles].sort()] as const)
-          .sort(([left], [right]) => left.localeCompare(right));
-        const writesBeforeRerun = resourceWrites.length;
-        await reloadedCard.getByRole("button", { name: "Re-run setup" }).click();
-        await expect(reloadedCard.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
-        await expectSuccessfulSteps(reloadedCard, coreInfraStepLabels("pwtests"));
-        await expect(reloadedCard.getByText("Already exists", { exact: true }).first()).toBeVisible();
-        expect(resourceWrites).toHaveLength(writesBeforeRerun);
-        expect([...azureMock.createdResources].sort()).toEqual(resourcesBeforeRerun);
-        expect(
-          [...azureMock.roleAssignments.entries()]
-            .map(([scope, roles]) => [scope, [...roles].sort()] as const)
-            .sort(([left], [right]) => left.localeCompare(right)),
-        ).toEqual(roleAssignmentsBeforeRerun);
-        await expect(reloadedCard.getByRole("button", { name: "Start over" })).toBeVisible();
-        await expectSnapshot(page, reloadedCard, testInfo, "rerun-complete", viewportName);
-      });
-
-      const readerRoleId = "acdd72a7-3385-48ef-bd42-f606fba81ae7";
-      const storageReaderRoleId = "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1";
-      expect(azureMock.roleAssignments.get(`/subscriptions/${mockSubscriptionId}/resourcegroups/root-${companyShortCode}`)).toContain(readerRoleId);
-      expect(
-        azureMock.roleAssignments.get(
-          `/subscriptions/${mockSubscriptionId}/resourcegroups/root-${companyShortCode}/providers/microsoft.storage/storageaccounts/${companyShortCode}pvt`
-        )
-      ).toContain(storageReaderRoleId);
-      expect(prepared.github.variables.NAME).toBe("pwtests");
-      expect(unexpectedRequests).toEqual([]);
-    });
-
-    test("Allows manual region entry when Azure region lookup fails", async ({ page, context }, testInfo) => {
-      const viewportName = testInfo.project.name;
-      test.setTimeout(240_000);
-      const { card, resourceWrites, unexpectedRequests } = await prepareCoreInfraCard(page, context, viewportName, {
-        failRegionLookup: true,
-      });
-      await saveCoreCompanyCode(card);
-      await expect(card.getByText("Couldn't load Azure region list — type the region name manually.", { exact: true })).toBeVisible();
-      const locationRow = card.getByText(/Location:/).locator("..");
-      await locationRow.getByRole("button").click();
-      const regionInput = locationRow.getByRole("textbox");
-      await regionInput.fill("westus2");
-      await locationRow.getByRole("button").click();
-      await expect(locationRow).toContainText("westus2");
-      await card.getByRole("button", { name: "Create core infrastructure" }).click();
-      await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
-      await expectSuccessfulSteps(card, coreInfraStepLabels("pwtests"));
-      const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/root-pwtests"));
-      expect(resourceGroupWrite?.body).toMatchObject({ location: "westus2" });
-      await expectSnapshot(page, card, testInfo, "manual-region-fallback", viewportName);
-      expect(unexpectedRequests).toEqual([]);
-    });
-
-    test("Retries a transient resource-group provisioning failure", async ({ page, context }, testInfo) => {
-      const viewportName = testInfo.project.name;
-      test.setTimeout(240_000);
-      const { card, azureMock, getResourceGroupPutAttempts, unexpectedRequests } = await prepareCoreInfraCard(
-        page,
-        context,
-        viewportName,
-        { failFirstResourceGroupPut: true },
-      );
-      await saveCoreCompanyCode(card);
-      await card.getByRole("button", { name: "Create core infrastructure" }).click();
-      await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
-      const resourceGroupRow = card.getByText("Create resource group root-pwtests", { exact: true }).locator("../..");
-      await expect(resourceGroupRow.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(1);
-      await expect(azureMock.createdResources).not.toContain("resource-group");
-      await card.getByRole("button", { name: "Start over" }).click();
-      await expect(card.getByRole("button", { name: "Create core infrastructure" })).toBeEnabled();
-      await runCoreInfrastructure(card);
-      expect(getResourceGroupPutAttempts()).toBe(2);
-      await expect(azureMock.createdResources).toContain("resource-group");
-      await expectSnapshot(page, card, testInfo, "resource-group-retry", viewportName);
-      expect(unexpectedRequests).toEqual([]);
-    });
-
-    test("Does not reuse infrastructure status after the subscription target drifts", async ({ page, context }, testInfo) => {
-      const viewportName = testInfo.project.name;
-      test.setTimeout(240_000);
-      const { card, prepared, azureMock, unexpectedRequests } = await prepareCoreInfraCard(page, context, viewportName, {
-        includeSecondSubscription: true,
-      });
-      await saveCoreCompanyCode(card);
-      await runCoreInfrastructure(card);
-      expect(azureMock.createdResources).toContain("resource-group");
-
-      const secondSubscriptionId = `/subscriptions/${mockSecondSubscriptionId}`;
-      await page.route(`${AZURE_MANAGEMENT_URL}${secondSubscriptionId}/providers/Microsoft.Authorization/roleAssignments**`, async (route) => {
-        if (route.request().method() !== "GET") return route.fallback();
-        return route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            value: [{
-              properties: {
-                roleDefinitionId: "/providers/Microsoft.Authorization/roleDefinitions/acdd72a7-3385-48ef-bd42-f606fba81ae7",
-                principalId: mockServicePrincipalId,
-                principalType: "ServicePrincipal",
-              },
-            }],
-          }),
-        });
-      });
-      await page.route(`${AZURE_MANAGEMENT_URL}${secondSubscriptionId}/resourcegroups/root-pwtests`, async (route) => {
-        if (route.request().method() === "GET") {
-          return route.fulfill({
-            status: 404,
-            contentType: "application/json",
-            body: JSON.stringify({ error: { code: "ResourceNotFound" } }),
-          });
-        }
-        return route.fallback();
-      });
-      const subscriptionCard = await expandAzureSubscriptionCard(page);
-      await subscriptionCard.getByRole("combobox").click();
-      await page.getByRole("option", { name: /^Mock second subscription\b/ }).click();
-      const saveTargetButton = subscriptionCard.getByRole("button", { name: /^Save \d+ variables?$/ });
-      await expect(saveTargetButton).toBeEnabled();
-      await saveTargetButton.click();
-      await expect.poll(() => prepared.github.variables.AZURE_SUBSCRIPTION_ID).toBe(mockSecondSubscriptionId);
-      await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
-        const request = route.request();
-        const path = new URL(request.url()).pathname.toLowerCase();
-        if (request.method() === "GET" && path.endsWith(`/resourcegroups/root-pwtests`)) {
-          return route.fulfill({
-            status: 404,
-            contentType: "application/json",
-            body: JSON.stringify({ error: { code: "ResourceNotFound" } }),
-          });
-        }
-        return route.fallback();
-      });
-      await page.reload();
-      await prepareMockAppRegistration(page, viewportName);
-      const driftedCard = page.locator("#card-core_infra");
-      await openCoreInfraCard(driftedCard);
-      await expect(prepared.github.variables.AZURE_SUBSCRIPTION_ID).toBe(mockSecondSubscriptionId);
-      await expect(driftedCard.getByRole("button", { name: "Create core infrastructure" })).toBeEnabled();
-      await expect(driftedCard.getByRole("button", { name: "Re-run setup" })).toHaveCount(0);
-      await expectSnapshot(page, driftedCard, testInfo, "target-drift", viewportName);
-      expect(unexpectedRequests).toEqual([]);
-    });
-
-    test("Recreates missing infrastructure and repairs revoked resource-group access", async ({ page, context }, testInfo) => {
-      const viewportName = testInfo.project.name;
-      test.setTimeout(240_000);
-      const { card, azureMock, unexpectedRequests } = await prepareCoreInfraCard(page, context, viewportName);
-      await saveCoreCompanyCode(card);
-      await runCoreInfrastructure(card);
-      const groupScope = `/subscriptions/${mockSubscriptionId}/resourcegroups/root-pwtests`;
-      azureMock.createdResources.delete("resource-group");
-      azureMock.createdResources.delete("storage-container");
-      azureMock.roleAssignments.get(groupScope)?.delete("acdd72a7-3385-48ef-bd42-f606fba81ae7");
-
-      await page.reload();
-      await prepareMockAppRegistration(page, viewportName);
-      const recoveredCard = page.locator("#card-core_infra");
-      await openCoreInfraCard(recoveredCard);
-      await expect(recoveredCard.getByText("The resource group doesn't exist in the selected subscription anymore — re-run to recreate it.", { exact: true })).toBeVisible();
-      await recoveredCard.getByRole("button", { name: "Create core infrastructure" }).click();
-      await expect(recoveredCard.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
-      await expectSuccessfulSteps(recoveredCard, coreInfraStepLabels("pwtests"));
-      expect(azureMock.createdResources).toContain("resource-group");
-      expect(azureMock.createdResources).toContain("storage-container");
-      expect(azureMock.roleAssignments.get(groupScope)).toContain("acdd72a7-3385-48ef-bd42-f606fba81ae7");
-      await expectSnapshot(page, recoveredCard, testInfo, "resource-recovery", viewportName);
-      expect(unexpectedRequests).toEqual([]);
-    });
-
-    test("Shows prerequisites before infrastructure setup", async ({ page, context }, testInfo) => {
-      const viewportName = testInfo.project.name;
-      await installMockGitHub(page, context);
-      await page.goto(CORP_URL);
-      const card = page.locator("#card-core_infra");
-      await card.getByText("Terraform state backend", { exact: true }).click();
-
-      await expect(card.getByText("Complete these first", { exact: true })).toBeVisible();
-      for (const prerequisite of ["Sign in to Azure", "Select a repository & environment", "Select a subscription", "Complete the Azure app registration"]) {
-        await expect(card.getByText(prerequisite, { exact: true })).toBeVisible();
-      }
-      await expect(card.getByRole("button", { name: "Create core infrastructure" })).toHaveCount(0);
-      await expectSnapshot(page, card, testInfo, "prerequisites-required", viewportName);
-    });
-  });

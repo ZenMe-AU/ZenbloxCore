@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { expect, Locator, Page, Route, TestInfo } from "@playwright/test";
+import { expect, type Locator, type Page, type Route, type TestInfo } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 

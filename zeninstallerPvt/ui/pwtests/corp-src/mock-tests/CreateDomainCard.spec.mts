@@ -88,6 +88,216 @@ type DomainMockOptions = {
 	rejectConsent?: boolean;
 };
 
+test.beforeEach(async ({ page }) => {
+	await page.coverage.startJSCoverage({ resetOnNavigation: false });
+});
+
+test.afterEach(async ({ page }, testInfo) => {
+	await attachJSCoverage(page, testInfo);
+});
+
+test("Happy path", async ({ page, context }, testInfo) => {
+  await runHappyPath({ page, context }, testInfo);
+});
+
+test("Promotes an already verified non-primary domain", async ({ page, context }, testInfo) => {
+	const viewportName = testInfo.project.name;
+	test.setTimeout(180_000);
+	const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
+		initialAzureState: {
+			domainExists: true,
+			domainVerified: true,
+			domainPrimary: false,
+			dnsZoneExists: true,
+			dnsTxtExists: true,
+		},
+		persistedDomainStatus: { verified: true, primary: false },
+	});
+	await expect(card.getByRole("button", { name: "Set as primary domain" })).toBeEnabled();
+	await card.getByRole("button", { name: "Set as primary domain" }).click();
+	await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
+	expect(azure.domainVerified).toBe(true);
+	expect(azure.domainPrimary).toBe(true);
+	await page.reload();
+	await openDomainCard(card);
+	await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
+	await expectSnapshot(page, card, testInfo, "promoted-existing-domain", viewportName);
+});
+
+test("Recognizes an already verified primary domain from Azure status", async ({ page, context }, testInfo) => {
+	const viewportName = testInfo.project.name;
+	test.setTimeout(180_000);
+	const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
+		initialAzureState: {
+			domainExists: true,
+			domainVerified: true,
+			domainPrimary: true,
+			dnsZoneExists: true,
+			dnsTxtExists: true,
+		},
+	});
+	await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
+	await expect(card.getByRole("button", { name: "Verify domain now" })).toHaveCount(0);
+	expect(azure.domainVerified).toBe(true);
+	expect(azure.domainPrimary).toBe(true);
+	await expectSnapshot(page, card, testInfo, "already-primary", viewportName);
+});
+
+test("Shows an explicit status-check error instead of assuming setup is complete", async ({ page, context }, testInfo) => {
+	const viewportName = testInfo.project.name;
+	test.setTimeout(180_000);
+	const { card, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
+		failDomainStatusCheck: true,
+	});
+	await expect(card.getByText(/Couldn't check existing setup:/)).toBeVisible();
+	await expect(card.getByRole("button", { name: "Set up core DNS domain" })).toBeEnabled();
+	await expect(card.getByRole("button", { name: "Verify domain now" })).toHaveCount(0);
+	await expectSnapshot(page, card, testInfo, "status-check-failed", viewportName);
+});
+
+test("Retries setup after a temporary DNS-zone failure", async ({ page, context }, testInfo) => {
+	const viewportName = testInfo.project.name;
+	test.setTimeout(240_000);
+	const { card, azure, unexpectedRequests, getDnsZoneCreateAttempts } = await prepareDomainCard(
+		page,
+		context,
+		viewportName,
+		{ failDnsZoneCreates: 1 },
+	);
+	await card.getByRole("textbox").fill(domainName);
+	await card.getByRole("button", { name: "Save 1 variable" }).click();
+	await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
+	await card.getByRole("button", { name: "Set up core DNS domain" }).click();
+	await expect(card.getByText("Running...", { exact: true })).toBeHidden();
+	const dnsStep = card.getByText(`Create DNS zone ${domainName}`, { exact: true }).locator("../..");
+	await expect(dnsStep.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(1);
+	expect(azure.dnsZoneExists).toBe(false);
+	await card.getByRole("button", { name: "Start over" }).click();
+	await card.getByRole("button", { name: "Set up core DNS domain" }).click();
+	await expect(card.getByText("Running...", { exact: true })).toBeHidden();
+	await expectSuccessfulSteps(card, initialSetupStepLabels);
+	expect(getDnsZoneCreateAttempts()).toBe(2);
+	expect(azure.dnsZoneExists).toBe(true);
+	expect(azure.dnsTxtExists).toBe(true);
+	await expectSnapshot(page, card, testInfo, "dns-zone-retry", viewportName);
+});
+
+test("Stops setup when Microsoft consent is denied", async ({ page, context }, testInfo) => {
+	const viewportName = testInfo.project.name;
+	test.setTimeout(180_000);
+	const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
+		rejectConsent: true,
+	});
+	await card.getByRole("textbox").fill(domainName);
+	await card.getByRole("button", { name: "Save 1 variable" }).click();
+	await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
+	await card.getByRole("button", { name: "Set up core DNS domain" }).click();
+	await expect(card.getByText("Running...", { exact: true })).toBeHidden();
+	const consentStep = card.getByText("Confirm Microsoft permissions", { exact: true }).locator("../..");
+	await expect(consentStep.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(1);
+	await expect(card.getByText(/Consent redirect failed/i)).toBeVisible();
+	expect(azure.dnsZoneExists).toBe(false);
+	expect(azure.domainExists).toBe(false);
+	await expectSnapshot(page, card, testInfo, "consent-denied", viewportName);
+
+});
+
+async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
+	const viewportName = testInfo.project.name;
+	test.setTimeout(240_000);
+	const {
+		card,
+		prepared,
+		azure,
+		unexpectedRequests,
+		txtRecordWrites,
+		getDomainVerificationAttempts,
+	} = await prepareDomainCard(page, context, viewportName, { delayDomainVerificationAttempts: 1 });
+	await expectSnapshot(page, card, testInfo, "start", viewportName);
+
+	await test.step("Save variables then set up corp domain", async () => {
+		const domainInput = card.getByRole("textbox");
+		await expect(domainInput).toBeVisible();
+		await expect(card.getByRole("progressbar")).toBeHidden();
+
+		await domainInput.fill(domainName);
+		await card.getByRole("button", { name: "Save 1 variable" }).click();
+		await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
+		await expect(domainInput).toHaveValue(domainName);
+
+		const setupButton = card.getByRole("button", { name: "Set up core DNS domain" });
+		await expect(setupButton).toBeEnabled();
+		await expect(card.getByText("Checking whether this domain is already set up...")).toBeHidden({
+			timeout: 50_000,
+		});
+		await setupButton.click();
+
+		await expect(card.getByText("Running...", { exact: true })).toBeHidden();
+		await expectSuccessfulSteps(card, initialSetupStepLabels);
+		await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
+		await expect(card.getByRole("button", { name: "Start over" })).toBeVisible();
+		await expectSnapshot(page, card, testInfo, "new-setup", viewportName);
+	});
+
+	await test.step("Reuse the existing core domain", async () => {
+		await page.reload();
+		await openDomainCard(card);
+
+		const rerunButton = card.getByRole("button", { name: "Re-run setup" });
+		await expect(rerunButton).toBeVisible();
+		await expect(card.getByRole("button", { name: "Save variables" })).toBeDisabled();
+		await rerunButton.click();
+		await expect(card.getByText("Running...", { exact: true })).toBeHidden();
+		await expectSuccessfulSteps(card, rerunStepLabels);
+		await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
+		await expect(card.getByRole("button", { name: "Start over" })).toBeVisible();
+		await expectSnapshot(page, card, testInfo, "existing-setup", viewportName);
+	});
+
+	await test.step("Verify persisted DNS setup before propagation", async () => {
+		await page.reload();
+		await openDomainCard(card);
+
+		await expect(card.getByText("Resources", { exact: true })).toBeVisible();
+		await expect(card.getByText(`DNS zone: ${domainName}`, { exact: true })).toBeVisible();
+		await expect(card.getByRole("button", { name: "Verify domain now" })).toBeEnabled();
+		expect(azure.domainVerified).toBe(false);
+		expect(azure.domainPrimary).toBe(false);
+		expect(azure.dnsZoneExists).toBe(true);
+		expect(azure.dnsTxtExists).toBe(true);
+		expect(azure.adminConsentGranted).toBe(true);
+		expect(prepared.github.variables.DNS).toBe(domainName);
+		await expectSnapshot(page, card, testInfo, "end", viewportName);
+	});
+
+	await test.step("Retry verification after simulated DNS propagation", async () => {
+		await card.getByRole("button", { name: "Verify domain now" }).click();
+		await expect(card.getByText("Verification did not complete — DNS may still be propagating. Try again shortly.", { exact: true })).toBeVisible();
+		expect(azure.domainVerified).toBe(false);
+		expect(azure.domainPrimary).toBe(false);
+		expect(getDomainVerificationAttempts()).toBe(1);
+
+		await card.getByRole("button", { name: "Verify domain now" }).click();
+		await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
+		expect(azure.domainVerified).toBe(true);
+		expect(azure.domainPrimary).toBe(true);
+		expect(getDomainVerificationAttempts()).toBe(2);
+		expect(txtRecordWrites).toHaveLength(1);
+		expect(JSON.stringify(txtRecordWrites[0])).toContain("MS=ms12345678");
+		await expectSnapshot(page, card, testInfo, "verified", viewportName);
+	});
+
+	await test.step("Read back verified status after reload", async () => {
+		await page.reload();
+		await openDomainCard(card);
+		await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
+		await expect(card.getByRole("button", { name: "Verify domain now" })).toHaveCount(0);
+		expect(azure.domainVerified).toBe(true);
+		expect(azure.domainPrimary).toBe(true);
+		await expectSnapshot(page, card, testInfo, "verified-persisted", viewportName);
+	});
+}
+
 async function openDomainCard(card: import("@playwright/test").Locator) {
 	const description = card.getByText(/Creates the DNS zone for/i);
 	if (await description.isVisible()) return;
@@ -224,217 +434,3 @@ async function prepareDomainCard(
 		getDomainVerificationAttempts: () => domainVerificationAttempts,
 	};
 }
-
-test.beforeEach(async ({ page }) => {
-	await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-	await attachJSCoverage(page, testInfo);
-});
-
-	test.describe("Create Domain Card Mock", () => {
-
-		test("Happy path", async ({ page, context }, testInfo) => {
-			const viewportName = testInfo.project.name;
-			test.setTimeout(240_000);
-			const {
-				card,
-				prepared,
-				azure,
-				unexpectedRequests,
-				txtRecordWrites,
-				getDomainVerificationAttempts,
-			} = await prepareDomainCard(page, context, viewportName, { delayDomainVerificationAttempts: 1 });
-			await expectSnapshot(page, card, testInfo, "start", viewportName);
-
-			await test.step("Save variables then set up corp domain", async () => {
-				const domainInput = card.getByRole("textbox");
-				await expect(domainInput).toBeVisible();
-				await expect(card.getByRole("progressbar")).toBeHidden();
-
-				await domainInput.fill(domainName);
-				await card.getByRole("button", { name: "Save 1 variable" }).click();
-				await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
-				await expect(domainInput).toHaveValue(domainName);
-
-				const setupButton = card.getByRole("button", { name: "Set up core DNS domain" });
-				await expect(setupButton).toBeEnabled();
-				await expect(card.getByText("Checking whether this domain is already set up...")).toBeHidden({
-					timeout: 50_000,
-				});
-				await setupButton.click();
-
-				await expect(card.getByText("Running...", { exact: true })).toBeHidden();
-				await expectSuccessfulSteps(card, initialSetupStepLabels);
-				await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
-				await expect(card.getByRole("button", { name: "Start over" })).toBeVisible();
-				await expectSnapshot(page, card, testInfo, "new-setup", viewportName);
-			});
-
-			await test.step("Reuse the existing core domain", async () => {
-				await page.reload();
-				await openDomainCard(card);
-
-				const rerunButton = card.getByRole("button", { name: "Re-run setup" });
-				await expect(rerunButton).toBeVisible();
-				await expect(card.getByRole("button", { name: "Save variables" })).toBeDisabled();
-				await rerunButton.click();
-				await expect(card.getByText("Running...", { exact: true })).toBeHidden();
-				await expectSuccessfulSteps(card, rerunStepLabels);
-				await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
-				await expect(card.getByRole("button", { name: "Start over" })).toBeVisible();
-				await expectSnapshot(page, card, testInfo, "existing-setup", viewportName);
-			});
-
-			await test.step("Verify persisted DNS setup before propagation", async () => {
-				await page.reload();
-				await openDomainCard(card);
-
-				await expect(card.getByText("Resources", { exact: true })).toBeVisible();
-				await expect(card.getByText(`DNS zone: ${domainName}`, { exact: true })).toBeVisible();
-				await expect(card.getByRole("button", { name: "Verify domain now" })).toBeEnabled();
-				expect(azure.domainVerified).toBe(false);
-				expect(azure.domainPrimary).toBe(false);
-				expect(azure.dnsZoneExists).toBe(true);
-				expect(azure.dnsTxtExists).toBe(true);
-				expect(azure.adminConsentGranted).toBe(true);
-				expect(prepared.github.variables.DNS).toBe(domainName);
-				await expectSnapshot(page, card, testInfo, "end", viewportName);
-			});
-
-			await test.step("Retry verification after simulated DNS propagation", async () => {
-				await card.getByRole("button", { name: "Verify domain now" }).click();
-				await expect(card.getByText("Verification did not complete — DNS may still be propagating. Try again shortly.", { exact: true })).toBeVisible();
-				expect(azure.domainVerified).toBe(false);
-				expect(azure.domainPrimary).toBe(false);
-				expect(getDomainVerificationAttempts()).toBe(1);
-
-				await card.getByRole("button", { name: "Verify domain now" }).click();
-				await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
-				expect(azure.domainVerified).toBe(true);
-				expect(azure.domainPrimary).toBe(true);
-				expect(getDomainVerificationAttempts()).toBe(2);
-				expect(txtRecordWrites).toHaveLength(1);
-				expect(JSON.stringify(txtRecordWrites[0])).toContain("MS=ms12345678");
-				await expectSnapshot(page, card, testInfo, "verified", viewportName);
-			});
-
-			await test.step("Read back verified status after reload", async () => {
-				await page.reload();
-				await openDomainCard(card);
-				await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
-				await expect(card.getByRole("button", { name: "Verify domain now" })).toHaveCount(0);
-				expect(azure.domainVerified).toBe(true);
-				expect(azure.domainPrimary).toBe(true);
-				await expectSnapshot(page, card, testInfo, "verified-persisted", viewportName);
-			});
-			expect(unexpectedRequests, "All non-app requests must be fulfilled by mocks").toEqual([]);
-		});
-
-		test("Promotes an already verified non-primary domain", async ({ page, context }, testInfo) => {
-			const viewportName = testInfo.project.name;
-			test.setTimeout(180_000);
-			const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
-				initialAzureState: {
-					domainExists: true,
-					domainVerified: true,
-					domainPrimary: false,
-					dnsZoneExists: true,
-					dnsTxtExists: true,
-				},
-				persistedDomainStatus: { verified: true, primary: false },
-			});
-			await expect(card.getByRole("button", { name: "Set as primary domain" })).toBeEnabled();
-			await card.getByRole("button", { name: "Set as primary domain" }).click();
-			await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
-			expect(azure.domainVerified).toBe(true);
-			expect(azure.domainPrimary).toBe(true);
-			await page.reload();
-			await openDomainCard(card);
-			await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
-			await expectSnapshot(page, card, testInfo, "promoted-existing-domain", viewportName);
-			expect(unexpectedRequests).toEqual([]);
-		});
-
-		test("Recognizes an already verified primary domain from Azure status", async ({ page, context }, testInfo) => {
-			const viewportName = testInfo.project.name;
-			test.setTimeout(180_000);
-			const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
-				initialAzureState: {
-					domainExists: true,
-					domainVerified: true,
-					domainPrimary: true,
-					dnsZoneExists: true,
-					dnsTxtExists: true,
-				},
-			});
-			await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
-			await expect(card.getByRole("button", { name: "Verify domain now" })).toHaveCount(0);
-			expect(azure.domainVerified).toBe(true);
-			expect(azure.domainPrimary).toBe(true);
-			await expectSnapshot(page, card, testInfo, "already-primary", viewportName);
-			expect(unexpectedRequests).toEqual([]);
-		});
-
-		test("Shows an explicit status-check error instead of assuming setup is complete", async ({ page, context }, testInfo) => {
-			const viewportName = testInfo.project.name;
-			test.setTimeout(180_000);
-			const { card, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
-				failDomainStatusCheck: true,
-			});
-			await expect(card.getByText(/Couldn't check existing setup:/)).toBeVisible();
-			await expect(card.getByRole("button", { name: "Set up core DNS domain" })).toBeEnabled();
-			await expect(card.getByRole("button", { name: "Verify domain now" })).toHaveCount(0);
-			await expectSnapshot(page, card, testInfo, "status-check-failed", viewportName);
-			expect(unexpectedRequests).toEqual([]);
-		});
-
-		test("Retries setup after a temporary DNS-zone failure", async ({ page, context }, testInfo) => {
-			const viewportName = testInfo.project.name;
-			test.setTimeout(240_000);
-			const { card, azure, unexpectedRequests, getDnsZoneCreateAttempts } = await prepareDomainCard(
-				page,
-				context,
-				viewportName,
-				{ failDnsZoneCreates: 1 },
-			);
-			await card.getByRole("textbox").fill(domainName);
-			await card.getByRole("button", { name: "Save 1 variable" }).click();
-			await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
-			await card.getByRole("button", { name: "Set up core DNS domain" }).click();
-			await expect(card.getByText("Running...", { exact: true })).toBeHidden();
-			const dnsStep = card.getByText(`Create DNS zone ${domainName}`, { exact: true }).locator("../..");
-			await expect(dnsStep.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(1);
-			expect(azure.dnsZoneExists).toBe(false);
-			await card.getByRole("button", { name: "Start over" }).click();
-			await card.getByRole("button", { name: "Set up core DNS domain" }).click();
-			await expect(card.getByText("Running...", { exact: true })).toBeHidden();
-			await expectSuccessfulSteps(card, initialSetupStepLabels);
-			expect(getDnsZoneCreateAttempts()).toBe(2);
-			expect(azure.dnsZoneExists).toBe(true);
-			expect(azure.dnsTxtExists).toBe(true);
-			await expectSnapshot(page, card, testInfo, "dns-zone-retry", viewportName);
-			expect(unexpectedRequests).toEqual([]);
-		});
-
-		test("Stops setup when Microsoft consent is denied", async ({ page, context }, testInfo) => {
-			const viewportName = testInfo.project.name;
-			test.setTimeout(180_000);
-			const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
-				rejectConsent: true,
-			});
-			await card.getByRole("textbox").fill(domainName);
-			await card.getByRole("button", { name: "Save 1 variable" }).click();
-			await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
-			await card.getByRole("button", { name: "Set up core DNS domain" }).click();
-			await expect(card.getByText("Running...", { exact: true })).toBeHidden();
-			const consentStep = card.getByText("Confirm Microsoft permissions", { exact: true }).locator("../..");
-			await expect(consentStep.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(1);
-			await expect(card.getByText(/Consent redirect failed/i)).toBeVisible();
-			expect(azure.dnsZoneExists).toBe(false);
-			expect(azure.domainExists).toBe(false);
-			await expectSnapshot(page, card, testInfo, "consent-denied", viewportName);
-			expect(unexpectedRequests).toEqual([]);
-		});
-	});
