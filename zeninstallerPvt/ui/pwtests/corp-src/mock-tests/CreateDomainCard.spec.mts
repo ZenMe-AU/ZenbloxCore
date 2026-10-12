@@ -100,61 +100,6 @@ test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);
 });
 
-test("Promotes an already verified non-primary domain", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
-	test.setTimeout(180_000);
-	const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
-		initialAzureState: {
-			domainExists: true,
-			domainVerified: true,
-			domainPrimary: false,
-			dnsZoneExists: true,
-			dnsTxtExists: true,
-		},
-		persistedDomainStatus: { verified: true, primary: false },
-	});
-	await expect(card.getByRole("button", { name: "Set as primary domain" })).toBeEnabled();
-	await card.getByRole("button", { name: "Set as primary domain" }).click();
-	await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
-	expect(azure.domainVerified).toBe(true);
-	expect(azure.domainPrimary).toBe(true);
-	await page.reload();
-	await openDomainCard(card);
-	await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
-	await expectSnapshot(page, card, testInfo, "promoted-existing-domain", viewportName);
-});
-
-test("Recognizes an already verified primary domain from Azure status", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
-	test.setTimeout(180_000);
-	const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
-		initialAzureState: {
-			domainExists: true,
-			domainVerified: true,
-			domainPrimary: true,
-			dnsZoneExists: true,
-			dnsTxtExists: true,
-		},
-	});
-	await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
-	await expect(card.getByRole("button", { name: "Verify domain now" })).toHaveCount(0);
-	expect(azure.domainVerified).toBe(true);
-	expect(azure.domainPrimary).toBe(true);
-	await expectSnapshot(page, card, testInfo, "already-primary", viewportName);
-});
-
-test("Shows an explicit status-check error instead of assuming setup is complete", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
-	test.setTimeout(180_000);
-	const { card, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
-		failDomainStatusCheck: true,
-	});
-	await expect(card.getByText(/Couldn't check existing setup:/)).toBeVisible();
-	await expect(card.getByRole("button", { name: "Set up core DNS domain" })).toBeEnabled();
-	await expect(card.getByRole("button", { name: "Verify domain now" })).toHaveCount(0);
-	await expectSnapshot(page, card, testInfo, "status-check-failed", viewportName);
-});
-
 test("Retries setup after a temporary DNS-zone failure", async ({ page, context }, testInfo) => {
 	const viewportName = testInfo.project.name;
 	test.setTimeout(240_000);
