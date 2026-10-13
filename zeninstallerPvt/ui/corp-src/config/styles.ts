@@ -9,8 +9,10 @@
  */
 
 // Shared face for ordinary interface text.
-export const UI_FONT = { fontFamily: "sans-serif, Arial" } as const;
+export const UI_FONT = { fontFamily: "sans-serif" } as const;
 export const MONO_FONT = { fontFamily: "monospace" } as const;
+
+export const borderHoverTint = (borderColor: string) => `color-mix(in srgb, ${borderColor} 20%, white)`;
 
 // Slim "Refresh" text button used by every card that re-fetches remote state.
 export const refreshBtnSx = {

@@ -57,21 +57,21 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: "sans-serif, Arial",
+    fontFamily: "sans-serif",
     fontSize: 16,
     htmlFontSize: 16,
     h1: {
-      fontSize: "1.375rem",
+      fontSize: "1rem",
       fontWeight: 600,
       lineHeight: 1.3,
     },
     h2: {
-      fontSize: "1.125rem",
+      fontSize: "0.875rem",
       fontWeight: 600,
       lineHeight: 1.35,
     },
     h3: {
-      fontSize: "1rem",
+      fontSize: "0.75rem",
       fontWeight: 600,
       lineHeight: 1.4,
     },
@@ -80,21 +80,21 @@ const theme = createTheme({
       lineHeight: 1.55,
     },
     body2: {
-      fontSize: "1rem",
+      fontSize: "0.875rem",
       lineHeight: 1.5,
     },
     caption: {
-      fontSize: "0.875rem",
+      fontSize: "0.75rem",
       lineHeight: 1.4,
     },
     overline: {
-      fontSize: "1rem",
+      fontSize: "0.75rem",
       fontWeight: 600,
       lineHeight: 1.4,
       letterSpacing: "0.06em",
     },
     button: {
-      fontSize: "1rem",
+      fontSize: "0.875rem",
       fontWeight: 600,
       textTransform: "none",
     },
@@ -140,7 +140,7 @@ const theme = createTheme({
     MuiTypography: {
       styleOverrides: {
         root: {
-          fontFamily: "sans-serif, Arial",
+          fontFamily: "sans-serif",
         },
       },
     },
@@ -190,7 +190,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 8,
-          fontFamily: "sans-serif, Arial",
+          fontFamily: "sans-serif",
           fontSize: "1rem",
           fontWeight: 600,
         },

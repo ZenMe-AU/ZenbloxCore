@@ -16,7 +16,7 @@ import { CLOUD_DOCS } from "./docsConfig";
 import type { UseAwsLoginCard } from "./useAwsLoginCard";
 import type { CardChrome } from "../../types";
 
-const uiFont = { fontFamily: "sans-serif, Arial" };
+const uiFont = { fontFamily: "sans-serif" };
 type Props = {
   card: CardChrome;
   awsLogin: UseAwsLoginCard;

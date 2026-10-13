@@ -14,7 +14,7 @@ import { AZURE_DNS_ZONES_URL, getAzureResourceUrl } from "../../logic/consoleUrl
 import { dnsZoneScope } from "../../api/azureArm";
 import { getRootResourceGroupName } from "../../logic/naming";
 import { getVariableDisplayName } from "../../logic/variables";
-import { UI_FONT as uiFont, labelSx } from "../../config/styles";
+import { borderHoverTint, UI_FONT as uiFont, labelSx } from "../../config/styles";
 import { DNS_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
@@ -274,7 +274,7 @@ export default function CreateDomainCard({
                       fontSize: "1rem",
                       borderColor: "#bfdbfe",
                       color: "#1d4ed8",
-                      "&:hover": { borderColor: "#93c5fd", background: "#eff6ff" },
+                      "&:hover": { borderColor: "#93c5fd", background: borderHoverTint("#93c5fd") },
                     }}
                   >
                     {domainVerified ? "Set as primary domain" : "Verify domain now"}

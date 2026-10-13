@@ -45,7 +45,7 @@ Shared pieces that exist today:
   - `labelSx` (0.68rem uppercase field label, `#94a3b8`)
   - `sectionLabelSx` (0.7rem uppercase section heading)
   - `refreshBtnSx` (the "Refresh" text button)
-- `config/cardLayout.ts` holds `CARD_W = 300`, `EXPANDED_W = 1280`, `CARD_ROW_BREAKPOINT`, plus `groupSx` and `groupLabelSx` (a second home for styling and more hex colours). Widths are JS numbers, not CSS.
+- `config/cardLayout.ts` holds the responsive minimum card width (`CARD_MIN_W`), page maximum width (`EXPANDED_W`), plus `groupSx` and `groupLabelSx` (a second home for styling and more hex colours).
 - `components/Card.tsx` is the shared card shell. It owns the status icon map and two hex maps (`BORDER`, `ICON_COLOR`), and styles the shell, header, summary and locked panel inline. The header is a clickable `Box` with no role, `tabIndex`, key handler or `aria-expanded`; the chevron `IconButton` has no label. This is the highest-leverage file to fix.
 - `App.tsx` sets the page-level font and colours inline (`#f8fafc` background, `#0f172a` text, IBM Plex Sans) and the intro panel inline.
 - Other shared components (`Header`, `RestoreToast`, `SaveButton`, `RefreshButton`, `ViewLink`, `VariablesCard`, `SecretsCard`) style themselves inline. `VariablesCard` and `SecretsCard` also reach into MUI internals with `"& .MuiInputBase-root"` selectors.
@@ -56,9 +56,9 @@ The active installer does not yet have one consistent font cascade. The followin
 
 | Surface / elements | Font family currently used | Explicit text sizes and notes |
 |---|---|---|
-| `body` (`index.css`) | `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif` | No global font size is set. |
+| `body` (`index.css`) | `sans-serif` | No global font size is set. |
 | App root (`App.tsx`) | `"IBM Plex Sans", sans-serif` | No font size is set on the root. Descendants can override the inherited family. |
-| MUI `Typography` defaults | MUI's default Roboto-based sans stack (`Roboto, Helvetica, Arial, sans-serif`) | MUI variant defaults apply where a component has no explicit `fontSize`; individual components frequently override them. |
+| MUI `Typography` defaults | `sans-serif` | MUI variant defaults apply where a component has no explicit `fontSize`; individual components frequently override them. |
 | Card title and summary (`Card.tsx`) | `'IBM Plex Mono', monospace` via `...mono` | Title `0.8rem` weight 600, nowrap with ellipsis; summary `0.72rem`, nowrap with ellipsis. |
 | Card content (intro, labels, captions, buttons, errors) | Mixed: intro text inherits the App root (IBM Plex Sans); labels, buttons and inputs use `...mono` | Intro `0.78rem`; labels `0.68rem`; captions `0.7-0.75rem`; errors `0.72-0.78rem`; buttons `0.72-0.85rem`; inputs `0.8rem`. |
 | Page header | MUI Roboto-based sans for its title; IBM Plex Mono for the `ZB` mark | Title: `0.95rem`; mark: `0.7rem`. |
@@ -84,6 +84,8 @@ The palette is Tailwind slate/blue/orange/green/red, hard-coded as hex. The most
 | `#475569` | 32 | body text |
 | `#f1f5f9` | 30 | surface |
 | `#93c5fd` | 21 | card hover border |
+
+Interactive card headers and outlined actions use a subtle background tint blended from their hover border color, rather than a neutral gray hover fill. Keep semantic hover treatments such as primary button gradients and destructive actions intact.
 
 ### Issues found
 
@@ -113,26 +115,26 @@ There are no per-card stylesheets to merge. Cards are styled inline. Standardisi
 4. **`App.css` becomes the only stylesheet** (replacing the dead starter content, imported once from `corp.tsx`): global `:focus-visible` ring, `prefers-reduced-motion`, `.visually-hidden`, `[data-sensitive]` helpers, `--card-w` and `--card-w-expanded`. Nothing component-specific.
 5. **Emotion ordering**: with a theme and no competing component classes, the ordering problem disappears. If a global rule must override MUI, put it in `@layer` and use `StyledEngineProvider enableCssLayer`.
 6. **Guard against regressions.**
-   - Keep `data-id` and `data-sensitive` attributes, `card-<id>` ids, button/link accessible names and DOM nesting where Playwright specs use `.locator("..")`/`.locator("../..")` (see section 0). Run `pnpm test` and `pnpm test:pw` (mock tests) after each step.
+   - Keep `data-id` and `data-sensitive` attributes, `card-<id>` ids, button/link accessible names and DOM nesting where Playwright specs use `.locator("..")`/`.locator("../..")` (see section 0). Run `pnpm test` after each step. The project owner will run the Playwright mock tests manually after each step.
    - Compare before and after screenshots at desktop and mobile widths.
 
 ### UX recommendation: typography and hierarchy
 
 The current screen mixes the system UI stack in `index.css`, IBM Plex Sans on the app root, and IBM Plex Mono across card titles, controls, and buttons. The Plex fonts are referenced but are not loaded, so the displayed face can vary by machine. The widespread monospace styling also makes ordinary instructions and actions denser and less familiar to scan.
 
-**Recommendation:** use the generic `sans-serif` family as the primary face for all main interface content (including labels, buttons, headings, and prose), with Arial only as a fallback (`sans-serif, Arial`). Use `monospace` for technical elements that benefit from fixed-width alignment (for example IDs, command output, and code). Do not add IBM Plex, Roboto, or other font families, and do not use monospace for ordinary UI copy. This avoids web-font downloads and makes the task-oriented content easier to scan.
+**Recommendation:** use only the generic `sans-serif` family for main interface content (including labels, buttons, headings, and prose), and `monospace` for technical elements that benefit from fixed-width alignment (for example IDs, command output, and code). Do not add other font families or use monospace for ordinary UI copy. This avoids web-font downloads and makes the task-oriented content easier to scan.
 
 Define a small shared type scale and semantic roles rather than choosing sizes per component:
 
 | Role | Recommended size | Use |
 |---|---:|---|
-| Page title | 1.25–1.5rem | App name or page-level heading |
-| Card/section heading | 1rem–1.125rem | Card titles and section headings |
-| Body | 1rem | Instructions and primary explanatory copy |
-| Supporting | 1rem | Helper text, captions, and secondary actions |
-| Metadata | 0.875rem | IDs, timestamps, and other secondary details |
+| Page title | 1rem | App name or page-level heading |
+| Card/section heading | 0.875–1rem | Card titles and section headings |
+| Body | 0.875–1rem | Instructions and primary explanatory copy |
+| Supporting | 0.75–0.875rem | Helper text, captions, and secondary actions |
+| Metadata | 0.75rem | IDs, timestamps, and other secondary details |
 
-Use a body line-height around 1.5–1.6, regular weight for prose, and semibold weight for headings. Keep labels distinct through weight and spacing rather than making them monospace. Use 1rem (16px at the default browser size) as the minimum for main and supporting text, with 0.875rem (14px) as the metadata base. Preserve `rem` units, allow text to wrap, and avoid truncating instructions or error messages.
+Use a body line-height around 1.5–1.6, regular weight for prose, and semibold weight for headings. Keep labels distinct through weight and spacing rather than making them monospace. Keep all text between 0.75rem and 1rem. Preserve `rem` units, allow text to wrap, and avoid truncating instructions or error messages.
 
 Apply the scale through CSS variables and MUI theme defaults so CSS classes and `sx`-based components render the same roles consistently. Migrate incrementally: first the page shell and shared card components, then individual cards. Do not redesign card layout and typography in the same step unless screenshot comparison confirms the combined change remains easy to scan.
 
@@ -189,7 +191,7 @@ Measured signals: 95 `onClick` handlers (the card header and requirement rows in
 | 2 | High | **No visible keyboard focus.** There is no `:focus-visible` rule; MUI buttons keep their ripple focus only, and the plain `Box` click targets get none. | Add a global `:focus-visible` ring in `App.css` (2px, 3:1 against both white and slate surfaces), confirm it is not clipped by `overflow: hidden` on the card shell, and give hover cues an equivalent focus cue. |
 | 3 | High | **Status conveyed by icon and colour only.** | Add visually hidden status text or `aria-label`s on the icons ("Complete", "Warning", "Error"). Use `role="status"` / `aria-live="polite"` for loading, success and error messages such as `loginError`. |
 | 4 | High | **Colour contrast.** `#94a3b8` (about 2.6:1 on white) is the most-used text colour. `#cbd5e1` is lower. The orange `#ea580c`/`#d97706` summaries are borderline. | Use `#64748b` or darker for text. Locked and disabled states may be exempt, but status summaries and labels are not. Define accessible token values once in the shared stylesheet. |
-| 5 | Medium | **Small text.** Sizes are 0.68–0.8rem (about 11–13px). Truncated titles and summaries use ellipsis. | Use at least 1rem for main/supporting text and 0.875rem for metadata. Keep `rem` units so browser zoom works. Add a `title` or tooltip for truncated text and expose the full text to screen readers. |
+| 5 | Medium | **Small text.** Sizes are 0.68–0.8rem (about 11–13px). Truncated titles and summaries use ellipsis. | Keep text within 0.75–1rem. Keep `rem` units so browser zoom works. Add a `title` or tooltip for truncated text and expose the full text to screen readers. |
 | 6 | Medium | **No reduced-motion handling.** Card width, border and background transitions plus MUI `Collapse` always animate. | Add `@media (prefers-reduced-motion: reduce)` in `App.css` and set `transitions.create` durations to 0 in the theme under that query. |
 | 7 | Medium | **`ViewLink` is a `Button` calling `window.open`**, and its text is hidden below the `sm` breakpoint. | Use `<a href target="_blank" rel="noopener noreferrer">` so it can be opened in a new tab by keyboard or context menu. Keep the `aria-label` on narrow screens and add "(opens in new tab)". |
 | 8 | Medium | **Labels aren't tied to controls.** `labelSx` is applied to a `Typography` beside the `Select`/`TextField`. | Use `InputLabel`/the `label` prop, or `aria-labelledby`. |
@@ -201,10 +203,10 @@ Measured signals: 95 `onClick` handlers (the card header and requirement rows in
 
 ## 6. Other considerations
 
-- **Fonts.** Follow the recommendation above: `sans-serif` is the primary UI face, Arial is fallback only, and `monospace` is for technical values only. Remove unloaded IBM Plex references and other font overrides instead of adding font downloads.
+- **Fonts.** Follow the recommendation above: `sans-serif` is the UI face and `monospace` is for technical values only. Remove unloaded IBM Plex references and other font overrides instead of adding font downloads.
 - **Theming and dark mode.** `createTheme({ cssVariables: true })` exposes tokens as CSS variables and makes a later dark scheme a palette addition rather than a rewrite.
 - **MUI and CSS ordering.** With the theme-first approach there are no competing component classes. If a global rule must override MUI, use CSS `@layer` with `StyledEngineProvider enableCssLayer`.
-- **Layout constants.** `CARD_W` (300), `EXPANDED_W` (1280) and `CARD_ROW_BREAKPOINT` live in TypeScript. Expose them as CSS variables and keep one source of truth, since `Card.tsx` depends on "3 collapsed = 1 expanded" width maths (borders included).
+- **Responsive card layout (2026-10-09).** Card groups use an auto-fitting grid with a 360px minimum column width: columns grow to fill available space, then naturally reduce from three to two to one as the viewport narrows. Expanded cards span the group width. The page remains capped at 1280px for readability.
 - **Test selectors.** Keep the `data-id` and `data-sensitive` attributes and the `card-<id>` ids, since tests and the Playwright suites depend on them.
 - **Bundle and performance.** Moving static styles out of runtime Emotion reduces JS work and style recomputation. Check the bundle size before and after.
 - **Linting and CI.** Add `eslint-plugin-jsx-a11y`, `@axe-core/playwright` in `pwtests/`, and a lint rule or check against raw hex colours in TSX, to stop the inline duplication coming back. Consider Stylelint for the shared CSS.
@@ -212,28 +214,28 @@ Measured signals: 95 `onClick` handlers (the card header and requirement rows in
 
 ## 7. Step-by-step plan
 
-Each step is one reviewable change that leaves the app working. After every step run `pnpm lint`, `pnpm test` and the Playwright mock tests (`pnpm test:pw`), and compare screenshots at desktop and mobile widths.
+Each step is one reviewable change that leaves the app working. After every step run `pnpm lint` and `pnpm test`. The project owner will manually run the Playwright mock tests and review desktop/mobile screenshots after each step.
 
 ### Step 0. Baseline
 
 - Use the existing desktop/mobile visual baselines under `pwtests/corp-src/snapshots/mock-tests`; the mock specs call `expectSnapshot` to compare card states against these PNGs. Do not create a duplicate screenshot set. Note any important card state that is not represented by an existing baseline.
-- Run the Playwright mock tests within the zeninstallerPvt-ui folder and note the starting result.
+- The project owner runs the Playwright mock tests manually; no Playwright run is required as part of this plan.
 - **Baseline run (2026-10-08): partial.** Ran the `Test Corp` project against `pwtests/corp-src/mock-tests` with `--no-deps`, `BASE_URL=http://localhost:5173`, and a temporary dummy `VITE_APPINSIGHTS_CONNECTION_STRING` (no `.env` or source files changed). Result: 46 passed, 18 failed. Failures were confined to `BackendDeployCard` (10), `CreateDomainCard` (2), and `RemoteTerminalInfraCard` (6); their flows were blocked because `--no-deps` skipped the auth setup projects, leaving prerequisite cards locked. The focused Azure Login test and screenshot assertions reached by the suite matched the existing baselines. Do not interpret the 18 failures as styling regressions; rerun with required auth state available if full behavioral coverage is needed.
-- Record the font rule: `sans-serif` is primary for all main interface content, Arial is fallback only, and `monospace` is only for technical elements. Do not add web-font downloads or other font families.
-- Confirm the minimum text size (1rem for main/supporting text; 0.875rem for metadata).
+- Record the font rule: only `sans-serif` and `monospace` are allowed, with `monospace` reserved for technical elements. Do not add web-font downloads or other font families.
+- Keep theme typography variants between 0.75rem and 1rem.
 
 ### Step 1. Remove dead code and fix fonts
 
 - Delete `corp-src/App.css` starter content, `components/NavBar.tsx` and `components/SessionOverlay.tsx` (confirm no importers first; `knip` at the repo root can verify).
-- Remove all `IBM Plex` references (67), and remove other UI font overrides. Use `sans-serif` as the primary UI face with Arial fallback only, and `monospace` only for technical values.
-- **Completed (2026-10-08).** Deleted the unused starter stylesheet and components; added the MUI sans-serif/Arial default; switched shared text styling to `UI_FONT` and added `MONO_FONT` for technical values. The focused Azure Login desktop mock passed and its existing start/end snapshots matched. No snapshot baselines were updated.
+- Remove all `IBM Plex` references (67), and remove other UI font overrides. Use only `sans-serif` and `monospace`, with `monospace` only for technical values.
+- **Completed (2026-10-08).** Deleted the unused starter stylesheet and components; added the MUI sans-serif default; switched shared text styling to `UI_FONT` and added `MONO_FONT` for technical values. The focused Azure Login desktop mock passed and its existing start/end snapshots matched. No snapshot baselines were updated.
 
 ### Step 2. Add the theme
 
 - Create `corp-src/theme.ts` (`createTheme`, `cssVariables: true`) with the palette, typography scale, shape and component overrides from section 3. Map existing colours to tokens: `#0f172a` text.primary, `#475569` text.secondary, `#64748b` text.muted (never lighter), `#2563eb`/`#1d4ed8` primary main/dark, `#ef4444`/`#dc2626` error, `#d97706`/`#ea580c` warning (darkened for text contrast), `#22c55e`/`#16a34a` success, `#e2e8f0` divider.
 - Wrap the app in `ThemeProvider` and `CssBaseline` in `corp.tsx`. Visuals should barely change.
 - **Completed (2026-10-09).** Added the CSS-variable MUI theme with the shared palette, type scale, shape, button/form/link/typography/chip defaults and technical monospace elements. The existing `ThemeProvider`/`CssBaseline` wrapper was already in place. `pnpm build`, focused theme lint and the Azure Login desktop/mobile mock (4 tests) passed; existing screenshots matched and were not updated. Full `pnpm lint` and `pnpm test` still report failures in untouched files (existing lint violations, Access Pass telemetry test setup, and a browser-test module load failure).
-- **Typography floor updated (2026-10-09).** Set the root and theme base to 16px/1rem, raised theme variants and MUI text-control defaults to at least 1rem, and raised explicit sub-1rem `fontSize` overrides across `corp-src`. Metadata uses a 0.875rem caption base. Update relevant visual baselines only after reviewing the resulting UI.
+- **Typography floor updated (2026-10-09).** Set the root and theme base to 16px/1rem, raised theme variants and MUI text-control defaults to at least 1rem, and raised explicit sub-1rem `fontSize` overrides across `corp-src`. Metadata uses a 0.875rem caption base. **Scale adjusted (2026-10-10):** theme variants now range from 0.75rem to 1rem; keep new UI font sizes in that range. Update relevant visual baselines only after reviewing the resulting UI.
 
 ### Step 3. Global stylesheet
 
@@ -266,7 +268,7 @@ Each step is one reviewable change that leaves the app working. After every step
 
 ### Step 8. Migrate the remaining cards, one PR each
 
-Order by size and reuse: `GithubLoginCard`, `AwsLoginCard`, `AzureSubscriptionCard`, `AzureAppRegistrationCard`, `CoreInfraCard`, `CreateDomainCard`, `RemoteTerminalInfraCard`, `BackendDeployCard`, `WebDeployCard`, `AwsSetupCard`, `StageCard`/`StagePlanDetail`/`RemoteTerminal`, `RepoCard` + `RepoDetail`/`EnvDetail`/`EnvBranchDetail`, `GlobalGroupsCard`, `AccessPassCard`, and the shared `StepRow`, `CopyRow`, `VariablesCard`, `SecretsCard`, `RestoreToast`, `CloudVariableDetail`, `EnvSecretsDetail`. Per card: use theme variants and building blocks, keep `sx` for layout only, add labels to every control, add live regions for status/errors, and keep main/supporting text at or above 1rem and metadata at or above 0.875rem.
+Order by size and reuse: `GithubLoginCard`, `AwsLoginCard`, `AzureSubscriptionCard`, `AzureAppRegistrationCard`, `CoreInfraCard`, `CreateDomainCard`, `RemoteTerminalInfraCard`, `BackendDeployCard`, `WebDeployCard`, `AwsSetupCard`, `StageCard`/`StagePlanDetail`/`RemoteTerminal`, `RepoCard` + `RepoDetail`/`EnvDetail`/`EnvBranchDetail`, `GlobalGroupsCard`, `AccessPassCard`, and the shared `StepRow`, `CopyRow`, `VariablesCard`, `SecretsCard`, `RestoreToast`, `CloudVariableDetail`, `EnvSecretsDetail`. Per card: use theme variants and building blocks, keep `sx` for layout only, add labels to every control, add live regions for status/errors, and keep font sizes between 0.75rem and 1rem.
 
 ### Step 9. Guardrails
 
@@ -289,8 +291,8 @@ Per the repository `README.md` rules, decisions live in the folder where they ap
 
 1. MUI theme is the single source of truth for colour, type and shape; `sx` is for layout and dynamic values only.
 2. `App.css` holds global, non-component rules only.
-3. `sans-serif` is the primary font for main UI content; Arial is fallback only; `monospace` is reserved for technical values. No other font overrides or web-font downloads.
-4. Minimum 1rem for main/supporting text and 0.875rem for metadata; contrast >= 4.5:1.
+3. Only `sans-serif` and `monospace` are used: `sans-serif` for main UI content and `monospace` for technical values. No other font overrides or web-font downloads.
+4. Font sizes range from 0.75rem to 1rem; contrast >= 4.5:1.
 5. Interactive elements are native or MUI-semantic (button, link, input), never `onClick` on a `Box`.
 6. Test hooks (`id="card-<id>"`, `data-id`, `data-sensitive`, accessible names) are part of the UI contract.
 

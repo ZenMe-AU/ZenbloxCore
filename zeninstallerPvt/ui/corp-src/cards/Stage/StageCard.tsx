@@ -34,7 +34,7 @@ import { computePlanSummary, isPlanBehind } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl } from "../../logic/github";
-import { MONO_FONT, UI_FONT as uiFont } from "../../config/styles";
+import { borderHoverTint, MONO_FONT, UI_FONT as uiFont } from "../../config/styles";
 import Card from "../../components/Card";
 import VariablesCard from "../../components/VariablesCard";
 import StagePlanDetail from "./StagePlanDetail";
@@ -222,7 +222,7 @@ function RunStatusUpdateButton({
         textTransform: "none",
         py: 0.55,
         px: 1.5,
-        "&:hover": { borderColor: "#93c5fd", background: "#eff6ff" },
+        "&:hover": { borderColor: "#93c5fd", background: borderHoverTint("#93c5fd") },
         "&.Mui-disabled": { borderColor: "#f1f5f9", color: "#cbd5e1" },
       }}
     >

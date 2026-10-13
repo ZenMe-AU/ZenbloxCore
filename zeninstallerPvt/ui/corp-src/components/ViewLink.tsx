@@ -5,7 +5,7 @@
 
 import { Box, Button } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import { UI_FONT as uiFont } from "../config/styles";
+import { borderHoverTint, UI_FONT as uiFont } from "../config/styles";
 
 type Props = {
   href: string;
@@ -31,7 +31,11 @@ export default function ViewLink({ href, label = "View" }: Props) {
         fontSize: "1rem",
         textTransform: "none",
         ...uiFont,
-        "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
+        "&:hover": {
+          borderColor: "#cbd5e1",
+          color: "#0f172a",
+          background: borderHoverTint("#cbd5e1"),
+        },
       }}
     >
       <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>

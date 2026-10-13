@@ -248,12 +248,13 @@ function AppDashboard() {
 
   const cardProps = (id: CardId): CardChrome => {
     const misconfigured = allCards[id].status === "unavailable";
-    const requirementsForCard = (allCards[id].cardRequirements ?? [])
-      .filter((reqCardId) => !allCards[reqCardId]?.done)
-      .map((reqCardId) => ({
-        label: allCards[reqCardId].cardDependencyLabel,
-        target: reqCardId,
-      }));
+    const requirementsForCard = []
+    //const requirementsForCard = (allCards[id].cardRequirements ?? [])
+      // //.filter((reqCardId) => !allCards[reqCardId]?.done)
+      // .map((reqCardId) => ({
+      //   label: allCards[reqCardId].cardDependencyLabel,
+      //   target: reqCardId,
+      // }));
     const requirements = misconfigured ? [] : requirementsForCard;
     const locked = requirements.length > 0;
     return {

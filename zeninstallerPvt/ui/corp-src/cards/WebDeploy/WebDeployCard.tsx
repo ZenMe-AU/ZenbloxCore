@@ -12,7 +12,7 @@ import StepRow from "../StepRow";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
-import { UI_FONT as uiFont, labelSx } from "../../config/styles";
+import { borderHoverTint, UI_FONT as uiFont, labelSx } from "../../config/styles";
 import CloudVariableDetail from "../CloudVariableDetail";
 import { FRONTEND_VARIABLE_KEYS } from "../../logic/variables";
 import { GITHUB_OAUTH_DOC } from "./config";
@@ -187,7 +187,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
               fontSize: "1rem",
               borderColor: "#bfdbfe",
               color: "#1d4ed8",
-              "&:hover": { borderColor: "#93c5fd", background: "#eff6ff" },
+              "&:hover": { borderColor: "#93c5fd", background: borderHoverTint("#93c5fd") },
             }}
           >
             {building ? (

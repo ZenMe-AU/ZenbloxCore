@@ -13,8 +13,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { CardStatus, CardChrome } from "../types";
-import { UI_FONT as uiFont } from "../config/styles";
-import { CARD_W, EXPANDED_W } from "../config/cardLayout";
+import { borderHoverTint, UI_FONT as uiFont } from "../config/styles";
 
 const BORDER: Record<CardStatus, string> = {
   idle: "#fed7aa",
@@ -104,8 +103,9 @@ export default function Card({
     <Box
       id={`card-${cardId}`}
       sx={{
-        boxSizing: "border-box", // width below must include the border, or the 3-collapsed = 1-expanded math in cardLayout.ts drifts by the border's 2px.
-        width: expanded ? EXPANDED_W : CARD_W,
+        boxSizing: "border-box",
+        width: "100%",
+        gridColumn: expanded ? "1 / -1" : "auto",
         maxWidth: "100%",
         border: "1px solid",
         borderColor: muted ? "#e2e8f0" : BORDER[status],
@@ -114,7 +114,6 @@ export default function Card({
         overflow: "hidden",
         boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
         transition: "width 0.25s ease, border-color 0.2s, background 0.2s",
-        "&:hover": { borderColor: "#93c5fd" },
       }}
     >
       {/*
@@ -129,7 +128,9 @@ export default function Card({
           px: 2,
           py: showSummary ? 1.5 : 2,
           cursor: "pointer",
-          "&:hover": { background: muted ? "#f1f5f9" : "#fafafa" },
+          "&:hover": {
+            background: borderHoverTint(muted ? "#e2e8f0" : BORDER[status]),
+          },
         }}
         onClick={onToggle}
       >

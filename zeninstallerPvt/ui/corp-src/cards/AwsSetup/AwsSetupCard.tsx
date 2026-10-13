@@ -21,7 +21,7 @@ import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import type { SetupStep, UseAwsSetupCard } from "./useAwsSetupCard";
 import type { Account, CardChrome, GhEnv } from "../../types";
 
-const uiFont = { fontFamily: "sans-serif, Arial" };
+const uiFont = { fontFamily: "sans-serif" };
 const labelSx = {
   fontSize: "1rem",
   color: "#94a3b8",
