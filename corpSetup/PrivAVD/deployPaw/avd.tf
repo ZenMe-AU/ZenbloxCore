@@ -27,7 +27,10 @@ resource "azurerm_virtual_desktop_host_pool" "pooled" {
   start_vm_on_connect      = true
   validate_environment     = false
   custom_rdp_properties    = "targetisaadjoined:i:1;enablerdsaadauth:i:1;"
-  tags                     = var.TAGS
+  # Session hosts may only reach the broker/gateway through the connection
+  # private endpoint (private_link.tf); clients keep public feed access.
+  public_network_access = "EnabledForSessionHostsOnly"
+  tags                  = var.TAGS
 }
 
 resource "azurerm_virtual_desktop_workspace" "workspace" {

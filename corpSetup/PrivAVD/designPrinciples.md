@@ -63,17 +63,32 @@ Do not grant local administrator rights broadly on a shared multi-session host.
 AVD uses reverse connect, so session hosts don't need inbound RDP exposure. The
 session host should have no public IP and no route to other networks by default.
 
-- Force outbound traffic through Azure Firewall.
-- Allow only documented AVD, Entra, activation, certificate, monitoring, profile,
-  and approved administrative endpoints.
-- Prefer Microsoft-managed service tags and FQDN tags where supported.
+New deployments are born locked: the posture below is part of the base
+Terraform, not a toggle.
+
+- Disable the subnet's default outbound access (`default_outbound_access_enabled = false`).
+- Apply an NSG egress allow-list built from Microsoft service tags:
+  the AVD connection private endpoint subnet (full TCP port range - the AVD
+  gateway uses dynamic ports), `AzureActiveDirectory`, `AzureCloud` (Windows
+  Update, KMS activation, agent downloads), and `AzureDNS`, with a final
+  `Internet` deny. Intra-VNet traffic stays allowed.
+- Move the session host's broker/gateway traffic onto the VNet with an AVD
+  Private Link connection private endpoint, and set the host pool to
+  `EnabledForSessionHostsOnly` so session hosts can only connect through it.
+  Clients keep public feed access because the workspace stays public.
+- Publish explicit A records for the private endpoint's DNS names; Azure does
+  not create them automatically for AVD host-pool endpoints.
+- Keep Windows Update working inside the lockdown with Delivery Optimization
+  in HTTP-only mode (`DODownloadMode = 0`), which downloads from Microsoft
+  sources over the allowed `AzureCloud` tag without peer-to-peer traffic.
+- Prefer Microsoft-managed service tags over long FQDN lists.
 - Validate the allowlist with the AVD Agent URL Tool after every material change.
 - Never intercept or redirect Azure platform addresses required by the VM agent.
 - Treat every added FQDN, peering, private endpoint, or route as a security change.
 
-The current allowlist is intentionally small. Microsoft doesn't support AVD when
-required endpoints are blocked, so availability testing is part of firewall
-change approval.
+The allowlist is intentionally small. Microsoft doesn't support AVD when
+required endpoints are blocked, so availability testing is part of any
+networking change.
 
 ## 6. Build hosts from trusted, immutable images
 
@@ -89,15 +104,16 @@ The image pipeline is the clean source for session hosts.
 
 ## 7. Maintain a deliberate patch strategy
 
-Microsoft recommends timely patching and monthly base-image updates. This
-runtime intentionally blocks Windows Update, and the Packer Windows Update
-provisioner is currently disabled. That combination is only acceptable with an
-alternative tested patch process.
+Microsoft recommends timely patching and monthly base-image updates.
 
-Required future operating model:
+The image build runs the Packer Windows Update provisioner, so every published
+image version is fully patched at build time. Inside the locked-down PAW,
+Windows Update keeps working over the `AzureCloud` service tag with Delivery
+Optimization in HTTP-only mode (`DODownloadMode = 0`).
+
+Required operating model:
 
 - Rebuild the golden image at least monthly and for urgent security fixes.
-- Enable updates during the controlled image build, or use another approved patch source.
 - Scan and test the image before promotion.
 - Replace session hosts from the patched image after backing up user data.
 - Track Defender intelligence, platform, application, and administrative-tool updates.
@@ -107,13 +123,11 @@ Required future operating model:
 Trusted Launch, Secure Boot, vTPM, boot integrity monitoring, VBS, HVCI, and
 Credential Guard reduce bootkit and credential-theft risk.
 
-The current gallery definition isn't marked Trusted Launch compatible, so this
-repository explicitly disables Secure Boot and vTPM. This is a security gap, not
-a preferred steady state.
-
-Future image definitions should use `TrustedLaunchSupported` or `TrustedLaunch`,
-and session hosts should enable Secure Boot, vTPM, and attestation after tool and
-driver compatibility testing.
+New image builds use a Trusted Launch gallery definition
+(`trusted_launch_enabled = true`) and a Trusted Launch build VM
+(`security_type = "TrustedLaunch"` with Secure Boot and vTPM), and session
+hosts are created with Secure Boot and vTPM enabled. Attestation monitoring is
+the remaining follow-up after tool and driver compatibility testing.
 
 ## 9. Allow only approved administrative tools
 
@@ -215,11 +229,11 @@ Clipboard, drive, printer, and USB redirection can become exfiltration paths.
 1. Design persistent, privately connected profile and user-data storage with tested backup and restore.
 2. Decide whether local admin requirements require a personal host pool.
 3. Create and validate a monthly image patch and replacement process.
-4. Migrate the gallery definition and hosts to Trusted Launch.
+4. Enable Trusted Launch attestation monitoring on the session hosts.
 5. Add Defender for Endpoint, centralized logs, alerts, and vulnerability management.
 6. Add Conditional Access, MFA/passwordless, and a Token Protection pilot.
 7. Introduce managed application delivery and application allowlisting.
-8. Validate the firewall against Microsoft's complete required endpoint list.
+8. Validate the egress allow-list against Microsoft's complete required endpoint list.
 
 ## References
 

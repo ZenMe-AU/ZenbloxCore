@@ -26,7 +26,7 @@ resource "azurerm_subnet" "session_hosts" {
   resource_group_name             = azurerm_resource_group.avd.name
   virtual_network_name            = azurerm_virtual_network.avd.name
   address_prefixes                = [var.SESSION_HOST_SUBNET_ADDRESS_PREFIX]
-  default_outbound_access_enabled = true
+  default_outbound_access_enabled = false
 }
 
 resource "azurerm_network_security_group" "session_hosts" {
@@ -34,6 +34,87 @@ resource "azurerm_network_security_group" "session_hosts" {
   location            = azurerm_resource_group.avd.location
   resource_group_name = azurerm_resource_group.avd.name
   tags                = var.TAGS
+
+  # Born-locked egress allow-list. The session host may only reach:
+  #   - the private-endpoints subnet (AVD connection private endpoint; the
+  #     full TCP port range is required because the AVD gateway uses
+  #     dynamic ports - restricting to 443 breaks sessions)
+  #   - Entra ID authentication (service tag, any port)
+  #   - AzureCloud (Windows Update, KMS activation on 1688, agent downloads)
+  #   - Azure DNS (service tag, port 53)
+  # DenyInternetOutbound is the catch-all for everything else; the
+  # VirtualNetwork allow sits after it because the two are disjoint.
+  security_rule {
+    name                       = "AllowPrivateEndpoint"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
+    destination_address_prefix = var.PRIVATE_ENDPOINTS_SUBNET_ADDRESS_PREFIX
+  }
+
+  security_rule {
+    name                       = "AllowEntraAuth"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
+    destination_address_prefix = "AzureActiveDirectory"
+  }
+
+  security_rule {
+    name                       = "AllowAzureCloud"
+    priority                   = 120
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
+    destination_address_prefix = "AzureCloud"
+  }
+
+  security_rule {
+    name                       = "AllowAzureDns"
+    priority                   = 130
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "53"
+    source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
+    destination_address_prefix = "AzureDNS"
+  }
+
+  security_rule {
+    name                       = "DenyInternetOutbound"
+    priority                   = 3096
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
+    destination_address_prefix = "Internet"
+  }
+
+  security_rule {
+    name                       = "AllowPrivateNetworkOutbound"
+    priority                   = 4000
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "VirtualNetwork"
+  }
 
   security_rule {
     name                       = "DenyAllInbound"
@@ -45,59 +126,6 @@ resource "azurerm_network_security_group" "session_hosts" {
     destination_port_range     = "*"
     source_address_prefix      = "*"
     destination_address_prefix = "*"
-  }
-
-  /*
-  security_rule {
-    name                       = "AllowFirewallDnsUdp"
-    priority                   = 100
-    direction                  = "Outbound"
-    access                     = "Allow"
-    protocol                   = "Udp"
-    source_port_range          = "*"
-    destination_port_range     = "53"
-    source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
-    destination_address_prefix = var.FIREWALL_SUBNET_ADDRESS_PREFIX
-  }
-
-  security_rule {
-    name                       = "AllowFirewallDnsTcp"
-    priority                   = 110
-    direction                  = "Outbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "53"
-    source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
-    destination_address_prefix = var.FIREWALL_SUBNET_ADDRESS_PREFIX
-  }
-  */
-
-  security_rule {
-    name                       = "DenyPrivateNetworkOutbound"
-    priority                   = 4000
-    direction                  = "Outbound"
-    access                     = "Deny"
-    protocol                   = "*"
-    source_port_range          = "*"
-    destination_port_range     = "*"
-    source_address_prefix      = "VirtualNetwork"
-    destination_address_prefix = "VirtualNetwork"
-  }
-
-  dynamic "security_rule" {
-    for_each = var.LOCKDOWN ? local.lockdown_rules : []
-    content {
-      name                       = security_rule.value.name
-      priority                   = security_rule.value.priority
-      direction                  = "Outbound"
-      access                     = security_rule.value.access
-      protocol                   = security_rule.value.protocol
-      source_port_range          = "*"
-      destination_port_range     = security_rule.value.ports
-      source_address_prefix      = "VirtualNetwork"
-      destination_address_prefix = security_rule.value.dest
-    }
   }
 }
 

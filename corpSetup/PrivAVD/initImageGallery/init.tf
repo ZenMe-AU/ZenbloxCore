@@ -39,6 +39,10 @@ resource "azurerm_shared_image" "paw" {
   os_type             = "Windows"
   hyper_v_generation  = "V2"
 
+  # Trusted Launch: session hosts are created with secure_boot_enabled and
+  # vtpm_enabled, which requires the image definition to enforce TL.
+  trusted_launch_enabled = true
+
   identifier {
     publisher = var.IMAGE_PUBLISHER
     offer     = var.IMAGE_OFFER

@@ -131,7 +131,13 @@ PAW network policy.
 ## Design decisions
 
 - Image versions are immutable; each build publishes a new version.
-- Network access is denied by default and only required PAW services are allowed.
+- New PAW deployments are born locked: no default outbound access, an NSG
+  egress allow-list of Microsoft service tags, an AVD Private Link connection
+  private endpoint, and a host pool restricted to `EnabledForSessionHostsOnly`.
+  Windows Update still works over the `AzureCloud` tag with Delivery
+  Optimization in HTTP-only mode.
+- Image builds use a Trusted Launch gallery definition; session hosts boot
+  with Secure Boot and vTPM enabled.
 - Deallocation is used for cost control and does not mean deletion.
 - The PAW runtime resource group is replaceable, but local user data requires
     backup before recreation.

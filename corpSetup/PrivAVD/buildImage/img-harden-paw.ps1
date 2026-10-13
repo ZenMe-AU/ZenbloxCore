@@ -13,3 +13,9 @@ Set-ItemProperty -Path 'HKLM:\Software\Policies\Microsoft\Windows NT\DNSClient' 
 Set-MpPreference -DisableRealtimeMonitoring $false -MAPSReporting Advanced -SubmitSamplesConsent SendAllSamples
 Set-MpPreference -PUAProtection Enabled
 Set-MpPreference -AttackSurfaceReductionRules_Ids D4F940AB-401B-4EFC-AADC-AD5F3C50688A -AttackSurfaceReductionRules_Actions Enabled
+
+# Delivery Optimization: HTTP-only downloads from Microsoft sources, no
+# peer-to-peer. Keeps Windows Update working inside the locked-down PAW
+# (egress allow-list covers AzureCloud) without P2P traffic.
+New-Item -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization' -Force | Out-Null
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization' -Name DODownloadMode -Value 0 -Type DWord
