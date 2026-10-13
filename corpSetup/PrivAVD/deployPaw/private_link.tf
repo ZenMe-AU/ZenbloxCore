@@ -5,9 +5,11 @@
 # through it (see avd.tf). Clients still subscribe to the feed over the
 # internet because the workspace keeps public access.
 #
-# Azure does not auto-create A records for AVD host-pool private endpoints
-# even with a private_dns_zone_group attached, so the explicit
-# azurerm_private_dns_a_record below is required for name resolution.
+# The endpoint reports roughly a dozen FQDNs (broker, diagnostics, gateway
+# rings, web) over a handful of IPs; the exact set varies per deployment, so
+# the A records are generated from custom_dns_configs. Those values only
+# exist after the endpoint is applied, so deployPAW.ps1 applies the endpoint
+# in a targeted first phase before the full plan/apply can succeed.
 
 resource "azurerm_subnet" "private_endpoints" {
   name                            = "private-endpoints"
@@ -52,16 +54,17 @@ resource "azurerm_private_endpoint" "hostpool_connection" {
   }
 }
 
-# Azure leaves the privatelink.wvd.microsoft.com zone empty for host-pool
-# private endpoints, so publish the endpoint's IPs as A records for each
-# fully-qualified domain name the endpoint reports (broker, diagnostics,
-# gateway-ring-map, web).
+# Publish the endpoint's reported FQDNs as A records in the
+# privatelink.wvd.microsoft.com zone. custom_dns_configs may report either the
+# public-shaped FQDN (<name>.wvd.microsoft.com) or the private-shaped one
+# (<name>.privatelink.wvd.microsoft.com); strip both suffixes so the record
+# names land inside the zone correctly either way.
 resource "azurerm_private_dns_a_record" "hostpool_connection" {
   for_each = {
     for cfg in azurerm_private_endpoint.hostpool_connection.custom_dns_configs : cfg.fqdn => cfg
   }
 
-  name                = trimsuffix(each.value.fqdn, ".privatelink.wvd.microsoft.com")
+  name                = trimsuffix(trimsuffix(each.value.fqdn, ".privatelink.wvd.microsoft.com"), ".wvd.microsoft.com")
   zone_name           = azurerm_private_dns_zone.wvd.name
   resource_group_name = azurerm_resource_group.avd.name
   records             = each.value.ip_addresses

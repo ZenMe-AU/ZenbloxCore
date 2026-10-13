@@ -150,6 +150,41 @@ try {
         & (Join-Path $scriptDirectory "importPAW.ps1")
     }
 
+    terraform validate
+    if ($LASTEXITCODE -ne 0) {
+        throw "terraform validate failed with exit code $LASTEXITCODE."
+    }
+
+    # --- Phase 1: apply the host-pool connection private endpoint first ---
+    # The A records in private_link.tf are generated from the endpoint's
+    # custom_dns_configs, which Terraform cannot evaluate until the endpoint
+    # exists in state, so a full plan on an empty state always fails with
+    # "Invalid for_each argument". Apply the endpoint (plus its dependency
+    # closure) in a targeted first phase; the full plan below then sees the
+    # DNS configs and plans the A records normally.
+    $stateForEndpoint = @(terraform state list 2>&1)
+    $hasConnectionEndpoint = [bool]($stateForEndpoint | Where-Object { "$_" -match '^azurerm_private_endpoint\.hostpool_connection$' })
+    if (-not $hasConnectionEndpoint) {
+        Write-Host "Phase 1: private endpoint is not in state; planning the targeted endpoint apply..."
+        $pePlanFile = Join-Path $terraformDirectory "avd-pe.tfplan"
+        terraform plan -input=false "-out=$pePlanFile" "-target=azurerm_private_endpoint.hostpool_connection"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Phase 1 targeted plan failed with exit code $LASTEXITCODE."
+        }
+
+        if ($PlanOnly) {
+            Write-Host "PlanOnly: the full plan requires the private endpoint to exist in state first."
+            Write-Host "PlanOnly: run deployPAW.ps1 without -PlanOnly to apply the endpoint, then re-run -PlanOnly for the full plan."
+            return
+        }
+
+        Write-Host "Phase 1: applying the host-pool connection private endpoint..."
+        terraform apply -input=false $pePlanFile
+        if ($LASTEXITCODE -ne 0) {
+            throw "Phase 1 targeted apply failed with exit code $LASTEXITCODE."
+        }
+    }
+
     # --- Self-heal: subscription-scoped autoscale role assignment ---
     # The autoscale role lives at subscription scope, so it SURVIVES resource
     # group deletion. A fresh workspace (new HOST_POOL_NAME, or a
@@ -159,6 +194,11 @@ try {
     # prints a message, so a future failure names itself instead of dying
     # silently (the previous version had silent skip paths - that is why it
     # did nothing on the erv8 and erv9 runs).
+    #
+    # This runs AFTER the phase-1 endpoint apply because terraform import
+    # evaluates the whole configuration internally, and the A-record
+    # for_each in private_link.tf aborts it while the endpoint is missing
+    # from state.
     try {
         $currentState = @(terraform state list 2>&1)
         $hasAutoscaleAssignment = [bool]($currentState | Where-Object { "$_" -match '^azurerm_role_assignment\.avd_power_management$' })
@@ -188,10 +228,6 @@ try {
         }
     } catch {
         Write-Host "WARNING: self-heal skipped - $($_.Exception.Message)"
-    }
-    terraform validate
-    if ($LASTEXITCODE -ne 0) {
-        throw "terraform validate failed with exit code $LASTEXITCODE."
     }
 
     $planFile = Join-Path $terraformDirectory "avd.tfplan"
