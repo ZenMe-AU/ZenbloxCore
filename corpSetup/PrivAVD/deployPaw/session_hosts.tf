@@ -4,6 +4,21 @@ resource "random_password" "local_administrator" {
   override_special = "!#%+,-.:=?@_"
 }
 
+# Egress for Entra join, Windows Update, and KMS activation rides a
+# dedicated static public IP: the subnet has default outbound access
+# disabled, so without this the NSG service-tag allow-list has no SNAT
+# path and public Microsoft endpoints time out. Inbound stays blocked
+# by the NSG DenyAllInbound rule.
+resource "azurerm_public_ip" "session_host" {
+  count               = var.SESSION_HOST_COUNT
+  name                = "${var.HOST_POOL_NAME}-pip-${count.index + 1}"
+  location            = azurerm_resource_group.avd.location
+  resource_group_name = azurerm_resource_group.avd.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  tags                = var.TAGS
+}
+
 resource "azurerm_network_interface" "session_host" {
   count               = var.SESSION_HOST_COUNT
   name                = "${var.HOST_POOL_NAME}-nic-${count.index + 1}"
@@ -15,6 +30,7 @@ resource "azurerm_network_interface" "session_host" {
     name                          = "internal"
     subnet_id                     = azurerm_subnet.session_hosts.id
     private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.session_host[count.index].id
   }
 }
 

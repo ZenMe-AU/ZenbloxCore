@@ -40,10 +40,21 @@ resource "azurerm_network_security_group" "session_hosts" {
   #     full TCP port range is required because the AVD gateway uses
   #     dynamic ports - restricting to 443 breaks sessions)
   #   - Entra ID authentication (service tag, any port)
-  #   - AzureCloud (Windows Update, KMS activation on 1688, agent downloads)
+  #   - AzureCloud (KMS activation on 1688, agent downloads, WU scan
+  #     endpoints such as fe3.delivery.mp.microsoft.com)
   #   - Azure DNS (service tag, port 53)
+  #   - Azure Front Door Frontend (portal.azure.com, entra.microsoft.com,
+  #     update.code.visualstudio.com - port 443)
+  #   - Azure Front Door FirstParty (VS Code extension marketplace,
+  #     marketplace.visualstudio.com - port 443)
+  #   - AzurePortal (portal backend services - port 443)
   # DenyInternetOutbound is the catch-all for everything else; the
   # VirtualNetwork allow sits after it because the two are disjoint.
+  # NOTE: Windows Update content delivery (tlu.dl.delivery.mp.microsoft.com
+  # and the CDN frontends it resolves to) is NOT covered by any service
+  # tag - verified empirically against the published tag list. Patch
+  # content therefore needs a separate delivery mechanism (WSUS or a
+  # connected cache inside the VNet).
   security_rule {
     name                       = "AllowPrivateEndpoint"
     priority                   = 100
@@ -90,6 +101,45 @@ resource "azurerm_network_security_group" "session_hosts" {
     destination_port_range     = "53"
     source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
     destination_address_prefix = "AzureDNS"
+  }
+
+  # Azure portal UI and the Entra admin center are served from Azure Front
+  # Door (no Private Link exists for them); the VS Code extension
+  # marketplace rides Front Door FirstParty. All Microsoft-owned edges.
+  security_rule {
+    name                       = "AllowFrontDoorPortal"
+    priority                   = 140
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
+    destination_address_prefix = "AzureFrontDoor.Frontend"
+  }
+
+  security_rule {
+    name                       = "AllowFrontDoorFirstParty"
+    priority                   = 141
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
+    destination_address_prefix = "AzureFrontDoor.FirstParty"
+  }
+
+  security_rule {
+    name                       = "AllowAzurePortalTag"
+    priority                   = 142
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = var.SESSION_HOST_SUBNET_ADDRESS_PREFIX
+    destination_address_prefix = "AzurePortal"
   }
 
   security_rule {
