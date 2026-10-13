@@ -29,7 +29,8 @@ resource "azurerm_virtual_desktop_host_pool" "pooled" {
   custom_rdp_properties    = "targetisaadjoined:i:1;enablerdsaadauth:i:1;"
   # Session hosts may only reach the broker/gateway through the connection
   # private endpoint (private_link.tf); clients keep public feed access.
-  public_network_access = "EnabledForSessionHostsOnly"
+  #public_network_access = "EnabledForSessionHostsOnly"
+  public_network_access = "EnabledForClientsOnly"
   tags                  = var.TAGS
 }
 
