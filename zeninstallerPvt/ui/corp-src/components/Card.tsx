@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Box, Collapse, IconButton, Typography } from "@mui/material";
+import { Box, ButtonBase, Collapse, IconButton, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -12,46 +12,47 @@ import BlockIcon from "@mui/icons-material/Block";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { useTheme } from "@mui/material/styles";
 import type { CardStatus, CardChrome } from "../types";
 import { borderHoverTint, UI_FONT as uiFont } from "../config/styles";
 
-const BORDER: Record<CardStatus, string> = {
-  idle: "#fed7aa",
-  loading: "#e2e8f0",
-  complete: "#bbf7d0",
-  warning: "#fed7aa",
-  error: "#fecaca",
-  skipped: "#f1f5f9",
-  unavailable: "#e2e8f0",
+const STATUS_LABEL: Record<CardStatus, string> = {
+  idle: "Not started",
+  loading: "In progress",
+  complete: "Complete",
+  warning: "Warning",
+  error: "Error",
+  skipped: "Skipped",
+  unavailable: "Unavailable",
 };
 
-const ICON_COLOR: Record<CardStatus, string> = {
-  idle: "#f97316",
-  loading: "#60a5fa",
-  complete: "#22c55e",
-  warning: "#f97316",
-  error: "#ef4444",
-  skipped: "#94a3b8",
-  unavailable: "#cbd5e1",
-};
-
-function StatusIcon({ status, locked }: { status: CardStatus; locked: boolean }) {
+function StatusIcon({
+  status,
+  locked,
+  iconColors,
+  lockedIconColor,
+}: {
+  status: CardStatus;
+  locked: boolean;
+  iconColors: Record<CardStatus, string>;
+  lockedIconColor: string;
+}) {
   /*
    * Same muted grey as the blocked icon - unavailable is styled identically to
    * locked, the glyph is the only thing that tells them apart.
    */
-  if (locked) return <BlockIcon sx={{ fontSize: 16, color: "#cbd5e1" }} />;
-  const c = ICON_COLOR[status];
+  if (locked) return <BlockIcon aria-hidden="true" sx={{ fontSize: 16, color: lockedIconColor }} />;
+  const c = iconColors[status];
   switch (status) {
     case "complete":
-      return <CheckCircleIcon sx={{ fontSize: 16, color: c }} />;
+      return <CheckCircleIcon aria-hidden="true" sx={{ fontSize: 16, color: c }} />;
     case "unavailable":
     case "warning":
-      return <WarningAmberIcon sx={{ fontSize: 15, color: c }} />;
+      return <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 15, color: c }} />;
     case "error":
-      return <ErrorOutlineIcon sx={{ fontSize: 15, color: c }} />;
+      return <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 15, color: c }} />;
     default:
-      return <RadioButtonUncheckedIcon sx={{ fontSize: 14, color: c }} />;
+      return <RadioButtonUncheckedIcon aria-hidden="true" sx={{ fontSize: 14, color: c }} />;
   }
 }
 
@@ -88,6 +89,8 @@ export default function Card({
   lockedIntro,
   children,
 }: Props) {
+  const theme = useTheme();
+  const colors = theme.palette.card;
   /*
    * locked and unavailable share the same muted chrome - the only visual
    * difference between them is the icon (padlock vs warning triangle).
@@ -98,6 +101,8 @@ export default function Card({
    * "here's what's wrong" message, not a prerequisite result worth hiding.
    */
   const showSummary = !expanded && !!summary && !locked;
+  const titleId = `card-title-${cardId}`;
+  const contentId = `card-content-${cardId}`;
 
   return (
     <Box
@@ -108,12 +113,13 @@ export default function Card({
         gridColumn: expanded ? "1 / -1" : "auto",
         maxWidth: "100%",
         border: "1px solid",
-        borderColor: muted ? "#e2e8f0" : BORDER[status],
+        borderColor: muted ? theme.palette.divider : colors.border[status],
         borderRadius: "10px",
-        background: muted ? "#f8fafc" : "#ffffff",
+        background: muted ? colors.mutedBackground : theme.palette.background.paper,
         overflow: "hidden",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-        transition: "width 0.25s ease, border-color 0.2s, background 0.2s",
+        boxShadow: colors.shadow,
+        transition: "width 0.25s ease, border-color 0.2s, background 0.2s, box-shadow 0.2s",
+        "&:hover": { boxShadow: colors.hoverShadow },
       }}
     >
       {/*
@@ -127,59 +133,100 @@ export default function Card({
           gap: 1.25,
           px: 2,
           py: showSummary ? 1.5 : 2,
-          cursor: "pointer",
           "&:hover": {
-            background: borderHoverTint(muted ? "#e2e8f0" : BORDER[status]),
+            background: borderHoverTint(muted ? theme.palette.divider : colors.border[status]),
           },
         }}
-        onClick={onToggle}
       >
-        <StatusIcon status={status} locked={locked} />
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
+        <Typography
+          component="h3"
+          id={titleId}
+          sx={{ flex: 1, minWidth: 0, m: 0, fontSize: "inherit", fontWeight: "inherit" }}
+        >
+          <ButtonBase
+            disableRipple
+            aria-label={`${title}, ${locked ? "Locked" : STATUS_LABEL[status]}`}
+            aria-expanded={expanded}
+            aria-controls={contentId}
+            onClick={onToggle}
             sx={{
-              fontSize: "1rem",
-              fontWeight: 600,
-              color: muted ? "#94a3b8" : "#0f172a",
-              ...uiFont,
-              letterSpacing: "-0.01em",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
+              display: "flex",
+              width: "100%",
+              minWidth: 0,
+              justifyContent: "flex-start",
+              gap: 1.25,
+              textAlign: "left",
+              "&.Mui-focusVisible": {
+                outline: "2px solid #93c5fd",
+                outlineOffset: 2,
+                borderRadius: "8px",
+                boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.12)",
+              },
             }}
           >
-            {title}
-          </Typography>
-          {showSummary && (
-            <Typography
-              sx={{
-                fontSize: "1rem",
-                color:
-                  status === "unavailable"
-                    ? "#64748b"
-                    : status === "complete"
-                      ? "#16a34a"
-                      : status === "warning" || status === "idle"
-                        ? "#ea580c"
-                        : status === "error"
-                          ? "#dc2626"
-                          : "#64748b",
-                ...uiFont,
-                mt: 0.25,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {summary}
-            </Typography>
-          )}
-        </Box>
-
+            <StatusIcon status={status} locked={locked} iconColors={colors.icon} lockedIconColor={colors.lockedIcon} />
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                component="span"
+                sx={{
+                  display: "block",
+                  fontSize: "1rem",
+                  fontWeight: 600,
+                  color: muted ? colors.mutedText : theme.palette.text.primary,
+                  ...uiFont,
+                  letterSpacing: "-0.01em",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+                title={title}
+              >
+                {title}
+              </Typography>
+              {showSummary && (
+                <Typography
+                  component="span"
+                  sx={{
+                    display: "block",
+                    fontSize: "1rem",
+                    color: colors.summary[status],
+                    ...uiFont,
+                    mt: 0.25,
+                    whiteSpace: "normal",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {summary}
+                </Typography>
+              )}
+            </Box>
+          </ButtonBase>
+        </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
           {expanded && !muted && action}
-          <IconButton size="small" sx={{ color: "#cbd5e1", "&:hover": { color: "#94a3b8" } }}>
-            {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+          <IconButton
+            disableRipple
+            size="small"
+            aria-label={`${expanded ? "Collapse" : "Expand"} ${title}`}
+            aria-expanded={expanded}
+            aria-controls={contentId}
+            onClick={onToggle}
+            sx={{
+              color: colors.mutedIcon,
+              "&:hover": { color: colors.mutedIconHover },
+              "&.Mui-focusVisible": {
+                outline: "2px solid #93c5fd",
+                outlineOffset: 1,
+                borderRadius: "50%",
+                boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.12)",
+              },
+            }}
+          >
+            {expanded ? (
+              <ExpandLessIcon fontSize="small" aria-hidden="true" />
+            ) : (
+              <ExpandMoreIcon fontSize="small" aria-hidden="true" />
+            )}
           </IconButton>
         </Box>
       </Box>
@@ -189,7 +236,12 @@ export default function Card({
        * without rendering the unusable interactive content underneath it.
        */}
       <Collapse in={expanded}>
-        <Box sx={{ borderTop: "1px solid #f1f5f9", px: 2.5, py: 2.5 }}>
+        <Box
+          id={contentId}
+          role="region"
+          aria-labelledby={titleId}
+          sx={{ borderTop: `1px solid ${colors.contentDivider}`, px: 2.5, py: 2.5 }}
+        >
           {locked ? (
             <>
               {lockedIntro && <Box sx={{ mb: 2 }}>{lockedIntro}</Box>}
@@ -200,48 +252,53 @@ export default function Card({
                   gap: 0.75,
                   px: 1.75,
                   py: 1.5,
-                  background: "#f1f5f9",
-                  border: "1px solid #e2e8f0",
+                  background: colors.requirementPanel,
+                  border: `1px solid ${theme.palette.divider}`,
                   borderRadius: "8px",
                 }}
               >
                 <Typography
                   sx={{
                     fontSize: "1rem",
-                    color: "#64748b",
+                    color: theme.palette.text.secondary,
                     ...uiFont,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
                   }}
                 >
                   Complete these first
                 </Typography>
                 {requirements.map((r) => (
-                  <Box
+                  <ButtonBase
                     key={r.label}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRequirementClick(r.target);
-                    }}
+                    component="button"
+                    onClick={() => onRequirementClick(r.target)}
                     sx={{
                       display: "flex",
                       alignItems: "center",
                       gap: 0.5,
+                      width: "100%",
+                      justifyContent: "flex-start",
                       cursor: "pointer",
                       borderRadius: "6px",
                       px: 0.75,
                       py: 0.4,
                       mx: -0.75,
                       transition: "background 0.15s",
-                      "&:hover": { background: "#e0e7ff" },
+                      "&:hover": { background: colors.requirementHover },
                       "&:hover .req-label": { textDecoration: "underline" },
                     }}
                   >
-                    <ChevronRightIcon sx={{ fontSize: 15, color: "#2563eb", flexShrink: 0 }} />
-                    <Typography className="req-label" sx={{ fontSize: "1rem", color: "#2563eb", fontWeight: 500 }}>
+                    <ChevronRightIcon
+                      aria-hidden="true"
+                      sx={{ fontSize: 15, color: colors.requirementText, flexShrink: 0 }}
+                    />
+                    <Typography
+                      component="span"
+                      className="req-label"
+                      sx={{ fontSize: "1rem", color: colors.requirementText, fontWeight: 500 }}
+                    >
                       {r.label}
                     </Typography>
-                  </Box>
+                  </ButtonBase>
                 ))}
               </Box>
             </>

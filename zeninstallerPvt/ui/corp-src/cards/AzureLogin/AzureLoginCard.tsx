@@ -128,7 +128,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Typography sx={{ fontSize: "1rem", color: "#64748b" }}>
                 Signed in as{" "}
-                <Box component="span" data-sensitive="true" data-id="txtAzureUsername" sx={{ fontWeight: 600, ...uiFont }}>
+                <Box component="span" data-sensitive="true" data-id="txtAzureUsername" sx={{ color: "#16a34a", fontWeight: 600, ...uiFont }}>
                   {azureAccount.username}
                 </Box>
               </Typography>
@@ -137,12 +137,13 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                 onClick={logout}
                 sx={{
                   minWidth: 0,
-                  fontSize: "1rem",
-                  color: "#94a3b8",
+                  fontSize: "0.875rem",
+                  color: "#ffffff",
+                  background: "linear-gradient(135deg, #ef4444, #dc2626)",
                   textTransform: "none",
                   ...uiFont,
                   py: 0.25,
-                  "&:hover": { color: "#ef4444" },
+                  "&:hover": { color: "#ffffff", background: "linear-gradient(135deg, #dc2626, #b91c1c)" },
                 }}
               >
                 Sign out

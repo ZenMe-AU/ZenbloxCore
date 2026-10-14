@@ -144,7 +144,7 @@ function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code
           <>
             <Typography
               sx={{
-                fontSize: "1.1rem",
+                fontSize: "1rem",
                 fontWeight: 700,
                 letterSpacing: "0.2rem",
                 color: TERMINAL_COLORS.yellow,

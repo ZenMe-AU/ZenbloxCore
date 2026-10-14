@@ -23,8 +23,6 @@ const subLabelSx = {
   fontSize: "1rem",
   fontWeight: 600,
   color: "#cbd5e1",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────

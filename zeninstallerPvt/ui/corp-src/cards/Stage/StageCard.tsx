@@ -411,8 +411,6 @@ export default function StageCard({
                 fontSize: "1rem",
                 color: "#94a3b8",
                 ...uiFont,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
                 mb: 1,
               }}
             >
@@ -554,8 +552,6 @@ export default function StageCard({
                 fontSize: "1rem",
                 color: "#94a3b8",
                 ...uiFont,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
                 mb: 0.75,
               }}
             >

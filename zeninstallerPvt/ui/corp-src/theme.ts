@@ -4,10 +4,37 @@
  */
 
 import { createTheme } from "@mui/material/styles";
+import type { CardStatus } from "./types";
+
+type CardStatusColors = Record<CardStatus, string>;
+type CardPalette = {
+  border: CardStatusColors;
+  icon: CardStatusColors;
+  summary: CardStatusColors;
+  mutedBackground: string;
+  mutedText: string;
+  shadow: string;
+  hoverShadow: string;
+  contentDivider: string;
+  lockedIcon: string;
+  mutedIcon: string;
+  mutedIconHover: string;
+  requirementPanel: string;
+  requirementHover: string;
+  requirementText: string;
+};
 
 declare module "@mui/material/styles" {
   interface TypeText {
     muted: string;
+  }
+
+  interface Palette {
+    card: CardPalette;
+  }
+
+  interface PaletteOptions {
+    card?: CardPalette;
   }
 }
 
@@ -54,6 +81,46 @@ const theme = createTheme({
     background: {
       default: "#f4f6f8",
       paper: "#ffffff",
+    },
+    card: {
+      border: {
+        idle: "#fed7aa",
+        loading: "#e2e8f0",
+        complete: "#bbf7d0",
+        warning: "#fed7aa",
+        error: "#fecaca",
+        skipped: "#f1f5f9",
+        unavailable: "#e2e8f0",
+      },
+      icon: {
+        idle: "#f97316",
+        loading: "#60a5fa",
+        complete: "#22c55e",
+        warning: "#f97316",
+        error: "#ef4444",
+        skipped: "#94a3b8",
+        unavailable: "#cbd5e1",
+      },
+      summary: {
+        idle: "#ea580c",
+        loading: "#64748b",
+        complete: "#16a34a",
+        warning: "#ea580c",
+        error: "#dc2626",
+        skipped: "#64748b",
+        unavailable: "#64748b",
+      },
+      mutedBackground: "#f8fafc",
+      mutedText: "#94a3b8",
+      shadow: "0 1px 3px rgba(0,0,0,0.04)",
+      hoverShadow: "0 4px 12px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08)",
+      contentDivider: "#f1f5f9",
+      lockedIcon: "#cbd5e1",
+      mutedIcon: "#cbd5e1",
+      mutedIconHover: "#94a3b8",
+      requirementPanel: "#f1f5f9",
+      requirementHover: "#e0e7ff",
+      requirementText: "#2563eb",
     },
   },
   typography: {

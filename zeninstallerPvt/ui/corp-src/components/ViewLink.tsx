@@ -17,13 +17,12 @@ export default function ViewLink({ href, label = "View" }: Props) {
     <Button
       size="small"
       variant="outlined"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={href}
       aria-label={label}
       endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
-      // The card header toggles collapse on click, so this must not bubble.
-      onClick={(e) => {
-        e.stopPropagation();
-        window.open(href, "_blank", "noopener,noreferrer");
-      }}
       sx={{
         flexShrink: 0,
         borderColor: "#e2e8f0",
@@ -35,6 +34,10 @@ export default function ViewLink({ href, label = "View" }: Props) {
           borderColor: "#cbd5e1",
           color: "#0f172a",
           background: borderHoverTint("#cbd5e1"),
+        },
+        "&.Mui-focusVisible, &.Mui-focusVisible:hover": {
+          background: "transparent",
+          boxShadow: "none",
         },
       }}
     >

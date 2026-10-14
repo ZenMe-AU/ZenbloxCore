@@ -225,7 +225,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
           <Box>
             <Typography sx={{ fontSize: "1rem", color: "#64748b", mb: 2 }}>
               Authenticated as{" "}
-              <Box component="span" data-sensitive="true" sx={{ ...uiFontSx, fontWeight: 600 }}>
+              <Box component="span" data-sensitive="true" sx={{ color: "#16a34a", ...uiFontSx, fontWeight: 600 }}>
                 {user.login}
               </Box>
               {mode === "direct" && (
@@ -242,13 +242,18 @@ export default function GithubLoginCard({ card, auth }: Props) {
                 variant="outlined"
                 onClick={onLogout}
                 sx={{
-                  borderColor: "#e2e8f0",
-                  color: "#94a3b8",
-                  fontSize: "1rem",
+                  borderColor: "transparent",
+                  color: "#ffffff",
+                  background: "linear-gradient(135deg, #ef4444, #dc2626)",
+                  fontSize: "0.875rem",
                   textTransform: "none",
                   ...uiFontSx,
                   py: 0.5,
-                  "&:hover": { borderColor: "#fecaca", color: "#ef4444" },
+                  "&:hover": {
+                    borderColor: "transparent",
+                    color: "#ffffff",
+                    background: "linear-gradient(135deg, #dc2626, #b91c1c)",
+                  },
                 }}
               >
                 Sign out

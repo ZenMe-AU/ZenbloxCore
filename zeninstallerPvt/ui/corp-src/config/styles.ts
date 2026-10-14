@@ -28,8 +28,6 @@ export const refreshBtnSx = {
 export const labelSx = {
   fontSize: "1rem",
   color: "#94a3b8",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
   ...UI_FONT,
 };
 
@@ -41,7 +39,5 @@ export const sectionLabelSx = {
   fontSize: "1rem",
   fontWeight: 700,
   color: "#0f172a",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.1em",
   ...UI_FONT,
 };

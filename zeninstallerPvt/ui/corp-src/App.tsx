@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { PIPELINE } from "./logic/pipeline";
 import { type CardChrome, type CardHook, type CardId } from "./types";
-import { groupSx, EXPANDED_W } from "./config/cardLayout";
+import { groupSx } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./cards/GithubLogin/useGithubLoginCard";
 import { useRepoCard } from "./cards/Repo/useRepoCard";
@@ -248,13 +248,12 @@ function AppDashboard() {
 
   const cardProps = (id: CardId): CardChrome => {
     const misconfigured = allCards[id].status === "unavailable";
-    const requirementsForCard = []
-    //const requirementsForCard = (allCards[id].cardRequirements ?? [])
-      // //.filter((reqCardId) => !allCards[reqCardId]?.done)
-      // .map((reqCardId) => ({
-      //   label: allCards[reqCardId].cardDependencyLabel,
-      //   target: reqCardId,
-      // }));
+    const requirementsForCard = (allCards[id].cardRequirements ?? [])
+      .filter((reqCardId) => !allCards[reqCardId]?.done)
+      .map((reqCardId) => ({
+        label: allCards[reqCardId].cardDependencyLabel,
+        target: reqCardId,
+      }));
     const requirements = misconfigured ? [] : requirementsForCard;
     const locked = requirements.length > 0;
     return {
@@ -293,7 +292,7 @@ function AppDashboard() {
       <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a" }}>
         <Header />
 
-        <Box sx={{ maxWidth: EXPANDED_W, mx: "auto", px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 5 } }}>
+        <Box sx={{ maxWidth: "var(--card-w-expanded)", mx: "auto", px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 5 } }}>
           {/* Intro */}
           <Box
             sx={{

@@ -2,20 +2,22 @@
 
 Scope: `zeninstallerPvt/ui` only. Paths below are relative to that folder (the old `web/` prefix no longer exists).
 
+Sections 0–6 record the initial audit baseline from 2026-10-07; their counts and source-tree observations are historical, not a current inventory. Progress notes in section 7 supersede baseline findings where work has since been completed. Latest update: 2026-10-14.
+
 ## 0. Audit summary (2026-10-07)
 
-Verified against the current source tree, not against earlier notes.
+Verified against the source tree as it stood on 2026-10-07, not against earlier notes.
 
-- **The migration described in earlier revisions of this file is not in the tree.** `corp-src/App.css` is still the unused Vite starter template (`.counter`, `.hero`, `#next-steps`; no import anywhere), `corp.tsx` imports only `index.css`, and `Card.tsx`, `ViewLink.tsx` and `AzureLoginCard.tsx` are fully inline-styled MUI. Treat section 8 as a clean slate.
+- **At the time of this audit, the migration described in earlier revisions of this file was not in the tree.** `corp-src/App.css` was the unused Vite starter template (`.counter`, `.hero`, `#next-steps`; no import anywhere), `corp.tsx` imported only `index.css`, and `Card.tsx`, `ViewLink.tsx` and `AzureLoginCard.tsx` were fully inline-styled MUI. Subsequent progress is recorded in section 7.
 - **Styling is ~100% inline MUI `sx`.** 764 `sx` blocks, 753 hard-coded hex colours, 298 `"N.NNrem"` font sizes and 153 `...mono` spreads across 36 card/component files. There is no theme, no CSS variables and no shared classes.
 - **Typography is inconsistent and mostly small.** About 240 explicit sizes are below 0.8rem (11-12.8px); the IBM Plex families are referenced 67 times but never loaded.
-- **Accessibility is the largest gap.** No landmarks, no headings, a mouse-only card header, status by colour/icon only, low-contrast text, and 36 `aria-*`/`label` hits for 24 form controls (see section 5).
+- **Accessibility was the largest gap.** The initial audit found no page landmarks, no card headings, a mouse-only card header, status by colour/icon only, low-contrast text, and 36 `aria-*`/`label` hits for 24 form controls. Step 4's card-shell interaction and status-name work is now recorded below; page landmarks, broader contrast, and form-label work remain open.
 - **Dead code.** `App.css`, `components/NavBar.tsx` and `components/SessionOverlay.tsx` have no importers.
 - **Test coupling.** Playwright specs locate by role and accessible name, by `data-id`/`data-sensitive`, and by DOM shape (`.locator("..")`, `.locator("../..")`, `p:not([data-sensitive])`). Restyling must not change tag/nesting or accessible names without updating those specs.
 
 Priorities, in order: (1) accessibility fixes, (2) one theme as the single source of truth, (3) delete the inline duplication card by card. The step-by-step plan is section 7.
 
-## 1. How styling works today
+## 1. How styling was structured at the initial audit
 
 ### Stylesheets
 
@@ -27,7 +29,7 @@ Priorities, in order: (1) accessibility fixes, (2) one theme as the single sourc
 
 There is no Tailwind, SCSS, CSS Modules, PostCSS config or MUI `ThemeProvider`/`createTheme`/`CssBaseline`. The `index.html` entry point loads `corp-src/corp.tsx`. `App.tsx` carries `TODO: Remove fontSize and fontFamily from all Typography components and rely on theme defaults instead`, which is the direction this plan takes.
 
-### Where the styles actually live
+### Where the styles actually live (initial audit baseline)
 
 Essentially all styling is **inline MUI `sx` props** in TSX. Measured 2026-10-07 across `cards/`, `components/` and `App.tsx` (36 non-test files):
 
@@ -42,8 +44,8 @@ Shared pieces that exist today:
 
 - `config/styles.ts` holds four shared style objects, imported by about 14 files:
   - `MONO` (IBM Plex Mono font family)
-  - `labelSx` (0.68rem uppercase field label, `#94a3b8`)
-  - `sectionLabelSx` (0.7rem uppercase section heading)
+  - `labelSx` (small field label, `#94a3b8`, normal sentence case)
+  - `sectionLabelSx` (section heading, normal sentence case)
   - `refreshBtnSx` (the "Refresh" text button)
 - `config/cardLayout.ts` holds the responsive minimum card width (`CARD_MIN_W`), page maximum width (`EXPANDED_W`), plus `groupSx` and `groupLabelSx` (a second home for styling and more hex colours).
 - `components/Card.tsx` is the shared card shell. It owns the status icon map and two hex maps (`BORDER`, `ICON_COLOR`), and styles the shell, header, summary and locked panel inline. The header is a clickable `Box` with no role, `tabIndex`, key handler or `aria-expanded`; the chevron `IconButton` has no label. This is the highest-leverage file to fix.
@@ -106,7 +108,7 @@ There are no per-card stylesheets to merge. Cards are styled inline. Standardisi
 **Decision: MUI theme first, one small global stylesheet second.** The whole UI is MUI, so a single `createTheme` is the least-code way to centralise tokens, and it removes the need to run a parallel CSS-class system next to Emotion (which would make the ordering problem permanent).
 
 1. **One theme** (`corp-src/theme.ts`), enabled with `cssVariables: true`, provided once in `corp.tsx` with `CssBaseline`. It owns:
-   - **Palette**: slate/blue/orange/green/red tokens with accessible text shades (`text.primary`, `text.secondary`, `text.muted` >= 4.5:1, `success|warning|error|info` for card status).
+   - **Palette**: slate/blue/orange/green/red tokens with accessible ordinary text shades (`text.primary`, `text.secondary`, `text.muted` >= 4.5:1) and semantic `success|warning|error|info` card status colors. Accepted exception: muted card text and semantic status summaries may be below 4.5:1; do not use those colors for ordinary instructional or control text.
    - **Typography**: one UI sans stack, one mono stack (for IDs and command output only), and a small scale mapped to MUI variants (`h1`-`h3`, `body1`, `body2`, `caption`, plus a `overline` for field labels).
    - **Shape and shadow**: radius 8/10, one card shadow.
    - **Component defaults/overrides** for `MuiButton` (no uppercase, the gradient primary as `variant="contained"`), `MuiTextField`/`MuiSelect` (size small, label wiring), `MuiLink`, `MuiTypography`, `MuiChip`.
@@ -181,25 +183,25 @@ Standardisation alone does not fix anything. MUI still injects some runtime styl
 
 ## 5. Accessibility recommendations
 
-Counts are from `cards/`, `components/` and `App.tsx`; `Card.tsx`, `ViewLink.tsx`, `Header.tsx`, `AzureLoginCard.tsx` and `App.tsx` were reviewed in detail.
+The counts below are the initial 2026-10-07 baseline from `cards/`, `components/` and `App.tsx`; `Card.tsx`, `ViewLink.tsx`, `Header.tsx`, `AzureLoginCard.tsx` and `App.tsx` were reviewed in detail.
 
-Measured signals: 95 `onClick` handlers (the card header and requirement rows in `Card.tsx` are `Box`es with `onClick`), 8 `aria-*` attributes, 3 `tabIndex`, 4 `onKeyDown`, 0 `role=`, 0 headings (`<h1>`-`<h6>`), 0 landmarks (`<main>`, `<nav>`), 0 `<img>`. There is no `:focus-visible` rule and no `prefers-reduced-motion` handling (the only `:focus-visible` in the tree is in the dead `App.css`). No `eslint-plugin-jsx-a11y` or axe tooling is installed. Of 24 form controls, only 36 `label=`/`aria-label`/`inputProps` hits exist across the whole set, and field labels are mostly a `Typography` placed beside the control.
+Measured baseline signals: 95 `onClick` handlers (the card header and requirement rows in `Card.tsx` were `Box`es with `onClick`), 8 `aria-*` attributes, 3 `tabIndex`, 4 `onKeyDown`, 0 `role=`, 0 headings, 0 landmarks, and 0 `<img>`. There was no `:focus-visible` rule or `prefers-reduced-motion` handling. No `eslint-plugin-jsx-a11y` or axe tooling was installed. Of 24 form controls, only 36 `label=`/`aria-label`/`inputProps` hits existed across the whole set, and field labels were mostly a `Typography` placed beside the control.
 
 | # | Priority | Issue | Fix |
 |---|---|---|---|
-| 1 | High | **Card header isn't keyboard accessible.** In `Card.tsx` the header is a `Box` with `onClick={onToggle}` and no `role`, `tabIndex`, key handler or `aria-expanded`. The inner `IconButton` has no label or handler. | Make the header a real `<button>` (`ButtonBase`/`component="button"`) with `aria-expanded` and `aria-controls` pointing at the content region id. Give the chevron `aria-hidden`, or give its button an `aria-label`. Audit the other ~44 `onClick` sites for non-semantic clickable elements. |
-| 2 | High | **No visible keyboard focus.** There is no `:focus-visible` rule; MUI buttons keep their ripple focus only, and the plain `Box` click targets get none. | Add a global `:focus-visible` ring in `App.css` (2px, 3:1 against both white and slate surfaces), confirm it is not clipped by `overflow: hidden` on the card shell, and give hover cues an equivalent focus cue. |
-| 3 | High | **Status conveyed by icon and colour only.** | Add visually hidden status text or `aria-label`s on the icons ("Complete", "Warning", "Error"). Use `role="status"` / `aria-live="polite"` for loading, success and error messages such as `loginError`. |
-| 4 | High | **Colour contrast.** `#94a3b8` (about 2.6:1 on white) is the most-used text colour. `#cbd5e1` is lower. The orange `#ea580c`/`#d97706` summaries are borderline. | Use `#64748b` or darker for text. Locked and disabled states may be exempt, but status summaries and labels are not. Define accessible token values once in the shared stylesheet. |
+| 1 | High | **Card header wasn't keyboard accessible (resolved for the shared card shell).** | The title and chevron are now separate semantic toggle buttons with `aria-expanded`/`aria-controls`; the chevron has an accessible label. The region is labelled by the card heading. Audit remaining non-semantic click targets separately. |
+| 2 | High | **Card toggles lacked visible keyboard focus and showed an unwanted click ripple (resolved for the shared card shell).** | Card title and chevron toggles disable MUI ripples and render an explicit focus outline. `App.css` also provides a global `:focus-visible` outline for other controls. |
+| 3 | High | **Card status was conveyed by icon and colour only (resolved for the shared card shell).** | Status glyphs are hidden from assistive technology; the title toggle's accessible name includes the status, with "Locked" taking precedence. Live regions for dynamic progress, success and error messages such as `loginError` remain open. |
+| 4 | High | **Colour contrast.** `#94a3b8` (about 2.6:1 on white) is the most-used text colour. `#cbd5e1` is lower. The orange `#ea580c` and green `#16a34a` status summaries are below 4.5:1 on white. | Accepted exception: intentionally muted card text and semantic status summaries may be below 4.5:1. Do not use these colors for ordinary instructional or control text; retain the 4.5:1 target for ordinary text. |
 | 5 | Medium | **Small text.** Sizes are 0.68–0.8rem (about 11–13px). Truncated titles and summaries use ellipsis. | Keep text within 0.75–1rem. Keep `rem` units so browser zoom works. Add a `title` or tooltip for truncated text and expose the full text to screen readers. |
-| 6 | Medium | **No reduced-motion handling.** Card width, border and background transitions plus MUI `Collapse` always animate. | Add `@media (prefers-reduced-motion: reduce)` in `App.css` and set `transitions.create` durations to 0 in the theme under that query. |
+| 6 | Medium | **Reduced-motion handling was missing (resolved globally).** | `App.css` reduces CSS animation and transition durations, including card transitions, when `prefers-reduced-motion: reduce` is active. |
 | 7 | Medium | **`ViewLink` is a `Button` calling `window.open`**, and its text is hidden below the `sm` breakpoint. | Use `<a href target="_blank" rel="noopener noreferrer">` so it can be opened in a new tab by keyboard or context menu. Keep the `aria-label` on narrow screens and add "(opens in new tab)". |
 | 8 | Medium | **Labels aren't tied to controls.** `labelSx` is applied to a `Typography` beside the `Select`/`TextField`. | Use `InputLabel`/the `label` prop, or `aria-labelledby`. |
-| 9 | Low | **Page structure.** Card titles are `Typography` text, not headings; `Header` renders `document.title` as a `Typography`; the page has no `<main>`. | Add `<header>`, `<main>`, a skip link, one `h1` (page title), `h2` for group labels (`groupLabelSx`) and `h3` for card titles; use `<section aria-labelledby>` for cards. |
+| 9 | Low | **Page structure.** Card titles are now `h3` headings; `Header` still renders `document.title` as a `Typography`, and the page still has no `<main>`. | Add `<header>`, `<main>`, a skip link, one `h1` (page title), `h2` for group labels (`groupLabelSx`), and consider `<section aria-labelledby>` for cards. |
 | 10 | Low | **Forced colours / high contrast.** | Test with `forced-colors: active` and keep borders on cards and buttons so they stay visible. |
 | 11 | Medium | **Plain-text instructions are `<br />`-separated.** The intro in `App.tsx` is one `Typography` with numbered items typed as text and an unlinked URL. | Use a real `<ol>`, make the GoDaddy URL a link (`ExternalLink`), and keep the intro at body size. |
 | 12 | Medium | **Dynamic status and errors are silent.** Progress spinners (`CircularProgress`), step results and errors have no live region. | `role="status"` for progress and success, `role="alert"` for errors, via the shared `StatusText`/`ErrorText`. Give spinners an accessible name. |
-| 13 | Medium | **`data-sensitive` content is only a test hook.** | Keep the attribute (tests use it); add one `[data-sensitive]` rule in `App.css` for screenshots/recordings if wanted. |
+| 13 | Medium | **`data-sensitive` content can be masked for screenshots/recordings (implemented as opt-in).** | Set `data-mask-sensitive="true"` on the document root to blur `[data-sensitive]` content; the default UI remains unchanged. |
 
 ## 6. Other considerations
 
@@ -232,22 +234,26 @@ Each step is one reviewable change that leaves the app working. After every step
 
 ### Step 2. Add the theme
 
-- Create `corp-src/theme.ts` (`createTheme`, `cssVariables: true`) with the palette, typography scale, shape and component overrides from section 3. Map existing colours to tokens: `#0f172a` text.primary, `#475569` text.secondary, `#64748b` text.muted (never lighter), `#2563eb`/`#1d4ed8` primary main/dark, `#ef4444`/`#dc2626` error, `#d97706`/`#ea580c` warning (darkened for text contrast), `#22c55e`/`#16a34a` success, `#e2e8f0` divider.
+- Create `corp-src/theme.ts` (`createTheme`, `cssVariables: true`) with the palette, typography scale, shape and component overrides from section 3. Map existing colours to tokens: `#0f172a` text.primary, `#475569` text.secondary, `#64748b` text.muted (never lighter for ordinary text), `#2563eb`/`#1d4ed8` primary main/dark, `#ef4444`/`#dc2626` error, `#d97706` warning, `#22c55e` success, and `#e2e8f0` divider. The card status summary shades `#ea580c` (warning) and `#16a34a` (success), along with muted card text `#94a3b8`, are the accepted contrast exceptions recorded below.
 - Wrap the app in `ThemeProvider` and `CssBaseline` in `corp.tsx`. Visuals should barely change.
 - **Completed (2026-10-09).** Added the CSS-variable MUI theme with the shared palette, type scale, shape, button/form/link/typography/chip defaults and technical monospace elements. The existing `ThemeProvider`/`CssBaseline` wrapper was already in place. `pnpm build`, focused theme lint and the Azure Login desktop/mobile mock (4 tests) passed; existing screenshots matched and were not updated. Full `pnpm lint` and `pnpm test` still report failures in untouched files (existing lint violations, Access Pass telemetry test setup, and a browser-test module load failure).
-- **Typography floor updated (2026-10-09).** Set the root and theme base to 16px/1rem, raised theme variants and MUI text-control defaults to at least 1rem, and raised explicit sub-1rem `fontSize` overrides across `corp-src`. Metadata uses a 0.875rem caption base. **Scale adjusted (2026-10-10):** theme variants now range from 0.75rem to 1rem; keep new UI font sizes in that range. Update relevant visual baselines only after reviewing the resulting UI.
+- **Typography floor updated (2026-10-09).** Set the root and theme base to 16px/1rem, raised theme variants and MUI text-control defaults to at least 1rem, and raised explicit sub-1rem `fontSize` overrides across `corp-src`. Metadata uses a 0.875rem caption base. **Scale adjusted (2026-10-10):** theme variants now range from 0.75rem to 1rem; keep all text in that range. Update relevant visual baselines only after reviewing the resulting UI.
 
 ### Step 3. Global stylesheet
 
 - Reuse `App.css` for global rules only: `:focus-visible` ring, `prefers-reduced-motion`, `.visually-hidden`, `--card-w` and `--card-w-expanded` (set from `cardLayout.ts` in `corp.tsx` so there is one source of truth). Import it once from `corp.tsx`, and fold `index.css` into it.
+- **Completed 2026-10-14.** Added `corp-src/App.css`, folded in the reset from `index.css`, imported it once from `corp.tsx`, and removed `index.css`. It now owns the global focus-visible outline, reduced-motion overrides, `.visually-hidden`, and an opt-in sensitive-value mask activated by `data-mask-sensitive="true"` on the document root. `corp.tsx` sets `--card-w` and `--card-w-expanded` from `CARD_MIN_W` and `EXPANDED_W`; the grid and page max width consume those variables. The `@xterm/xterm/css/xterm.css` import remains as third-party terminal styling, not a competing app stylesheet.
+- **Post-step-3 follow-up (2026-10-13): hover effects.** Card hover feedback moved from a card-border colour shift to header-only tinting via `borderHoverTint(...)`, so hover colour now tracks each card's status border and keeps locked/unavailable cards muted.
+- **Post-step-3 follow-up (2026-10-13): card sizing.** Replaced fixed-width card sizing (`CARD_W` + breakpoint-based flex alignment) with responsive grid sizing: `CARD_MIN_W = 360`, `repeat(auto-fit, minmax(min(100%, 360px), 1fr))`, card `width: 100%`, and expanded cards spanning the full grid (`gridColumn: "1 / -1"`), while keeping `EXPANDED_W = 1280` as the page-level max width.
 
 ### Step 4. Fix `Card.tsx` (largest accessibility win)
 
-- Header becomes a `ButtonBase`/`<button>` with `aria-expanded` and `aria-controls`; collapse region gets the matching id and `role="region"` with `aria-labelledby`.
-- Chevron is decorative (`aria-hidden`); status icons get accessible text ("Complete", "Warning", "Error", "Locked").
-- Requirement rows become buttons or links.
-- Replace `BORDER`/`ICON_COLOR` maps and hex literals with theme palette keys; keep `id="card-<id>"`, the `data-*` attributes and the DOM nesting the Playwright specs rely on.
-- Title becomes a heading (`h3`); remove nowrap/ellipsis for titles or add a `title` attribute and wrap summaries instead of truncating.
+- **Completed 2026-10-14: card interaction/accessibility.** The title is an `h3` containing a `ButtonBase`; the adjacent chevron is a separate, labelled `IconButton`. Both controls expose `aria-expanded` and `aria-controls`, and the existing content wrapper is a `role="region"` labelled by the heading. Locked requirement rows are semantic buttons and preserve the existing multi-card navigation behavior. Status icons are hidden from assistive technology, and the title button's accessible name includes the status (`Locked` takes precedence). Stable card IDs and visible title text are preserved.
+- Both card toggles disable MUI's click ripple to avoid a gray flash, and provide an explicit blue keyboard-focus outline. The optional action remains outside the title toggle; `ViewLink` no longer relies on stopping event propagation.
+- **Completed 2026-10-14: theme colors and text behavior.** Card status, border, summary, surface, requirement and icon colors now come from typed `theme.palette.card` tokens, retaining their previous values. Card titles remain visually single-line but expose the complete title through a `title` attribute; summaries wrap and no longer truncate.
+- **Accepted design exception (2026-10-14).** Muted card text (`#94a3b8`) and semantic status summaries (including `#ea580c` and `#16a34a`) may remain below the ordinary-text contrast target of 4.5:1; reserve them for those muted/status roles, not instructional or control text. This scoped exception is intentional and does not claim WCAG contrast conformance for the affected text.
+- **Verification (2026-10-14):** focused browser checks for global CSS rules, keyboard title/chevron toggles, no ripples, title tooltip, wrapping summaries and locked prerequisite navigation passed at desktop and mobile (6/6). The complete Azure Login mock spec passed 10/10 with existing snapshots unchanged. `pnpm build` passed. Focused ESLint passed for `corp.tsx`, `cardLayout.ts`, `theme.ts` and `Card.tsx`; linting `App.tsx` also reports `react-refresh/only-export-components` at its wrapped default export.
+- **Full-suite check (2026-10-14):** `pnpm test` reported 250 passed and 2 failed; both failures are Access Pass telemetry expectations in `useAccessPassCard.test.tsx`. `pnpm lint` remains red with 37 errors and 5 warnings across the UI, including `App.tsx` and unrelated component findings. The Playwright `.mts` spec also has language-service import-extension diagnostics, but the Playwright runner executes it successfully.
 
 ### Step 5. Page shell
 
@@ -268,7 +274,7 @@ Each step is one reviewable change that leaves the app working. After every step
 
 ### Step 8. Migrate the remaining cards, one PR each
 
-Order by size and reuse: `GithubLoginCard`, `AwsLoginCard`, `AzureSubscriptionCard`, `AzureAppRegistrationCard`, `CoreInfraCard`, `CreateDomainCard`, `RemoteTerminalInfraCard`, `BackendDeployCard`, `WebDeployCard`, `AwsSetupCard`, `StageCard`/`StagePlanDetail`/`RemoteTerminal`, `RepoCard` + `RepoDetail`/`EnvDetail`/`EnvBranchDetail`, `GlobalGroupsCard`, `AccessPassCard`, and the shared `StepRow`, `CopyRow`, `VariablesCard`, `SecretsCard`, `RestoreToast`, `CloudVariableDetail`, `EnvSecretsDetail`. Per card: use theme variants and building blocks, keep `sx` for layout only, add labels to every control, add live regions for status/errors, and keep font sizes between 0.75rem and 1rem.
+Order by size and reuse: `GithubLoginCard`, `AwsLoginCard`, `AzureSubscriptionCard`, `AzureAppRegistrationCard`, `CoreInfraCard`, `CreateDomainCard`, `RemoteTerminalInfraCard`, `BackendDeployCard`, `WebDeployCard`, `AwsSetupCard`, `StageCard`/`StagePlanDetail`/`RemoteTerminal`, `RepoCard` + `RepoDetail`/`EnvDetail`/`EnvBranchDetail`, `GlobalGroupsCard`, `AccessPassCard`, and the shared `StepRow`, `CopyRow`, `VariablesCard`, `SecretsCard`, `RestoreToast`, `CloudVariableDetail`, `EnvSecretsDetail`. Per card: use theme variants and building blocks, keep `sx` for layout only, add labels to every control, add live regions for status/errors, and keep text sizes between 0.75rem and 1rem.
 
 ### Step 9. Guardrails
 
@@ -292,7 +298,7 @@ Per the repository `README.md` rules, decisions live in the folder where they ap
 1. MUI theme is the single source of truth for colour, type and shape; `sx` is for layout and dynamic values only.
 2. `App.css` holds global, non-component rules only.
 3. Only `sans-serif` and `monospace` are used: `sans-serif` for main UI content and `monospace` for technical values. No other font overrides or web-font downloads.
-4. Font sizes range from 0.75rem to 1rem; contrast >= 4.5:1.
+4. Text sizes range from 0.75rem to 1rem and target contrast >= 4.5:1, except muted card text and semantic status summaries, which may be below 4.5:1.
 5. Interactive elements are native or MUI-semantic (button, link, input), never `onClick` on a `Box`.
 6. Test hooks (`id="card-<id>"`, `data-id`, `data-sensitive`, accessible names) are part of the UI contract.
 

@@ -117,8 +117,6 @@ export default function StagePlanDetail({
             fontSize: "1rem",
             color: "#94a3b8",
             ...uiFont,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
           }}
         >
           Planned Changes for Deployment

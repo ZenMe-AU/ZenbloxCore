@@ -23,14 +23,12 @@ export const groupLabelSx = {
   ...uiFont,
   mt: 3.5,
   mb: 1.25,
-  letterSpacing: "0.02em",
-  textTransform: "uppercase" as const,
   textAlign: "left" as const,
 };
 
 export const groupSx = {
   display: "grid",
-  gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${CARD_MIN_W}px), 1fr))`,
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, var(--card-w)), 1fr))",
   mt: 3.5,
   gap: 1.5,
   alignItems: "start",

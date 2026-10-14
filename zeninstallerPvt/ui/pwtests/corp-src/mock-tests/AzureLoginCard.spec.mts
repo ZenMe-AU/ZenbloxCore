@@ -56,6 +56,113 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       });
     });
 
+    test("Card header supports keyboard interaction and labels its region", async ({ page }) => {
+      await page.goto(CORP_URL);
+      const card = page.locator("#card-azure_login");
+      const toggle = card.getByRole("button", { name: /^Azure login,/ });
+      await expect(toggle).toHaveAccessibleName(/^Azure login, /);
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(toggle.locator(".MuiTouchRipple-root")).toHaveCount(0);
+      const titleText = card.locator("h3 button .MuiTypography-root").first();
+      const summaryText = card.locator("h3 button .MuiTypography-root").nth(1);
+      await expect(titleText).toHaveAttribute("title", "Azure login");
+      await expect(summaryText).toHaveCSS("white-space", "normal");
+
+      const contentId = await toggle.getAttribute("aria-controls");
+      expect(contentId).toBeTruthy();
+      const chevronToggle = card.getByRole("button", { name: "Expand Azure login" });
+      await expect(chevronToggle).toHaveAttribute("aria-controls", contentId!);
+      await expect(chevronToggle.locator(".MuiTouchRipple-root")).toHaveCount(0);
+      const content = card.locator(`#${contentId}`);
+      await expect(content).toHaveAttribute("role", "region");
+      await expect(content).toHaveAttribute("aria-labelledby", "card-title-azure_login");
+
+      await toggle.focus();
+      await page.keyboard.press("Space");
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      expect(await toggle.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe("solid");
+      await expect(content).toBeVisible();
+
+      const popupPromise = page.waitForEvent("popup");
+      await card.getByRole("link", { name: "View", exact: true }).click();
+      const popup = await popupPromise;
+      await popup.close();
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+
+      await toggle.focus();
+      await page.keyboard.press("Enter");
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(content).toBeHidden();
+
+      await card.getByRole("button", { name: "Expand Azure login" }).click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await expect(content).toBeVisible();
+    });
+
+    test("Global stylesheet exposes layout and accessibility rules", async ({ page }) => {
+      await page.goto(CORP_URL);
+      const layoutTokens = await page.locator("#root").evaluate((root) => {
+        const styles = getComputedStyle(root);
+        return {
+          cardWidth: styles.getPropertyValue("--card-w").trim(),
+          expandedWidth: styles.getPropertyValue("--card-w-expanded").trim(),
+        };
+      });
+      expect(layoutTokens).toEqual({ cardWidth: "360px", expandedWidth: "1280px" });
+
+      const visuallyHiddenStyle = await page.evaluate(() => {
+        const element = document.createElement("span");
+        element.className = "visually-hidden";
+        document.body.append(element);
+        const styles = getComputedStyle(element);
+        const result = { position: styles.position, width: styles.width };
+        element.remove();
+        return result;
+      });
+      expect(visuallyHiddenStyle).toEqual({ position: "absolute", width: "1px" });
+
+      const sensitiveFilter = await page.evaluate(() => {
+        const element = document.createElement("span");
+        element.setAttribute("data-sensitive", "true");
+        document.documentElement.setAttribute("data-mask-sensitive", "true");
+        document.body.append(element);
+        const filter = getComputedStyle(element).filter;
+        element.remove();
+        document.documentElement.removeAttribute("data-mask-sensitive");
+        return filter;
+      });
+      expect(sensitiveFilter).toBe("blur(5px)");
+
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      const transitionDurations = await page.locator("#card-azure_login").evaluate((element) =>
+        getComputedStyle(element)
+          .transitionDuration.split(",")
+          .map((duration) => Number.parseFloat(duration))
+      );
+      expect(transitionDurations.every((duration) => duration <= 0.00001)).toBe(true);
+    });
+
+    test("Locked prerequisite is keyboard accessible and preserves the source card", async ({ page }) => {
+      await page.goto(CORP_URL);
+      const stageCard = page.locator('[id^="card-stage_"]').first();
+      const stageToggle = stageCard.locator("h3").getByRole("button");
+      await stageToggle.click();
+      await expect(stageToggle).toHaveAttribute("aria-expanded", "true");
+
+      const contentId = await stageToggle.getAttribute("aria-controls");
+      expect(contentId).toBeTruthy();
+      const requirement = stageCard
+        .locator(`#${contentId}`)
+        .getByRole("button", { name: "Select a repository & environment", exact: true });
+      await expect(requirement).toBeVisible();
+      await requirement.focus();
+      await page.keyboard.press("Enter");
+
+      const repoToggle = page.locator("#card-repo h3").getByRole("button");
+      await expect(repoToggle).toHaveAttribute("aria-expanded", "true");
+      await expect(stageToggle).toHaveAttribute("aria-expanded", "true");
+    });
+
     test("Signing Out button logs out current user", async ({ page }, testInfo) => {
       await page.goto(CORP_URL);
       await installMockAzure(page);

@@ -25,8 +25,6 @@ const uiFont = { fontFamily: "sans-serif" };
 const labelSx = {
   fontSize: "1rem",
   color: "#94a3b8",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
   ...uiFont,
 };
 
