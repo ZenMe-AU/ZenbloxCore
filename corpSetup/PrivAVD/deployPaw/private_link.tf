@@ -1,7 +1,7 @@
 # Born-locked AVD Private Link. This is part of the base deployment - there is
 # no toggle. The session host's broker/gateway traffic moves onto the VNet via
 # a private endpoint to the host pool "connection" sub-resource, and the host
-# pool is set to EnabledForSessionHostsOnly so session hosts can only connect
+# pool is set to EnabledForClientsOnly so session hosts can only connect
 # through it (see avd.tf). Clients still subscribe to the feed over the
 # internet because the workspace keeps public access.
 #
