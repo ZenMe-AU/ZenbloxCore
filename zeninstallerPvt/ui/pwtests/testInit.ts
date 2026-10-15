@@ -31,10 +31,10 @@ export const TEST_REPO_FROM_PROD = "pwtests-test-from-prod"; // creating test br
 
 // Domain for CreateDomainCard.spec.mts
 export const TEST_DNS_DOMAIN = "zenblox.com.au";
+
 export const viewports = {
   Desktop: { width: 1280, height: 720 },
   Mobile: { width: 414, height: 896 },
 } as const;
 
-export type ViewportName = keyof typeof viewports;
-export type ViewportSize = (typeof viewports)[ViewportName];
+

@@ -4,7 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/GithubLogin/GithubLoginCard.tsx
-import { test, expect } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { getViewportName, test } from "../util/viewportFixture.mts";
 import { getCorpGithubAuthMode, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
@@ -23,7 +24,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
 });
 
 test("Submit a valid PAT without restoring saved authentication", async ({ page }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   await page.goto(CORP_URL);
   const card = await expandGithubLoginCard(page);
   const directMode = card.getByRole("button", { name: "Direct (PAT)", exact: true });
@@ -46,7 +47,7 @@ test("Submit a valid PAT without restoring saved authentication", async ({ page 
 });
 
 test("Invalid PAT token", async ({ page }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   await page.goto(CORP_URL);
   const githubCard = await expandGithubLoginCard(page);
   const directMode = githubCard.getByRole("button", { name: "Direct (PAT)", exact: true });
@@ -73,7 +74,7 @@ test("Direct mode back to Backend mode", async ({ page, context }) => {
 });
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   await page.goto(CORP_URL);
 
   const githubCard = await test.step("Expand Unauthenticated Github Login Card", async () => {

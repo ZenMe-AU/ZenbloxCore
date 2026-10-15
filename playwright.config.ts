@@ -9,18 +9,17 @@ import { defineConfig, devices } from "@playwright/test";
 import * as dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { viewports } from "./pwtests/testInit";
+import { viewports } from "./zeninstallerPvt/ui/pwtests/testInit.js";
 
 process.env.NODE_ENV = process.env.NODE_ENV || "dev";
 // Enable Playwright API logs for normal and coverage runs, preserving other namespaces.
 process.env.DEBUG = [process.env.DEBUG, "pw:api"].filter(Boolean).join(",");
-const currentFilePath = fileURLToPath(import.meta.url);
-const currentDirectory = path.dirname(currentFilePath);
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(currentDirectory, ".env") });
 
 export default defineConfig({
-  testDir: "./pwtests",
-  outputDir: "./pwtests/test-results",
+  testDir: ".",
+  outputDir: "./pwtest-results",
   updateSnapshots: process.env.CI ? "none" : "missing",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -29,7 +28,6 @@ export default defineConfig({
   reporter: [
     // A terminal reporter is what streams worker stdout/stderr (incl. pw:api) to the console.
     ["line"],
-    ["html", { outputFolder: "./pwtests/playwright-report", open: "never" }],
   ],
   timeout: 60_000,
   expect: {
@@ -52,26 +50,37 @@ export default defineConfig({
   },
 
   projects: [
+    // {
+    //   name: "Desktop",
+    //   testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
+    //   fullyParallel: false,
+    //   workers: 1,
+    //   retries: 1,
+    //   use: {
+    //     ...devices["Desktop Chrome"],
+    //     viewport: viewports.Desktop,
+    //   },
+    // },
+    // {
+    //   name: "Mobile",
+    //   testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
+    //   fullyParallel: false,
+    //   workers: 1,
+    //   retries: 1,
+    //   use: {
+    //     ...devices["Desktop Chrome"],
+    //     viewport: viewports.Mobile,
+    //   },
+    // },
     {
-      name: "Desktop",
-      testMatch: /corp-src\/.*\.(?:spec|setup)\.mts$/,
-      fullyParallel: false,
-      workers: 1,
+      name: "Desktop and Mobile",
+      testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
+      fullyParallel: true,
+      workers: 2,
       retries: 1,
       use: {
         ...devices["Desktop Chrome"],
         viewport: viewports.Desktop,
-      },
-    },
-    {
-      name: "Mobile",
-      testMatch: /corp-src\/.*\.(?:spec|setup)\.mts$/,
-      fullyParallel: false,
-      workers: 1,
-      retries: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: viewports.Mobile,
       },
     },
   ],

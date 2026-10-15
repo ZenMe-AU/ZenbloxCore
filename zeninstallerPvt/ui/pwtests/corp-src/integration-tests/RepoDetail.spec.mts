@@ -4,7 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/RepoDetail.tsx
-import { test, expect, type Page, type Locator } from "@playwright/test";
+import { expect, type Page, type Locator } from "@playwright/test";
+import { getViewportName, test } from "../util/viewportFixture.mts";
 import { restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, TEST_REPO_FROM_PROD, TEST_REPO_MAIN, TEST_REPO_NO_ENV } from "../../testInit";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
@@ -24,7 +25,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
 });
 
 test("Creates valid repo with no environments", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   await restoreGithubSessionStorage(context);
   await page.goto(CORP_URL);
   const reponame = safePathSegment(`${TEST_REPO_NO_ENV}-${viewportName}`);
@@ -69,7 +70,7 @@ test("Creates valid repo with no environments", async ({ page, context }, testIn
 });
 
 test("Creates PROD branch, then creates TEST from PROD", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   test.setTimeout(300_000);
   const repoName = safePathSegment(`${TEST_REPO_FROM_PROD}-${viewportName}`,);
   await restoreGithubSessionStorage(context);
@@ -114,7 +115,7 @@ test("Creates PROD branch, then creates TEST from PROD", async ({ page, context 
 });
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   test.setTimeout(300_000);
   const repoName = safePathSegment(`${TEST_REPO_MAIN}-${viewportName}`);
   await restoreGithubSessionStorage(context);

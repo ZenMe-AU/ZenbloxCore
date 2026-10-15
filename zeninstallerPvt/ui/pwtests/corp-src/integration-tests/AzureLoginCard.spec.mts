@@ -4,7 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/AzureLogin/AzureLoginCard.tsx
-import { test, expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
+import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
+import { getViewportName, test } from "../util/viewportFixture.mts";
 import { restoreAzureSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
@@ -23,7 +24,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
 });
 
 test("Sign out current user", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   await restoreAzureSessionStorage(context);
   await page.goto(CORP_URL);
   const azureCard = await expandAzureLoginCard(page);
@@ -38,7 +39,7 @@ test("Sign out current user", async ({ page, context }, testInfo) => {
 });
 
 async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestInfo): Promise<void> {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   await page.goto(CORP_URL);
 
   const azureCard = await test.step("Expand Unauthenticated Azure Login Card", async () => {

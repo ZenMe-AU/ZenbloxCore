@@ -1,6 +1,7 @@
 /// <reference types="node" />
 // UI component: ../../../corp-src/cards/BackendDeployCard.tsx
-import { test, expect } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { getViewportName, test } from "../util/viewportFixture.mts";
 import { CORP_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import { backendBuild, expectSuccessfulSteps, installRelayNetworkGuard, prepareMockBackend, previousBuild } from "../util/mockTestHelper.mts";
@@ -17,7 +18,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);
 });
 test("Reports a missing package without deploying", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, { missingArtifact: true });
 	await card.getByRole("button", { name: "Deploy", exact: true }).click();
 	await expect(card.getByText("The latest build did not publish a package artifact.", { exact: true })).toBeVisible();
@@ -27,7 +28,7 @@ test("Reports a missing package without deploying", async ({ page, context }, te
 	expect(unexpectedRequests).toEqual([]);
 });
 test("Reports a build permission failure", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, { failBuild: true });
 	await card.getByRole("button", { name: "Build", exact: true }).click();
 	await expect(card.getByText("Failed to trigger workflow: 403", { exact: true })).toBeVisible();
@@ -38,7 +39,7 @@ test("Reports a build permission failure", async ({ page, context }, testInfo) =
 	expect(unexpectedRequests).toEqual([]);
 });
 test("Retries a failed upload without changing connection variables", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	const { card, state, github, initialVariables, unexpectedRequests } =
 		await prepareMockBackend(page, context, viewportName, { failUploadOnce: true });
 	await card.getByRole("button", { name: "Deploy", exact: true }).click();
@@ -59,7 +60,7 @@ test("Retries a failed upload without changing connection variables", async ({ p
 	expect(unexpectedRequests).toEqual([]);
 });
 test("Prerequisite steps are shown", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	const unexpectedRequests = await installRelayNetworkGuard(context);
 	await page.goto(CORP_URL);
 	const card = page.locator("#card-backend_deploy");
@@ -70,7 +71,7 @@ test("Prerequisite steps are shown", async ({ page, context }, testInfo) => {
 	expect(unexpectedRequests).toEqual([]);
 });
 test("No deployment option on the latest build", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, { seedBuild: "current" });
 	await expect(card.getByText(/^Latest build:/)).toContainText(backendBuild.sha.slice(0, 7));
 	await expect(card.getByText(/^Live on the app:/)).toContainText(backendBuild.sha.slice(0, 7));
@@ -81,7 +82,7 @@ test("No deployment option on the latest build", async ({ page, context }, testI
 	expect(unexpectedRequests).toEqual([]);
 });
 test("Deployment available when the existing app version is older", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, { seedBuild: "update" });
 	await expect(card.getByText(/^Latest build:/)).toContainText(backendBuild.sha.slice(0, 7));
 	await expect(card.getByText(/^Live on the app:/)).toContainText("1234567");
@@ -92,7 +93,7 @@ test("Deployment available when the existing app version is older", async ({ pag
 });
 for (const outcome of ["failed", "cancelled", "timeout"] as const) {
 	test(`Does not accept a ${outcome} build workflow as a new build`, async ({ page, context }, testInfo) => {
-		const viewportName = testInfo.project.name;
+		const viewportName = getViewportName(testInfo);
 		test.setTimeout(180_000);
 		const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, { buildOutcome: outcome });
 		await card.getByRole("button", { name: "Build", exact: true }).click();
@@ -110,7 +111,7 @@ for (const outcome of ["failed", "cancelled", "timeout"] as const) {
 	});
 }
 test("Reports an expired build artifact without uploading", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, {
 		seedBuild: "update", artifactDownloadStatus: 410,
 	});
@@ -125,7 +126,7 @@ test("Reports an expired build artifact without uploading", async ({ page, conte
 	expect(unexpectedRequests).toEqual([]);
 });
 test("Reports an app deployment failure without recording the new version", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, {
 		seedBuild: "update", deploymentOutcome: "failed",
 	});
@@ -143,7 +144,7 @@ test("Reports an app deployment failure without recording the new version", asyn
 	expect(unexpectedRequests).toEqual([]);
 });
 test("Reports a deployment polling timeout without recording the new version", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	test.setTimeout(180_000);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, {
 		seedBuild: "update", deploymentOutcome: "timeout",
@@ -168,7 +169,7 @@ test("Reports a deployment polling timeout without recording the new version", a
 });
 
 test("Reports app-settings write failure after a successful package deployment", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, {
 		seedBuild: "update", failSettingsWrite: true,
 	});
@@ -187,7 +188,7 @@ test("Reports app-settings write failure after a successful package deployment",
 	expect(unexpectedRequests).toEqual([]);
 });
 test("Reports a deployed-version read failure after saving settings", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, {
 		seedBuild: "update", failVersionRead: true,
 	});
@@ -206,7 +207,7 @@ test("Reports a deployed-version read failure after saving settings", async ({ p
 });
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	test.setTimeout(180_000);
 	const { card, state, github, initialVariables, unexpectedRequests } = await prepareMockBackend(page, context, viewportName);
 	await expect(card.getByText(/^Latest build:/)).toContainText("none yet");

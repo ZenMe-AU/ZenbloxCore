@@ -9,6 +9,11 @@ import path from "node:path";
 
 // printing debug and API info when running test
 const isDebugEnabled = process.env.DEBUG?.includes("pw:api") || process.env.NODE_ENV === "development";
+const sourceFileByTestInfo = new WeakMap<TestInfo, string>();
+
+export function registerTestSourceFile(testInfo: TestInfo, sourceFile: string): void {
+  sourceFileByTestInfo.set(testInfo, sourceFile);
+}
 
 export type PageSnapshotOptions = {
   userId: string;
@@ -33,20 +38,21 @@ export function safePathSegment(value: string): string {
 }
 
 function snapshotPath(testInfo: TestInfo, viewportName: string, fileSubstring: string): string[] {
-  const testName = safePathSegment(testInfo.title);
+  const testName = safePathSegment(testInfo.title.replace(/\s+\[[^\]]+\]$/, ""));
   let snapshotName = safePathSegment(`${fileSubstring}.png`);
   if (testName.toLowerCase() == "happy-path") {
     snapshotName = safePathSegment(`${testName}-${fileSubstring}.png`);
   }
-  const relativeTestPath = path.relative(testInfo.project.testDir, testInfo.file);
+  const sourceFile = sourceFileByTestInfo.get(testInfo) ?? testInfo.file;
+  const relativeTestPath = path.relative(testInfo.project.testDir, sourceFile);
   const testPathSegments = relativeTestPath.split(path.sep).map((segment) => safePathSegment(segment));
   const testFile = testPathSegments.pop()?.replace(/\.spec\.(?:m?[jt]sx?)$/, "") ?? "unnamed";
-  const sourceFolder = testPathSegments.shift();
+  const snapshotRootEnd = Math.max(1, testPathSegments.length - 1);
 
   return [
-    ...(sourceFolder ? [sourceFolder] : []),
+    ...testPathSegments.slice(0, snapshotRootEnd),
     "snapshots",
-    ...testPathSegments,
+    ...testPathSegments.slice(snapshotRootEnd),
     safePathSegment(testFile),
     safePathSegment(viewportName),
     safePathSegment(snapshotName.endsWith(".png") ? snapshotName : safePathSegment(`${snapshotName}.png`)),

@@ -4,7 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/AzureLogin/AzureLoginCard.tsx
-import { test, expect } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { getViewportName, test } from "../util/viewportFixture.mts";
 import {
   installMockAzure,
   installMockGitHub,
@@ -39,7 +40,7 @@ test("Happy path", async ({ page }, testInfo) => {
 });
 
 test("Tenant changes invalidate the previous subscription", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const repoName = `mock-azure-tenant-switch-${viewportName.toLowerCase()}`;
   await installMockGitHub(page, context);
   await installMockAzure(page, {
@@ -88,7 +89,7 @@ test("Tenant changes invalidate the previous subscription", async ({ page, conte
 });
 
 test("An empty tenant list permits manual tenant confirmation", async ({ page }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   await installMockAzure(page, { tenants: [] });
   await page.goto(CORP_URL);
   const card = await expandAzureLoginCard(page);
@@ -114,7 +115,7 @@ test("An empty tenant list permits manual tenant confirmation", async ({ page },
 });
 
 test("Saved tenant missing from tenant list", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const missingTenantId = "00000000-0000-0000-0000-000000000099";
   await prepareMockAzureSubscription(page, context, `mock-saved-tenant-missing-${viewportName.toLowerCase()}`, {
     initialVariables: {
@@ -133,7 +134,7 @@ test("Saved tenant missing from tenant list", async ({ page, context }, testInfo
 });
 
 test("Azure sign-in requests the Microsoft authentication handoff", async ({ page }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   await installMockAzure(page);
   await page.route("https://login.microsoftonline.com/**", (route) => route.abort("blockedbyclient"));
   await page.goto(CORP_URL);
@@ -155,7 +156,7 @@ test("Azure sign-in requests the Microsoft authentication handoff", async ({ pag
 });
 
 test("Signs out current user", async ({ page }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   await page.goto(CORP_URL);
   await installMockAzure(page);
   const card = await expandAzureLoginCard(page);
@@ -171,7 +172,7 @@ test("Signs out current user", async ({ page }, testInfo) => {
 });
 
 async function runHappyPath({ page }: { page: import("@playwright/test").Page }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const card = await test.step("Expand unauthenticated Azure login card", async () => {
     await page.goto(CORP_URL);
     const result = await expandAzureLoginCard(page);

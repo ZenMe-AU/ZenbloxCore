@@ -4,7 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/CoreInfra/CoreInfraCard.tsx
-import { test, expect } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { getViewportName, test } from "../util/viewportFixture.mts";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
 import { attachJSCoverage, expectSnapshot, expectVisibleWithin, safePathSegment } from "../../util/testHelper.ts";
 import {
@@ -30,7 +31,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
 });
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   test.skip(
     process.env.RUN_CORE_INFRA_LIVE_PROVISIONING !== "true",
     "Set RUN_CORE_INFRA_LIVE_PROVISIONING=true only for an approved isolated Azure subscription."

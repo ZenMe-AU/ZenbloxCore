@@ -4,7 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/AzureAppRegistration/AzureAppRegistrationCard.tsx
-import { test, expect } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { getViewportName, test } from "../util/viewportFixture.mts";
 import { CORP_URL, GITHUB_API_URL, MICROSOFT_GRAPH_URL } from "../../testInit";
 import { createNewRepo } from "../util/testHelper.mts";
 import { attachJSCoverage, expectSnapshot, safePathSegment } from "../../util/testHelper.ts";
@@ -22,19 +23,6 @@ import {
 } from "../util/mockTestHelper.mts";
 import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 
-async function prepareMockAppRegistrationCard(
-  page: import("@playwright/test").Page,
-  context: import("@playwright/test").BrowserContext,
-  repoName: string,
-  options: { initialVariables?: Record<string, string>; initialAzureState?: Partial<MockAzureState> } = {}
-) {
-  const prepared = await prepareMockAzureSubscription(page, context, repoName, { saveVariables: true, ...options });
-  return {
-    ...prepared,
-    appRegistrationCard: await expandAzureAppRegistrationCard(page),
-  };
-}
-
 test.beforeEach(async ({ page }) => {
   await page.coverage.startJSCoverage({ resetOnNavigation: false });
 });
@@ -47,8 +35,8 @@ test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);
 });
 
-test("Edge case - keeps creation disabled for a blank app name", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+test("Keeps creation disabled for blank app name", async ({ page, context }, testInfo) => {
+  const viewportName = getViewportName(testInfo);
   const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-blank-${viewportName.toLowerCase()}`);
   const appNameInput = prepared.appRegistrationCard.locator("input:visible").first();
   const createButton = prepared.appRegistrationCard.getByRole("button", { name: "Create app registration" });
@@ -57,8 +45,8 @@ test("Edge case - keeps creation disabled for a blank app name", async ({ page, 
   await expectSnapshot(page, prepared.appRegistrationCard, testInfo, "blank-app-name-empty-state", viewportName);
 });
 
-test("Edge case - warns when the two saved client IDs differ", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+test("Warns when the two saved client IDs differ", async ({ page, context }, testInfo) => {
+  const viewportName = getViewportName(testInfo);
   const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-client-id-mismatch-${viewportName.toLowerCase()}`, {
     initialVariables: {
       AZURE_TENANT_ID: mockTenantId,
@@ -74,7 +62,7 @@ test("Edge case - warns when the two saved client IDs differ", async ({ page, co
 });
 
 test("Edge case - reports and recovers from a provisioning failure", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-provision-retry-${viewportName.toLowerCase()}`, {
     initialAzureState: { applicationCreationFailuresRemaining: 1 },
   });
@@ -105,7 +93,7 @@ test("Edge case - reports and recovers from a provisioning failure", async ({ pa
 });
 
 test("Surfaces a Microsoft Graph permission rejection", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-consent-rejected-${viewportName.toLowerCase()}`, {
     initialAzureState: { applicationLookupFailureStatus: 403 },
   });
@@ -121,7 +109,7 @@ test("Surfaces a Microsoft Graph permission rejection", async ({ page, context }
 });
 
 test("Reuses existing app", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-retry-${viewportName.toLowerCase()}`);
   const appNameInput = prepared.appRegistrationCard.locator("input:visible").first();
   await appNameInput.fill("zeninstaller-existing-mock-app");
@@ -140,7 +128,7 @@ test("Reuses existing app", async ({ page, context }, testInfo) => {
 });
 
 test("Warns when the saved app is missing", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   await context.addInitScript(() => {
     localStorage.setItem(
       "zeninstaller_azure_result",
@@ -164,7 +152,7 @@ test("Warns when the saved app is missing", async ({ page, context }, testInfo) 
 });
 
 test("Warns when there is no subscription role", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   await context.addInitScript(() => {
     localStorage.setItem(
       "zeninstaller_azure_result",
@@ -213,7 +201,7 @@ test("Warns when there is no subscription role", async ({ page, context }, testI
 });
 
 test("Reports when connection details fail to auto-save", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-autosave-error-${viewportName.toLowerCase()}`);
   let failedWrites = 0;
   await page.route(`${GITHUB_API_URL}/repos/**/environments/PROD/variables`, async (route) => {
@@ -255,7 +243,7 @@ test("Reports when connection details fail to auto-save", async ({ page, context
 });
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const runId = Date.now().toString(36);
   const repoName = safePathSegment(`mock-azure-app-${viewportName.toLowerCase()}`);
   const appName = `zeninstaller-${repoName}`;
@@ -389,3 +377,17 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
   await expect(azureLoginCard.getByText(/Signed in as/i)).toBeVisible();
   await expect(repoCard.getByText("PROD", { exact: true })).toBeVisible();
 }
+
+async function prepareMockAppRegistrationCard(
+  page: import("@playwright/test").Page,
+  context: import("@playwright/test").BrowserContext,
+  repoName: string,
+  options: { initialVariables?: Record<string, string>; initialAzureState?: Partial<MockAzureState> } = {}
+) {
+  const prepared = await prepareMockAzureSubscription(page, context, repoName, { saveVariables: true, ...options });
+  return {
+    ...prepared,
+    appRegistrationCard: await expandAzureAppRegistrationCard(page),
+  };
+}
+
