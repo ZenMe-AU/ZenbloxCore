@@ -495,9 +495,6 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                           fontSize: "1rem",
                                           py: 0.35,
                                           px: 1.2,
-                                          background: "#2563eb",
-                                          "&:hover": { background: "#1d4ed8" },
-                                          "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
                                         }}
                                       >
                                         Mark Complete

@@ -180,7 +180,6 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 onClick={handleCreate}
                 disabled={card.locked || !canCreate}
                 sx={{
-                  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                   textTransform: "none",
                   ...uiFont,
                   fontSize: "1rem",
@@ -188,8 +187,6 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                   px: 2.5,
                   borderRadius: "8px",
                   boxShadow: "0 2px 8px #2563eb33",
-                  "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-                  "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
                 }}
               >
                 Create IAM Role

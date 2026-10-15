@@ -60,14 +60,11 @@ function DeployButton({ onDeploy, disabled }: { onDeploy: () => void; disabled?:
       size="small"
       onClick={() => void onDeploy()}
       sx={{
-        background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
         ...uiFont,
         fontSize: "1rem",
         textTransform: "none",
         py: 0.45,
         px: 1.5,
-        "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-        "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
       }}
     >
       Deploy

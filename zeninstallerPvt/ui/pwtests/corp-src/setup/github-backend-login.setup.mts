@@ -20,7 +20,7 @@ setup("Manual GitHub OAuth login for corp auth tests", async ({ page, context })
 
   await page.goto(CORP_URL);
   const githubCard = page.locator("#card-github_login");
-  const loginButton = githubCard.getByRole("button", { name: "Login with GitHub", exact: true });
+  const loginButton = githubCard.getByRole("button", { name: "Sign in with GitHub", exact: true });
 
   if (!(await loginButton.isVisible())) {
     await githubCard.getByText(/^GitHub login$/i).click();

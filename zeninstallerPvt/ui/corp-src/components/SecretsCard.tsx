@@ -13,22 +13,8 @@ import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import FieldLabel from "./FieldLabel";
 import type { PendingSecret, SecretsStatus, UpsertStatus } from "../types";
-
-// ─── Input style ──────────────────────────────────────────────────────────────
-
-const inputSx = {
-  "& .MuiInputBase-root": {
-    background: "#f8fafc",
-    color: "#0f172a",
-    fontFamily: "monospace",
-    fontSize: "1rem",
-    borderRadius: "6px",
-  },
-  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
-  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
-  "& .MuiInputBase-input::placeholder": { color: "#94a3b8" },
-};
 
 // ─── Validation badge ─────────────────────────────────────────────────────────
 
@@ -264,7 +250,9 @@ function SecretDialog({
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
         <Box>
           <Typography sx={{ fontFamily: "monospace", fontWeight: 700, fontSize: "1rem", color: "#0f172a" }}>{secretKey}</Typography>
-          <Typography sx={{ fontSize: "1rem", color: "#64748b", mt: 0.25 }}>Enter the secret value</Typography>
+          <FieldLabel htmlFor="secret-value" sx={{ fontSize: "0.875rem", color: "text.secondary", mt: 0.25 }}>
+            Enter the secret value
+          </FieldLabel>
         </Box>
         <IconButton onClick={handleClose} size="small" sx={{ color: "#94a3b8" }}>
           <CloseIcon fontSize="small" />
@@ -275,8 +263,9 @@ function SecretDialog({
 
       <DialogContent sx={{ pt: 2.5 }}>
         <TextField
+          id="secret-value"
+          className="corpEditor"
           fullWidth
-          size="small"
           autoFocus
           type="password"
           placeholder="Secret value"
@@ -285,7 +274,6 @@ function SecretDialog({
           onKeyDown={(e) => {
             if (e.key === "Enter") handleConfirm();
           }}
-          sx={inputSx}
           InputProps={{ endAdornment: <InputAdornment position="end" /> }}
         />
         <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5, mt: 2.5 }}>
@@ -297,13 +285,6 @@ function SecretDialog({
             disabled={!value.trim()}
             variant="contained"
             size="small"
-            sx={{
-              background: "#2563eb",
-              textTransform: "none",
-              fontSize: "1rem",
-              "&:hover": { background: "#1d4ed8" },
-              "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-            }}
           >
             Set
           </Button>

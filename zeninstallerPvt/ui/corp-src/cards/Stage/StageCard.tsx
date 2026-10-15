@@ -145,14 +145,11 @@ function StageVarEditor({
           variant="contained"
           size="small"
           sx={{
-            background: "#2563eb",
             ...uiFont,
             fontSize: "1rem",
             textTransform: "none",
             py: 0.75,
             px: 2,
-            "&:hover": { background: "#1d4ed8" },
-            "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
           }}
         >
           {updating ? "Updating..." : dirtyKeys.length > 0 ? `Update ${dirtyKeys.length} variable${dirtyKeys.length !== 1 ? "s" : ""}` : "Update variables"}

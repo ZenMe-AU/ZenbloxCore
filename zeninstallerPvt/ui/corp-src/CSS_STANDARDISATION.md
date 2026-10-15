@@ -2,7 +2,7 @@
 
 Scope: `zeninstallerPvt/ui` only. Paths below are relative to that folder (the old `web/` prefix no longer exists).
 
-Sections 0–6 record the initial audit baseline from 2026-10-07; their counts and source-tree observations are historical, not a current inventory. Progress notes in section 7 supersede baseline findings where work has since been completed. Latest update: 2026-10-14.
+Sections 0–6 record the initial audit baseline from 2026-10-07; their counts and source-tree observations are historical, not a current inventory. Progress notes in section 7 supersede baseline findings where work has since been completed. Latest update: 2026-10-15.
 
 ## 0. Audit summary (2026-10-07)
 
@@ -257,9 +257,11 @@ Each step is one reviewable change that leaves the app working. After every step
 
 ### Step 5. Page shell
 
-- `App.tsx`: `<header>`, `<main>`, skip link, one `h1`, `h2` group labels, intro as a real list with a real link. Move the inline root styles into the theme/`CssBaseline`.
-- `Header.tsx`: use the theme for the mark and title; drop the `document.title` duplication only if tests permit.
-- `ViewLink.tsx`: render a real `<a target="_blank" rel="noopener noreferrer">` with "(opens in new tab)" in the accessible name. Keep the visible label, and keep the accessible name stable for existing specs.
+- `App.tsx`: `<header>`, `<main>`, skip link, one `h1`, a single labelled `h2` section for the flat card grid, and an intro with a real list and link. Move page-root colors into the theme/`CssBaseline`.
+- `Header.tsx`: use the theme for the mark and title; keep `document.title` as the canonical title and render it as the page `h1`.
+- `ViewLink.tsx`: retain the secure anchor behavior (`target="_blank" rel="noopener noreferrer"`) and add "(opens in new tab)" to the accessible name while keeping the visible label.
+- **Implemented (2026-10-14; footer added 2026-10-15).** Added a focus-revealed skip link, semantic header/main landmarks, page `h1`, labelled “Deployment steps” section, ordered prerequisites and GoDaddy link. The page uses the theme background/text tokens and preserves the prior `#f8fafc` background. Shared View links announce their new-tab behavior. Existing card order, IDs, data hooks, and card heading structure are preserved. A semantic footer now groups help and information links and includes a keyboard-shortcuts dialog whose contents remain a placeholder until shortcuts are available.
+- **Verification (2026-10-14).** `pnpm build` passed. The focused shell/card keyboard Playwright check passed at desktop and mobile (2/2). The complete Azure Login mock spec had 9 passed and 1 failed: the mobile signed-in end-state snapshot differs in the Azure card's signed-in row; the snapshot was not updated. Focused ESLint reports only the existing `react-refresh/only-export-components` finding in `App.tsx`; the `.mts` spec is ignored by the current ESLint configuration. Full `pnpm test` had 249 passed and 3 failed in the existing Access Pass telemetry tests (`appInsights` is null). Full `pnpm lint` remains at 37 errors and 5 warnings across the UI, consistent with the existing lint baseline.
 
 ### Step 6. Shared building blocks
 
@@ -267,6 +269,8 @@ Each step is one reviewable change that leaves the app working. After every step
 - Add `CardIntro`, `FieldLabel` (wired to controls), `Caption`, `ErrorText` (`role="alert"`), `StatusText` (`role="status"`), `ExternalLink` in `components/`.
 - Make the gradient primary button a single `MuiButton` contained variant, removing the 28 copies.
 - Replace `"& .MuiInputBase-root"` selectors in `VariablesCard`/`SecretsCard` with theme `MuiTextField`/`MuiOutlinedInput` overrides.
+- **Implemented (2026-10-15).** Added all six shared components; wired `FieldLabel` to variable and secret inputs; used `CardIntro` and secure `ExternalLink` in the page intro; added theme `fieldLabel`/`sectionLabel` typography variants while retaining style shims and removing unused `groupLabelSx`. Centralized editor styling in the theme via the `corpEditor` class, including dirty/error border states, and removed local primary contained-button color/gradient overrides. Existing destructive styling and intentional per-button spacing/shadows remain.
+- **Verification (2026-10-15).** `pnpm build` passed; the focused shared-building-block browser test passed (1/1). Full `pnpm test` had 250 passed and 3 failed in the existing Access Pass telemetry tests (`appInsights` is null). Full `pnpm lint` remains at 37 errors and 5 warnings; focused lint found only existing findings in `App.tsx`, `AccessPassCard.tsx`, and `AzureAppRegistrationCard.tsx`. The Azure Subscription mock run had 7 failures and 3 scenarios did not run: reached snapshot comparisons differ after the intended editor/button styling changes, while auth-dependent scenarios were blocked. Snapshot baselines were not updated; review desktop/mobile diffs before accepting them.
 
 ### Step 7. Pilot card
 

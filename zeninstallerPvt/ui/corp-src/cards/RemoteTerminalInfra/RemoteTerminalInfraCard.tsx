@@ -101,14 +101,11 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
             variant="contained"
             size="small"
             sx={{
-              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
               ...uiFont,
               fontSize: "1rem",
               textTransform: "none",
               py: 0.6,
               px: 2,
-              "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-              "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
             }}
           >
             {infra.running ? (

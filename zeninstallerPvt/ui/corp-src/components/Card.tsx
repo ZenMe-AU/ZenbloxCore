@@ -123,8 +123,8 @@ export default function Card({
       }}
     >
       {/*
-       * Header (always clickable, even when locked/unavailable) — single flex row so the
-       * icon/button always center; a card with no summary is simply shorter, not padded.
+       * Header (always clickable, even when locked/unavailable) — single flex row with a
+       * consistent base height so cards align whether or not they have a summary.
        */}
       <Box
         sx={{
@@ -132,7 +132,9 @@ export default function Card({
           alignItems: "center",
           gap: 1.25,
           px: 2,
-          py: showSummary ? 1.5 : 2,
+          py: 1.5,
+          minHeight: 80,
+          boxSizing: "border-box",
           "&:hover": {
             background: borderHoverTint(muted ? theme.palette.divider : colors.border[status]),
           },
@@ -195,6 +197,7 @@ export default function Card({
                     whiteSpace: "normal",
                     overflowWrap: "anywhere",
                   }}
+                  title={summary}
                 >
                   {summary}
                 </Typography>

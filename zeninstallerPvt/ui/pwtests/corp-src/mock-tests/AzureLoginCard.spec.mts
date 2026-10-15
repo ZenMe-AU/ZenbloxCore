@@ -58,6 +58,26 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
     test("Card header supports keyboard interaction and labels its region", async ({ page }) => {
       await page.goto(CORP_URL);
+      const header = page.getByRole("banner");
+      await expect(header.getByRole("heading", { level: 1, name: "Zenblox Core Environment Installer" })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+      await expect(page.getByRole("heading", { level: 2, name: "Deployment steps" })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 2, name: "Help & information" })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 2 })).toHaveCount(2);
+      const main = page.getByRole("main");
+      await expect(main).toHaveCount(1);
+      const skipLink = page.getByRole("link", { name: "Skip to main content" });
+      await expect(skipLink).toHaveAttribute("href", "#main-content");
+      await page.keyboard.press("Tab");
+      await expect(skipLink).toBeFocused();
+      expect(await skipLink.evaluate((element) => getComputedStyle(element).position)).toBe("fixed");
+      await page.keyboard.press("Enter");
+      await expect(main).toBeFocused();
+
+      const intro = page.locator("#installer-intro");
+      await expect(intro.getByRole("listitem")).toHaveCount(2);
+      await expect(intro.getByRole("link", { name: "GoDaddy" })).toHaveAttribute("href", "https://www.godaddy.com/");
+
       const card = page.locator("#card-azure_login");
       const toggle = card.getByRole("button", { name: /^Azure login,/ });
       await expect(toggle).toHaveAccessibleName(/^Azure login, /);
@@ -84,7 +104,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expect(content).toBeVisible();
 
       const popupPromise = page.waitForEvent("popup");
-      await card.getByRole("link", { name: "View", exact: true }).click();
+      await card.getByRole("link", { name: "View (opens in new tab)", exact: true }).click();
       const popup = await popupPromise;
       await popup.close();
       await expect(toggle).toHaveAttribute("aria-expanded", "true");

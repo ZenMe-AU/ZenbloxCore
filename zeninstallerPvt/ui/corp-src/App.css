@@ -7,8 +7,8 @@ body,
 body {
   margin: 0;
   font-family: sans-serif;
-  background-color: #f4f6f8;
-  color: #1a1a1a;
+  background-color: var(--mui-palette-background-default, #f8fafc);
+  color: var(--mui-palette-text-primary, #0f172a);
 }
 
 :focus-visible {
@@ -28,6 +28,23 @@ body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.skip-link:focus-visible {
+  position: fixed;
+  inset-block-start: 1rem;
+  inset-inline-start: 1rem;
+  z-index: 1300;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  color: var(--mui-palette-text-primary, #0f172a);
+  background: var(--mui-palette-background-paper, #ffffff);
+  border: 2px solid var(--mui-palette-primary-main, #2563eb);
 }
 
 :root[data-mask-sensitive="true"] [data-sensitive] {

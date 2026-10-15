@@ -9,6 +9,7 @@ import { Box, Typography } from "@mui/material";
 export default function Header() {
   return (
     <Box
+      component="header"
       sx={{
         display: "flex",
         alignItems: "center",
@@ -22,18 +23,19 @@ export default function Header() {
           width: 28,
           height: 28,
           borderRadius: "7px",
-          background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+          background: (theme) => `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "1rem",
           fontWeight: 800,
-          color: "#fff",
+          color: "primary.contrastText",
         }}
       >
         ZB
       </Box>
-      <Typography sx={{ fontWeight: 700, fontSize: "1rem", color: "#0f172a", letterSpacing: "-0.01em" }}>{document.title}</Typography>
+      <Typography component="h1" variant="h1">
+        {document.title}
+      </Typography>
     </Box>
   );
 }

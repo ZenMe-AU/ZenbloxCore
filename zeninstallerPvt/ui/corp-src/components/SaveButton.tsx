@@ -5,7 +5,6 @@
 
 import { Box, Button, CircularProgress } from "@mui/material";
 import SaveIcon from "@mui/icons-material/Save";
-import { UI_FONT } from "../config/styles";
 
 type Props = {
   verb: string; // "Save" | "Update"
@@ -30,16 +29,7 @@ export default function SaveButton({ verb, noun, count, loading, disabled, onCli
       size="small"
       aria-label={text}
       startIcon={loading ? <CircularProgress size={12} sx={{ color: "#93c5fd" }} /> : <SaveIcon sx={{ fontSize: 14 }} />}
-      sx={{
-        background: "#2563eb",
-        ...UI_FONT,
-        fontSize: "1rem",
-        textTransform: "none",
-        py: 0.75,
-        px: 2,
-        "&:hover": { background: "#1d4ed8" },
-        "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-      }}
+      sx={{ py: 0.75, px: 2 }}
     >
       <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
         {text}

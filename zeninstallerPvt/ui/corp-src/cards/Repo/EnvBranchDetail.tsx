@@ -53,12 +53,10 @@ export default function EnvBranchDetail({
           size="small"
           startIcon={creatingBranch ? <CircularProgress size={12} sx={{ color: "#93c5fd" }} /> : <AddIcon />}
           sx={{
-            background: "#2563eb",
             fontSize: "1rem",
             textTransform: "none",
             py: 0.75,
             px: 2,
-            "&:hover": { background: "#1d4ed8" },
             "&.Mui-disabled": { background: "#bfdbfe", color: "#93c5fd" },
           }}
         >

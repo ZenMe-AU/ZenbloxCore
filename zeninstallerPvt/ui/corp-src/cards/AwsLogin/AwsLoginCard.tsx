@@ -246,7 +246,6 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
               startIcon={loggingIn ? <CircularProgress size={14} sx={{ color: "inherit" }} /> : undefined}
               sx={{
                 alignSelf: "flex-start",
-                background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                 textTransform: "none",
                 ...uiFont,
                 fontSize: "1rem",
@@ -255,10 +254,8 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                 borderRadius: "8px",
                 boxShadow: "0 2px 8px #2563eb33",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #1d4ed8, #1e40af)",
                   boxShadow: "0 4px 12px #2563eb44",
                 },
-                "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
               }}
             >
               {loggingIn ? "Signing in..." : needsMfa ? "Verify & sign in" : "Sign in"}

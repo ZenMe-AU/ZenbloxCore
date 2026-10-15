@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Link, Typography } from "@mui/material";
 import { PIPELINE } from "./logic/pipeline";
 import { type CardChrome, type CardHook, type CardId } from "./types";
 import { groupSx } from "./config/cardLayout";
@@ -28,7 +28,10 @@ import { useWebDeployCard } from "./cards/WebDeploy/useWebDeployCard";
 import { useAwsSetupCard } from "./cards/AwsSetup/useAwsSetupCard";
 
 import Header from "./components/Header";
+import Footer from "./components/Footer";
 import RestoreToast from "./components/RestoreToast";
+import CardIntro from "./components/CardIntro";
+import ExternalLink from "./components/ExternalLink";
 import GithubLoginCard from "./cards/GithubLogin/GithubLoginCard";
 import RepoCard from "./cards/Repo/RepoCard";
 import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
@@ -289,12 +292,21 @@ function AppDashboard() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a" }}>
+      <Box sx={{ minHeight: "100vh" }}>
+        <Link className="visually-hidden skip-link" href="#main-content">
+          Skip to main content
+        </Link>
         <Header />
 
-        <Box sx={{ maxWidth: "var(--card-w-expanded)", mx: "auto", px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 5 } }}>
+        <Box
+          component="main"
+          id="main-content"
+          tabIndex={-1}
+          sx={{ maxWidth: "var(--card-w-expanded)", mx: "auto", px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 5 } }}
+        >
           {/* Intro */}
           <Box
+            id="installer-intro"
             sx={{
               background: "#ffffff",
               borderRadius: "12px",
@@ -304,17 +316,31 @@ function AppDashboard() {
               boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
             }}
           >
-            <Typography sx={{ color: "#475569", lineHeight: 1.7 }}>
-              ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers of your choosing. Before starting, you will
-              need the following: <br />
-              1. A personal email address, using Google, or any other email hosting provider. <br />
-              2. An organisation name and domain name. We recommend that you register the domain name with Godaddy https://www.godaddy.com/ because we will have
-              automations in place with them. <br />
+            <CardIntro sx={{ lineHeight: 1.7, mb: 1 }}>
+              ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers of your choosing. Before starting, you will need
+              the following:
+            </CardIntro>
+            <Box component="ol" sx={{ m: 0, pl: 3, color: "text.secondary" }}>
+              <Typography component="li" sx={{ lineHeight: 1.7 }}>
+                A personal email address, using Google, or any other email hosting provider.
+              </Typography>
+              <Typography component="li" sx={{ lineHeight: 1.7 }}>
+                An organisation name and domain name. We recommend that you register the domain name with{" "}
+                <ExternalLink href="https://www.godaddy.com/" label="GoDaddy">
+                  GoDaddy
+                </ExternalLink>{" "}
+                because we will have automations in place with them.
+              </Typography>
+            </Box>
+            <CardIntro sx={{ lineHeight: 1.7, mt: 1, mb: 0 }}>
               Complete the cards below in any order — each shows what it needs before it can run.
-            </Typography>
+            </CardIntro>
           </Box>
 
-          <Box sx={groupSx}>
+          <Box component="section" aria-labelledby="deployment-steps-heading" sx={{ ...groupSx, mt: 3 }}>
+            <Typography id="deployment-steps-heading" component="h2" variant="h2" sx={{ gridColumn: "1 / -1" }}>
+              Deployment steps
+            </Typography>
             <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
 
             <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
@@ -428,6 +454,7 @@ function AppDashboard() {
             <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
           </Box>
         </Box>
+        <Footer />
       </Box>
 
       <RestoreToast loading={urlRestore.restoring} warnings={urlRestore.warnings} onDismiss={urlRestore.dismissWarnings} />

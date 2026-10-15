@@ -258,7 +258,6 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                       onClick={handleRun}
                       disabled={disabled || !subscriptionId || !appName.trim()}
                       sx={{
-                        background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                         textTransform: "none",
                         ...uiFont,
                         fontSize: "1rem",
@@ -266,8 +265,6 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                         px: 2.5,
                         borderRadius: "8px",
                         boxShadow: "0 2px 6px #2563eb33",
-                        "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-                        "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
                       }}
                     >
                       {rbacMissing ? "Grant access on this subscription" : "Create app registration"}

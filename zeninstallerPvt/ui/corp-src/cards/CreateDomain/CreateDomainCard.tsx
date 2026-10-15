@@ -155,7 +155,6 @@ export default function CreateDomainCard({
               disabled={disabled || running}
               sx={{
                 alignSelf: "flex-start",
-                background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                 textTransform: "none",
                 ...uiFont,
                 fontSize: "1rem",
@@ -163,8 +162,6 @@ export default function CreateDomainCard({
                 px: 2.5,
                 borderRadius: "8px",
                 boxShadow: "0 2px 6px #2563eb33",
-                "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-                "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
               }}
             >
               {resourcesDone ? "Re-run setup" : "Set up core DNS domain"}

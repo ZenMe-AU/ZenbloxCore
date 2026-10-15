@@ -21,7 +21,7 @@ export default function ViewLink({ href, label = "View" }: Props) {
       target="_blank"
       rel="noopener noreferrer"
       title={href}
-      aria-label={label}
+      aria-label={`${label} (opens in new tab)`}
       endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
       sx={{
         flexShrink: 0,

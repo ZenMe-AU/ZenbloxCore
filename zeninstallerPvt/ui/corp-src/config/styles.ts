@@ -17,27 +17,15 @@ export const borderHoverTint = (borderColor: string) => `color-mix(in srgb, ${bo
 // Slim "Refresh" text button used by every card that re-fetches remote state.
 export const refreshBtnSx = {
   flexShrink: 0,
-  color: "#94a3b8",
-  fontSize: "1rem",
-  textTransform: "none" as const,
-  ...UI_FONT,
-  "&:hover": { color: "#475569" },
+  color: "text.muted",
+  "&:hover": { color: "text.secondary" },
 };
 
-// Small uppercase field label used by the Azure / domain / terraform setup cards.
+// Compatibility shims for cards migrating to theme typography variants.
 export const labelSx = {
-  fontSize: "1rem",
-  color: "#94a3b8",
-  ...UI_FONT,
+  typography: "fieldLabel",
 };
 
-/*
- * Uppercase section heading. Defaults to the dark (#0f172a) variant;
- * EnvSecretsDetail overrides `color` to the muted #94a3b8.
- */
 export const sectionLabelSx = {
-  fontSize: "1rem",
-  fontWeight: 700,
-  color: "#0f172a",
-  ...UI_FONT,
+  typography: "sectionLabel",
 };

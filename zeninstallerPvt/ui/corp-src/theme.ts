@@ -4,6 +4,7 @@
  */
 
 import { createTheme } from "@mui/material/styles";
+import type { CSSProperties } from "react";
 import type { CardStatus } from "./types";
 
 type CardStatusColors = Record<CardStatus, string>;
@@ -25,6 +26,16 @@ type CardPalette = {
 };
 
 declare module "@mui/material/styles" {
+  interface TypographyVariants {
+    fieldLabel: CSSProperties;
+    sectionLabel: CSSProperties;
+  }
+
+  interface TypographyVariantsOptions {
+    fieldLabel?: CSSProperties;
+    sectionLabel?: CSSProperties;
+  }
+
   interface TypeText {
     muted: string;
   }
@@ -35,6 +46,13 @@ declare module "@mui/material/styles" {
 
   interface PaletteOptions {
     card?: CardPalette;
+  }
+}
+
+declare module "@mui/material/Typography" {
+  interface TypographyPropsVariantOverrides {
+    fieldLabel: true;
+    sectionLabel: true;
   }
 }
 
@@ -79,7 +97,7 @@ const theme = createTheme({
     },
     divider: "#e2e8f0",
     background: {
-      default: "#f4f6f8",
+      default: "#f8fafc",
       paper: "#ffffff",
     },
     card: {
@@ -160,6 +178,18 @@ const theme = createTheme({
       lineHeight: 1.4,
       letterSpacing: "0.06em",
     },
+    fieldLabel: {
+      fontSize: "1rem",
+      fontWeight: 600,
+      lineHeight: 1.4,
+      color: "#475569",
+    },
+    sectionLabel: {
+      fontSize: "1rem",
+      fontWeight: 700,
+      lineHeight: 1.4,
+      color: "#0f172a",
+    },
     button: {
       fontSize: "0.875rem",
       fontWeight: 600,
@@ -185,6 +215,8 @@ const theme = createTheme({
           },
           "&.Mui-disabled": {
             backgroundImage: "none",
+            backgroundColor: "#f1f5f9",
+            color: "#cbd5e1",
           },
         }),
       },
@@ -193,6 +225,29 @@ const theme = createTheme({
       defaultProps: {
         size: "small",
       },
+      variants: [
+        {
+          props: { className: "corpEditor" },
+          style: ({ theme }) => ({
+            "& .MuiOutlinedInput-root": {
+              backgroundColor: theme.palette.background.default,
+              color: theme.palette.text.primary,
+              fontFamily: "monospace",
+              fontSize: "1rem",
+              borderRadius: "6px",
+              "& .MuiOutlinedInput-notchedOutline": { borderColor: theme.palette.divider },
+              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: theme.palette.primary.main },
+            },
+            '&[data-editor-state="dirty"] .MuiOutlinedInput-notchedOutline': { borderColor: "#fbbf24" },
+            '&[data-editor-state="error"] .MuiOutlinedInput-root.Mui-error .MuiOutlinedInput-notchedOutline': {
+              borderColor: theme.palette.error.light,
+            },
+            "& .MuiInputBase-input": { py: "5px", px: "10px" },
+            "& .MuiInputBase-input::placeholder": { color: "#94a3b8", opacity: 1 },
+          }),
+        },
+      ],
     },
     MuiSelect: {
       defaultProps: {

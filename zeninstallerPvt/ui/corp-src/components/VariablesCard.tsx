@@ -10,24 +10,9 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import UndoIcon from "@mui/icons-material/Undo";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import FieldLabel from "./FieldLabel";
 import type { UpsertStatus } from "../types";
 import { getVariableDisplayName } from "../logic/variables";
-
-// ─── Input style ──────────────────────────────────────────────────────────────
-
-const inputSx = {
-  "& .MuiInputBase-root": {
-    background: "#f8fafc",
-    color: "#0f172a",
-    fontFamily: "monospace",
-    fontSize: "1rem",
-    borderRadius: "6px",
-  },
-  "& .MuiInputBase-input": { py: "5px", px: "10px" },
-  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
-  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
-  "& .MuiInputBase-input::placeholder": { color: "#94a3b8" },
-};
 
 // ─── Variable row ─────────────────────────────────────────────────────────────
 
@@ -80,16 +65,12 @@ function VariableRow({
     >
       {/* Key label + optional info tooltip */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: "10.5rem", flexShrink: 0 }}>
-        <Typography
-          sx={{
-            fontSize: "1rem",
-            fontFamily: "monospace",
-            color: isDirty ? "#92400e" : "#0f172a",
-            whiteSpace: "nowrap",
-          }}
+        <FieldLabel
+          htmlFor={`variable-${varKey}`}
+          sx={{ fontSize: "1rem", fontFamily: "monospace", color: isDirty ? "#92400e" : "#0f172a", whiteSpace: "nowrap", mb: 0 }}
         >
           {getVariableDisplayName(varKey)}
-        </Typography>
+        </FieldLabel>
         {description && (
           <Tooltip title={description} placement="top" arrow>
             <InfoOutlinedIcon sx={{ fontSize: 13, color: "#cbd5e1", cursor: "help", "&:hover": { color: "#94a3b8" } }} />
@@ -98,17 +79,15 @@ function VariableRow({
       </Box>
 
       <TextField
+        id={`variable-${varKey}`}
+        className="corpEditor"
+        data-editor-state={isError ? "error" : isDirty ? "dirty" : undefined}
         data-sensitive="true"
-        size="small"
+        error={isError}
         placeholder="not set"
         value={localValue}
         onChange={(e) => onChange(varKey, e.target.value)}
-        sx={{
-          flex: 1,
-          ...inputSx,
-          ...(isDirty ? { "& .MuiOutlinedInput-notchedOutline": { borderColor: "#fbbf24" } } : {}),
-          ...(isError ? { "& .MuiOutlinedInput-notchedOutline": { borderColor: "#ef4444" } } : {}),
-        }}
+        sx={{ flex: 1 }}
         InputProps={{
           endAdornment:
             localValue || isDirty ? (

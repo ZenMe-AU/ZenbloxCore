@@ -83,7 +83,6 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                   onClick={login}
                   sx={{
                     alignSelf: "flex-start",
-                    background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                     textTransform: "none",
                     ...uiFont,
                     fontSize: "1rem",
@@ -92,7 +91,6 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                     borderRadius: "8px",
                     boxShadow: "0 2px 8px #2563eb33",
                     "&:hover": {
-                      background: "linear-gradient(135deg, #1d4ed8, #1e40af)",
                       boxShadow: "0 4px 12px #2563eb44",
                     },
                   }}
@@ -245,11 +243,9 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                     type="submit"
                     disabled={!manualTenantId.trim()}
                     sx={{
-                      background: "#2563eb",
                       textTransform: "none",
                       ...uiFont,
                       fontSize: "1rem",
-                      "&:hover": { background: "#1d4ed8" },
                     }}
                   >
                     Confirm tenant

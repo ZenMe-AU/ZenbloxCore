@@ -359,15 +359,12 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
             disabled={disabled || !canSync || syncing}
             startIcon={syncing ? <CircularProgress size={12} sx={{ color: "#93c5fd" }} /> : undefined}
             sx={{
-              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
               textTransform: "none",
               ...uiFont,
               fontSize: "1rem",
               py: 0.65,
               px: 2,
               borderRadius: "8px",
-              "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-              "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
             }}
           >
             Sync groups

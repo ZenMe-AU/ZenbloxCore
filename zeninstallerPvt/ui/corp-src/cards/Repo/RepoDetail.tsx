@@ -427,13 +427,11 @@ export default function RepoDetail({
             variant="contained"
             size="small"
             sx={{
-              background: "#2563eb",
               fontFamily: "monospace",
               fontSize: "1rem",
               textTransform: "none",
               py: 0.75,
               px: 2.5,
-              "&:hover": { background: "#1d4ed8" },
               "&.Mui-disabled": { background: "#bfdbfe", color: "#93c5fd" },
             }}
           >

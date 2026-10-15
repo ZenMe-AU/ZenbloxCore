@@ -182,15 +182,12 @@ export default function GithubLoginCard({ card, auth }: Props) {
                 startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "#cbd5e1" }} /> : undefined}
                 sx={{
                   alignSelf: "flex-start",
-                  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                   textTransform: "none",
                   ...uiFontSx,
                   fontSize: "1rem",
                   py: 0.75,
                   px: 2,
                   borderRadius: "8px",
-                  "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-                  "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
                 }}
               >
                 {signingIn ? "Connecting..." : "Connect with PAT"}
@@ -203,7 +200,6 @@ export default function GithubLoginCard({ card, auth }: Props) {
               disabled={signingIn}
               startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "#cbd5e1" }} /> : undefined}
               sx={{
-                background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
                 textTransform: "none",
                 ...uiFontSx,
                 fontSize: "1rem",
@@ -212,13 +208,12 @@ export default function GithubLoginCard({ card, auth }: Props) {
                 borderRadius: "8px",
                 boxShadow: "0 2px 8px #2563eb33",
                 "&:hover": {
-                  background: "linear-gradient(135deg, #1d4ed8, #1e40af)",
                   boxShadow: "0 4px 12px #2563eb44",
                 },
-                "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1", boxShadow: "none" },
+                "&.Mui-disabled": { boxShadow: "none" },
               }}
             >
-              {signingIn ? "Connecting..." : "Login with GitHub"}
+              {signingIn ? "Connecting..." : "Sign in with GitHub"}
             </Button>
           )
         ) : (

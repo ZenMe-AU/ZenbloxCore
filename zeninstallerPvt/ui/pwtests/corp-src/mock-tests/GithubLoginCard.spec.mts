@@ -70,7 +70,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       const card = await expandGithubLoginCard(page);
       await card.getByRole("button", { name: "Direct (PAT)", exact: true }).click();
       await card.getByRole("button", { name: "Backend", exact: true }).click();
-      await expect(card.getByRole("button", { name: "Login with GitHub", exact: true })).toBeVisible();
+      await expect(card.getByRole("button", { name: "Sign in with GitHub", exact: true })).toBeVisible();
     });
   });
 }
