@@ -6,32 +6,33 @@
 /// <reference types="node" />
 
 import { defineConfig, devices } from "@playwright/test";
+import * as dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { viewports } from "./zeninstallerPvt/ui/pwtests/testInit.js";
 
-const signedOutTests = [/access-pass-render\.spec\.ts/, /azure-help-link\.spec\.ts/, /zeninstaller-link\.spec\.ts/];
-const authenticatedTests = [
-  /authenticated-page-load\.spec\.ts/,
-  /azure-connection\.spec\.ts/,
-  /entra-user-action\.spec\.ts/,
-  /tenant-outcome\.spec\.ts/,
-  /access-pass-creation\.spec\.ts/,
-];
-
+process.env.NODE_ENV = process.env.NODE_ENV || "dev";
+// Enable Playwright API logs for normal and coverage runs, preserving other namespaces.
+process.env.DEBUG = [process.env.DEBUG, "pw:api"].filter(Boolean).join(",");
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(currentDirectory, ".env") });
 
 export default defineConfig({
-  testDir: "./src/pwtests",
-  outputDir: "./src/pwtests/test-results",
+  testDir: ".",
+  outputDir: "./pwtest-results",
   updateSnapshots: process.env.CI ? "none" : "missing",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: "html",
+  reporter: [
+    // A terminal reporter is what streams worker stdout/stderr (incl. pw:api) to the console.
+    ["line"],
+  ],
   timeout: 60_000,
   expect: {
     timeout: 10_000,
+
     toHaveScreenshot: {
       animations: "disabled",
       caret: "hide",
@@ -40,38 +41,45 @@ export default defineConfig({
       pathTemplate: "{testDir}/{arg}{ext}",
     },
   },
+
   use: {
     baseURL: "http://localhost:5173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     testIdAttribute: "data-id",
   },
+
   projects: [
     {
-      name: "azure-passkey-setup",
-      testMatch: /azure-passkey\.setup\.ts/,
-      fullyParallel: false,
-      use: { ...devices["Desktop Chrome"] },
-    },
-    {
-      name: "access-pass",
-      testMatch: signedOutTests,
-      use: { ...devices["Desktop Chrome"] },
-    },
-    {
-      name: "access-pass-auth",
-      testMatch: authenticatedTests,
+      name: "Desktop",
+      testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
       fullyParallel: false,
       workers: 1,
       retries: 1,
-      use: { ...devices["Desktop Chrome"] },
-      dependencies: ["azure-passkey-setup"],
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: viewports.Desktop,
+      },
+    },
+    {
+      name: "Mobile",
+      testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
+      fullyParallel: false,
+      workers: 1,
+      retries: 1,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: viewports.Mobile,
+      },
     },
   ],
+
+  /**
+   * Start the server automatically
+   */
   webServer: {
-    command: "pnpm --dir ../ui run dev",
-    url: "http://localhost:5173",
-    cwd: currentDirectory,
+    command: "pnpm run dev",
+    url: process.env.BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

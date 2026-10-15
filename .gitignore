@@ -32,9 +32,10 @@ package-lock.json
 */package-lock.json
 
 # Playwright
-test-results/
+pwtest-results/
 playwright-report/
 .auth/
+zeninstallerPvt/ui/pwtests/test-results/
 
 # Terraform files
 *.tfstate
@@ -51,3 +52,4 @@ __azurite_db_queue_extent__.json
 __azurite_db_table__.json
 __blobstorage__/
 AzuriteConfig
+
