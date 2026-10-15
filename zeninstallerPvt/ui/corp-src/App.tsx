@@ -20,6 +20,7 @@ import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzu
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
 import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
 import { useCoreInfraCard } from "./cards/CoreInfra/useCoreInfraCard";
+import { usePrivateFrontendInfraCard } from "./cards/PrivateFrontendInfra/usePrivateFrontendInfraCard";
 import { useRemoteTerminalInfraCard } from "./cards/RemoteTerminalInfra/useRemoteTerminalInfraCard";
 import { useBackendDeployCard } from "./cards/BackendDeploy/useBackendDeployCard";
 import { useAccessPassCard } from "./cards/AccessPass/useAccessPassCard";
@@ -38,6 +39,7 @@ import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCard";
 import CoreInfraCard from "./cards/CoreInfra/CoreInfraCard";
+import PrivateFrontendInfraCard from "./cards/PrivateFrontendInfra/PrivateFrontendInfraCard";
 import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
 import BackendDeployCard from "./cards/BackendDeploy/BackendDeployCard";
 import WebDeployCard from "./cards/WebDeploy/WebDeployCard";
@@ -164,13 +166,22 @@ function AppDashboard() {
       selectedEnv: githubRepoEnv.env.selectedEnv,
     })
   );
+  const privateFrontendInfra = addCard(
+    usePrivateFrontendInfraCard({
+      variableValues: githubVariableValues,
+      azureAccount: azureLogin.account,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
+      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
+      allowedOrigins: [window.location.origin],
+    })
+  );
+
   const webDeploy = addCard(
     useWebDeployCard({
       variableValues: githubVariableValues,
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-      corpName,
       githubAccount: githubRepoEnv.repo.selectedAccount,
       repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
       selectedEnv: githubRepoEnv.env.selectedEnv,
@@ -421,7 +432,17 @@ function AppDashboard() {
               }
             />
 
-            <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
+            <PrivateFrontendInfraCard
+              card={cardProps("private_frontend_infra")}
+              infra={privateFrontendInfra}
+              subscriptionId={azureSubscription.selectedSubscriptionId}
+              tenantId={githubVariableValues.AZURE_TENANT_ID ?? ""}
+              githubAccount={githubRepoEnv.repo.selectedAccount}
+              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+              selectedEnv={githubRepoEnv.env.selectedEnv}
+              variables={githubVariables}
+              githubUrl={githubRepoEnv.githubEnvUrl}
+            />
 
             <WebDeployCard
               card={cardProps("web_deploy")}
@@ -437,6 +458,9 @@ function AppDashboard() {
                   : null
               }
             />
+            
+            <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
+
             <AwsSetupCard
               card={cardProps("aws_setup")}
               awsSetup={awsSetup}
