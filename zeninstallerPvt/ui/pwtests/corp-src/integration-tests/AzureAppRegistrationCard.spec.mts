@@ -4,7 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/AzureAppRegistrationCard.tsx
-import { test, expect, type Page, type TestInfo } from "@playwright/test";
+import { expect, type Page, type TestInfo } from "@playwright/test";
+import { getViewportName, test } from "../util/viewportFixture.mts";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
 import { expectSnapshot, safePathSegment, expectVisibleWithin, attachJSCoverage } from "../../util/testHelper.ts";
@@ -23,13 +24,11 @@ test("Reuses existing app", async ({ page, context }, testInfo) => {
   const { viewportName, repoName, appName } = await prepareTest(page, context, testInfo);
   const card = await prepareAppRegistrationCard(page, context, repoName);
   const appNameInput = card.locator("input:visible").first();
-
   await appNameInput.fill(appName);
   await card.getByRole("button", { name: "Create app registration" }).click();
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
   await expectVisibleWithin(card.getByRole("button", { name: "Try again" }), "Try again button", 50_000);
   await expectVisibleWithin(card.getByText("Create app registration", { exact: true }), "Create app registration step", 50_000);
-
   await card.getByRole("button", { name: "Try again" }).click();
   await expectVisibleWithin(appNameInput, "App registration name input", 50_000);
   await card.getByRole("button", { name: "Create app registration" }).click();
@@ -89,7 +88,7 @@ async function prepareAppRegistrationCard(page: import("@playwright/test").Page,
 }
 
 async function prepareTest(page: import("@playwright/test").Page, context: import("@playwright/test").BrowserContext, testInfo: import("@playwright/test").TestInfo): Promise<{ viewportName: string; repoName: string; appName: string }> {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   test.setTimeout(600_000);
   const runId = Date.now().toString(36);
   const repoName = safePathSegment(`${TEST_REPO_MAIN}-${viewportName}`);

@@ -1,5 +1,6 @@
 // UI component: ../../../corp-src/cards/CreateDomain/CreateDomainCard.tsx
-import { test, expect } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { getViewportName, test } from "../util/viewportFixture.mts";
 import { AZURE_MANAGEMENT_URL, CORP_URL, MICROSOFT_GRAPH_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot, safePathSegment } from "../../util/testHelper.ts";
 import {
@@ -101,7 +102,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
 });
 
 test("Retries setup after a temporary DNS-zone failure", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	test.setTimeout(240_000);
 	const { card, azure, unexpectedRequests, getDnsZoneCreateAttempts } = await prepareDomainCard(
 		page,
@@ -128,7 +129,7 @@ test("Retries setup after a temporary DNS-zone failure", async ({ page, context 
 });
 
 test("Stops setup when Microsoft consent is denied", async ({ page, context }, testInfo) => {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	test.setTimeout(180_000);
 	const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
 		rejectConsent: true,
@@ -148,7 +149,7 @@ test("Stops setup when Microsoft consent is denied", async ({ page, context }, t
 });
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
-	const viewportName = testInfo.project.name;
+	const viewportName = getViewportName(testInfo);
 	test.setTimeout(240_000);
 	const {
 		card,

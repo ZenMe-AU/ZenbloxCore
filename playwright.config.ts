@@ -50,26 +50,37 @@ export default defineConfig({
   },
 
   projects: [
+    // {
+    //   name: "Desktop",
+    //   testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
+    //   fullyParallel: false,
+    //   workers: 1,
+    //   retries: 1,
+    //   use: {
+    //     ...devices["Desktop Chrome"],
+    //     viewport: viewports.Desktop,
+    //   },
+    // },
+    // {
+    //   name: "Mobile",
+    //   testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
+    //   fullyParallel: false,
+    //   workers: 1,
+    //   retries: 1,
+    //   use: {
+    //     ...devices["Desktop Chrome"],
+    //     viewport: viewports.Mobile,
+    //   },
+    // },
     {
-      name: "Desktop",
+      name: "Desktop and Mobile",
       testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
-      fullyParallel: false,
-      workers: 1,
+      fullyParallel: true,
+      workers: 2,
       retries: 1,
       use: {
         ...devices["Desktop Chrome"],
         viewport: viewports.Desktop,
-      },
-    },
-    {
-      name: "Mobile",
-      testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
-      fullyParallel: false,
-      workers: 1,
-      retries: 1,
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: viewports.Mobile,
       },
     },
   ],

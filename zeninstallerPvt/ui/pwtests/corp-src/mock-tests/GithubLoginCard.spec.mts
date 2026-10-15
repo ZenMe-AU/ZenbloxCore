@@ -4,7 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/GithubLogin/GithubLoginCard.tsx
-import { test, expect } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { getViewportName, test } from "../util/viewportFixture.mts";
 import { GITHUB_API_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import { installGithubOAuthCallback, prepareGithubLoginMock } from "../util/mockTestHelper.mts";
@@ -23,7 +24,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
 });
 
 test("OAuth handoff, callback, refresh and logout", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
   const { exchanges, authorizations } = await installGithubOAuthCallback(page);
   const card = await expandGithubLoginCard(page);
@@ -45,7 +46,7 @@ test("OAuth handoff, callback, refresh and logout", async ({ page, context }, te
 
 for (const status of [401, 500]) {
   test(`Rejected PAT (${status}) can be retried`, async ({ page, context }, testInfo) => {
-    const viewportName = testInfo.project.name;
+    const viewportName = getViewportName(testInfo);
     const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
     let fail = true;
     let failures = 0;
@@ -77,7 +78,7 @@ for (const status of [401, 500]) {
 }
 
 test("Expired stored PAT stays unauthenticated", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
   await page.route(`${GITHUB_API_URL}/user`, (route) => {
     expect(route.request().headers().authorization).toBe("Bearer ghp_expired_mock");
@@ -93,7 +94,7 @@ test("Expired stored PAT stays unauthenticated", async ({ page, context }, testI
 });
 
 test("Rejects an invalid PAT", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
   const card = await expandGithubLoginCard(page);
   await card.getByRole("button", { name: "Direct (PAT)", exact: true }).click();
@@ -107,7 +108,7 @@ test("Rejects an invalid PAT", async ({ page, context }, testInfo) => {
 });
 
 test("Switches from direct mode back to backend mode", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
   const card = await expandGithubLoginCard(page);
   await card.getByRole("button", { name: "Direct (PAT)", exact: true }).click();
@@ -118,7 +119,7 @@ test("Switches from direct mode back to backend mode", async ({ page, context },
 });
 
 test("Direct-only configuration supports token controls", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const { unexpectedRequests } = await prepareGithubLoginMock(page, context, false);
   const card = await expandGithubLoginCard(page);
   await expect(card.getByRole("button", { name: "Backend", exact: true })).toHaveCount(0);
@@ -138,7 +139,7 @@ test("Direct-only configuration supports token controls", async ({ page, context
 });
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
   const card = await test.step("Expand unauthenticated card", async () => {
     const result = await expandGithubLoginCard(page);

@@ -4,7 +4,8 @@
  */
 
 // UI component: ../../../corp-src/cards/AzureSubscriptionCard.tsx
-import { test, type BrowserContext, expect, type Locator, type Page } from "@playwright/test";
+import { type BrowserContext, expect, type Locator, type Page } from "@playwright/test";
+import { getViewportName, test } from "../util/viewportFixture.mts";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
 import { attachJSCoverage, expectSnapshot, safePathSegment, expectVisibleWithin } from "../../util/testHelper.ts";
@@ -20,7 +21,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
 })
 
 test("Selecting an existing repository with environment variables already saved", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   test.setTimeout(300_000);
   const { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput, saveButton } = await openExistingAzureSubscription(page, context,viewportName);
   await expect(tenantVariableInput).not.toHaveValue("");
@@ -31,7 +32,7 @@ test("Selecting an existing repository with environment variables already saved"
 });
 
 test("Modifying one existing variable", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   test.setTimeout(300_000);
   const { azureSubscriptionCard, subscriptionVariableInput, saveButton } = await openExistingAzureSubscription(page, context, viewportName);
   const savedSubscriptionId = await subscriptionVariableInput.inputValue();
@@ -47,7 +48,7 @@ test("Modifying one existing variable", async ({ page, context }, testInfo) => {
 });
 
 test("Modifying all existing variables", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   test.setTimeout(300_000);
   const { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput, saveButton } = await openExistingAzureSubscription(page, context,viewportName);
   const savedTenantId = await tenantVariableInput.inputValue();
@@ -69,7 +70,7 @@ test("Modifying all existing variables", async ({ page, context }, testInfo) => 
 });
 
 test("Variables removed before saving", async ({ page, context }, testInfo) => {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   test.setTimeout(300_000);
   const { azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput } = await openExistingAzureSubscription(page, context, viewportName);
   const savedTenantId = await tenantVariableInput.inputValue();
@@ -101,7 +102,7 @@ test("Variables removed before saving", async ({ page, context }, testInfo) => {
 });
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
-  const viewportName = testInfo.project.name;
+  const viewportName = getViewportName(testInfo);
   test.setTimeout(300_000);
   const repoName = safePathSegment(`${TEST_REPO_MAIN}-${viewportName}`);
   await restoreGithubSessionStorage(context);
