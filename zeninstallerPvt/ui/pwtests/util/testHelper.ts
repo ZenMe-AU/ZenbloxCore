@@ -41,12 +41,12 @@ function snapshotPath(testInfo: TestInfo, viewportName: string, fileSubstring: s
   const relativeTestPath = path.relative(testInfo.project.testDir, testInfo.file);
   const testPathSegments = relativeTestPath.split(path.sep).map((segment) => safePathSegment(segment));
   const testFile = testPathSegments.pop()?.replace(/\.spec\.(?:m?[jt]sx?)$/, "") ?? "unnamed";
-  const sourceFolder = testPathSegments.shift();
+  const snapshotRootEnd = Math.max(1, testPathSegments.length - 1);
 
   return [
-    ...(sourceFolder ? [sourceFolder] : []),
+    ...testPathSegments.slice(0, snapshotRootEnd),
     "snapshots",
-    ...testPathSegments,
+    ...testPathSegments.slice(snapshotRootEnd),
     safePathSegment(testFile),
     safePathSegment(viewportName),
     safePathSegment(snapshotName.endsWith(".png") ? snapshotName : safePathSegment(`${snapshotName}.png`)),
