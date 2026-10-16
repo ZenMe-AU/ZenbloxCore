@@ -53,3 +53,4 @@ __azurite_db_table__.json
 __blobstorage__/
 AzuriteConfig
 
+corpSetup/c25cloudfront/source/loginApp/config.js
