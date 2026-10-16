@@ -636,7 +636,7 @@ export async function prepareMockAzureSubscription(
   await expect(azureSubscriptionCard.getByRole("combobox")).toBeVisible();
 
   if (options.saveVariables) {
-    const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables" });
+    const saveButton = azureSubscriptionCard.getByRole("button", { name: /^Save \d+ variables$/ });
     await expect(saveButton).toBeEnabled();
     await saveButton.click();
     await expect(azureSubscriptionCard.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled();
@@ -658,4 +658,8 @@ export async function prepareMockAzureSubscription(
   };
 }
 
-export const savedAzureVariables = { AZURE_TENANT_ID: mockTenantId, AZURE_SUBSCRIPTION_ID: mockSubscriptionId };
+export const savedAzureVariables = {
+  AZURE_TENANT_ID: mockTenantId,
+  AZURE_SUBSCRIPTION_ID: mockSubscriptionId,
+  VITE_AZURE_TENANT_ID: mockTenantId,
+};

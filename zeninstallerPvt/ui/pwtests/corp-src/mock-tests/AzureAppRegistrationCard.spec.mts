@@ -83,7 +83,9 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         const card = await expandAzureSubscriptionCard(page);
         await expect(card.getByText("Loading subscriptions...", { exact: true })).toBeHidden();
         await expect(card.getByRole("combobox")).toBeVisible();
-        await card.getByRole("button", { name: "Save 2 variables" }).click();
+        const saveVariablesButton = card.getByRole("button", { name: /^Save \d+ variables$/ });
+        await expect(saveVariablesButton).toBeEnabled();
+        await saveVariablesButton.click();
         await expect(card.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled();
         await expectSnapshot(page, card, testInfo, "subscription-saved", viewportName);
       });

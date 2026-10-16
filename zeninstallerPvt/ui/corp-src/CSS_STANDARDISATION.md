@@ -2,7 +2,7 @@
 
 Scope: `zeninstallerPvt/ui` only. Paths below are relative to that folder (the old `web/` prefix no longer exists).
 
-Sections 0–6 record the initial audit baseline from 2026-10-07; their counts and source-tree observations are historical, not a current inventory. Progress notes in section 7 supersede baseline findings where work has since been completed. Latest update: 2026-10-15.
+Sections 0–6 record the initial audit baseline from 2026-10-07; their counts and source-tree observations are historical, not a current inventory. Progress notes in section 7 supersede baseline findings where work has since been completed. Latest update: 2026-10-16.
 
 ## 0. Audit summary (2026-10-07)
 
@@ -275,6 +275,9 @@ Each step is one reviewable change that leaves the app working. After every step
 ### Step 7. Pilot card
 
 - Migrate `AzureLoginCard` completely (hex, `fontSize`, `fontFamily` and shared patterns removed from `sx`). Review the diff and screenshots; adjust the theme and building blocks before scaling.
+- **Completed (2026-10-16).** Migrated Azure Login copy and status/error messages to shared components and theme variants; removed card-local hex colors, font overrides, `UI_FONT`, and label-style shims. Tenant labels now reference the Select or manual tenant input while the help link remains a separate secure external link. Added a semantic error contained-button theme variant for sign-out and the theme-backed `corpTechnicalInput` class for manual tenant IDs. Restored the `MONO` compatibility alias used by `PrivateFrontendInfraCard` so the installer builds during the incremental migration. Existing IDs, data hooks, and flow/layout remain intact. Reviewed and updated the Azure Login desktop/mobile snapshots for the intended shared typography and link styling.
+- **Verification (2026-10-16).** Focused ESLint passed for the changed TypeScript files; the Azure Login hook unit tests passed (7/7); `pnpm build` passed; the Azure Login mock spec passed (10/10) with updated snapshots. An initial unfiltered `pnpm test` attempt also surfaced the existing three Access Pass telemetry failures (`appInsights` is null); this pilot's focused hook tests and browser checks pass.
+- **Azure subscription mock-test follow-up (2026-10-16).** Updated `pwtests/util/testHelper.ts` so card snapshots wait for DOM readiness and fonts without requiring `networkidle`. Updated `pwtests/corp-src/util/mockTestHelper.mts` to include `VITE_AZURE_TENANT_ID` in saved mock variables and to locate the save button by its dynamic variable count. The Azure Subscription and Azure App Registration mock specs now use the dynamic save-button name and assert it is enabled before clicking; the subscription suite also has a 120-second describe timeout. These changes account for the additional tenant variable introduced by the Azure Login pilot.
 
 ### Step 8. Migrate the remaining cards, one PR each
 

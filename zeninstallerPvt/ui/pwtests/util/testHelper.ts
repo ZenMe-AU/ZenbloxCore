@@ -55,7 +55,6 @@ function snapshotPath(testInfo: TestInfo, viewportName: string, fileSubstring: s
 // takes snapshot of a specific card element, rather than the whole page
 export async function expectSnapshot(page: Page, locator: Locator, testInfo: TestInfo, snapshotName: string, viewportName: string): Promise<void> {
   await page.waitForLoadState("domcontentloaded").catch(() => undefined);
-  await page.waitForLoadState("networkidle").catch(() => undefined);
   await page
     .locator("body")
     .evaluate(async () => document.fonts?.ready)

@@ -6,11 +6,15 @@
 import { Box, Button, CircularProgress, MenuItem, Select, TextField, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { CLOUD_DOCS } from "./config";
-import { UI_FONT as uiFont, labelSx } from "../../config/styles";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getEntraOverviewUrl } from "../../logic/consoleUrls";
 import ConfigErrorNotice from "../../components/ConfigErrorNotice";
+import CardIntro from "../../components/CardIntro";
+import ErrorText from "../../components/ErrorText";
+import ExternalLink from "../../components/ExternalLink";
+import FieldLabel from "../../components/FieldLabel";
+import StatusText from "../../components/StatusText";
 import type { CardChrome } from "../../types";
 import type { UseAzureLoginCard } from "./useAzureLoginCard";
 import { tenantDisplayName } from "../../logic/tenant";
@@ -22,10 +26,10 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.7 }}>
+    <CardIntro>
       Sign in with Azure so we can create the app registration and cloud resources for you. We never store your Azure credentials — sign-in happens directly
       with Microsoft, and only a short-lived access token is used.
-    </Typography>
+    </CardIntro>
   );
 }
 
@@ -74,8 +78,8 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
             {loggingIn ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <CircularProgress size={14} sx={{ color: "#2563eb" }} />
-                <Typography sx={{ fontSize: "1rem", color: "#64748b" }}>Checking session...</Typography>
+                <CircularProgress size={14} color="primary" aria-hidden="true" />
+                <StatusText>Checking session...</StatusText>
               </Box>
             ) : (
               <>
@@ -84,66 +88,39 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                   onClick={login}
                   sx={{
                     alignSelf: "flex-start",
-                    textTransform: "none",
-                    ...uiFont,
-                    fontSize: "1rem",
                     py: 1,
                     px: 2.5,
-                    borderRadius: "8px",
-                    boxShadow: "0 2px 8px #2563eb33",
-                    "&:hover": {
-                      boxShadow: "0 4px 12px #2563eb44",
-                    },
                   }}
                 >
                   Sign in with Azure
                 </Button>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography sx={{ fontSize: "1rem", color: "#94a3b8" }}>No Azure account?</Typography>
-                  <Box
-                    component="a"
-                    href={CLOUD_DOCS.azure.createAccount}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 0.25,
-                      color: "#64748b",
-                      textDecoration: "none",
-                      "&:hover": { color: "#2563eb" },
-                    }}
-                  >
-                    <Typography sx={{ fontSize: "1rem" }}>Create a free one</Typography>
-                    <OpenInNewIcon sx={{ fontSize: 11 }} />
-                  </Box>
+                  <Typography variant="body2" color="text.muted">No Azure account?</Typography>
+                  <ExternalLink href={CLOUD_DOCS.azure.createAccount} label="Create an Azure account">
+                    <>
+                      Create a free one <OpenInNewIcon fontSize="inherit" />
+                    </>
+                  </ExternalLink>
                 </Box>
               </>
             )}
-            {loginError && <Typography sx={{ fontSize: "1rem", color: "#ef4444" }}>{loginError}</Typography>}
+            {loginError && <ErrorText>{loginError}</ErrorText>}
           </Box>
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography sx={{ fontSize: "1rem", color: "#64748b" }}>
+              <Typography variant="body2" color="text.secondary">
                 Signed in as{" "}
-                <Box component="span" data-sensitive="true" data-id="txtAzureUsername" sx={{ color: "#16a34a", fontWeight: 600, ...uiFont }}>
+                <Box component="span" data-sensitive="true" data-id="txtAzureUsername" sx={{ color: "success.main", fontWeight: 600 }}>
                   {azureAccount.username}
                 </Box>
               </Typography>
               <Button
                 size="small"
                 onClick={logout}
-                sx={{
-                  minWidth: 0,
-                  fontSize: "0.875rem",
-                  color: "#ffffff",
-                  background: "linear-gradient(135deg, #ef4444, #dc2626)",
-                  textTransform: "none",
-                  ...uiFont,
-                  py: 0.25,
-                  "&:hover": { color: "#ffffff", background: "linear-gradient(135deg, #dc2626, #b91c1c)" },
-                }}
+                variant="contained"
+                color="error"
+                sx={{ minWidth: 0, py: 0.25 }}
               >
                 Sign out
               </Button>
@@ -151,45 +128,32 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
 
             {/* Tenant */}
             <Box>
-              <Typography sx={{ ...labelSx, mb: 0.75 }}>
-                Tenant
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 0.75 }}>
+                <FieldLabel id="azure-tenant-label" htmlFor="azure-tenant-select" sx={{ mb: 0 }}>
+                  Tenant
+                </FieldLabel>
                 {/* Only tells you how to find a tenant to type in, which a pinned tenant makes moot. */}
-                <Box
-                  component="a"
-                  href={CLOUD_DOCS.azure.urlGetTenantId}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{
-                    ml: 1,
-                    display: tenantPinned ? "none" : "inline-flex",
-                    color: "#2563eb",
-                    textDecoration: "none",
-                    alignItems: "center",
-                  }}
-                >
-                  <Typography
-                    component="span"
-                    sx={{
-                      fontSize: "1rem",
-                      "&:hover": { textDecoration: "underline" },
-                    }}
-                  >
-                    Show page to get Tenant ID
-                  </Typography>
-                  <OpenInNewIcon sx={{ fontSize: 11 }} />
-                </Box>
-              </Typography>
+                {!tenantPinned && (
+                  <ExternalLink href={CLOUD_DOCS.azure.urlGetTenantId} label="Show page to get Tenant ID">
+                    <>
+                      Show page to get Tenant ID <OpenInNewIcon fontSize="inherit" />
+                    </>
+                  </ExternalLink>
+                )}
+              </Box>
 
               {!tenantsLoaded ? (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
-                  <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
-                  <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont }}>Loading tenants...</Typography>
+                  <CircularProgress size={16} color="inherit" aria-hidden="true" />
+                  <StatusText>Loading tenants...</StatusText>
                 </Box>
               ) : tenants.length > 0 ? (
                 // Fetched (or MSA-fallback) list available — plain dropdown, picking loads that tenant immediately.
                 <Select
                   // Pinned at build time: the value is shown but is not the user's to change.
                   disabled={tenantPinned}
+                  id="azure-tenant-select"
+                  labelId="azure-tenant-label"
                   data-id="tenant-select"
                   data-sensitive="true"
                   size="small"
@@ -197,10 +161,10 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                   onChange={(e) => selectTenant(e.target.value)}
                   displayEmpty
                   renderValue={(v) => {
-                    if (!v) return <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont }}>Select a tenant</Typography>;
-                    return <Typography sx={{ fontSize: "1rem", ...uiFont }}>{tenantDisplayName(tenants, v)}</Typography>;
+                    if (!v) return <Typography variant="body1" color="text.muted">Select a tenant</Typography>;
+                    return <Typography variant="body1">{tenantDisplayName(tenants, v)}</Typography>;
                   }}
-                  sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "1rem", ...uiFont }}
+                  sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%" }}
                 >
                   {tenants.map((t) => (
                     <MenuItem
@@ -212,8 +176,8 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                       data-tenant-name={t.displayName}
                     >
                       <Box>
-                        <Typography sx={{ fontSize: "1rem", ...uiFont }}>{t.displayName}</Typography>
-                        <Typography data-sensitive="true" sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont }}>
+                        <Typography variant="body1">{t.displayName}</Typography>
+                        <Typography variant="body1" data-sensitive="true" color="text.muted">
                           {t.tenantId}
                         </Typography>
                       </Box>
@@ -234,12 +198,13 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                   <TextField
                     size="small"
                     name="azure-tenant"
+                    id="azure-tenant-select"
                     autoComplete="on"
                     placeholder="Tenant ID"
                     value={manualTenantId}
                     onChange={(e) => setManualTenantId(e.target.value)}
                     sx={{ minWidth: { xs: 0, sm: 320 }, width: "100%" }}
-                    inputProps={{ style: { fontFamily: "monospace", fontSize: "1rem" } }}
+                      className="corpTechnicalInput"
                     helperText={tenants.length > 0 ? tenantDisplayName(tenants, manualTenantId) : undefined}
                   />
                   <Button
@@ -247,20 +212,21 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                     size="small"
                     type="submit"
                     disabled={!manualTenantId.trim()}
-                    sx={{
-                      textTransform: "none",
-                      ...uiFont,
-                      fontSize: "1rem",
-                    }}
                   >
                     Confirm tenant
                   </Button>
                 </Box>
               )}
               {savedTenantNotInList ? (
-                <Typography sx={{ fontSize: "1rem", color: "#ef4444", mt: 0.75 }}>Saved tenant not found — please pick another.</Typography>
+                <Box sx={{ mt: 0.75 }}>
+                  <ErrorText>Saved tenant not found — please pick another.</ErrorText>
+                </Box>
               ) : (
-                tenantIdError && <Typography sx={{ fontSize: "1rem", color: "#ef4444", mt: 0.75 }}>{tenantIdError}</Typography>
+                tenantIdError && (
+                  <Box sx={{ mt: 0.75 }}>
+                    <ErrorText>{tenantIdError}</ErrorText>
+                  </Box>
+                )
               )}
             </Box>
           </Box>

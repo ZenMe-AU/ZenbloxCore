@@ -11,6 +11,7 @@
 // Shared face for ordinary interface text.
 export const UI_FONT = { fontFamily: "sans-serif" } as const;
 export const MONO_FONT = { fontFamily: "monospace" } as const;
+export const MONO = MONO_FONT;
 
 export const borderHoverTint = (borderColor: string) => `color-mix(in srgb, ${borderColor} 20%, white)`;
 

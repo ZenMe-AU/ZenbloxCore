@@ -220,6 +220,18 @@ const theme = createTheme({
           },
         }),
       },
+      variants: [
+        {
+          props: { color: "error", variant: "contained" },
+          style: ({ theme }) => ({
+            color: theme.palette.error.contrastText,
+            backgroundImage: `linear-gradient(135deg, ${theme.palette.error.light}, ${theme.palette.error.main})`,
+            "&:hover": {
+              backgroundImage: `linear-gradient(135deg, ${theme.palette.error.main}, ${theme.palette.error.dark})`,
+            },
+          }),
+        },
+      ],
     },
     MuiTextField: {
       defaultProps: {
@@ -246,6 +258,12 @@ const theme = createTheme({
             "& .MuiInputBase-input": { py: "5px", px: "10px" },
             "& .MuiInputBase-input::placeholder": { color: "#94a3b8", opacity: 1 },
           }),
+        },
+        {
+          props: { className: "corpTechnicalInput" },
+          style: {
+            "& .MuiInputBase-input": { fontFamily: "monospace" },
+          },
         },
       ],
     },

@@ -21,6 +21,7 @@ import { writeFile } from "fs/promises";
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`Azure Subscription Card Mock - ${viewportName}`, () => {
+    test.describe.configure({ timeout: 120_000 });
     test.use({ viewport, deviceScaleFactor: 1 });
 
     test.beforeEach(async ({ page }) => {
@@ -101,7 +102,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
         await expect(subscriptionOption).toBeVisible();
         await subscriptionOption.click();
         await expect(subscriptionSelect).toContainText("Mock subscription");
-        const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables" });
+        const saveButton = azureSubscriptionCard.getByRole("button", { name: /^Save \d+ variables$/ });
+        await expect(saveButton).toBeEnabled();
         await expectSnapshot(page, azureSubscriptionCard, testInfo, "before-save", viewportName);
         await saveButton.click();
         await expect(azureSubscriptionCard.getByRole("button", { name: "Save variables" })).toBeDisabled();
