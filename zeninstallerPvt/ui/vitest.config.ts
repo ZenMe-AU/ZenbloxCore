@@ -15,8 +15,8 @@ export default defineConfig({
         },
         test: {
           name: "unit",
-          include: ["*-src/test/**/*.{test,spec}.{ts,tsx,js,jsx}"],
-          exclude: ["*-src/test/**/*.browser.{test,spec}.{ts,tsx,js,jsx}"],
+          include: ["*-src/test/**/*.{test}.{ts,tsx,js,jsx}"],
+          exclude: ["*-src/test/**/*.browser.{test}.{ts,tsx,js,jsx}"],
           environment: "jsdom",
           setupFiles: ["./vitest.setup.js"],
           globals: true,
@@ -28,7 +28,7 @@ export default defineConfig({
         },
         test: {
           name: "web",
-          include: ["*-src/test/**/*.browser.{test,spec}.{ts,tsx,js,jsx}"],
+          include: ["*-src/test/**/*.browser.{test}.{ts,tsx,js,jsx}"],
           browser: {
             enabled: true,
             provider: playwright(),
@@ -40,7 +40,7 @@ export default defineConfig({
       defineProject({
         test: {
           name: "functions",
-          include: ["backend/src/**/*.{test,spec}.{ts,tsx,js,jsx}"],
+          include: ["backend/src/**/*.{test}.{ts,tsx,js,jsx}"],
           environment: "node",
           globals: true,
         },

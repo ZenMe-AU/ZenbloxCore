@@ -1,0 +1,104 @@
+name: Build frontend
+
+# Builds the installer frontend at FRONTEND_DIR and publishes the static site as an artifact.
+# ZenInstaller's frontend card downloads that artifact and writes it into $web itself.
+on:
+  workflow_dispatch:
+    inputs:
+      github_env_name:
+        required: false
+        description: "GitHub Environment name"
+
+permissions:
+  contents: read
+  deployments: write
+
+env:
+  FRONTEND_DIR: zeninstallerPvt/ui
+  VITE_KEYS: VITE_API_URL VITE_AZURE_CLIENT_ID VITE_AZURE_TENANT_ID VITE_GITHUB_CLIENT_ID VITE_APPINSIGHTS_CONNECTION_STRING
+
+jobs:
+  build:
+    name: Build the static site
+    environment: ${{ inputs.github_env_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Compute a unique version identifier based on the frontend tree and the lockfile.
+      - name: Work out the frontend version
+        id: version
+        shell: bash
+        env:
+          ALL_VARS: ${{ toJSON(vars) }}
+        run: |
+          TREE=$(git rev-parse HEAD:$FRONTEND_DIR)
+          LOCK=$(git rev-parse HEAD:pnpm-lock.yaml)
+          # -S sorts the keys to make sure the same values hash
+          VARS=$(jq -Sc --arg keys "$VITE_KEYS" 'with_entries(select(.key | IN(($keys | split(" "))[])))' <<< "$ALL_VARS")
+          echo "version=$(printf '%s %s %s' "$TREE" "$LOCK" "$VARS" | sha256sum | cut -c1-12)" >> $GITHUB_OUTPUT
+          echo "tree=$TREE" >> $GITHUB_OUTPUT
+
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@22
+          install: false
+
+      - name: Install dependencies
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: pnpm install --frozen-lockfile
+
+      # Vite bakes these into the bundle, so the environment's values decide what the site talks to.
+      - name: Build the static site
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: pnpm run build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_AZURE_CLIENT_ID: ${{ vars.VITE_AZURE_CLIENT_ID }}
+          VITE_GITHUB_CLIENT_ID: ${{ vars.VITE_GITHUB_CLIENT_ID }}
+          VITE_APPINSIGHTS_CONNECTION_STRING: ${{ vars.VITE_APPINSIGHTS_CONNECTION_STRING }}
+
+      # The card uploads whatever is in here blob by blob, so the zip root must be the site root.
+      - name: Upload the site
+        id: pkg
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-site
+          path: ${{ env.FRONTEND_DIR }}/dist
+          if-no-files-found: error
+
+      - name: Build the report
+        id: report
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.pkg.outputs.artifact-id }}
+          ARTIFACT_URL: ${{ steps.pkg.outputs.artifact-url }}
+          ALL_VARS: ${{ toJSON(vars) }}
+        run: |
+          # The values this build was made with, recorded so they can be read back from the report.
+          VARS=$(jq -Sc --arg keys "$VITE_KEYS" 'with_entries(select(.key | IN(($keys | split(" "))[])))' <<< "$ALL_VARS")
+
+          # The card compares this version against $web's metadata to decide if an update is due.
+          PAYLOAD=$(jq -nc \
+            --arg version "${{ steps.version.outputs.version }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg runId "${{ github.run_id }}" \
+            --arg artifactUrl "$ARTIFACT_URL" \
+            --argjson artifactId "${ARTIFACT_ID:-null}" \
+            --argjson builtAt "$(date +%s)" \
+            --argjson vars "$VARS" \
+            '{ version: $version, sha: $sha, runId: $runId, artifactId: $artifactId,
+               artifactUrl: $artifactUrl, builtAt: $builtAt, vars: $vars }')
+          echo "payload=$PAYLOAD" >> $GITHUB_OUTPUT
+          echo "$PAYLOAD"
+
+      # task=build:frontend is what the card queries the Deployments API for.
+      - uses: ./.github/actions/record-deployment
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          environment: ${{ inputs.github_env_name }}
+          ref: ${{ github.ref_name }}
+          kind: build
+          dir: frontend
+          state: success
+          payload: ${{ steps.report.outputs.payload }}
