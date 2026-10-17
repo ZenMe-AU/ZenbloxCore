@@ -26,7 +26,3 @@ export const refreshBtnSx = {
 export const labelSx = {
   typography: "fieldLabel",
 };
-
-export const sectionLabelSx = {
-  typography: "sectionLabel",
-};

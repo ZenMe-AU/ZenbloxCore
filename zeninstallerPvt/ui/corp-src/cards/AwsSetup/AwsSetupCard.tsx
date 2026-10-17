@@ -6,13 +6,14 @@
 // This card handles the setup of AWS IAM roles for GitHub Actions through OIDC.
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Button, CircularProgress, Collapse, TextField, Typography } from "@mui/material";
+import { Box, Button, ButtonBase, CircularProgress, Collapse, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import Card from "../../components/Card";
+import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
 import { getIamRoleUrl } from "./consoleUrls";
 import CloudVariableDetail from ".././CloudVariableDetail";
@@ -20,13 +21,6 @@ import { AWS_VARIABLE_KEYS } from "../../logic/variables";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import type { SetupStep, UseAwsSetupCard } from "./useAwsSetupCard";
 import type { Account, CardChrome, GhEnv } from "../../types";
-
-const uiFont = { fontFamily: "sans-serif" };
-const labelSx = {
-  fontSize: "1rem",
-  color: "#94a3b8",
-  ...uiFont,
-};
 
 type Props = {
   card: CardChrome;
@@ -41,7 +35,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
       Create an AWS IAM role GitHub Actions can assume through OIDC, then save the role ARN to this GitHub environment so the deployment stages can use the same
       AWS target.
     </Typography>
@@ -56,21 +50,21 @@ function Action({ roleName }: { roleName: string }) {
 function StepRow({ step }: { step: SetupStep }) {
   const icon =
     step.status === "done" ? (
-      <CheckCircleOutlineIcon sx={{ fontSize: 14, color: "#22c55e" }} />
+      <CheckCircleOutlineIcon sx={{ fontSize: 14, color: (theme) => theme.palette.success.main }} />
     ) : step.status === "error" ? (
-      <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444" }} />
+      <ErrorOutlineIcon sx={{ fontSize: 14, color: (theme) => theme.palette.error.light }} />
     ) : step.status === "running" ? (
-      <CircularProgress size={12} sx={{ color: "#2563eb" }} />
+      <CircularProgress size={12} sx={{ color: (theme) => theme.palette.primary.main }} />
     ) : (
-      <RadioButtonUncheckedIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />
+      <RadioButtonUncheckedIcon sx={{ fontSize: 14, color: (theme) => theme.palette.card.icon.unavailable }} />
     );
 
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: "18px 1fr", alignItems: "start", py: 0.5 }}>
       <Box sx={{ display: "flex", alignItems: "center", height: "1.2em" }}>{icon}</Box>
       <Box>
-        <Typography sx={{ fontSize: "1rem", color: step.status === "error" ? "#ef4444" : "#475569", ...uiFont }}>{step.label}</Typography>
-        {step.detail && <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont, mt: 0.25 }}>{step.detail}</Typography>}
+        <Typography color={step.status === "error" ? "error.light" : "text.secondary"}>{step.label}</Typography>
+        {step.detail && <Typography color="text.muted" sx={{ mt: 0.25 }}>{step.detail}</Typography>}
       </Box>
     </Box>
   );
@@ -136,23 +130,25 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
 
         {bannerState !== "none" && (
           <Box
+            role={bannerState === "error" ? "alert" : "status"}
+            aria-live={bannerState === "error" ? "assertive" : "polite"}
             sx={{
               display: "flex",
               alignItems: "center",
               gap: 1,
-              background: bannerState === "error" ? "#fef9c3" : "#f0fdf4",
-              border: `1px solid ${bannerState === "error" ? "#fde047" : "#bbf7d0"}`,
-              borderRadius: "8px",
+              backgroundColor: (theme) => bannerState === "error" ? theme.palette.error.light + "14" : theme.palette.success.light + "1a",
+              border: (theme) => `1px solid ${bannerState === "error" ? theme.palette.error.light : theme.palette.success.light}`,
+              borderRadius: 1,
               px: 1.5,
               py: 1,
             }}
           >
             {bannerState === "error" ? (
-              <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 16, color: "error.light" }} />
             ) : (
-              <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} />
+              <CheckCircleOutlineIcon aria-hidden="true" sx={{ fontSize: 16, color: "success.main" }} />
             )}
-            <Typography sx={{ fontSize: "1rem", color: bannerState === "error" ? "#713f12" : "#15803d" }}>
+            <Typography color={bannerState === "error" ? "error.dark" : "success.dark"}>
               {bannerState === "saved" && "Connection details saved."}
               {bannerState === "no-changes" && "Connection details saved — no changes needed."}
               {bannerState === "error" && "Some connection details failed to save — check below."}
@@ -163,13 +159,14 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
         {steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <Box>
-              <Typography sx={{ ...labelSx, mb: 0.75 }}>IAM role name</Typography>
+              <FieldLabel htmlFor="aws-iam-role-name">IAM role name</FieldLabel>
               <TextField
+                id="aws-iam-role-name"
                 size="small"
                 value={roleName}
                 onChange={(e) => setRoleName(e.target.value)}
                 sx={{ minWidth: 280 }}
-                inputProps={{ style: { fontFamily: "monospace", fontSize: "1rem" } }}
+                className="corpTechnicalInput"
                 disabled={card.locked}
               />
             </Box>
@@ -180,12 +177,8 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 onClick={handleCreate}
                 disabled={card.locked || !canCreate}
                 sx={{
-                  textTransform: "none",
-                  ...uiFont,
-                  fontSize: "1rem",
                   py: 1,
                   px: 2.5,
-                  borderRadius: "8px",
                   boxShadow: "0 2px 8px #2563eb33",
                 }}
               >
@@ -193,8 +186,8 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
               </Button>
               {varHasAny && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                  <Typography sx={{ fontSize: "1rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
+                  <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14, color: "warning.main" }} />
+                  <Typography color="warning.main">This will overwrite your current connection details</Typography>
                 </Box>
               )}
             </Box>
@@ -202,11 +195,11 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
         )}
 
         {steps.length > 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid #e2e8f0", pl: 1.5 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: 2, borderColor: "divider", pl: 1.5 }}>
             {steps.map((s) => (
               <StepRow key={s.id} step={s} />
             ))}
-            {loading && <Typography sx={{ fontSize: "1rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
+            {loading && <Typography role="status" aria-live="polite" color="text.muted" sx={{ mt: 0.5 }}>Running...</Typography>}
             {!loading && (
               <Button
                 size="small"
@@ -214,11 +207,8 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 sx={{
                   alignSelf: "flex-start",
                   mt: 0.5,
-                  textTransform: "none",
-                  ...uiFont,
-                  fontSize: "1rem",
-                  color: "#64748b",
-                  "&:hover": { color: "#2563eb" },
+                  color: "text.muted",
+                  "&:hover": { color: "primary.main" },
                 }}
               >
                 ↩ Try again
@@ -227,28 +217,31 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
           </Box>
         )}
 
-        {error && <Typography sx={{ fontSize: "1rem", color: "#ef4444" }}>{error}</Typography>}
+        {error && <Typography color="error.main" role="alert">{error}</Typography>}
 
-        <Box
-          onClick={() => setVarExpanded((e) => !e)}
-          sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
+        <ButtonBase
+          id="aws-connection-details-toggle"
+          aria-expanded={varExpanded}
+          aria-controls="aws-connection-details"
+          onClick={() => setVarExpanded((expanded) => !expanded)}
+          sx={{ display: "flex", width: "100%", alignItems: "center", gap: 1.5, userSelect: "none", py: 0.25 }}
         >
-          <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-          <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont, whiteSpace: "nowrap" }}>
+          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+          <Typography color="text.muted" sx={{ whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter application connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
             sx={{
               fontSize: 14,
-              color: "#94a3b8",
+              color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
               transition: "transform 0.2s",
             }}
           />
-          <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-        </Box>
+          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+        </ButtonBase>
 
-        <Collapse in={varExpanded} timeout={300} unmountOnExit={false}>
+        <Collapse id="aws-connection-details" role="region" aria-labelledby="aws-connection-details-toggle" in={varExpanded} timeout={300} unmountOnExit={false}>
           <CloudVariableDetail
             account={account}
             repo={repoName}

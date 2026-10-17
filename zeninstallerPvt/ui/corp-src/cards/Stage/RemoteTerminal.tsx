@@ -44,10 +44,7 @@ const STATUS_TEXT: Record<TerminalStatus, string> = {
 const darkBtnSx = {
   background: TERMINAL_COLORS.border,
   color: TERMINAL_COLORS.text,
-  border: `1px solid #45475a`,
-  ...MONO_FONT,
-  fontSize: "1rem",
-  textTransform: "none" as const,
+  border: `1px solid ${TERMINAL_COLORS.surface}`,
   py: 0.4,
   px: 1.25,
   minWidth: 0,
@@ -61,6 +58,8 @@ function StatusBar({ session }: { session: UseRemoteTerminal }) {
   const pulsing = waitingForRunner || IN_PROGRESS.includes(session.status);
   return (
     <Box
+      role="status"
+      aria-live="polite"
       sx={{
         display: "flex",
         alignItems: "center",
@@ -72,6 +71,7 @@ function StatusBar({ session }: { session: UseRemoteTerminal }) {
       }}
     >
       <Box
+        aria-hidden="true"
         sx={{
           width: 8,
           height: 8,
@@ -103,7 +103,7 @@ function StatusBar({ session }: { session: UseRemoteTerminal }) {
       )}
       {/* Gone once the session is over — the panel stays, but there is nothing left to end. */}
       {session.status !== "closed" && session.status !== "idle" && (
-        <Button onClick={session.stop} size="small" sx={{ ...darkBtnSx, ml: session.sessionId ? 0 : "auto" }}>
+            <Button aria-label="End terminal session" onClick={session.stop} size="small" sx={{ ...darkBtnSx, ml: session.sessionId ? 0 : "auto" }}>
           End session
         </Button>
       )}
@@ -157,7 +157,7 @@ function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code
             >
               {code}
             </Typography>
-            <Button onClick={handleCopy} size="small" sx={darkBtnSx}>
+            <Button aria-label="Copy sign-in code" onClick={handleCopy} size="small" sx={darkBtnSx}>
               {copied ? "Copied!" : "Copy"}
             </Button>
           </>
@@ -165,7 +165,8 @@ function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code
         <Button
           href={url}
           target="_blank"
-          rel="noopener"
+          rel="noopener noreferrer"
+          aria-label={`${cloud === "aws" ? "Open AWS sign-in" : "Open Microsoft device login"} (opens in new tab)`}
           size="small"
           endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
           sx={{
@@ -223,6 +224,8 @@ export default function RemoteTerminal({ session }: { session: UseRemoteTerminal
       {session.deviceCode && <DeviceCodePanel cloud={session.deviceCode.cloud} url={session.deviceCode.url} code={session.deviceCode.code} />}
       {session.loggedIn.length > 0 && (
         <Typography
+          role="status"
+          aria-live="polite"
           sx={{
             fontSize: "1rem",
             color: TERMINAL_COLORS.green,
@@ -239,6 +242,8 @@ export default function RemoteTerminal({ session }: { session: UseRemoteTerminal
       )}
       {session.error && (
         <Typography
+          role="alert"
+          aria-live="assertive"
           sx={{
             fontSize: "1rem",
             color: TERMINAL_COLORS.red,

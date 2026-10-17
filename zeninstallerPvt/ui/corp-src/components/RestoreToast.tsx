@@ -29,12 +29,13 @@ export default function RestoreToast({ loading, warnings, onDismiss }: Props) {
       {loading && (
         <Alert
           severity="info"
-          icon={<CircularProgress size={16} sx={{ color: "#2563eb" }} />}
+          role="status"
+          aria-live="polite"
+          icon={<CircularProgress aria-label="Restoring settings" size={16} sx={{ color: "primary.main" }} />}
           sx={{
-            fontSize: "1rem",
             alignItems: "center",
             boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-            borderRadius: "10px",
+            borderRadius: 1.25,
           }}
         >
           Restoring settings
@@ -44,10 +45,10 @@ export default function RestoreToast({ loading, warnings, onDismiss }: Props) {
         <Alert
           severity="warning"
           onClose={onDismiss}
+          closeText="Dismiss restore warnings"
           sx={{
-            fontSize: "1rem",
             boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-            borderRadius: "10px",
+            borderRadius: 1.25,
           }}
         >
           {warnings.length === 1 ? (

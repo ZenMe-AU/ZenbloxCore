@@ -3,21 +3,13 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Box, Button, CircularProgress, MenuItem, Select, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, MenuItem, Select } from "@mui/material";
+import FieldLabel from "../../components/FieldLabel";
+import ErrorText from "../../components/ErrorText";
 import AddIcon from "@mui/icons-material/Add";
 import CallSplitIcon from "@mui/icons-material/CallSplit";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import type { Branch } from "../../types";
-
-const selectSx = {
-  background: "#f8fafc",
-  color: "#0f172a",
-  fontFamily: "monospace",
-  fontSize: "1rem",
-  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
-  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
-  "& .MuiSvgIcon-root": { color: "#94a3b8" },
-};
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -43,7 +35,7 @@ export default function EnvBranchDetail({
   onCreateBranch,
 }: Props) {
   return (
-    <Box sx={{ p: 2.5, mt: 1.5, border: "1px solid #bfdbfe", borderRadius: "10px", background: "#eff6ff" }}>
+    <Box sx={{ p: 2.5, mt: 1.5, border: "1px solid", borderColor: "primary.light", borderRadius: 1, backgroundColor: "background.default" }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
         {/* Create button */}
         <Button
@@ -51,30 +43,28 @@ export default function EnvBranchDetail({
           disabled={creatingBranch || !sourceBranch}
           variant="contained"
           size="small"
-          startIcon={creatingBranch ? <CircularProgress size={12} sx={{ color: "#93c5fd" }} /> : <AddIcon />}
+          startIcon={creatingBranch ? <CircularProgress aria-label={`Creating branch ${targetBranch}`} size={12} /> : <AddIcon />}
+          aria-busy={creatingBranch}
           sx={{
-            fontSize: "1rem",
-            textTransform: "none",
             py: 0.75,
             px: 2,
-            "&.Mui-disabled": { background: "#bfdbfe", color: "#93c5fd" },
           }}
         >
           Create New Branch: {targetBranch}
         </Button>
 
         <>
-          <Typography sx={{ fontSize: "1rem", color: "#64748b", flexShrink: 0 }}>
+          <FieldLabel id="repo-source-branch-label" htmlFor="repo-source-branch" sx={{ flexShrink: 0 }}>
             Clone the new branch from existing branch:
-          </Typography>
-          <Select size="small" value={sourceBranch} onChange={(e) => onSourceBranchChange(e.target.value)} sx={{ mr: 3, minWidth: 140, ...selectSx }}>
-            {branches.map((b) => (
-              <MenuItem key={b.name} value={b.name} sx={{ fontFamily: "monospace", fontSize: "1rem" }}>
+          </FieldLabel>
+          <Select id="repo-source-branch" size="small" aria-labelledby="repo-source-branch-label" value={sourceBranch} onChange={(e) => onSourceBranchChange(e.target.value)} sx={{ mr: 3, minWidth: 140 }}>
+            {branches.map((branch) => (
+              <MenuItem key={branch.name} value={branch.name}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <CallSplitIcon sx={{ fontSize: 13, color: "#94a3b8" }} />
-                  {b.name}
-                  {b.protected && (
-                    <Box component="span" sx={{ fontSize: "1rem", color: "#f97316", ml: 0.5 }}>
+                  <CallSplitIcon aria-hidden="true" sx={{ fontSize: 13, color: "text.muted" }} />
+                  {branch.name}
+                  {branch.protected && (
+                    <Box component="span" sx={{ color: "warning.main", ml: 0.5 }}>
                       protected
                     </Box>
                   )}
@@ -94,12 +84,13 @@ export default function EnvBranchDetail({
             mt: 1.5,
             p: 1.25,
             borderRadius: "6px",
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
+            backgroundColor: "background.default",
+            border: "1px solid",
+            borderColor: "error.light",
           }}
         >
-          <ErrorOutlineIcon sx={{ fontSize: 15, color: "#ef4444" }} />
-          <Typography sx={{ fontSize: "1rem", color: "#ef4444" }}>{createBranchError}</Typography>
+          <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 15, color: "error.main" }} />
+          <ErrorText>{createBranchError}</ErrorText>
         </Box>
       )}
     </Box>

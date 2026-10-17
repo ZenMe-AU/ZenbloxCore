@@ -10,6 +10,7 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import UndoIcon from "@mui/icons-material/Undo";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { alpha } from "@mui/material/styles";
 import FieldLabel from "./FieldLabel";
 import type { UpsertStatus } from "../types";
 import { getVariableDisplayName } from "../logic/variables";
@@ -58,8 +59,14 @@ function VariableRow({
         gap: 1.5,
         py: 0.875,
         px: 2,
-        borderBottom: "1px solid #f8fafc",
-        background: isSuccess ? "#f0fdf4" : isError ? "#fef2f2" : isDirty ? "#fffbeb" : "transparent",
+        borderBottom: (theme) => `1px solid ${theme.palette.background.default}`,
+        backgroundColor: (theme) => isSuccess
+          ? alpha(theme.palette.success.light, 0.1)
+          : isError
+            ? alpha(theme.palette.error.light, 0.08)
+            : isDirty
+              ? alpha(theme.palette.warning.light, 0.08)
+              : "transparent",
         transition: "background 0.2s",
       }}
     >
@@ -67,13 +74,13 @@ function VariableRow({
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: "10.5rem", flexShrink: 0 }}>
         <FieldLabel
           htmlFor={`variable-${varKey}`}
-          sx={{ fontSize: "1rem", fontFamily: "monospace", color: isDirty ? "#92400e" : "#0f172a", whiteSpace: "nowrap", mb: 0 }}
+          sx={{ color: (theme) => isDirty ? theme.palette.warning.dark : theme.palette.text.primary, whiteSpace: "nowrap", mb: 0 }}
         >
           {getVariableDisplayName(varKey)}
         </FieldLabel>
         {description && (
           <Tooltip title={description} placement="top" arrow>
-            <InfoOutlinedIcon sx={{ fontSize: 13, color: "#cbd5e1", cursor: "help", "&:hover": { color: "#94a3b8" } }} />
+            <InfoOutlinedIcon sx={{ fontSize: 13, color: (theme) => theme.palette.card.mutedIcon, cursor: "help", "&:hover": { color: (theme) => theme.palette.card.mutedIconHover } }} />
           </Tooltip>
         )}
       </Box>
@@ -93,13 +100,13 @@ function VariableRow({
             localValue || isDirty ? (
               <InputAdornment position="end" sx={{ gap: 0 }}>
                 {localValue && (
-                  <IconButton size="small" onClick={() => onChange(varKey, "")} sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#475569" } }}>
+                  <IconButton aria-label={`Clear ${getVariableDisplayName(varKey)}`} size="small" onClick={() => onChange(varKey, "")} sx={{ color: (theme) => theme.palette.text.muted, p: 0.25, "&:hover": { color: (theme) => theme.palette.text.secondary } }}>
                     <ClearIcon sx={{ fontSize: 13 }} />
                   </IconButton>
                 )}
                 {isDirty && (
                   <Tooltip title="Revert to saved value">
-                    <IconButton size="small" onClick={() => onRevert(varKey)} sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#d97706" } }}>
+                    <IconButton aria-label={`Revert ${getVariableDisplayName(varKey)} to saved value`} size="small" onClick={() => onRevert(varKey)} sx={{ color: (theme) => theme.palette.text.muted, p: 0.25, "&:hover": { color: (theme) => theme.palette.warning.main } }}>
                       <UndoIcon sx={{ fontSize: 13 }} />
                     </IconButton>
                   </Tooltip>
@@ -111,7 +118,7 @@ function VariableRow({
 
       {isDeployedDiff && !isDirty && !isError && (
         <Tooltip title={`Plan configured: ${deployedValues![varKey] || "(empty)"}`} placement="top" arrow>
-          <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706", flexShrink: 0 }} />
+          <WarningAmberIcon sx={{ fontSize: 14, color: (theme) => theme.palette.warning.main, flexShrink: 0 }} />
         </Tooltip>
       )}
 
@@ -124,12 +131,10 @@ function VariableRow({
               gap: 0.4,
               px: 0.875,
               py: 0.2,
-              borderRadius: "4px",
-              background: "#fffbeb",
-              border: "1px solid #fde68a",
-              fontSize: "1rem",
-              fontFamily: "monospace",
-              color: "#b45309",
+              borderRadius: 0.5,
+              backgroundColor: (theme) => alpha(theme.palette.warning.light, 0.08),
+              border: (theme) => `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
+              color: (theme) => theme.palette.warning.dark,
               flexShrink: 0,
               cursor: "help",
             }}
@@ -142,12 +147,14 @@ function VariableRow({
 
       {isError && (
         <Tooltip title={error ?? upsertStatus?.error ?? "Update failed"}>
-          <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
+          <Box component="span" role="alert" aria-label={error ?? upsertStatus?.error ?? "Update failed"} sx={{ display: "inline-flex" }}>
+            <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 14, color: (theme) => theme.palette.error.light, flexShrink: 0 }} />
+          </Box>
         </Tooltip>
       )}
 
       {isSuccess && (
-        <Typography sx={{ fontSize: "1rem", color: "#16a34a", whiteSpace: "nowrap" }}>just updated</Typography>
+        <Typography role="status" aria-live="polite" sx={{ color: "success.main", whiteSpace: "nowrap" }}>just updated</Typography>
       )}
 
       {!isDirty && !isSuccess && !isError && validStatus === true && (
@@ -158,14 +165,14 @@ function VariableRow({
             gap: 0.4,
             px: 0.875,
             py: 0.2,
-            borderRadius: "4px",
-            background: "#f0fdf4",
-            border: "1px solid #bbf7d0",
-            fontSize: "1rem",
-            fontFamily: "monospace",
-            color: "#16a34a",
+            borderRadius: 0.5,
+            backgroundColor: (theme) => alpha(theme.palette.success.light, 0.1),
+            border: (theme) => `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+            color: "success.main",
             flexShrink: 0,
           }}
+          role="status"
+          aria-live="polite"
         >
           <CheckCircleIcon sx={{ fontSize: 10 }} />
           valid
@@ -180,14 +187,13 @@ function VariableRow({
             gap: 0.4,
             px: 0.875,
             py: 0.2,
-            borderRadius: "4px",
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
-            fontSize: "1rem",
-            fontFamily: "monospace",
-            color: "#ef4444",
+            borderRadius: 0.5,
+            backgroundColor: (theme) => alpha(theme.palette.error.light, 0.08),
+            border: (theme) => `1px solid ${alpha(theme.palette.error.light, 0.3)}`,
+            color: "error.light",
             flexShrink: 0,
           }}
+          role="alert"
         >
           <ErrorOutlineIcon sx={{ fontSize: 10 }} />
           invalid

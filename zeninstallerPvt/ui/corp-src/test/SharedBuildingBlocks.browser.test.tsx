@@ -9,10 +9,15 @@ import { describe, expect, it } from "vitest";
 import { TextField, ThemeProvider } from "@mui/material";
 import Caption from "../components/Caption";
 import CardIntro from "../components/CardIntro";
+import CopyRow from "../components/CopyRow";
 import ErrorText from "../components/ErrorText";
 import ExternalLink from "../components/ExternalLink";
 import FieldLabel from "../components/FieldLabel";
+import RestoreToast from "../components/RestoreToast";
+import SecretsCard from "../components/SecretsCard";
 import StatusText from "../components/StatusText";
+import VariablesCard from "../components/VariablesCard";
+import { getVariableDisplayName } from "../logic/variables";
 import theme from "../theme";
 
 describe("shared UI building blocks", () => {
@@ -33,6 +38,30 @@ describe("shared UI building blocks", () => {
             <Caption>Supporting detail</Caption>
             <ErrorText>Request failed</ErrorText>
             <StatusText>Saved</StatusText>
+            <VariablesCard
+              requiredKeys={["DIRTY", "SUCCESS", "ERROR"]}
+              savedValues={{ DIRTY: "saved", SUCCESS: "ok", ERROR: "bad" }}
+              localValues={{ DIRTY: "edited", SUCCESS: "ok", ERROR: "bad" }}
+              upsertStatuses={[{ key: "SUCCESS", status: "success" }]}
+              keyErrors={{ ERROR: "Value is not valid" }}
+              onChange={() => {}}
+              onRevert={() => {}}
+            />
+            <SecretsCard
+              requiredKeys={["API_TOKEN", "UPDATED_SECRET", "FAILED_SECRET"]}
+              presentKeys={["API_TOKEN", "UPDATED_SECRET"]}
+              secretsStatus={{ configured: true, valid: true }}
+              pendingSecrets={[{ key: "API_TOKEN", value: "top-secret" }]}
+              onSetPending={() => {}}
+              onCancelPending={() => {}}
+              upsertStatuses={[
+                { key: "UPDATED_SECRET", status: "success" },
+                { key: "FAILED_SECRET", status: "error", error: "Secret update failed" },
+              ]}
+            />
+            <CopyRow label="Temporary credential" value="top-secret-value" masked />
+            <RestoreToast loading warnings={[]} onDismiss={() => {}} />
+            <RestoreToast loading={false} warnings={["Restore warning"]} onDismiss={() => {}} />
             <ExternalLink href="https://example.com/docs" label="Documentation">
               Read documentation
             </ExternalLink>
@@ -41,7 +70,7 @@ describe("shared UI building blocks", () => {
       });
 
       const baseInput = container.querySelector<HTMLInputElement>("#editor-base");
-      expect(baseInput?.labels?.[0]?.textContent).toBe("Variable key");
+      expect(container.querySelector('label[for="editor-base"]')?.textContent).toBe("Variable key");
       expect(getComputedStyle(baseInput!).fontFamily).toContain("monospace");
 
       const outlineColor = (id: string) => {
@@ -54,6 +83,42 @@ describe("shared UI building blocks", () => {
 
       expect(container.querySelector('[role="alert"]')?.textContent).toBe("Request failed");
       expect(container.querySelector('[role="status"]')?.textContent).toBe("Saved");
+
+      expect(container.querySelector('label[for="variable-DIRTY"]')?.textContent).toBe(getVariableDisplayName("DIRTY"));
+      expect(container.querySelector(`button[aria-label="Clear ${getVariableDisplayName("DIRTY")}"]`)).not.toBeNull();
+      expect(container.querySelector(`button[aria-label="Revert ${getVariableDisplayName("DIRTY")} to saved value"]`)).not.toBeNull();
+      const liveStatuses = [...container.querySelectorAll<HTMLElement>('[role="status"][aria-live="polite"]')];
+      expect(liveStatuses.map((status) => status.textContent)).toContain("just updated");
+      expect(container.querySelector('[role="alert"][aria-label="Value is not valid"]')).not.toBeNull();
+      const politeStatusText = [...container.querySelectorAll<HTMLElement>('[role="status"][aria-live="polite"]')].map((status) => status.textContent);
+      expect(politeStatusText).toContain("Restoring settings");
+      expect(container.querySelector('button[aria-label="Dismiss restore warnings"]')).not.toBeNull();
+
+      const revealButton = container.querySelector<HTMLButtonElement>('button[aria-label="Show pending value for API_TOKEN"]');
+      expect(revealButton).not.toBeNull();
+      const maskedValue = "•".repeat(Math.min("top-secret".length, 12));
+      const pendingSecretValue = [...container.querySelectorAll<HTMLElement>('[data-sensitive="true"]')].find((value) => value.textContent === maskedValue);
+      expect(pendingSecretValue?.textContent).toBe(maskedValue);
+      expect(container.querySelector('button[aria-label="Discard pending change for API_TOKEN"]')).not.toBeNull();
+      expect(container.querySelector('button[aria-label="Edit API_TOKEN"]')).not.toBeNull();
+      expect(container.querySelector('[role="alert"][aria-label="Secret update failed"]')).not.toBeNull();
+
+      flushSync(() => revealButton!.click());
+      expect(revealButton?.getAttribute("aria-label")).toBe("Hide pending value for API_TOKEN");
+      expect(pendingSecretValue?.textContent).toBe("top-secret");
+
+      flushSync(() => container.querySelector<HTMLButtonElement>('button[aria-label="Edit API_TOKEN"]')!.click());
+      const secretInput = document.querySelector<HTMLInputElement>("#secret-value");
+      expect(secretInput?.type).toBe("password");
+      expect(document.querySelector('label[for="secret-value"]')?.textContent).toBe("Enter the secret value");
+      expect(document.querySelector('[data-sensitive="true"] #secret-value')).not.toBeNull();
+      expect(document.querySelector('button[aria-label="Close secret editor for API_TOKEN"]')).not.toBeNull();
+
+      const maskedCopyText = "*".repeat("top-secret-value".length);
+      const maskedCopyValue = [...container.querySelectorAll<HTMLElement>('[data-sensitive="true"]')].find((value) => value.textContent === maskedCopyText);
+      const copyButton = container.querySelector<HTMLButtonElement>('button[aria-label="Copy Temporary credential"]');
+      expect(maskedCopyValue?.textContent).toBe(maskedCopyText);
+      expect(copyButton).not.toBeNull();
 
       const link = container.querySelector<HTMLAnchorElement>('a[href="https://example.com/docs"]');
       expect(link?.target).toBe("_blank");

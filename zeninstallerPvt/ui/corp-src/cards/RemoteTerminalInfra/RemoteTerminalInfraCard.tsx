@@ -4,15 +4,15 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Button, CircularProgress, Collapse, Typography } from "@mui/material";
+import { Box, Button, ButtonBase, CircularProgress, Collapse, Typography } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import type { UseRemoteTerminalInfraCard } from "./useRemoteTerminalInfraCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
+import ExternalLink from "../../components/ExternalLink";
 import { getAdminConsentUrl, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
-import { UI_FONT as uiFont, labelSx } from "../../config/styles";
 import CloudVariableDetail from "../CloudVariableDetail";
 import { DEPLOYMENT_TERMINAL_KEYS } from "../../logic/variables";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
@@ -62,15 +62,15 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
   return (
     <Card title="Private Zeninstaller Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.6 }}>
+        <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
           The relay behind the stage-card terminal: Web PubSub, the session table, and the Function App that issues group-scoped tokens. Everything connects by
           managed identity — no access key is stored.
         </Typography>
 
         {infra.steps.length === 0 && (
           <Box>
-            <Typography sx={{ ...labelSx, mb: 0.75 }}>Resources</Typography>
-            <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
+            <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
+            <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
               {[
                 ["Resource group", infra.resourceGroupName],
                 ["Log Analytics", infra.lawName],
@@ -83,9 +83,9 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
                 ["App registration", infra.pipelineAppName],
                 ["Sign-in app registration", "Zeninstaller Private"],
               ].map(([label, value]) => (
-                <Typography key={label} sx={{ fontSize: "1rem", color: "#64748b", ...uiFont }}>
+                <Typography key={label} color="text.muted">
                   {label}:{" "}
-                  <Box component="span" sx={{ color: "#0f172a" }}>
+                  <Box component="span" sx={{ color: "text.primary" }}>
                     {value}
                   </Box>
                 </Typography>
@@ -100,19 +100,14 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
             disabled={infra.running}
             variant="contained"
             size="small"
-            sx={{
-              ...uiFont,
-              fontSize: "1rem",
-              textTransform: "none",
-              py: 0.6,
-              px: 2,
-            }}
+            aria-busy={infra.running}
+            sx={{ py: 0.6, px: 2 }}
           >
             {infra.running ? (
-              <>
-                <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
+              <Box component="span" role="status" aria-live="polite" sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
+                <CircularProgress aria-label="Creating terminal relay" size={12} />
                 Creating...
-              </>
+              </Box>
             ) : infra.done ? (
               "Re-run"
             ) : (
@@ -123,26 +118,16 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
 
         {infra.result && infra.resultMatches && (
           <Box>
-            <Typography sx={{ ...labelSx, mb: 0.75 }}>Admin consent</Typography>
-            <Typography sx={{ fontSize: "1rem", color: "#475569", mb: 0.5 }}>
+            <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Admin consent</Typography>
+            <Typography color="text.secondary" sx={{ mb: 0.5 }}>
               An administrator opens this once so everyone else can sign in without being prompted.
             </Typography>
-            <Typography
-              component="a"
+            <ExternalLink
               href={getAdminConsentUrl(infra.result.pipelineTenantId, infra.result.installerClientId)}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{
-                fontSize: "1rem",
-                ...uiFont,
-                color: "#1d4ed8",
-                wordBreak: "break-all",
-                textDecoration: "none",
-                "&:hover": { textDecoration: "underline" },
-              }}
+              label="Admin consent"
             >
               {getAdminConsentUrl(infra.result.pipelineTenantId, infra.result.installerClientId)}
-            </Typography>
+            </ExternalLink>
           </Box>
         )}
 
@@ -155,27 +140,31 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
         )}
 
         {/* ── Divider (clickable toggle) ── */}
-        <Box
-          onClick={() => setVarExpanded((e) => !e)}
-          sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
+        <ButtonBase
+          disableRipple
+          onClick={() => setVarExpanded((expanded) => !expanded)}
+          aria-expanded={varExpanded}
+          aria-controls="remote-terminal-connection-details"
+          sx={{ width: "100%", display: "flex", alignItems: "center", gap: 1.5, userSelect: "none", py: 0.25 }}
         >
-          <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-          <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont, whiteSpace: "nowrap" }}>
+          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+          <Typography color="text.muted" sx={{ whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
             sx={{
               fontSize: 14,
-              color: "#94a3b8",
+              color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
               transition: "transform 0.2s",
             }}
+            aria-hidden="true"
           />
-          <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-        </Box>
+          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+        </ButtonBase>
 
         {/* unmountOnExit=false keeps draft edits alive while collapsed */}
-        <Collapse in={varExpanded} timeout={300} unmountOnExit={false}>
+        <Collapse id="remote-terminal-connection-details" role="region" aria-label="Connection details" in={varExpanded} timeout={300} unmountOnExit={false}>
           <CloudVariableDetail
             account={githubAccount}
             repo={repoName}

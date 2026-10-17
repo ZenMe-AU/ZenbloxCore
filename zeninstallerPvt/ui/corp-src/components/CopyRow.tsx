@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import { MONO_FONT, UI_FONT as uiFont, labelSx } from "../config/styles";
+import { MONO_FONT } from "../config/styles";
 
 // A labelled value with a copy button. `masked` hides the value but still copies the real one.
 export default function CopyRow({ label, value, masked = false }: { label: string; value: string; masked?: boolean }) {
@@ -20,20 +20,25 @@ export default function CopyRow({ label, value, masked = false }: { label: strin
   };
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
-      <Typography sx={{ ...labelSx, minWidth: 180 }}>{label}</Typography>
+      <Typography variant="fieldLabel" sx={{ minWidth: 180 }}>{label}</Typography>
       <Typography
+        data-sensitive="true"
         sx={{
-          fontSize: "1rem",
-          color: "#1e293b",
+          color: "text.primary",
           ...MONO_FONT,
           ...(masked ? { flex: "0 0 auto" } : { flex: 1, wordBreak: "break-all" }),
         }}
       >
         {displayValue}
       </Typography>
-      <Button size="small" onClick={copy} sx={{ minWidth: 0, p: 0.5, color: "#94a3b8", "&:hover": { color: "#2563eb" } }}>
-        <ContentCopyIcon sx={{ fontSize: 13 }} />
-        <Typography sx={{ fontSize: "1rem", ml: 0.5, ...uiFont }}>{copied ? "Copied" : "Copy"}</Typography>
+      <Button
+        aria-label={`${copied ? "Copied" : "Copy"} ${label}`}
+        size="small"
+        onClick={copy}
+        sx={{ minWidth: 0, p: 0.5, color: "text.muted", "&:hover": { color: "primary.main" } }}
+      >
+        <ContentCopyIcon aria-hidden="true" sx={{ fontSize: 13 }} />
+        <Typography component="span" aria-live="polite" sx={{ ml: 0.5 }}>{copied ? "Copied" : "Copy"}</Typography>
       </Button>
     </Box>
   );

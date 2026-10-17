@@ -13,6 +13,7 @@ import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import { alpha } from "@mui/material/styles";
 import FieldLabel from "./FieldLabel";
 import type { PendingSecret, SecretsStatus, UpsertStatus } from "../types";
 
@@ -27,13 +28,14 @@ function ValidationBadge({ valid, pendingValidation }: { valid: boolean | null; 
           alignItems: "center",
           px: 0.875,
           py: 0.2,
-          borderRadius: "4px",
-          background: "#fefce8",
-          border: "1px solid #fde68a",
-          fontSize: "1rem",
-          color: "#92400e",
+          borderRadius: 0.5,
+          backgroundColor: (theme) => alpha(theme.palette.warning.light, 0.1),
+          border: (theme) => `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
+          color: "warning.dark",
           whiteSpace: "nowrap",
         }}
+        role="status"
+        aria-live="polite"
       >
         pending validation
       </Box>
@@ -48,12 +50,13 @@ function ValidationBadge({ valid, pendingValidation }: { valid: boolean | null; 
           gap: 0.4,
           px: 0.875,
           py: 0.2,
-          borderRadius: "4px",
-          background: "#f0fdf4",
-          border: "1px solid #bbf7d0",
-          fontSize: "1rem",
-          color: "#16a34a",
+          borderRadius: 0.5,
+          backgroundColor: (theme) => alpha(theme.palette.success.light, 0.1),
+          border: (theme) => `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+          color: "success.main",
         }}
+        role="status"
+        aria-live="polite"
       >
         <CheckCircleIcon sx={{ fontSize: 10 }} />
         valid
@@ -69,12 +72,12 @@ function ValidationBadge({ valid, pendingValidation }: { valid: boolean | null; 
           gap: 0.4,
           px: 0.875,
           py: 0.2,
-          borderRadius: "4px",
-          background: "#fef2f2",
-          border: "1px solid #fecaca",
-          fontSize: "1rem",
-          color: "#ef4444",
+          borderRadius: 0.5,
+          backgroundColor: (theme) => alpha(theme.palette.error.light, 0.08),
+          border: (theme) => `1px solid ${alpha(theme.palette.error.light, 0.3)}`,
+          color: "error.light",
         }}
+        role="alert"
       >
         <ErrorOutlineIcon sx={{ fontSize: 10 }} />
         invalid
@@ -120,16 +123,16 @@ function SecretKeyRow({
   let iconColor: string;
   if (hasPending) {
     LeftIcon = RadioButtonCheckedIcon;
-    iconColor = "#d97706";
+    iconColor = "warning.main";
   } else if (isSet && valid === true) {
     LeftIcon = CheckCircleIcon;
-    iconColor = "#22c55e";
+    iconColor = "success.main";
   } else if (isSet) {
     LeftIcon = RadioButtonCheckedIcon;
-    iconColor = "#22c55e";
+    iconColor = "success.main";
   } else {
     LeftIcon = RadioButtonUncheckedIcon;
-    iconColor = "#cbd5e1";
+    iconColor = "text.disabled";
   }
 
   return (
@@ -140,8 +143,14 @@ function SecretKeyRow({
         gap: 1.5,
         py: 0.875,
         px: 2,
-        borderBottom: "1px solid #f8fafc",
-        background: isSuccess ? "#f0fdf4" : isError ? "#fef2f2" : hasPending ? "#fffbeb" : "transparent",
+        borderBottom: (theme) => `1px solid ${theme.palette.background.default}`,
+        backgroundColor: (theme) => isSuccess
+          ? alpha(theme.palette.success.light, 0.1)
+          : isError
+            ? alpha(theme.palette.error.light, 0.08)
+            : hasPending
+              ? alpha(theme.palette.warning.light, 0.08)
+              : "transparent",
         transition: "background 0.2s",
       }}
     >
@@ -151,9 +160,7 @@ function SecretKeyRow({
       {/* Key name */}
       <Typography
         sx={{
-          fontSize: "1rem",
-          fontFamily: "monospace",
-          color: hasPending ? "#92400e" : "#0f172a",
+          color: hasPending ? "warning.dark" : "text.primary",
           flex: 1,
         }}
       >
@@ -165,19 +172,22 @@ function SecretKeyRow({
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           <Typography
             sx={{
-              fontSize: "1rem",
-              fontFamily: "monospace",
-              color: "#d97706",
-              letterSpacing: showValue ? "normal" : "0.1em",
+              color: "warning.main",
             }}
+            data-sensitive="true"
           >
             {showValue ? pending!.value : "•".repeat(Math.min(pending!.value.length, 12))}
           </Typography>
-          <IconButton size="small" onClick={() => setShowValue((v) => !v)} sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#475569" } }}>
+          <IconButton
+            aria-label={`${showValue ? "Hide" : "Show"} pending value for ${secretKey}`}
+            size="small"
+            onClick={() => setShowValue((v) => !v)}
+            sx={{ color: "text.muted", p: 0.25, "&:hover": { color: "text.secondary" } }}
+          >
             {showValue ? <VisibilityOffIcon sx={{ fontSize: 13 }} /> : <VisibilityIcon sx={{ fontSize: 13 }} />}
           </IconButton>
           <Tooltip title="Discard change">
-            <IconButton size="small" onClick={() => onCancelPending(secretKey)} sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#ef4444" } }}>
+            <IconButton aria-label={`Discard pending change for ${secretKey}`} size="small" onClick={() => onCancelPending(secretKey)} sx={{ color: "text.muted", p: 0.25, "&:hover": { color: "error.main" } }}>
               <CloseIcon sx={{ fontSize: 12 }} />
             </IconButton>
           </Tooltip>
@@ -189,23 +199,25 @@ function SecretKeyRow({
 
       {/* Just updated */}
       {isSuccess && (
-        <Typography sx={{ fontSize: "1rem", color: "#16a34a", whiteSpace: "nowrap" }}>just updated</Typography>
+        <Typography role="status" aria-live="polite" sx={{ color: "success.main", whiteSpace: "nowrap" }}>just updated</Typography>
       )}
 
       {/* Update error */}
       {isError && (
         <Tooltip title={upsertStatus!.error ?? "Update failed"}>
-          <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
+          <Box component="span" role="alert" aria-label={upsertStatus!.error ?? "Update failed"} sx={{ display: "inline-flex" }}>
+            <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 14, color: "error.light", flexShrink: 0 }} />
+          </Box>
         </Tooltip>
       )}
 
       {/* Not set label */}
       {!isSet && !hasPending && !isError && (
-        <Typography sx={{ fontSize: "1rem", color: "#cbd5e1" }}>not set</Typography>
+        <Typography color="text.disabled">not set</Typography>
       )}
 
       {/* Edit button */}
-      <IconButton size="small" onClick={() => onEdit(secretKey)} sx={{ color: "#cbd5e1", p: 0.5, "&:hover": { color: "#2563eb" } }}>
+      <IconButton aria-label={`Edit ${secretKey}`} size="small" onClick={() => onEdit(secretKey)} sx={{ color: "text.disabled", p: 0.5, "&:hover": { color: "primary.main" } }}>
         <EditIcon sx={{ fontSize: 14 }} />
       </IconButton>
     </Box>
@@ -245,26 +257,27 @@ function SecretDialog({
       onClose={handleClose}
       maxWidth="xs"
       fullWidth
-      PaperProps={{ sx: { background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px" } }}
+      PaperProps={{ sx: (theme) => ({ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 1 }) }}
     >
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
         <Box>
-          <Typography sx={{ fontFamily: "monospace", fontWeight: 700, fontSize: "1rem", color: "#0f172a" }}>{secretKey}</Typography>
+          <Typography color="text.primary">{secretKey}</Typography>
           <FieldLabel htmlFor="secret-value" sx={{ fontSize: "0.875rem", color: "text.secondary", mt: 0.25 }}>
             Enter the secret value
           </FieldLabel>
         </Box>
-        <IconButton onClick={handleClose} size="small" sx={{ color: "#94a3b8" }}>
+        <IconButton aria-label={`Close secret editor for ${secretKey}`} onClick={handleClose} size="small" sx={{ color: "text.muted" }}>
           <CloseIcon fontSize="small" />
         </IconButton>
       </DialogTitle>
 
-      <Divider sx={{ borderColor: "#f1f5f9" }} />
+      <Divider sx={{ borderColor: "divider" }} />
 
       <DialogContent sx={{ pt: 2.5 }}>
         <TextField
           id="secret-value"
           className="corpEditor"
+          data-sensitive="true"
           fullWidth
           autoFocus
           type="password"
@@ -277,7 +290,7 @@ function SecretDialog({
           InputProps={{ endAdornment: <InputAdornment position="end" /> }}
         />
         <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1.5, mt: 2.5 }}>
-          <Button onClick={handleClose} size="small" sx={{ color: "#64748b", textTransform: "none" }}>
+          <Button onClick={handleClose} size="small" color="inherit" sx={{ color: "text.muted" }}>
             Cancel
           </Button>
           <Button

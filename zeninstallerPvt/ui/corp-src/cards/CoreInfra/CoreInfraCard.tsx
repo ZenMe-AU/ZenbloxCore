@@ -17,7 +17,9 @@ import { resourceGroupScope } from "../../api/azureArm";
 import { getVariableDisplayName, CORP_NAME_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
-import { UI_FONT as uiFont, labelSx } from "../../config/styles";
+import FieldLabel from "../../components/FieldLabel";
+import StatusText from "../../components/StatusText";
+import ErrorText from "../../components/ErrorText";
 import type { Account, CardChrome, AzureAccount, GhEnv } from "../../types";
 
 type Props = {
@@ -36,9 +38,9 @@ type Props = {
 
 function Intro({ containerName }: { containerName: string }) {
   return (
-    <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
       Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
-      <Box component="span" sx={uiFont}>
+      <Box component="code" sx={{ fontFamily: "monospace" }}>
         {containerName}
       </Box>{" "}
       container Terraform uses for state, granting GitHub Actions access to it.
@@ -111,13 +113,13 @@ export default function CoreInfraCard({
 
         {/* Gating hints */}
         {!azureAccount && (
-          <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
-            <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>Sign in with Azure first — this card reuses that session.</Typography>
+          <Box role="status" aria-live="polite" sx={{ backgroundColor: "background.default", border: "1px solid", borderColor: "warning.main", borderRadius: 1, px: 2, py: 1.25 }}>
+            <Typography color="warning.dark">Sign in with Azure first — this card reuses that session.</Typography>
           </Box>
         )}
         {azureAccount && missing.length > 0 && (
-          <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
-            <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>
+          <Box role="status" aria-live="polite" sx={{ backgroundColor: "background.default", border: "1px solid", borderColor: "warning.main", borderRadius: 1, px: 2, py: 1.25 }}>
+            <Typography color="warning.dark">
               Missing before setup can run: <b>{missing.join(", ")}</b>
             </Typography>
           </Box>
@@ -136,17 +138,20 @@ export default function CoreInfraCard({
         {rgNotFound && (
           <Box
             sx={{
-              background: "#fef9c3",
-              border: "1px solid #fde047",
-              borderRadius: "8px",
+              backgroundColor: "background.default",
+              border: "1px solid",
+              borderColor: "warning.main",
+              borderRadius: 1,
               px: 2,
               py: 1.25,
               display: "flex",
               gap: 1,
             }}
+            role="status"
+            aria-live="polite"
           >
-            <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
-            <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>
+            <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 16, color: "warning.main", flexShrink: 0 }} />
+            <Typography color="warning.dark">
               The resource group doesn't exist in the selected subscription anymore — re-run to recreate it.
             </Typography>
           </Box>
@@ -155,17 +160,20 @@ export default function CoreInfraCard({
         {rgRbacMissing && (
           <Box
             sx={{
-              background: "#fef9c3",
-              border: "1px solid #fde047",
-              borderRadius: "8px",
+              backgroundColor: "background.default",
+              border: "1px solid",
+              borderColor: "warning.main",
+              borderRadius: 1,
               px: 2,
               py: 1.25,
               display: "flex",
               gap: 1,
             }}
+            role="status"
+            aria-live="polite"
           >
-            <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
-            <Typography sx={{ fontSize: "1rem", color: "#713f12" }}>GitHub Actions has no access on the resource group — re-run to grant it.</Typography>
+            <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 16, color: "warning.main", flexShrink: 0 }} />
+            <Typography color="warning.dark">GitHub Actions has no access on the resource group — re-run to grant it.</Typography>
           </Box>
         )}
 
@@ -173,8 +181,8 @@ export default function CoreInfraCard({
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Box>
-              <Typography sx={{ ...labelSx, mb: 0.75 }}>Resources</Typography>
-              <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
+              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
+              <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
                 {[
                   ["Resource group", resourceGroupName],
                   ["Log Analytics", lawName],
@@ -182,9 +190,9 @@ export default function CoreInfraCard({
                   ["Storage account", storageAccountName],
                   ["State container", containerName],
                 ].map(([label, value]) => (
-                  <Typography key={label} sx={{ fontSize: "1rem", color: "#64748b", ...uiFont }}>
+                  <Typography key={label} color="text.muted">
                     {label}:{" "}
-                    <Box component="span" sx={{ color: "#0f172a" }}>
+                    <Box component="span" sx={{ color: "text.primary" }}>
                       {value}
                     </Box>
                   </Typography>
@@ -194,56 +202,58 @@ export default function CoreInfraCard({
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
                   {editingLocation ? (
                     <>
-                      <Typography sx={{ fontSize: "1rem", color: "#64748b", ...uiFont }}>Location:</Typography>
+                      <FieldLabel htmlFor="core-infra-location">Location</FieldLabel>
                       {locations.length > 0 ? (
                         <Select
+                          id="core-infra-location"
                           size="small"
                           value={location}
                           onChange={(e) => setLocation(e.target.value)}
-                          sx={{ fontSize: "1rem", ...uiFont, minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
+                          sx={{ minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
                         >
-                          {locations.map((l) => (
-                            <MenuItem key={l.name} value={l.name} sx={{ fontSize: "1rem", ...uiFont }}>
-                              {l.displayName}{" "}
-                              <Box component="span" sx={{ color: "#94a3b8", ml: 0.5 }}>
-                                ({l.name})
+                          {locations.map((locationOption) => (
+                            <MenuItem key={locationOption.name} value={locationOption.name}>
+                              {locationOption.displayName}{" "}
+                              <Box component="span" sx={{ color: "text.muted", ml: 0.5 }}>
+                                ({locationOption.name})
                               </Box>
                             </MenuItem>
                           ))}
                         </Select>
                       ) : (
                         <TextField
+                          id="core-infra-location"
                           size="small"
                           value={location}
                           onChange={(e) => setLocation(e.target.value)}
                           placeholder={locationsLoading ? "Loading regions..." : "e.g. australiaeast"}
                           sx={{ minWidth: 220 }}
-                          inputProps={{ style: { fontFamily: "monospace", fontSize: "1rem" } }}
+                          className="corpTechnicalInput"
                         />
                       )}
-                      {locationsLoading && <CircularProgress size={12} />}
-                      <IconButton size="small" onClick={() => setEditingLocation(false)} sx={{ color: "#22c55e", p: 0.25 }}>
+                      {locationsLoading && <CircularProgress aria-label="Loading Azure regions" size={12} />}
+                      <IconButton aria-label="Confirm Azure region" size="small" onClick={() => setEditingLocation(false)} sx={{ color: "success.main", p: 0.25 }}>
                         <CheckIcon sx={{ fontSize: 14 }} />
                       </IconButton>
                     </>
                   ) : (
                     <>
-                      <Typography sx={{ fontSize: "1rem", color: "#64748b", ...uiFont }}>
+                      <Typography color="text.muted">
                         Location:{" "}
-                        <Box component="span" sx={{ color: "#0f172a" }}>
+                          <Box component="span" sx={{ color: "text.primary" }}>
                           {locationDisplayName}
                         </Box>
                       </Typography>
-                      <IconButton size="small" onClick={() => setEditingLocation(true)} sx={{ color: "#cbd5e1", p: 0.25, "&:hover": { color: "#2563eb" } }}>
+                      <IconButton aria-label="Edit Azure region" size="small" onClick={() => setEditingLocation(true)} sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}>
                         <EditIcon sx={{ fontSize: 12 }} />
                       </IconButton>
                     </>
                   )}
                 </Box>
                 {locationsError && (
-                  <Typography sx={{ fontSize: "1rem", color: "#d97706", ...uiFont }}>
+                  <ErrorText>
                     Couldn't load Azure region list — type the region name manually.
-                  </Typography>
+                  </ErrorText>
                 )}
               </Box>
             </Box>
@@ -254,13 +264,8 @@ export default function CoreInfraCard({
               disabled={disabled || running || !location.trim()}
               sx={{
                 alignSelf: "flex-start",
-                textTransform: "none",
-                ...uiFont,
-                fontSize: "1rem",
                 py: 0.85,
                 px: 2.5,
-                borderRadius: "8px",
-                boxShadow: "0 2px 6px #2563eb33",
               }}
             >
               {done ? "Re-run setup" : "Create core infrastructure"}
@@ -270,11 +275,11 @@ export default function CoreInfraCard({
 
         {/* Progress steps */}
         {steps.length > 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid #e2e8f0", pl: 1.5 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid", borderColor: "divider", pl: 1.5 }}>
             {steps.map((s) => (
               <StepRow key={s.id} step={s} />
             ))}
-            {running && <Typography sx={{ fontSize: "1rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
+            {running && <StatusText>Running...</StatusText>}
             {!running && (
               <Button
                 size="small"
@@ -282,11 +287,8 @@ export default function CoreInfraCard({
                 sx={{
                   alignSelf: "flex-start",
                   mt: 0.5,
-                  textTransform: "none",
-                  ...uiFont,
-                  fontSize: "1rem",
-                  color: "#64748b",
-                  "&:hover": { color: "#2563eb" },
+                  color: "text.muted",
+                  "&:hover": { color: "primary.main" },
                 }}
               >
                 ↩ Start over

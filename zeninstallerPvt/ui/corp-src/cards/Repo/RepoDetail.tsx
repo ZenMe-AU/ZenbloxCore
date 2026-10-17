@@ -5,6 +5,7 @@
 
 import { useRef, useState } from "react";
 import { Box, Button, CircularProgress, Collapse, FormControlLabel, MenuItem, Select, Switch, TextField, Tooltip, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import AddIcon from "@mui/icons-material/Add";
 import BusinessIcon from "@mui/icons-material/Business";
@@ -15,6 +16,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { Account, Repo, RepoOption } from "../../types";
 import RefreshButton from "../../components/RefreshButton";
+import ErrorText from "../../components/ErrorText";
 import { useRefreshIndicator } from "../../hooks/util/useRefreshIndicator";
 
 // ─── Template status badge ────────────────────────────────────────────────────
@@ -22,39 +24,32 @@ import { useRefreshIndicator } from "../../hooks/util/useRefreshIndicator";
 type TemplateStatus = "checking" | "ready" | "not_clone";
 
 const TEMPLATE_STATUS_CONFIG = {
-  ready: { label: "Valid", color: "#16a34a", bg: "#f0fdf4", icon: <CheckCircleIcon sx={{ fontSize: 14 }} /> },
-  not_clone: {
-    label: "Not a clone",
-    color: "#ea580c",
-    bg: "#fff7ed",
-    icon: <WarningAmberIcon sx={{ fontSize: 14 }} />,
-  },
-  checking: {
-    label: "Checking...",
-    color: "#64748b",
-    bg: "#f1f5f9",
-    icon: <CircularProgress size={12} sx={{ color: "#64748b" }} />,
-  },
+  ready: { label: "Valid", color: "success" as const, icon: <CheckCircleIcon aria-hidden="true" sx={{ fontSize: 14 }} /> },
+  not_clone: { label: "Not a clone", color: "warning" as const, icon: <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14 }} /> },
+  checking: { label: "Checking...", color: "text.secondary" as const, icon: <CircularProgress aria-label="Checking template" size={12} /> },
 } as const;
 
 function TemplateBadge({ status }: { status: TemplateStatus }) {
   const cfg = TEMPLATE_STATUS_CONFIG[status];
   return (
     <Box
-      sx={{
+      sx={(theme) => {
+        const color = cfg.color === "text.secondary" ? theme.palette.text.secondary : theme.palette[cfg.color].main;
+        const backgroundColor = cfg.color === "text.secondary" ? theme.palette.background.default : alpha(color, 0.08);
+        return {
         display: "inline-flex",
         alignItems: "center",
         gap: 0.75,
         px: 1.5,
         py: 0.5,
         borderRadius: "6px",
-        background: cfg.bg,
-        border: `1px solid ${cfg.color}44`,
-        color: cfg.color,
-        fontSize: "1rem",
-        fontFamily: "monospace",
+        backgroundColor,
+        border: "1px solid",
+        borderColor: alpha(color, 0.27),
+        color,
         fontWeight: 600,
         whiteSpace: "nowrap",
+        };
       }}
     >
       {cfg.icon}
@@ -62,31 +57,6 @@ function TemplateBadge({ status }: { status: TemplateStatus }) {
     </Box>
   );
 }
-
-// ─── Shared input style ───────────────────────────────────────────────────────
-
-const inputSx = {
-  "& .MuiInputBase-root": {
-    background: "#f8fafc",
-    color: "#0f172a",
-    fontFamily: "monospace",
-    fontSize: "1rem",
-    borderRadius: "6px",
-  },
-  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
-  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
-  "& .MuiInputBase-input::placeholder": { color: "#94a3b8" },
-};
-
-const selectSx = {
-  background: "#f8fafc",
-  color: "#0f172a",
-  fontFamily: "monospace",
-  fontSize: "1rem",
-  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
-  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
-  "& .MuiSvgIcon-root": { color: "#94a3b8" },
-};
 
 const filterOptions = createFilterOptions<RepoOption>();
 
@@ -121,7 +91,7 @@ type Props = {
 
 export function Intro() {
   return (
-    <Typography sx={{ fontSize: "1rem", color: "#64748b" }}>
+    <Typography variant="body1" color="text.secondary">
       We use GitHub repositories to store your custom configuration and settings. That repository will also run GitHub actions to deploy your configuration into
       the target cloud environments. <br />
       Select the GitHub location and type the name of the repository you want to create.
@@ -196,12 +166,13 @@ export default function RepoDetail({
             if (acc) onAccountChange(acc);
           }}
           displayEmpty
-          sx={{ minWidth: 180, ...selectSx }}
+          aria-label="GitHub account"
+          sx={{ minWidth: 180 }}
         >
           {accounts.map((acc) => (
-            <MenuItem key={acc.id} value={String(acc.id)} sx={{ fontFamily: "monospace", fontSize: "1rem", color: "#0f172a" }}>
+            <MenuItem key={acc.id} value={String(acc.id)}>
               <Box data-sensitive="true" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                {acc.type === "User" ? <PersonIcon sx={{ fontSize: 16, color: "#64748b" }} /> : <BusinessIcon sx={{ fontSize: 16, color: "#64748b" }} />}
+                {acc.type === "User" ? <PersonIcon aria-hidden="true" sx={{ fontSize: 16, color: "text.secondary" }} /> : <BusinessIcon aria-hidden="true" sx={{ fontSize: 16, color: "text.secondary" }} />}
                 {acc.login}
               </Box>
             </MenuItem>
@@ -240,15 +211,15 @@ export default function RepoDetail({
             getOptionLabel={(o) => (typeof o === "string" ? o : o.name)}
             isOptionEqualToValue={(o, v) => o.name === v.name}
             renderOption={({ key, ...props }, option) => (
-              <Box key={key} component="li" {...props} sx={{ fontFamily: "monospace", fontSize: "1rem" }}>
+              <Box key={key} component="li" {...props}>
                 {option.isNew ? (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "#2563eb" }}>
-                    <AddIcon sx={{ fontSize: 16 }} />
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "primary.main" }}>
+                    <AddIcon aria-hidden="true" sx={{ fontSize: 16 }} />
                     Clone as &ldquo;{option.name}&rdquo;
                   </Box>
                 ) : (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "#0f172a" }}>
-                    <Box sx={{ fontSize: 12, color: "#94a3b8" }}>▪</Box>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.primary" }}>
+                    <Box aria-hidden="true" sx={{ fontSize: 12, color: "text.muted" }}>▪</Box>
                     {option.name}
                   </Box>
                 )}
@@ -259,7 +230,7 @@ export default function RepoDetail({
                 {...params}
                 placeholder="Select or type repo name..."
                 size="small"
-                sx={inputSx}
+                className="corpTechnicalInput"
                 onKeyDown={(e) => {
                   // A row the user aimed at wins; otherwise Enter decides from the typed text.
                   if (e.key !== "Enter" || aimedOption.current) return;
@@ -282,17 +253,17 @@ export default function RepoDetail({
           <TemplateBadge status={templateStatus} />
           {templateName && (
             <>
-              <Typography sx={{ fontSize: "1rem", color: "#94a3b8" }}>origin template:</Typography>
+              <Typography color="text.muted">origin template:</Typography>
               <Box
                 sx={{
                   px: 1,
                   py: 0.25,
                   borderRadius: "4px",
-                  background: "#f1f5f9",
-                  border: "1px solid #e2e8f0",
-                  fontSize: "1rem",
+                  backgroundColor: "background.default",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  color: "text.secondary",
                   fontFamily: "monospace",
-                  color: "#64748b",
                 }}
               >
                 {templateName}
@@ -311,12 +282,15 @@ export default function RepoDetail({
             gap: 1,
             p: 1.5,
             borderRadius: "8px",
-            background: "#fff7ed",
-            border: "1px solid #fed7aa",
+            backgroundColor: "background.default",
+            border: "1px solid",
+            borderColor: "warning.light",
           }}
+          role="status"
+          aria-live="polite"
         >
-          <WarningAmberIcon sx={{ fontSize: 16, color: "#ea580c", flexShrink: 0 }} />
-          <Typography sx={{ fontSize: "1rem", color: "#ea580c" }}>
+          <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 16, color: "warning.light", flexShrink: 0 }} />
+          <Typography color="warning.light">
             This repo is not a clone of the template. Only repos cloned from{" "}
             <Box component="span" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
               {defaultTemplateRepo}
@@ -328,10 +302,10 @@ export default function RepoDetail({
 
       {/* ── Clone panel ── */}
       <Collapse in={isNewRepo} sx={{ display: isNewRepo ? "block" : "none" }}>
-        <Box sx={{ p: 2.5, border: "1px solid #bfdbfe", borderRadius: "10px", background: "#eff6ff" }}>
+        <Box sx={{ p: 2.5, border: "1px solid", borderColor: "primary.light", borderRadius: 1, backgroundColor: "background.default" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2.5 }}>
-            <Typography sx={{ fontSize: "1rem", color: "#94a3b8" }}>Clone from template</Typography>
-            <Typography sx={{ fontSize: "1rem", color: "#2563eb", fontFamily: "monospace", fontWeight: 600 }}>
+            <Typography color="text.muted">Clone from template</Typography>
+            <Typography color="primary.main" sx={{ fontWeight: 600 }}>
               {defaultTemplateRepo}
             </Typography>
           </Box>
@@ -343,10 +317,10 @@ export default function RepoDetail({
                   checked={isPrivate}
                   onChange={(e) => onIsPrivateChange(e.target.checked)}
                   size="small"
-                  sx={{ "& .Mui-checked + .MuiSwitch-track": { background: "#93c5fd" } }}
+                  sx={{ "& .Mui-checked + .MuiSwitch-track": { backgroundColor: "primary.light" } }}
                 />
               }
-              label={<Typography sx={{ fontSize: "1rem", color: "#475569" }}>Private</Typography>}
+              label={<Typography color="text.secondary">Private</Typography>}
             />
             <FormControlLabel
               control={
@@ -354,14 +328,14 @@ export default function RepoDetail({
                   checked={includeAllBranch}
                   onChange={(e) => onIncludeAllBranchChange(e.target.checked)}
                   size="small"
-                  sx={{ "& .Mui-checked + .MuiSwitch-track": { background: "#93c5fd" } }}
+                  sx={{ "& .Mui-checked + .MuiSwitch-track": { backgroundColor: "primary.light" } }}
                 />
               }
               label={
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography sx={{ fontSize: "1rem", color: "#475569" }}>Clone all branches</Typography>
+                  <Typography color="text.secondary">Clone all branches</Typography>
                   <Tooltip title="When enabled, all branches from the template will be copied. Otherwise only the default branch is cloned.">
-                    <InfoOutlinedIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
+                    <InfoOutlinedIcon aria-hidden="true" sx={{ fontSize: 14, color: "text.muted" }} />
                   </Tooltip>
                 </Box>
               }
@@ -373,14 +347,14 @@ export default function RepoDetail({
                   checked={createEnvs}
                   onChange={(e) => onCreateEnvsChange(e.target.checked)}
                   size="small"
-                  sx={{ "& .Mui-checked + .MuiSwitch-track": { background: "#93c5fd" } }}
+                  sx={{ "& .Mui-checked + .MuiSwitch-track": { backgroundColor: "primary.light" } }}
                 />
               }
               label={
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography sx={{ fontSize: "1rem", color: "#475569" }}>Create environments</Typography>
+                  <Typography color="text.secondary">Create environments</Typography>
                   <Tooltip title="Automatically creates PROD and TEST GitHub environments in the new repo.">
-                    <InfoOutlinedIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
+                    <InfoOutlinedIcon aria-hidden="true" sx={{ fontSize: 14, color: "text.muted" }} />
                   </Tooltip>
                 </Box>
               }
@@ -396,12 +370,15 @@ export default function RepoDetail({
                 mb: 2,
                 p: 1.25,
                 borderRadius: "6px",
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
+                backgroundColor: "background.default",
+                border: "1px solid",
+                borderColor: "error.light",
               }}
+              role="alert"
+              aria-live="assertive"
             >
-              <ErrorOutlineIcon sx={{ fontSize: 15, color: "#ef4444" }} />
-              <Typography sx={{ fontSize: "1rem", color: "#ef4444" }}>{cloneError}</Typography>
+              <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 15, color: "error.main" }} />
+              <ErrorText>{cloneError}</ErrorText>
             </Box>
           )}
           {cloneEnvWarning && (
@@ -413,12 +390,15 @@ export default function RepoDetail({
                 mb: 2,
                 p: 1.25,
                 borderRadius: "6px",
-                background: "#fff7ed",
-                border: "1px solid #fed7aa",
+                backgroundColor: "background.default",
+                border: "1px solid",
+                borderColor: "warning.light",
               }}
+              role="status"
+              aria-live="polite"
             >
-              <WarningAmberIcon sx={{ fontSize: 15, color: "#ea580c" }} />
-              <Typography sx={{ fontSize: "1rem", color: "#ea580c" }}>{cloneEnvWarning}</Typography>
+              <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 15, color: "warning.light" }} />
+              <Typography color="warning.light">{cloneEnvWarning}</Typography>
             </Box>
           )}
           <Button
@@ -427,17 +407,13 @@ export default function RepoDetail({
             variant="contained"
             size="small"
             sx={{
-              fontFamily: "monospace",
-              fontSize: "1rem",
-              textTransform: "none",
               py: 0.75,
               px: 2.5,
-              "&.Mui-disabled": { background: "#bfdbfe", color: "#93c5fd" },
             }}
           >
             {cloning ? (
               <>
-                <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
+                <CircularProgress aria-label="Cloning repository" size={12} sx={{ mr: 1 }} />
                 Cloning...
               </>
             ) : (

@@ -34,9 +34,11 @@ import { computePlanSummary, isPlanBehind } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl } from "../../logic/github";
-import { borderHoverTint, MONO_FONT, UI_FONT as uiFont } from "../../config/styles";
+import { MONO_FONT } from "../../config/styles";
 import Card from "../../components/Card";
 import VariablesCard from "../../components/VariablesCard";
+import ErrorText from "../../components/ErrorText";
+import StatusText from "../../components/StatusText";
 import StagePlanDetail from "./StagePlanDetail";
 import RemoteTerminal from "./RemoteTerminal";
 
@@ -145,9 +147,6 @@ function StageVarEditor({
           variant="contained"
           size="small"
           sx={{
-            ...uiFont,
-            fontSize: "1rem",
-            textTransform: "none",
             py: 0.75,
             px: 2,
           }}
@@ -161,7 +160,7 @@ function StageVarEditor({
 
 // Shared by the plan and deploy failures — both publish the same kind of single-file log artifact.
 function FailureLog({ fetched, text }: { fetched: boolean; text: string | null }) {
-  if (!fetched) return <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont }}>Loading log...</Typography>;
+  if (!fetched) return <StatusText>Loading log...</StatusText>;
   if (!text) return null;
   return (
     <Box
@@ -169,13 +168,16 @@ function FailureLog({ fetched, text }: { fetched: boolean; text: string | null }
         mt: 0.5,
         p: 1.25,
         borderRadius: "6px",
-        background: "#fef2f2",
-        border: "1px solid #fecaca",
+        backgroundColor: "background.default",
+        border: "1px solid",
+        borderColor: "error.light",
         maxHeight: "10rem",
         overflowY: "auto",
       }}
+      role="alert"
+      aria-live="assertive"
     >
-      <Typography component="pre" sx={{ fontSize: "1rem", color: "#b91c1c", whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...MONO_FONT }}>
+      <Typography component="pre" color="error.dark" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...MONO_FONT }}>
         {text}
       </Typography>
     </Box>
@@ -209,23 +211,21 @@ function RunStatusUpdateButton({
       disabled={disabled}
       variant="outlined"
       size="small"
+      aria-busy={running}
       startIcon={running ? undefined : <PlayArrowIcon sx={{ fontSize: 15 }} />}
       sx={{
         alignSelf: "flex-start",
-        borderColor: "#bfdbfe",
-        color: "#1d4ed8",
-        ...uiFont,
-        fontSize: "1rem",
-        textTransform: "none",
+        borderColor: "primary.light",
+        color: "primary.dark",
         py: 0.55,
         px: 1.5,
-        "&:hover": { borderColor: "#93c5fd", background: borderHoverTint("#93c5fd") },
-        "&.Mui-disabled": { borderColor: "#f1f5f9", color: "#cbd5e1" },
+        "&:hover": { borderColor: "primary.main", backgroundColor: "action.hover" },
+        "&.Mui-disabled": { borderColor: "divider", color: "text.disabled" },
       }}
     >
       {running ? (
         <>
-          <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
+          <CircularProgress aria-label="Updating plan status" size={12} sx={{ mr: 1 }} />
           Running... {countdown >= 60 ? `${Math.ceil(countdown / 60)}m` : `${countdown}s`}
         </>
       ) : (
@@ -398,18 +398,14 @@ export default function StageCard({
             countdown={statusUpdateCountdown}
             disabled={statusUpdateDisabled || azurePermissions.granting}
           />
-          {(permissionError ?? runError) && <Typography sx={{ fontSize: "1rem", color: "#ef4444" }}>{permissionError ?? runError}</Typography>}
+          {(permissionError ?? runError) && <ErrorText>{permissionError ?? runError}</ErrorText>}
         </Box>
 
         {stageDef.prerequisites.length > 0 && (
           <Box>
             <Typography
-              sx={{
-                fontSize: "1rem",
-                color: "#94a3b8",
-                ...uiFont,
-                mb: 1,
-              }}
+              variant="sectionLabel"
+              sx={{ mb: 1 }}
             >
               Prerequisites
             </Typography>
@@ -427,38 +423,47 @@ export default function StageCard({
                 return (
                   <Box key={`${stageDef.dir}-${i}`}>
                     <Box
+                      component={isExpandable ? "button" : "div"}
+                      type={isExpandable ? "button" : undefined}
+                      aria-expanded={isExpandable ? isOpen : undefined}
+                      aria-controls={isExpandable ? `${stageDef.dir}-prerequisite-${i}` : undefined}
                       onClick={isExpandable ? () => setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] })) : undefined}
                       sx={{
                         display: "flex",
+                        width: "100%",
                         alignItems: "center",
                         gap: 1,
                         py: 0.5,
                         px: isExpandable ? 0.75 : 0,
                         mx: isExpandable ? -0.75 : 0,
                         borderRadius: "6px",
+                        border: 0,
+                        backgroundColor: "transparent",
+                        textAlign: "left",
+                        font: "inherit",
                         cursor: isExpandable ? "pointer" : "default",
                         userSelect: "none",
-                        "&:hover": isExpandable ? { background: "#f8fafc" } : {},
+                        "&:hover": isExpandable ? { backgroundColor: "action.hover" } : {},
                       }}
                     >
                       {met && prereqHasDeployedDiff ? (
                         <Tooltip title="Changed since last plan" placement="top" arrow>
-                          <WarningAmberIcon sx={{ fontSize: 13, color: "#d97706", flexShrink: 0 }} />
+                          <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 13, color: "warning.main", flexShrink: 0 }} />
                         </Tooltip>
                       ) : met ? (
-                        <CheckCircleIcon sx={{ fontSize: 13, color: "#22c55e", flexShrink: 0 }} />
+                        <CheckCircleIcon aria-hidden="true" sx={{ fontSize: 13, color: "success.main", flexShrink: 0 }} />
                       ) : (
-                        <RadioButtonUncheckedIcon sx={{ fontSize: 13, color: "#cbd5e1", flexShrink: 0 }} />
+                        <RadioButtonUncheckedIcon aria-hidden="true" sx={{ fontSize: 13, color: "text.disabled", flexShrink: 0 }} />
                       )}
-                      <Typography sx={{ fontSize: "1rem", color: met ? "#475569" : "#94a3b8", ...uiFont, flex: 1 }}>{label}</Typography>
+                      <Typography color={met ? "text.secondary" : "text.muted"} sx={{ flex: 1 }}>{label}</Typography>
                       {isExpandable &&
-                        (isOpen ? <ExpandLessIcon sx={{ fontSize: 14, color: "#cbd5e1" }} /> : <ExpandMoreIcon sx={{ fontSize: 14, color: "#cbd5e1" }} />)}
+                        (isOpen ? <ExpandLessIcon aria-hidden="true" sx={{ fontSize: 14, color: "text.disabled" }} /> : <ExpandMoreIcon aria-hidden="true" sx={{ fontSize: 14, color: "text.disabled" }} />)}
                     </Box>
 
                     {isExpandable && isOpen && (
-                      <Box sx={{ ml: 2.75, mt: 0.5, mb: 1 }}>
+                      <Box id={`${stageDef.dir}-prerequisite-${i}`} role="region" aria-label={`${label} details`} sx={{ ml: 2.75, mt: 0.5, mb: 1 }}>
                         {prereq.type === "varGroup" && (
-                          <Box sx={{ border: "1px solid #f1f5f9", borderRadius: "8px", overflow: "hidden" }}>
+                          <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, overflow: "hidden" }}>
                             {prereq.keys.map((k, ki) => (
                               <Box
                                 key={k}
@@ -468,28 +473,25 @@ export default function StageCard({
                                   gap: 1.5,
                                   px: 2,
                                   py: 0.75,
-                                  borderBottom: ki < prereq.keys.length - 1 ? "1px solid #f8fafc" : "none",
-                                  background: ki % 2 === 0 ? "#ffffff" : "#fafafa",
+                                  borderBottom: ki < prereq.keys.length - 1 ? "1px solid" : "none",
+                                  borderColor: "divider",
+                                  backgroundColor: ki % 2 === 0 ? "background.paper" : "background.default",
                                 }}
                               >
                                 <Typography
                                   sx={{
-                                    fontSize: "1rem",
-                                    color: "#64748b",
+                                    color: "text.secondary",
                                     minWidth: "11rem",
                                     flexShrink: 0,
-                                    ...uiFont,
                                   }}
                                 >
                                   {k}
                                 </Typography>
                                 <Typography
                                   sx={{
-                                    fontSize: "1rem",
-                                    color: variableValues[k] ? "#0f172a" : "#cbd5e1",
+                                    color: variableValues[k] ? "text.primary" : "text.disabled",
                                     wordBreak: "break-all",
                                     flex: 1,
-                                    ...uiFont,
                                   }}
                                 >
                                   {variableValues[k] || "not set"}
@@ -535,7 +537,7 @@ export default function StageCard({
         <RemoteTerminal session={remoteTerminal} />
 
         {!hasDetails && stage.status !== "pending" && (
-          <Typography sx={{ fontSize: "1rem", color: stage.status === "failed" ? "#ef4444" : "#cbd5e1", ...uiFont }}>
+          <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
             No plan available for this stage.
           </Typography>
         )}
@@ -545,12 +547,8 @@ export default function StageCard({
         {(stage.deployedAt || stage.deployStatus) && (
           <Box>
             <Typography
-              sx={{
-                fontSize: "1rem",
-                color: "#94a3b8",
-                ...uiFont,
-                mb: 0.75,
-              }}
+              variant="sectionLabel"
+              sx={{ mb: 0.75 }}
             >
               Last Deploy
             </Typography>
@@ -558,19 +556,19 @@ export default function StageCard({
                 row and everything below indents past it rather than sharing a column with it. */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               {stage.deployStatus === "success" ? (
-                <CheckCircleIcon sx={{ fontSize: 13, color: "#22c55e", flexShrink: 0 }} />
+                <CheckCircleIcon aria-hidden="true" sx={{ fontSize: 13, color: "success.main", flexShrink: 0 }} />
               ) : stage.deployStatus === "cancelled" ? (
-                <BlockIcon sx={{ fontSize: 13, color: "#94a3b8", flexShrink: 0 }} />
+                <BlockIcon aria-hidden="true" sx={{ fontSize: 13, color: "text.muted", flexShrink: 0 }} />
               ) : stage.deployStatus === "failed" ? (
-                <WarningAmberIcon sx={{ fontSize: 13, color: "#ef4444", flexShrink: 0 }} />
+                <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 13, color: "error.main", flexShrink: 0 }} />
               ) : null}
-              {stage.deployedAt && <Typography sx={{ fontSize: "1rem", color: "#475569", ...uiFont }}>{relativeTime(stage.deployedAt)}</Typography>}
+              {stage.deployedAt && <Typography color="text.secondary">{relativeTime(stage.deployedAt)}</Typography>}
               {/* The apply's own run, not the plan's — the header link points at the plan. */}
               {repoFullName && stage.deployRunId && <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} />}
             </Box>
             {/* 13px icon + the 8px gap above. */}
             <Box sx={{ pl: "21px" }}>
-              {stage.deployStatus === "cancelled" && <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFont }}>Cancelled</Typography>}
+              {stage.deployStatus === "cancelled" && <Typography color="text.muted">Cancelled</Typography>}
               {stage.deployStatus === "failed" && <FailureLog fetched={deployLogFetched} text={deployLog?.text ?? null} />}
             </Box>
           </Box>

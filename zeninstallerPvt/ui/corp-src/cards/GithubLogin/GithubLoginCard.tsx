@@ -8,7 +8,6 @@ import { Box, Button, CircularProgress, IconButton, InputAdornment, TextField, T
 import ClearIcon from "@mui/icons-material/Clear";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import { UI_FONT as uiFontSx } from "../../config/styles";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getGithubUserUrl, GITHUB_LOGIN_URL } from "../../logic/github";
@@ -24,7 +23,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "1rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
       Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox.
     </Typography>
   );
@@ -90,12 +89,12 @@ export default function GithubLoginCard({ card, auth }: Props) {
         {/* Mode toggle — hidden once logged in, and when PAT is the only mode there is nothing to pick */}
         {!user && backendAvailable && (
           <Box sx={{ mb: 2 }}>
-            <Typography sx={{ fontSize: "1rem", color: "#64748b", mb: 1 }}>
-              <Box component="span" sx={{ ...uiFontSx, fontWeight: 600 }}>
+            <Typography color="text.muted" sx={{ mb: 1 }}>
+              <Box component="span" sx={{ fontWeight: 600 }}>
                 Backend
               </Box>{" "}
               signs you in through GitHub's OAuth flow and keeps your access token on the server.{" "}
-              <Box component="span" sx={{ ...uiFontSx, fontWeight: 600 }}>
+              <Box component="span" sx={{ fontWeight: 600 }}>
                 Direct (PAT)
               </Box>{" "}
               skips the backend entirely — paste your own Personal Access Token and the browser talks to GitHub directly.
@@ -105,9 +104,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
               exclusive
               onChange={handleModeChange}
               size="small"
-              sx={{
-                "& .MuiToggleButton-root": { ...uiFontSx, fontSize: "1rem", textTransform: "none", px: 1.5, py: 0.4 },
-              }}
+              sx={{ "& .MuiToggleButton-root": { px: 1.5, py: 0.4 } }}
             >
               <ToggleButton value="backend">Backend</ToggleButton>
               <ToggleButton value="direct">Direct (PAT)</ToggleButton>
@@ -116,9 +113,9 @@ export default function GithubLoginCard({ card, auth }: Props) {
         )}
 
         {authLoading ? (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
-            <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
-            <Typography sx={{ fontSize: "1rem", color: "#94a3b8", ...uiFontSx }}>{signingIn ? "Signing you in..." : "Verifying access..."}</Typography>
+          <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
+            <CircularProgress aria-label={signingIn ? "Signing you in" : "Verifying access"} size={16} sx={{ color: "text.disabled" }} />
+            <Typography color="text.muted">{signingIn ? "Signing you in..." : "Verifying access..."}</Typography>
           </Box>
         ) : !user ? (
           mode === "direct" ? (
@@ -146,12 +143,14 @@ export default function GithubLoginCard({ card, auth }: Props) {
                 }}
                 error={!!patError}
                 helperText={patError || "Personal Access Token with repo + workflow scopes"}
-                inputProps={{ style: { fontFamily: "monospace", fontSize: "1rem" } }}
+                aria-label="GitHub Personal Access Token"
+                className="corpTechnicalInput"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
                       {pat && (
                         <IconButton
+                          aria-label="Clear GitHub Personal Access Token"
                           size="small"
                           onClick={() => {
                             setPat("");
@@ -159,7 +158,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                           }}
                           tabIndex={-1}
                         >
-                          <ClearIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
+                          <ClearIcon sx={{ fontSize: 14, color: "text.muted" }} />
                         </IconButton>
                       )}
                       <IconButton
@@ -169,26 +168,22 @@ export default function GithubLoginCard({ card, auth }: Props) {
                         tabIndex={-1}
                         aria-label={showPat ? "Hide token" : "Show token"}
                       >
-                        {showPat ? <VisibilityOffIcon sx={{ fontSize: 14, color: "#94a3b8" }} /> : <VisibilityIcon sx={{ fontSize: 14, color: "#94a3b8" }} />}
+                        {showPat ? <VisibilityOffIcon sx={{ fontSize: 14, color: "text.muted" }} /> : <VisibilityIcon sx={{ fontSize: 14, color: "text.muted" }} />}
                       </IconButton>
                     </InputAdornment>
                   ),
                 }}
-                FormHelperTextProps={{ sx: { ...uiFontSx, fontSize: "1rem" } }}
+                FormHelperTextProps={{ role: patError ? "alert" : undefined }}
               />
               <Button
                 variant="contained"
                 type="submit"
                 disabled={!pat?.trim() || signingIn}
-                startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "#cbd5e1" }} /> : undefined}
+                startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "text.disabled" }} /> : undefined}
                 sx={{
                   alignSelf: "flex-start",
-                  textTransform: "none",
-                  ...uiFontSx,
-                  fontSize: "1rem",
                   py: 0.75,
                   px: 2,
-                  borderRadius: "8px",
                 }}
               >
                 {signingIn ? "Connecting..." : "Connect with PAT"}
@@ -199,14 +194,10 @@ export default function GithubLoginCard({ card, auth }: Props) {
               variant="contained"
               onClick={onLogin}
               disabled={signingIn}
-              startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "#cbd5e1" }} /> : undefined}
+              startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "text.disabled" }} /> : undefined}
               sx={{
-                textTransform: "none",
-                ...uiFontSx,
-                fontSize: "1rem",
                 py: 1,
                 px: 2.5,
-                borderRadius: "8px",
                 boxShadow: "0 2px 8px #2563eb33",
                 "&:hover": {
                   boxShadow: "0 4px 12px #2563eb44",
@@ -218,14 +209,14 @@ export default function GithubLoginCard({ card, auth }: Props) {
             </Button>
           )
         ) : (
-          <Box>
-            <Typography sx={{ fontSize: "1rem", color: "#64748b", mb: 2 }}>
+          <Box role="status" aria-live="polite">
+            <Typography color="text.muted" sx={{ mb: 2 }}>
               Authenticated as{" "}
-              <Box component="span" data-sensitive="true" sx={{ color: "#16a34a", ...uiFontSx, fontWeight: 600 }}>
+              <Box component="span" data-sensitive="true" sx={{ color: "success.main", fontWeight: 600 }}>
                 {user.login}
               </Box>
               {mode === "direct" && (
-                <Box component="span" sx={{ color: "#94a3b8" }}>
+                <Box component="span" sx={{ color: "text.muted" }}>
                   {" "}
                   · PAT mode
                 </Box>
@@ -235,21 +226,11 @@ export default function GithubLoginCard({ card, auth }: Props) {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Button
                 size="small"
-                variant="outlined"
+                variant="contained"
+                color="error"
                 onClick={onLogout}
                 sx={{
-                  borderColor: "transparent",
-                  color: "#ffffff",
-                  background: "linear-gradient(135deg, #ef4444, #dc2626)",
-                  fontSize: "0.875rem",
-                  textTransform: "none",
-                  ...uiFontSx,
                   py: 0.5,
-                  "&:hover": {
-                    borderColor: "transparent",
-                    color: "#ffffff",
-                    background: "linear-gradient(135deg, #dc2626, #b91c1c)",
-                  },
                 }}
               >
                 Sign out
