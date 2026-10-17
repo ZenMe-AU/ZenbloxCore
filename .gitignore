@@ -42,6 +42,8 @@ zeninstallerPvt/ui/pwtests/test-results/
 terraform.tfstate.backup
 .terraform.*
 .terraform/
+*.tfplan
+.env
 planfile
 
 # Azure
