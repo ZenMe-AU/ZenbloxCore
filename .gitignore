@@ -42,6 +42,8 @@ zeninstallerPvt/ui/pwtests/test-results/
 terraform.tfstate.backup
 .terraform.*
 .terraform/
+*.tfplan
+.env
 planfile
 
 # Azure
@@ -53,3 +55,4 @@ __azurite_db_table__.json
 __blobstorage__/
 AzuriteConfig
 
+corpSetup/c25cloudfront/source/loginApp/config.js
