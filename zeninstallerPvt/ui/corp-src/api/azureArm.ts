@@ -537,6 +537,22 @@ export async function getStaticWebsiteUrl(account: AzureAccount, subscriptionId:
   return web ? web.replace(/\/+$/, "") : null;
 }
 
+// ARM refuses to delete the resource (and so its group) until the lock is removed. Control plane only:
+// blobs inside can still be deleted, so this guards the account, not the state file.
+export async function ensureDeleteLock(
+  account: AzureAccount,
+  resourceId: string,
+  lockName: string,
+  notes: string,
+  overrideTenantId?: string
+): Promise<EnsureResult> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const path = `${resourceId}/providers/Microsoft.Authorization/locks/${lockName}?api-version=2020-05-01`;
+  if (await armGet(token, path)) return "exists";
+  await gFetch(token, ARM, path, { method: "PUT", body: JSON.stringify({ properties: { level: "CanNotDelete", notes } }) });
+  return "created";
+}
+
 export async function ensureStorageContainer(
   account: AzureAccount,
   subscriptionId: string,

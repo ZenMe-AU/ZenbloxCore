@@ -73,6 +73,20 @@ export const TERMINAL_SESSION_TABLE = "sessions";
 export const TERMINAL_DEPLOY_CONTAINER = "deployment";
 
 export const TFSTATE_CONTAINER = "terraformstate";
+
+export function getCoreResourceGroupName(corpName: string): string {
+  return `zbcore-${slug(corpName)}-rg`;
+}
+
+export function getCoreLogAnalyticsName(corpName: string): string {
+  return `zbcore-${slug(corpName)}-law`;
+}
+
+// An account name holds only lowercase letters and digits, so the rest of the code is dropped, not swapped.
+export function getCoreStorageAccountName(corpName: string): string {
+  return `zbcore${corpName.toLowerCase().replace(/[^a-z0-9]/g, "")}stor`;
+}
+export const TFSTATE_LOCK_NAME = "tfstate-cannot-delete";
 export const DIAGNOSTIC_SETTING_NAME = "standard-diagnostics-setting";
 export const DEFAULT_AZURE_LOCATION = "australiaeast";
 

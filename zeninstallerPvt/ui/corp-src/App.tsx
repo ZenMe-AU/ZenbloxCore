@@ -138,6 +138,7 @@ function AppDashboard() {
       corpName,
       spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
+      variableValues: githubVariableValues,
     })
   );
   const remoteTerminalInfra = addCard(
