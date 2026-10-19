@@ -16,7 +16,7 @@ const { createCoverageMap } = coverageLib;
 const { createContext } = reportLib;
 
 const webDir = resolve(".");
-const resultsDir = resolve(webDir, "../../pwtest-results");
+const resultsDir = resolve(process.argv[2] ?? resolve(webDir, "../../pwtest-results"));
 const reportDir = resolve(resultsDir, "coverage-report");
 const coverageMap = createCoverageMap({});
 let converted = 0;
