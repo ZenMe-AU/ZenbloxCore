@@ -21,7 +21,7 @@ function SummaryPill({ label, count, color }: { label: string; count: number; co
         borderRadius: "4px",
         border: "1px solid",
         borderColor: alpha(theme.palette[color].main, 0.2),
-        color: theme.palette[color].main,
+        color: theme.palette[color].dark,
       })}
     >
       {label} {count}
@@ -41,7 +41,7 @@ function BehindPill({ planSha, latestSha }: { planSha?: string; latestSha?: stri
           border: "1px solid",
           borderColor: "warning.light",
           backgroundColor: "action.hover",
-          color: "warning.main",
+          color: "warning.dark",
           cursor: "default",
         }}
       >
@@ -110,6 +110,10 @@ export default function StagePlanDetail({
         </Typography>
         {behind && <BehindPill planSha={planSha} latestSha={latestSha} />}
       </Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Create adds resources, update changes existing resources, delete removes resources, and replace recreates a resource and may interrupt service. Review the
+        plan before deploying.
+      </Typography>
       <Box
         sx={{
           display: "flex",

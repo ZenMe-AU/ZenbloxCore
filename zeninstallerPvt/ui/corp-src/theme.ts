@@ -14,6 +14,7 @@ type CardPalette = {
   summary: CardStatusColors;
   mutedBackground: string;
   mutedText: string;
+  radius: string;
   shadow: string;
   hoverShadow: string;
   contentDivider: string;
@@ -29,11 +30,15 @@ declare module "@mui/material/styles" {
   interface TypographyVariants {
     fieldLabel: CSSProperties;
     sectionLabel: CSSProperties;
+    technical: CSSProperties;
+    technicalBody: CSSProperties;
   }
 
   interface TypographyVariantsOptions {
     fieldLabel?: CSSProperties;
     sectionLabel?: CSSProperties;
+    technical?: CSSProperties;
+    technicalBody?: CSSProperties;
   }
 
   interface TypeText {
@@ -53,6 +58,8 @@ declare module "@mui/material/Typography" {
   interface TypographyPropsVariantOverrides {
     fieldLabel: true;
     sectionLabel: true;
+    technical: true;
+    technicalBody: true;
   }
 }
 
@@ -120,16 +127,17 @@ const theme = createTheme({
         unavailable: "#cbd5e1",
       },
       summary: {
-        idle: "#ea580c",
+        idle: "#b45309",
         loading: "#64748b",
-        complete: "#16a34a",
-        warning: "#ea580c",
+        complete: "#15803d",
+        warning: "#b45309",
         error: "#dc2626",
         skipped: "#64748b",
         unavailable: "#64748b",
       },
       mutedBackground: "#f8fafc",
       mutedText: "#94a3b8",
+      radius: "10px",
       shadow: "0 1px 3px rgba(0,0,0,0.04)",
       hoverShadow: "0 4px 12px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08)",
       contentDivider: "#f1f5f9",
@@ -176,7 +184,7 @@ const theme = createTheme({
       fontSize: "0.75rem",
       fontWeight: 600,
       lineHeight: 1.4,
-      letterSpacing: "0.06em",
+      letterSpacing: 0,
     },
     fieldLabel: {
       fontSize: "1rem",
@@ -189,6 +197,16 @@ const theme = createTheme({
       fontWeight: 700,
       lineHeight: 1.4,
       color: "#0f172a",
+    },
+    technical: {
+      fontFamily: "monospace",
+      fontSize: "0.75rem",
+      lineHeight: 1.4,
+    },
+    technicalBody: {
+      fontFamily: "monospace",
+      fontSize: "1rem",
+      lineHeight: 1.4,
     },
     button: {
       fontSize: "0.875rem",
@@ -274,7 +292,7 @@ const theme = createTheme({
     },
     MuiLink: {
       defaultProps: {
-        underline: "hover",
+        underline: "always",
       },
     },
     MuiTypography: {

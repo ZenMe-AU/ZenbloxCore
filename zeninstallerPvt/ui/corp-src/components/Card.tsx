@@ -12,9 +12,9 @@ import BlockIcon from "@mui/icons-material/Block";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { useTheme } from "@mui/material/styles";
+import { alpha, useTheme } from "@mui/material/styles";
 import type { CardStatus, CardChrome } from "../types";
-import { borderHoverTint, UI_FONT as uiFont } from "../config/styles";
+import { borderHoverTint } from "../config/styles";
 
 const STATUS_LABEL: Record<CardStatus, string> = {
   idle: "Not started",
@@ -41,18 +41,18 @@ function StatusIcon({
    * Same muted grey as the blocked icon - unavailable is styled identically to
    * locked, the glyph is the only thing that tells them apart.
    */
-  if (locked) return <BlockIcon aria-hidden="true" sx={{ fontSize: 16, color: lockedIconColor }} />;
+  if (locked) return <BlockIcon aria-hidden="true" sx={{ typography: "caption", color: lockedIconColor }} />;
   const c = iconColors[status];
   switch (status) {
     case "complete":
-      return <CheckCircleIcon aria-hidden="true" sx={{ fontSize: 16, color: c }} />;
+      return <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: c }} />;
     case "unavailable":
     case "warning":
-      return <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 15, color: c }} />;
+      return <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: c }} />;
     case "error":
-      return <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 15, color: c }} />;
+      return <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: c }} />;
     default:
-      return <RadioButtonUncheckedIcon aria-hidden="true" sx={{ fontSize: 14, color: c }} />;
+      return <RadioButtonUncheckedIcon aria-hidden="true" sx={{ typography: "caption", color: c }} />;
   }
 }
 
@@ -114,7 +114,7 @@ export default function Card({
         maxWidth: "100%",
         border: "1px solid",
         borderColor: muted ? theme.palette.divider : colors.border[status],
-        borderRadius: "10px",
+        borderRadius: theme.palette.card.radius,
         background: muted ? colors.mutedBackground : theme.palette.background.paper,
         overflow: "hidden",
         boxShadow: colors.shadow,
@@ -143,11 +143,11 @@ export default function Card({
         <Typography
           component="h3"
           id={titleId}
-          sx={{ flex: 1, minWidth: 0, m: 0, fontSize: "inherit", fontWeight: "inherit" }}
+          variant="inherit"
+          sx={{ flex: 1, minWidth: 0, m: 0, fontWeight: "inherit" }}
         >
           <ButtonBase
             disableRipple
-            aria-label={`${title}, ${locked ? "Locked" : STATUS_LABEL[status]}`}
             aria-expanded={expanded}
             aria-controls={contentId}
             onClick={onToggle}
@@ -159,10 +159,10 @@ export default function Card({
               gap: 1.25,
               textAlign: "left",
               "&.Mui-focusVisible": {
-                outline: "2px solid #93c5fd",
+                outline: `2px solid ${theme.palette.primary.light}`,
                 outlineOffset: 2,
                 borderRadius: "8px",
-                boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.12)",
+                boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.12)}`,
               },
             }}
           >
@@ -172,16 +172,16 @@ export default function Card({
                 component="span"
                 sx={{
                   display: "block",
-                  fontSize: "1rem",
+                  typography: "body1",
                   fontWeight: 600,
                   color: muted ? colors.mutedText : theme.palette.text.primary,
-                  ...uiFont,
-                  letterSpacing: "-0.01em",
+                  letterSpacing: 0,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                 }}
                 title={title}
+                data-a11y-contrast-exception={muted ? "muted-card-title" : undefined}
               >
                 {title}
               </Typography>
@@ -190,18 +190,21 @@ export default function Card({
                   component="span"
                   sx={{
                     display: "block",
-                    fontSize: "1rem",
+                    typography: "body1",
                     color: colors.summary[status],
-                    ...uiFont,
                     mt: 0.25,
-                    whiteSpace: "normal",
-                    overflowWrap: "anywhere",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
                   title={summary}
                 >
                   {summary}
                 </Typography>
               )}
+              <Box component="span" className="visually-hidden">
+                {locked ? "Locked" : STATUS_LABEL[status]}
+              </Box>
             </Box>
           </ButtonBase>
         </Typography>
@@ -218,10 +221,10 @@ export default function Card({
               color: colors.mutedIcon,
               "&:hover": { color: colors.mutedIconHover },
               "&.Mui-focusVisible": {
-                outline: "2px solid #93c5fd",
+                outline: `2px solid ${theme.palette.primary.light}`,
                 outlineOffset: 1,
                 borderRadius: "50%",
-                boxShadow: "0 0 0 3px rgba(37, 99, 235, 0.12)",
+                boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.12)}`,
               },
             }}
           >
@@ -262,12 +265,11 @@ export default function Card({
               >
                 <Typography
                   sx={{
-                    fontSize: "1rem",
+                    typography: "body1",
                     color: theme.palette.text.secondary,
-                    ...uiFont,
                   }}
                 >
-                  Complete these first
+                  Complete these setup steps first. Select a step to open its card.
                 </Typography>
                 {requirements.map((r) => (
                   <ButtonBase
@@ -292,12 +294,12 @@ export default function Card({
                   >
                     <ChevronRightIcon
                       aria-hidden="true"
-                      sx={{ fontSize: 15, color: colors.requirementText, flexShrink: 0 }}
+                      sx={{ typography: "caption", color: colors.requirementText, flexShrink: 0 }}
                     />
                     <Typography
                       component="span"
                       className="req-label"
-                      sx={{ fontSize: "1rem", color: colors.requirementText, fontWeight: 500 }}
+                      sx={{ typography: "body1", color: colors.requirementText, fontWeight: 500 }}
                     >
                       {r.label}
                     </Typography>

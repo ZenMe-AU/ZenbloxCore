@@ -40,7 +40,7 @@ function Intro({ containerName }: { containerName: string }) {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
       Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
-      <Box component="code" sx={{ fontFamily: "monospace" }}>
+      <Box component="code" sx={{ typography: "technical" }}>
         {containerName}
       </Box>{" "}
       container Terraform uses for state, granting GitHub Actions access to it.
@@ -150,7 +150,7 @@ export default function CoreInfraCard({
             role="status"
             aria-live="polite"
           >
-            <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 16, color: "warning.main", flexShrink: 0 }} />
+            <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
             <Typography color="warning.dark">
               The resource group doesn't exist in the selected subscription anymore — re-run to recreate it.
             </Typography>
@@ -172,7 +172,7 @@ export default function CoreInfraCard({
             role="status"
             aria-live="polite"
           >
-            <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 16, color: "warning.main", flexShrink: 0 }} />
+            <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
             <Typography color="warning.dark">GitHub Actions has no access on the resource group — re-run to grant it.</Typography>
           </Box>
         )}
@@ -233,7 +233,7 @@ export default function CoreInfraCard({
                       )}
                       {locationsLoading && <CircularProgress aria-label="Loading Azure regions" size={12} />}
                       <IconButton aria-label="Confirm Azure region" size="small" onClick={() => setEditingLocation(false)} sx={{ color: "success.main", p: 0.25 }}>
-                        <CheckIcon sx={{ fontSize: 14 }} />
+                        <CheckIcon sx={{ typography: "caption" }} />
                       </IconButton>
                     </>
                   ) : (
@@ -245,7 +245,7 @@ export default function CoreInfraCard({
                         </Box>
                       </Typography>
                       <IconButton aria-label="Edit Azure region" size="small" onClick={() => setEditingLocation(true)} sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}>
-                        <EditIcon sx={{ fontSize: 12 }} />
+                        <EditIcon sx={{ typography: "caption" }} />
                       </IconButton>
                     </>
                   )}

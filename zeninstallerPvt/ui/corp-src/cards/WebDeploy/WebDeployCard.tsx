@@ -71,11 +71,11 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
           Builds the Zeninstaller frontend in GitHub Actions, then writes the files straight from this browser into the{" "}
-          <Box component="code" sx={{ fontFamily: "monospace" }}>
+          <Box component="code" sx={{ typography: "technicalBody" }}>
             $web
           </Box>{" "}
           container of{" "}
-          <Box component="code" sx={{ fontFamily: "monospace" }}>
+          <Box component="code" sx={{ typography: "technicalBody" }}>
             {storageAccountName || "the site's storage account"}
           </Box>
           .
@@ -100,7 +100,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
 
         {staleVariables.length > 0 && (
           <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14, color: "warning.main" }} />
+            <WarningAmberIcon aria-hidden="true" sx={{ typography: "body2", color: "warning.main" }} />
             <Typography color="warning.dark">
               Changed since the last build: {staleVariables.join(", ")} — build again to pick them up.
             </Typography>
@@ -109,7 +109,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
 
         {missingGithubClientId && (
           <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14, color: "warning.main" }} />
+            <WarningAmberIcon aria-hidden="true" sx={{ typography: "body2", color: "warning.main" }} />
             <Typography color="warning.dark">
               Set VITE_GITHUB_CLIENT_ID on this environment first — the build bakes it in.
             </Typography>
@@ -121,13 +121,13 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
             <Typography color="text.muted">
               Latest build:{" "}
-              <Box component="span" sx={{ color: "text.primary", fontFamily: "monospace" }}>
+              <Box component="span" sx={{ color: "text.primary", typography: "technicalBody" }}>
                 {loadingLatest ? "checking..." : latest ? `${latest.sha.slice(0, 7)} (v${latest.version}) · ${when(latest.builtAt)}` : "none yet"}
               </Box>
             </Typography>
             <Typography color="text.muted">
               Live on the site:{" "}
-              <Box component="span" sx={{ color: "text.primary", fontFamily: "monospace" }}>
+              <Box component="span" sx={{ color: "text.primary", typography: "technicalBody" }}>
                 {loadingDeployed
                   ? "checking..."
                   : deployed
@@ -196,14 +196,14 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           {/* Mutually exclusive with the prompt below, so both share the slot by the button. */}
           {!loadingLatest && latest && !updateAvailable && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <CheckCircleIcon aria-hidden="true" sx={{ fontSize: 14, color: "success.main" }} />
+              <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2", color: "success.main" }} />
               <Typography color="success.dark">The site is serving the latest build.</Typography>
             </Box>
           )}
 
           {!loadingLatest && updateAvailable && deployed && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14, color: "warning.main" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ typography: "body2", color: "warning.main" }} />
               <Typography color="warning.dark">Ready to deploy the new build</Typography>
             </Box>
           )}

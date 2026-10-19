@@ -10,7 +10,6 @@ import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getEntraOverviewUrl } from "../../logic/consoleUrls";
 import ConfigErrorNotice from "../../components/ConfigErrorNotice";
-import CardIntro from "../../components/CardIntro";
 import ErrorText from "../../components/ErrorText";
 import ExternalLink from "../../components/ExternalLink";
 import FieldLabel from "../../components/FieldLabel";
@@ -26,10 +25,10 @@ type Props = {
 
 function Intro() {
   return (
-    <CardIntro>
+    <Typography component="p" variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
       Sign in with Azure so we can create the app registration and cloud resources for you. We never store your Azure credentials — sign-in happens directly
       with Microsoft, and only a short-lived access token is used.
-    </CardIntro>
+    </Typography>
   );
 }
 
@@ -94,13 +93,14 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                 >
                   Sign in with Azure
                 </Button>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap" }}>
                   <Typography variant="body2" color="text.muted">No Azure account?</Typography>
-                  <ExternalLink href={CLOUD_DOCS.azure.createAccount} label="Create an Azure account">
+                  <ExternalLink href={CLOUD_DOCS.azure.createAccount} label="Start an Azure free trial">
                     <>
-                      Create a free one <OpenInNewIcon fontSize="inherit" />
+                      Start an Azure free trial <OpenInNewIcon fontSize="inherit" />
                     </>
                   </ExternalLink>
+                  <Typography variant="body2" color="text.muted">A payment method is required for verification; you are not charged unless you upgrade to Pay As You Go.</Typography>
                 </Box>
               </>
             )}

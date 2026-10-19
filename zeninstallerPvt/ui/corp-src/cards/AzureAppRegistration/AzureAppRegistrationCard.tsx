@@ -34,8 +34,9 @@ type Props = {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Create an app registration for GitHub Actions and grant it access on your selected subscription. Name it and create it — the AZURE_CLIENT_ID connection
-      variables are written to GitHub automatically.
+      Create a Microsoft Entra app registration for GitHub Actions. ZenInstaller configures GitHub OIDC trust for the selected environment, so workflows can sign
+      in without a stored client secret, and grants the app Reader access to the selected Azure subscription for Terraform plans. The app ID is saved to that
+      environment. This does not grant deployment permissions; deployments are applied separately through the remote-terminal flow.
     </Typography>
   );
 }
@@ -152,9 +153,9 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
             aria-live={bannerState === "error" ? "assertive" : "polite"}
           >
             {bannerState === "error" ? (
-              <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 16, color: "error.main" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "error.main" }} />
             ) : (
-              <CheckCircleOutlineIcon aria-hidden="true" sx={{ fontSize: 16, color: "success.main" }} />
+              <CheckCircleOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main" }} />
             )}
             <Typography color={bannerState === "error" ? "error.dark" : "success.dark"}>
               {bannerState === "saved" && "Connection details saved."}
@@ -177,7 +178,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
               {!subscriptionId && (
                 <Box role="status" aria-live="polite" sx={{ backgroundColor: "background.default", border: "1px solid", borderColor: "warning.main", borderRadius: 1, px: 2, py: 1.25 }}>
                   <Typography color="warning.dark">
-                    Pick a subscription in the <b>Azure subscription</b> card first — this app registration grants access on it.
+                    Select a subscription in the <b>Azure subscription</b> card first. ZenInstaller grants this app Reader access to that subscription for Terraform planning.
                   </Typography>
                 </Box>
               )}
@@ -197,7 +198,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                   role="status"
                   aria-live="polite"
                 >
-                  <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 16, color: "warning.main", flexShrink: 0 }} />
+                  <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
                   <Typography color="warning.dark">
                     This app registration doesn't exist in the selected tenant — create a new one.
                   </Typography>
@@ -219,7 +220,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                   role="status"
                   aria-live="polite"
                 >
-                  <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 16, color: "warning.main", flexShrink: 0 }} />
+                  <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
                   <Typography color="warning.dark">
                     Missing on the selected subscription: <b>{rbacMissingRoles.join(", ") || "access"}</b> — re-run to grant it.
                   </Typography>
@@ -241,7 +242,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                   role="status"
                   aria-live="polite"
                 >
-                  <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 16, color: "warning.main", flexShrink: 0 }} />
+                  <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
                   <Typography color="warning.dark">
                     AZURE_PLAN_CLIENT_ID doesn't match AZURE_CLIENT_ID — re-run to bring it back in sync.
                   </Typography>
@@ -273,12 +274,12 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                         px: 2.5,
                       }}
                     >
-                      {rbacMissing ? "Grant access on this subscription" : "Create app registration"}
+                      {rbacMissing ? "Grant Reader access on this subscription" : "Create app registration"}
                     </Button>
                     {varHasAny && !rbacMissing && !spNotFound && (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                        <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14, color: "warning.main" }} />
-                        <Typography color="warning.main">This will overwrite your current connection details</Typography>
+                        <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
+                        <Typography color="warning.main">This replaces the saved Azure app IDs for the selected GitHub environment.</Typography>
                       </Box>
                     )}
                   </Box>
@@ -326,7 +327,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
           </Typography>
           <KeyboardArrowDownIcon
             sx={{
-              fontSize: 14,
+              typography: "caption",
               color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
               transition: "transform 0.2s",

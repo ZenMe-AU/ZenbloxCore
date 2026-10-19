@@ -53,12 +53,12 @@ function ValidationBadge({ valid, pendingValidation }: { valid: boolean | null; 
           borderRadius: 0.5,
           backgroundColor: (theme) => alpha(theme.palette.success.light, 0.1),
           border: (theme) => `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
-          color: "success.main",
+          color: "success.dark",
         }}
         role="status"
         aria-live="polite"
       >
-        <CheckCircleIcon sx={{ fontSize: 10 }} />
+        <CheckCircleIcon sx={{ typography: "caption" }} />
         valid
       </Box>
     );
@@ -75,11 +75,11 @@ function ValidationBadge({ valid, pendingValidation }: { valid: boolean | null; 
           borderRadius: 0.5,
           backgroundColor: (theme) => alpha(theme.palette.error.light, 0.08),
           border: (theme) => `1px solid ${alpha(theme.palette.error.light, 0.3)}`,
-          color: "error.light",
+          color: "error.dark",
         }}
         role="alert"
       >
-        <ErrorOutlineIcon sx={{ fontSize: 10 }} />
+        <ErrorOutlineIcon sx={{ typography: "caption" }} />
         invalid
       </Box>
     );
@@ -155,7 +155,7 @@ function SecretKeyRow({
       }}
     >
       {/* Left icon */}
-      <LeftIcon sx={{ fontSize: 15, color: iconColor, flexShrink: 0 }} />
+      <LeftIcon sx={{ typography: "caption", color: iconColor, flexShrink: 0 }} />
 
       {/* Key name */}
       <Typography
@@ -172,7 +172,7 @@ function SecretKeyRow({
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           <Typography
             sx={{
-              color: "warning.main",
+              color: "warning.dark",
             }}
             data-sensitive="true"
           >
@@ -184,11 +184,11 @@ function SecretKeyRow({
             onClick={() => setShowValue((v) => !v)}
             sx={{ color: "text.muted", p: 0.25, "&:hover": { color: "text.secondary" } }}
           >
-            {showValue ? <VisibilityOffIcon sx={{ fontSize: 13 }} /> : <VisibilityIcon sx={{ fontSize: 13 }} />}
+            {showValue ? <VisibilityOffIcon sx={{ typography: "caption" }} /> : <VisibilityIcon sx={{ typography: "caption" }} />}
           </IconButton>
           <Tooltip title="Discard change">
             <IconButton aria-label={`Discard pending change for ${secretKey}`} size="small" onClick={() => onCancelPending(secretKey)} sx={{ color: "text.muted", p: 0.25, "&:hover": { color: "error.main" } }}>
-              <CloseIcon sx={{ fontSize: 12 }} />
+              <CloseIcon sx={{ typography: "caption" }} />
             </IconButton>
           </Tooltip>
         </Box>
@@ -199,14 +199,14 @@ function SecretKeyRow({
 
       {/* Just updated */}
       {isSuccess && (
-        <Typography role="status" aria-live="polite" sx={{ color: "success.main", whiteSpace: "nowrap" }}>just updated</Typography>
+        <Typography role="status" aria-live="polite" sx={{ color: "success.dark", whiteSpace: "nowrap" }}>just updated</Typography>
       )}
 
       {/* Update error */}
       {isError && (
         <Tooltip title={upsertStatus!.error ?? "Update failed"}>
           <Box component="span" role="alert" aria-label={upsertStatus!.error ?? "Update failed"} sx={{ display: "inline-flex" }}>
-            <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 14, color: "error.light", flexShrink: 0 }} />
+            <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "error.light", flexShrink: 0 }} />
           </Box>
         </Tooltip>
       )}
@@ -218,7 +218,7 @@ function SecretKeyRow({
 
       {/* Edit button */}
       <IconButton aria-label={`Edit ${secretKey}`} size="small" onClick={() => onEdit(secretKey)} sx={{ color: "text.disabled", p: 0.5, "&:hover": { color: "primary.main" } }}>
-        <EditIcon sx={{ fontSize: 14 }} />
+        <EditIcon sx={{ typography: "caption" }} />
       </IconButton>
     </Box>
   );
@@ -262,7 +262,7 @@ function SecretDialog({
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pb: 1 }}>
         <Box>
           <Typography color="text.primary">{secretKey}</Typography>
-          <FieldLabel htmlFor="secret-value" sx={{ fontSize: "0.875rem", color: "text.secondary", mt: 0.25 }}>
+          <FieldLabel htmlFor="secret-value" sx={{ typography: "body2", color: "text.secondary", mt: 0.25 }}>
             Enter the secret value
           </FieldLabel>
         </Box>
@@ -279,7 +279,6 @@ function SecretDialog({
           className="corpEditor"
           data-sensitive="true"
           fullWidth
-          autoFocus
           type="password"
           placeholder="Secret value"
           value={value}
@@ -328,7 +327,7 @@ export default function SecretsCard({ requiredKeys, presentKeys, secretsStatus, 
   return (
     <Box>
       {/* Key list */}
-      <Box sx={{ border: "1px solid #f1f5f9", borderRadius: "8px", overflow: "hidden" }}>
+      <Box sx={{ border: "1px solid", borderColor: "card.contentDivider", borderRadius: "8px", overflow: "hidden" }}>
         {requiredKeys.map((k) => (
           <SecretKeyRow
             key={k}

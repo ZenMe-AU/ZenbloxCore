@@ -28,7 +28,7 @@ export default function SaveButton({ verb, noun, count, loading, disabled, onCli
       variant="contained"
       size="small"
       aria-label={text}
-      startIcon={loading ? <CircularProgress size={12} sx={{ color: "#93c5fd" }} /> : <SaveIcon sx={{ fontSize: 14 }} />}
+      startIcon={loading ? <CircularProgress size={12} sx={{ color: "primary.light" }} /> : <SaveIcon sx={{ typography: "caption" }} />}
       sx={{ py: 0.75, px: 2 }}
     >
       <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>

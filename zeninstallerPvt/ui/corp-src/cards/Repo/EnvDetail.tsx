@@ -78,7 +78,7 @@ export default function EnvDetail({
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
           Pick the environment to configure.{" "}
-          <Box component="span" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
+          <Box component="span" sx={{ typography: "technicalBody", fontWeight: 600 }}>
             {validEnvs.join(", ")}
           </Box>{" "}
           are set up separately — everything below applies to the one you pick.
@@ -113,7 +113,7 @@ export default function EnvDetail({
           </Box>
         ) : filteredEnvs.length === 0 ? (
           <Typography color="text.muted" role="status">
-            No environment found, create one manually on GitHub.
+            No PROD or TEST environment was found. In the repository, go to Settings &gt; Environments, create the required environment, then refresh.
           </Typography>
         ) : (
           <Box sx={{ display: !selectedEnv && lockedByPR ? "none" : "flex", gap: 1.5, flexWrap: "wrap" }}>
@@ -148,7 +148,7 @@ export default function EnvDetail({
                       : {},
                   }}
                 >
-                  {isSelected && lockedByPR && <LockIcon aria-hidden="true" sx={{ fontSize: 13 }} />}
+                  {isSelected && lockedByPR && <LockIcon aria-hidden="true" sx={{ typography: "caption" }} />}
                   {env.name}
                   {isSelected && lockedByPR && (
                     <Typography component="span" sx={{ opacity: 0.75, ml: 0.25 }}>
@@ -164,7 +164,7 @@ export default function EnvDetail({
           <ExternalLink href={githubEnvironmentsUrl} label="Manage on GitHub">
             <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
               <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>Manage on GitHub</Box>
-              <OpenInNewIcon aria-hidden="true" sx={{ fontSize: 12 }} />
+              <OpenInNewIcon aria-hidden="true" sx={{ typography: "caption" }} />
             </Box>
           </ExternalLink>
         )}
@@ -173,7 +173,7 @@ export default function EnvDetail({
       {/* Branch match error */}
       {branchMatchError && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
-          <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 14, color: "error.main", flexShrink: 0 }} />
+          <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "body2", color: "error.main", flexShrink: 0 }} />
           <ErrorText>{branchMatchError}</ErrorText>
         </Box>
       )}
@@ -181,7 +181,7 @@ export default function EnvDetail({
       {/* Branch match warning */}
       {branchMatchWarning && (
         <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
-          <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14, color: "warning.main", flexShrink: 0 }} />
+          <WarningAmberIcon aria-hidden="true" sx={{ typography: "body2", color: "warning.main", flexShrink: 0 }} />
           <Typography color="warning.main">{branchMatchWarning}</Typography>
         </Box>
       )}

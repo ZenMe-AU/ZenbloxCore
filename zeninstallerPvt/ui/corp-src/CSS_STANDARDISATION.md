@@ -2,7 +2,7 @@
 
 Scope: `zeninstallerPvt/ui` only. Paths below are relative to that folder (the old `web/` prefix no longer exists).
 
-Sections 0–6 record the initial audit baseline from 2026-10-07; their counts and source-tree observations are historical, not a current inventory. Progress notes in section 7 supersede baseline findings where work has since been completed. Latest update: 2026-10-16.
+Sections 0–6 record the initial audit baseline from 2026-10-07; their counts and source-tree observations are historical, not a current inventory. Progress notes in section 7 supersede baseline findings where work has since been completed. Latest update: 2026-10-18.
 
 ## 0. Audit summary (2026-10-07)
 
@@ -108,7 +108,7 @@ There are no per-card stylesheets to merge. Cards are styled inline. Standardisi
 **Decision: MUI theme first, one small global stylesheet second.** The whole UI is MUI, so a single `createTheme` is the least-code way to centralise tokens, and it removes the need to run a parallel CSS-class system next to Emotion (which would make the ordering problem permanent).
 
 1. **One theme** (`corp-src/theme.ts`), enabled with `cssVariables: true`, provided once in `corp.tsx` with `CssBaseline`. It owns:
-   - **Palette**: slate/blue/orange/green/red tokens with accessible ordinary text shades (`text.primary`, `text.secondary`, `text.muted` >= 4.5:1) and semantic `success|warning|error|info` card status colors. Accepted exception: muted card text and semantic status summaries may be below 4.5:1; do not use those colors for ordinary instructional or control text.
+   - **Palette**: slate/blue/orange/green/red tokens with accessible ordinary text shades (`text.primary`, `text.secondary`, `text.muted` >= 4.5:1) and semantic `success|warning|error|info` card status colors. Accepted exception: muted card titles may be below 4.5:1; status summary text uses dark shades.
    - **Typography**: one UI sans stack, one mono stack (for IDs and command output only), and a small scale mapped to MUI variants (`h1`-`h3`, `body1`, `body2`, `caption`, plus a `overline` for field labels).
    - **Shape and shadow**: radius 8/10, one card shadow.
    - **Component defaults/overrides** for `MuiButton` (no uppercase, the gradient primary as `variant="contained"`), `MuiTextField`/`MuiSelect` (size small, label wiring), `MuiLink`, `MuiTypography`, `MuiChip`.
@@ -152,18 +152,18 @@ Apply the scale through CSS variables and MUI theme defaults so CSS classes and 
 
 - Styles are MUI `sx` props, which Emotion compiles into CSS classes. Values are static literals.
 - In the card and component code I found no `dangerouslySetInnerHTML`, no `innerHTML`, and no raw `style={…}` built from user data. The style props are not an injection route.
-- `ViewLink` opens links with `window.open(href, "_blank", "noopener,noreferrer")`.
-- I found no Content-Security-Policy in `index.html`, `vite.config.ts` or `public/`. I did not check `deploy/`.
+- `ViewLink` renders an anchor through MUI `Button` with `href`, `target="_blank"` and `rel="noopener noreferrer"`; it does not call `window.open`.
+- No CSP is configured in the UI document or Vite build configuration. The installer frontend is uploaded to Azure Storage static website hosting by Web Deploy; `deploy/` provisions the backend Function App, not the frontend host. Whether production puts an edge/CDN in front of the static website remains unconfirmed.
 
 ### Real exposure: CSP and runtime style injection
 
 - Emotion injects `<style>` tags at runtime. A CSP that blocks inline styles would therefore need `style-src 'unsafe-inline'`, or a per-request nonce. A static host cannot provide a per-request nonce.
-- With a nonce, pass it through `<CacheProvider>` configured with the `nonce` option.
+- A nonce must be provided by the response-serving layer and passed to Emotion through a `<CacheProvider>` configured with the `nonce` option. `corp.tsx` also sets CSS custom properties through `rootElement.style`, which is an inline style attribute and must be included in the CSP decision.
 
 ### Lower-level risks (none present today)
 
 - Never interpolate untrusted values (tenant names, repo names, API responses) into a style string, a `url()` or a CSS selector.
-- The `href` values come from `getXxxUrl()` helpers built from API data. Keep validating them as `https:` URLs, since `window.open("javascript:…")` is a risk if a helper ever passes an unvalidated value through.
+- Most provider links are built from fixed HTTPS origins. Runtime remote-terminal values are now checked at their trust boundaries: runner device-code links must be HTTPS without embedded credentials, and the negotiated socket URL must be WSS on an Azure Web PubSub hostname. General shared link components still accept arbitrary strings; retain scheme/host checks at their call sites when values are not from fixed-origin helpers.
 
 ### How standardisation helps
 
@@ -179,7 +179,7 @@ Standardisation alone does not fix anything. MUI still injects some runtime styl
 
 - Add `frame-ancestors 'none'` (or `X-Frame-Options: DENY`). The app handles Azure and GitHub tokens, so clickjacking is a bigger risk than styles.
 - Add a full CSP (`default-src 'self'`, with explicit `connect-src` for the Microsoft, Azure and GitHub endpoints) plus `Referrer-Policy` and `X-Content-Type-Options`. These are usually set as host headers, since a `<meta>` CSP cannot set `frame-ancestors`.
-- Self-host the fonts (see section 1, issue 5), so the CSP does not need `fonts.googleapis.com`/`fonts.gstatic.com`.
+- The UI uses generic `sans-serif` and `monospace` stacks; no external font host is required.
 
 ## 5. Accessibility recommendations
 
@@ -191,16 +191,16 @@ Measured baseline signals: 95 `onClick` handlers (the card header and requiremen
 |---|---|---|---|
 | 1 | High | **Card header wasn't keyboard accessible (resolved for the shared card shell).** | The title and chevron are now separate semantic toggle buttons with `aria-expanded`/`aria-controls`; the chevron has an accessible label. The region is labelled by the card heading. Audit remaining non-semantic click targets separately. |
 | 2 | High | **Card toggles lacked visible keyboard focus and showed an unwanted click ripple (resolved for the shared card shell).** | Card title and chevron toggles disable MUI ripples and render an explicit focus outline. `App.css` also provides a global `:focus-visible` outline for other controls. |
-| 3 | High | **Card status was conveyed by icon and colour only (resolved for the shared card shell).** | Status glyphs are hidden from assistive technology; the title toggle's accessible name includes the status, with "Locked" taking precedence. Live regions for dynamic progress, success and error messages such as `loginError` remain open. |
-| 4 | High | **Colour contrast.** `#94a3b8` (about 2.6:1 on white) is the most-used text colour. `#cbd5e1` is lower. The orange `#ea580c` and green `#16a34a` status summaries are below 4.5:1 on white. | Accepted exception: intentionally muted card text and semantic status summaries may be below 4.5:1. Do not use these colors for ordinary instructional or control text; retain the 4.5:1 target for ordinary text. |
+| 3 | High | **Card status was conveyed by icon and colour only (resolved for the shared card shell).** | Status glyphs are hidden from assistive technology; the title toggle's content-derived accessible name includes its visible title and summary, followed by visually hidden status text, with "Locked" taking precedence. Live regions for dynamic progress, success and error messages such as `loginError` remain open. |
+| 4 | High | **Colour contrast.** Muted card titles (`#94a3b8`) remain below 4.5:1 on white; the original orange/green summary shades were also low contrast. | Status summaries now use dark palette shades. The accepted exception is limited to intentionally muted card titles; ordinary instructional and status text targets 4.5:1. |
 | 5 | Medium | **Small text.** Sizes are 0.68–0.8rem (about 11–13px). Truncated titles and summaries use ellipsis. | Keep text within 0.75–1rem. Keep `rem` units so browser zoom works. Add a `title` or tooltip for truncated text and expose the full text to screen readers. |
 | 6 | Medium | **Reduced-motion handling was missing (resolved globally).** | `App.css` reduces CSS animation and transition durations, including card transitions, when `prefers-reduced-motion: reduce` is active. |
-| 7 | Medium | **`ViewLink` is a `Button` calling `window.open`**, and its text is hidden below the `sm` breakpoint. | Use `<a href target="_blank" rel="noopener noreferrer">` so it can be opened in a new tab by keyboard or context menu. Keep the `aria-label` on narrow screens and add "(opens in new tab)". |
+| 7 | Medium | **`ViewLink` was a `Button` calling `window.open` (resolved).** Its visible label remains hidden below the `sm` breakpoint but its accessible name remains available. | `ViewLink` renders a secure `<a href target="_blank" rel="noopener noreferrer">`; links expose "(opens in new tab)" in their accessible name, and inline text links are underlined for distinction. |
 | 8 | Medium | **Labels aren't tied to controls.** `labelSx` is applied to a `Typography` beside the `Select`/`TextField`. | Use `InputLabel`/the `label` prop, or `aria-labelledby`. |
-| 9 | Low | **Page structure.** Card titles are now `h3` headings; `Header` still renders `document.title` as a `Typography`, and the page still has no `<main>`. | Add `<header>`, `<main>`, a skip link, one `h1` (page title), `h2` for group labels (`groupLabelSx`), and consider `<section aria-labelledby>` for cards. |
+| 9 | Low | **Page structure (resolved in the installer shell).** | The shell has semantic header/main/footer landmarks, a skip link, one page `h1`, and labelled `h2` headings for deployment steps and help/information. |
 | 10 | Low | **Forced colours / high contrast.** | Test with `forced-colors: active` and keep borders on cards and buttons so they stay visible. |
-| 11 | Medium | **Plain-text instructions are `<br />`-separated.** The intro in `App.tsx` is one `Typography` with numbered items typed as text and an unlinked URL. | Use a real `<ol>`, make the GoDaddy URL a link (`ExternalLink`), and keep the intro at body size. |
-| 12 | Medium | **Dynamic status and errors are silent.** Progress spinners (`CircularProgress`), step results and errors have no live region. | `role="status"` for progress and success, `role="alert"` for errors, via the shared `StatusText`/`ErrorText`. Give spinners an accessible name. |
+| 11 | Medium | **Plain-text instructions were `<br />`-separated (resolved in the installer shell).** | Prerequisites use an ordered list, the GoDaddy URL is a secure `ExternalLink`, and the intro uses body typography. |
+| 12 | Medium | **Dynamic status and errors lacked live regions (resolved across migrated cards).** | Progress/success states use `role="status"`, errors use `role="alert"`, and shared status/error components provide the semantics; progress spinners have accessible names. |
 | 13 | Medium | **`data-sensitive` content can be masked for screenshots/recordings (implemented as opt-in).** | Set `data-mask-sensitive="true"` on the document root to blur `[data-sensitive]` content; the default UI remains unchanged. |
 
 ## 6. Other considerations
@@ -209,10 +209,10 @@ Measured baseline signals: 95 `onClick` handlers (the card header and requiremen
 - **Theming and dark mode.** `createTheme({ cssVariables: true })` exposes tokens as CSS variables and makes a later dark scheme a palette addition rather than a rewrite.
 - **MUI and CSS ordering.** With the theme-first approach there are no competing component classes. If a global rule must override MUI, use CSS `@layer` with `StyledEngineProvider enableCssLayer`.
 - **Responsive card layout (2026-10-09).** Card groups use an auto-fitting grid with a 360px minimum column width: columns grow to fill available space, then naturally reduce from three to two to one as the viewport narrows. Expanded cards span the group width. The page remains capped at 1280px for readability.
-- **Test selectors.** Keep the `data-id` and `data-sensitive` attributes and the `card-<id>` ids, since tests and the Playwright suites depend on them.
+- **Test selectors.** Keep the `data-id` and `data-sensitive` attributes and the `card-<id>` ids, since tests and the Playwright suites depend on them. `data-a11y-contrast-exception` is reserved for non-interactive muted card titles.
 - **Bundle and performance.** Moving static styles out of runtime Emotion reduces JS work and style recomputation. Check the bundle size before and after.
-- **Linting and CI.** Add `eslint-plugin-jsx-a11y`, `@axe-core/playwright` in `pwtests/`, and a lint rule or check against raw hex colours in TSX, to stop the inline duplication coming back. Consider Stylelint for the shared CSS.
-- **Documentation.** Document the tokens and class names in the stylesheet header, or here, once they exist.
+- **Linting and CI (implemented in Step 9).** Recommended `eslint-plugin-jsx-a11y` rules apply to installer TSX; `no-restricted-syntax` blocks raw hex colors, `fontFamily`, and `fontSize` inside JSX `sx` in `cards/` and `components/`; `@axe-core/playwright` scans collapsed, expanded, and locked page states. The scan excludes only the explicitly marked, non-interactive muted-title and status-summary spans from its analysis tree; no axe rules are disabled. Consider Stylelint for the shared CSS separately.
+- **Documentation.** Keep theme tokens, global helper classes, and the explicit muted-title axe contrast exception documented here and mirrored in the installer `README.md`.
 
 ## 7. Step-by-step plan
 
@@ -251,7 +251,8 @@ Each step is one reviewable change that leaves the app working. After every step
 - **Completed 2026-10-14: card interaction/accessibility.** The title is an `h3` containing a `ButtonBase`; the adjacent chevron is a separate, labelled `IconButton`. Both controls expose `aria-expanded` and `aria-controls`, and the existing content wrapper is a `role="region"` labelled by the heading. Locked requirement rows are semantic buttons and preserve the existing multi-card navigation behavior. Status icons are hidden from assistive technology, and the title button's accessible name includes the status (`Locked` takes precedence). Stable card IDs and visible title text are preserved.
 - Both card toggles disable MUI's click ripple to avoid a gray flash, and provide an explicit blue keyboard-focus outline. The optional action remains outside the title toggle; `ViewLink` no longer relies on stopping event propagation.
 - **Completed 2026-10-14: theme colors and text behavior.** Card status, border, summary, surface, requirement and icon colors now come from typed `theme.palette.card` tokens, retaining their previous values. Card titles remain visually single-line but expose the complete title through a `title` attribute; summaries wrap and no longer truncate.
-- **Accepted design exception (2026-10-14).** Muted card text (`#94a3b8`) and semantic status summaries (including `#ea580c` and `#16a34a`) may remain below the ordinary-text contrast target of 4.5:1; reserve them for those muted/status roles, not instructional or control text. This scoped exception is intentional and does not claim WCAG contrast conformance for the affected text.
+- **Contrast follow-up (2026-10-18).** The original semantic status-summary exception was removed by moving those summaries and other status text to dark palette shades. Only intentionally muted card titles retain the documented below-4.5:1 exception.
+- **Card face sizing follow-up (2026-10-18).** Collapsed summaries now use one-line ellipsis, matching card titles and keeping header heights consistent when signed-in summaries are long. The full summary remains in the DOM and title toggle accessible name, and is available through the `title` attribute. The `CardAccessibility` Playwright spec covers height and accessible-name retention.
 - **Verification (2026-10-14):** focused browser checks for global CSS rules, keyboard title/chevron toggles, no ripples, title tooltip, wrapping summaries and locked prerequisite navigation passed at desktop and mobile (6/6). The complete Azure Login mock spec passed 10/10 with existing snapshots unchanged. `pnpm build` passed. Focused ESLint passed for `corp.tsx`, `cardLayout.ts`, `theme.ts` and `Card.tsx`; linting `App.tsx` also reports `react-refresh/only-export-components` at its wrapped default export.
 - **Full-suite check (2026-10-14):** `pnpm test` reported 250 passed and 2 failed; both failures are Access Pass telemetry expectations in `useAccessPassCard.test.tsx`. `pnpm lint` remains red with 37 errors and 5 warnings across the UI, including `App.tsx` and unrelated component findings. The Playwright `.mts` spec also has language-service import-extension diagnostics, but the Playwright runner executes it successfully.
 
@@ -260,7 +261,7 @@ Each step is one reviewable change that leaves the app working. After every step
 - `App.tsx`: `<header>`, `<main>`, skip link, one `h1`, a single labelled `h2` section for the flat card grid, and an intro with a real list and link. Move page-root colors into the theme/`CssBaseline`.
 - `Header.tsx`: use the theme for the mark and title; keep `document.title` as the canonical title and render it as the page `h1`.
 - `ViewLink.tsx`: retain the secure anchor behavior (`target="_blank" rel="noopener noreferrer"`) and add "(opens in new tab)" to the accessible name while keeping the visible label.
-- **Implemented (2026-10-14; footer added 2026-10-15).** Added a focus-revealed skip link, semantic header/main landmarks, page `h1`, labelled “Deployment steps” section, ordered prerequisites and GoDaddy link. The page uses the theme background/text tokens and preserves the prior `#f8fafc` background. Shared View links announce their new-tab behavior. Existing card order, IDs, data hooks, and card heading structure are preserved. A semantic footer now groups help and information links and includes a keyboard-shortcuts dialog whose contents remain a placeholder until shortcuts are available.
+- **Implemented (2026-10-14; footer added 2026-10-15).** Added a focus-revealed skip link, semantic header/main landmarks, page `h1`, labelled “Deployment steps” section, ordered prerequisites and GoDaddy link. The page uses the theme background/text tokens and preserves the prior `#f8fafc` background. Shared View links announce their new-tab behavior. Existing card order, IDs, data hooks, and card heading structure are preserved. A semantic footer groups help and information links and includes a labelled keyboard-shortcuts dialog.
 - **Verification (2026-10-14).** `pnpm build` passed. The focused shell/card keyboard Playwright check passed at desktop and mobile (2/2). The complete Azure Login mock spec had 9 passed and 1 failed: the mobile signed-in end-state snapshot differs in the Azure card's signed-in row; the snapshot was not updated. Focused ESLint reports only the existing `react-refresh/only-export-components` finding in `App.tsx`; the `.mts` spec is ignored by the current ESLint configuration. Full `pnpm test` had 249 passed and 3 failed in the existing Access Pass telemetry tests (`appInsights` is null). Full `pnpm lint` remains at 37 errors and 5 warnings across the UI, consistent with the existing lint baseline.
 
 ### Step 6. Shared building blocks
@@ -306,7 +307,7 @@ For each unit, use theme variants and shared building blocks, keep `sx` for layo
 
 #### Step 8 status (checked 2026-10-17)
 
-All Step 8 card migrations are implemented. Remaining style-shim cleanup was usage-audited; only the unused `sectionLabelSx` export was removed. `PrivateFrontendInfraCard` remains out of scope and its `MONO`/`labelSx` compatibility imports remain available.
+All Step 8 card migrations are implemented. At the Step 8 checkpoint, `PrivateFrontendInfraCard` remained out of scope; Step 9 subsequently migrated it. The remaining shared-style exports were usage-audited: `MONO` is unused, while `MONO_FONT`, `UI_FONT`, `labelSx` and `refreshBtnSx` still have consumers. Decide whether to migrate those consumers to theme/component defaults or retain the exports as supported shared utilities.
 
 - **Azure Subscription:** Already migrated in the current worktree; focused hook tests passed (6/6). Its mock snapshot is part of the existing dirty worktree and was not changed in this session.
 - **Azure App Registration:** Migrated to theme roles, shared labels/statuses, a keyboard-operable connection-details toggle and secure input styling. Hook tests passed (12/12); build passed. Its mock spec had 10 passing and 2 happy-path failures at the preceding Azure Subscription snapshot, before reaching this card. The card's other warning-state snapshots matched. Changed-file lint retains the existing `react-hooks/set-state-in-effect` finding in the auto-expand effect.
@@ -321,7 +322,7 @@ All Step 8 card migrations are implemented. Remaining style-shim cleanup was usa
 - **Web Deploy:** Migrated theme roles, shared external links and async status/error semantics. Lint, diagnostics and build passed. No focused unit or mock spec exists.
 - **Full-suite gates:** `pnpm test` reported 251 passed and 2 failed, both Access Pass telemetry `logEvent` expectations (`appInsights` context is null). `pnpm lint` reported 34 errors and 5 warnings across the UI; the changed Step 8 files contribute the recorded Access Pass and Azure App Registration effect findings, while the remaining findings are in other existing files. The final `pnpm build` passed; Vite still reports its existing externalized Node-module and large-chunk warnings.
 
-Step 8 migrations are complete. The only follow-up within this step is to rerun Azure-dependent mock flows when their required auth/setup state is available, and to resolve or separately baseline the two Access Pass telemetry failures and existing lint findings. Do not expand into `PrivateFrontendInfraCard`; preserve its compatibility shims.
+Step 8 migrations are complete. Follow-ups are to rerun Azure-dependent mock flows when required auth/setup state is available, and to resolve or separately baseline the recorded Access Pass telemetry failures and existing lint findings. `PrivateFrontendInfraCard` was migrated in Step 9; do not treat it as still out of scope.
 
 ### Step 9. Guardrails
 
@@ -330,23 +331,58 @@ Step 8 migrations are complete. The only follow-up within this step is to rerun 
 - Add a lint rule (`no-restricted-syntax`) forbidding hex literals, `fontFamily` and `fontSize` in `sx` under `corp-src/cards` and `components`.
 - Add a Playwright check that Tab reaches every card header and expands it with Enter/Space.
 
+- **Implemented (2026-10-17).** Added the recommended jsx-a11y rules and `@axe-core/playwright`; introduced scoped syntax restrictions for colors, font families and font sizes in JSX `sx`; migrated the remaining card/component violations, including `PrivateFrontendInfraCard`, to theme typography and palette tokens. Removed automatic focus from three fields flagged by jsx-a11y. Added shared axe scans for the collapsed page, expanded Azure Login card and expanded locked card, plus a full card-header Tab/Enter/Space sweep. Card toggle accessible names now derive from visible title/summary text and include the status as visually hidden text. Inline text links are underlined for distinction; only explicitly marked non-interactive muted-card titles and semantic status summaries are excluded from the axe analysis tree, matching the documented contrast exception.
+- **Verification (2026-10-17).** The new accessibility spec passed (4/4); Azure Login mock tests passed (10/10) with existing snapshots unchanged; `pnpm build` passed. The style and jsx-a11y rules report no findings in `corp-src/cards` or `corp-src/components`. Full `pnpm lint` remains at 34 errors and 5 warnings in the existing React Hooks/App findings. Full UI `pnpm test` had 250 passed and 3 failed in the existing Access Pass telemetry tests (`appInsights` is null).
+
 ### Step 10. UX validation
 
-- Check 200% zoom and 320px width (no clipped or horizontally scrolling text, wrapped not truncated), keyboard-only completion of one full flow, screen-reader announcements of status/errors, `forced-colors: active`, and reduced motion. Tune the scale from what is observed rather than adding new sizes.
+- **Not yet validated.** At 200% browser zoom and 320 CSS px, check text/control wrapping, clipping and page-level horizontal overflow; record the terminal's intentional internal scrolling separately. Complete one representative deployment flow with keyboard only. Verify dynamic progress/success/error announcements with a supported screen reader, and test Windows forced-colors/high contrast and reduced motion. Record OS, browser, assistive technology, viewport/zoom, flow and results; fix observed issues before marking complete.
+- **Automated partial check (2026-10-17).** The accessibility Playwright spec now checks 320px page reflow, reduced-motion transition suppression and retained card borders under forced-colors emulation. It passes with the existing axe and card-header keyboard checks (5/5). This does not replace 200% browser zoom, a full keyboard-only deployment, or screen-reader verification.
 
 ### Step 11. Hardening (optional, after the above)
 
-- Decide the CSP approach (nonce through an Emotion `CacheProvider`, or `unsafe-inline` for styles), add `frame-ancestors 'none'`, `Referrer-Policy` and `X-Content-Type-Options` as host headers in `deploy/`, and check the `href` helpers only emit `https:` URLs.
+- **Host decision required before implementation.** The frontend is uploaded to Azure Storage static website hosting by Web Deploy; this folder's `deploy/` Terraform provisions the backend Function App and is not the frontend response-header layer. Confirm whether production serves Storage directly or uses Front Door/CDN/another edge. Configure headers at the actual serving layer: choose a CSP compatible with MUI/Emotion and the inline custom-property assignment in `corp.tsx`, add `frame-ancestors 'none'`, `Referrer-Policy` and `X-Content-Type-Options`, then verify the deployed response and application flows. Runtime remote-terminal URL checks are implemented, but generic external-link call sites and full trusted-host policy still need review. The font stack is system-provided; no font hosting work is needed.
 
-## 8. Design decisions (mirrored in `README.md`) C:\Dev\ZenbloxCore\README.md
+### Follow-up status (2026-10-17)
+
+- **Implemented:** app intro/footer/card surface color, border, shadow and radius now use shared theme tokens; global/card focus rings use theme colors; the stale typography TODO, unused `MONO` alias and unused `UI_FONT` export were removed. Letter-spacing overrides now use zero. `MONO_FONT`, `labelSx` and `refreshBtnSx` remain live shared helpers; `borderHoverTint` remains shared behavior.
+- **Implemented:** remote-terminal device-code URLs are validated as HTTPS without embedded credentials, and negotiated WebSocket URLs are restricted to WSS on `*.webpubsub.azure.com`; focused parser tests cover malformed and wrong-scheme values.
+- **Verification (2026-10-17).** `pnpm build` and focused typechecking passed; remote-terminal URL tests passed (10/10); the accessibility browser spec passed (5/5). Full `pnpm test` passed 253 tests and failed 3 Access Pass telemetry tests because `appInsights` is null. Full `pnpm lint` reports 34 errors and 5 warnings; focused lint passes on touched files except the existing `react-refresh/only-export-components` finding in `App.tsx`. Vite reports its existing externalized Node-module and large-chunk warnings.
+- Azure-dependent mock flows still need rerunning when required auth/setup state is available; prior runs did not reach their target cards. Review desktop/mobile snapshots before updating baselines.
+
+### Follow-up status (2026-10-18)
+
+- **Implemented:** the footer shortcut dialog now lists native keyboard behavior and opens with `?` outside editable controls; Ctrl/Meta/Alt combinations are ignored. MUI retains Escape dismissal and focus management.
+- **Implemented:** collapsed card summaries use one-line ellipsis to keep card faces a consistent height; complete summary text remains available to screen readers and via the `title` attribute.
+- **Verification:** the focused accessibility Playwright suite passed 9/9, Footer ESLint passed, and `pnpm run build` passed. Vite continues to report its existing externalized Node-module and large-chunk warnings.
+- Footer Contact and Terms copy remain placeholders; decide whether they are acceptable for this release or provide real content.
+
+## 8. Design decisions (mirrored in `README.md`) ZenbloxCore\README.md
 
 Per the repository `README.md` rules, decisions live in the folder where they apply. This folder's `README.md` C:\Dev\ZenbloxCore\zeninstallerPvt\ui\README.md records:
 
 1. MUI theme is the single source of truth for colour, type and shape; `sx` is for layout and dynamic values only.
 2. `App.css` holds global, non-component rules only.
 3. Only `sans-serif` and `monospace` are used: `sans-serif` for main UI content and `monospace` for technical values. No other font overrides or web-font downloads.
-4. Text sizes range from 0.75rem to 1rem and target contrast >= 4.5:1, except muted card text and semantic status summaries, which may be below 4.5:1.
+4. Text sizes range from 0.75rem to 1rem and target contrast >= 4.5:1, except intentionally muted card titles, which may be below 4.5:1.
 5. Interactive elements are native or MUI-semantic (button, link, input), never `onClick` on a `Box`.
 6. Test hooks (`id="card-<id>"`, `data-id`, `data-sensitive`, accessible names) are part of the UI contract.
+7. Card title and chevron toggles are separate labelled controls; disable click ripples and retain a visible keyboard-focus outline.
+8. Card toggle names include visible title/summary text followed by visually hidden status; expanded content is a region labelled by its heading.
+9. The installer shell has a skip link, one page-level `h1`, semantic main and footer landmarks, and named `h2` headings for deployment steps and help/information. The landmarks themselves are not explicitly named with `aria-label`/`aria-labelledby`.
+10. New-tab links expose that behavior in their accessible name and remain underlined for inline distinction.
+11. Axe runs its default rules; only explicitly marked non-interactive muted-title spans are excluded from analysis for the accepted contrast exception.
+12. Recommended jsx-a11y rules and scoped `sx` style restrictions are enforced by ESLint.
 
 These may later be elevated to the repository level if the other UI folders (`portal/ui`, `accessPass/ui`) adopt them.
+
+## 9. Remaining work (excluding Step 11)
+
+- [ ] Complete the Step 10 manual reflow check at 200% browser zoom and 320 CSS px. Inspect all card content and controls for clipping, unwanted page-level horizontal scrolling, and wrapping; distinguish the terminal's intentional internal scrolling.
+- [ ] Complete one representative deployment flow using only the keyboard, including the skip link, card expansion and prerequisite navigation, form controls, links, and dialogs.
+- [ ] Verify live progress, success, and error announcements with a supported screen reader during real state changes; record the OS, browser, assistive technology, flow, and results.
+- [ ] Verify Windows forced-colors/high-contrast and reduced-motion behavior manually. Automated emulation is covered by the accessibility Playwright spec, but does not replace the platform check.
+- [ ] Rerun the Azure-dependent mock flows when their required authentication and setup state is available. Investigate failures that previously stopped before reaching their target cards, and review desktop/mobile screenshot differences before updating any baselines.
+- [ ] Resolve or explicitly accept the three Access Pass telemetry test failures (`appInsights` is null), and triage the full-lint result of 34 errors and 5 warnings. Keep existing unrelated findings distinct from regressions.
+- [ ] Decide whether `MONO_FONT`, `labelSx`, and `refreshBtnSx` are supported shared helpers or transitional shims to remove; document the decision or migrate their live consumers. Retain `borderHoverTint` if it remains the shared hover behavior.
+- [ ] Decide whether the footer's Contact and Terms placeholders are acceptable for this release; otherwise provide real content or remove those entry points.

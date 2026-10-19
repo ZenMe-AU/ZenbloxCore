@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { parseSocketEvent } from "../logic/remoteTerminal";
+import { parseSocketEvent, parseWebPubSubUrl } from "../logic/remoteTerminal";
 import { stageLabel } from "../config/remoteTerminal";
 
 const SESSION = "11111111-2222-3333-4444-555555555555";
@@ -47,6 +47,12 @@ describe("parseSocketEvent", () => {
     });
   });
 
+  it("rejects device-code links that are malformed or not HTTPS", () => {
+    for (const url of ["javascript:alert(1)", "http://signin.example", "https://user:pass@example.com", "not a URL"]) {
+      expect(parseSocketEvent(group(JSON.stringify({ type: "deviceCode", cloud: "azure", url })), SESSION)).toBeNull();
+    }
+  });
+
   it("treats a payload that is not JSON as raw terminal bytes", () => {
     const ansi = "\u001b[32mok\u001b[0m";
     expect(parseSocketEvent(group(ansi), SESSION)).toEqual({
@@ -64,6 +70,25 @@ describe("parseSocketEvent", () => {
   it("ignores another session's group and unparseable frames", () => {
     expect(parseSocketEvent(group(JSON.stringify({ type: "terminal", data: "x" }), "other"), SESSION)).toBeNull();
     expect(parseSocketEvent("not json", SESSION)).toBeNull();
+  });
+});
+
+describe("parseWebPubSubUrl", () => {
+  it("accepts secure Azure Web PubSub client URLs", () => {
+    const url = "wss://example.webpubsub.azure.com/client/hubs/terminal?access_token=token";
+    expect(parseWebPubSubUrl(url)).toBe(url);
+  });
+
+  it("rejects insecure, malformed, and non-Web-PubSub URLs", () => {
+    for (const url of [
+      "ws://example.webpubsub.azure.com/client",
+      "wss://example.com/client",
+      "wss://example.webpubsub.azure.com:8443/client",
+      "javascript:alert(1)",
+      "not a URL",
+    ]) {
+      expect(parseWebPubSubUrl(url)).toBeNull();
+    }
   });
 });
 

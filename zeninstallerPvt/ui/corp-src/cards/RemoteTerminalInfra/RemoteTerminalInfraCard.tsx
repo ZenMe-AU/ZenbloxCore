@@ -60,7 +60,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
       : undefined;
 
   return (
-    <Card title="Private Zeninstaller Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} {...card}>
+    <Card title="Remote terminal environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
           The relay behind the stage-card terminal: Web PubSub, the session table, and the Function App that issues group-scoped tokens. Everything connects by
@@ -153,7 +153,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
           </Typography>
           <KeyboardArrowDownIcon
             sx={{
-              fontSize: 14,
+              typography: "body2",
               color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
               transition: "transform 0.2s",

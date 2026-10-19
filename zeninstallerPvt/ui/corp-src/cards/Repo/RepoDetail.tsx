@@ -24,8 +24,8 @@ import { useRefreshIndicator } from "../../hooks/util/useRefreshIndicator";
 type TemplateStatus = "checking" | "ready" | "not_clone";
 
 const TEMPLATE_STATUS_CONFIG = {
-  ready: { label: "Valid", color: "success" as const, icon: <CheckCircleIcon aria-hidden="true" sx={{ fontSize: 14 }} /> },
-  not_clone: { label: "Not a clone", color: "warning" as const, icon: <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14 }} /> },
+  ready: { label: "Valid", color: "success" as const, icon: <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2" }} /> },
+  not_clone: { label: "Not a clone", color: "warning" as const, icon: <WarningAmberIcon aria-hidden="true" sx={{ typography: "body2" }} /> },
   checking: { label: "Checking...", color: "text.secondary" as const, icon: <CircularProgress aria-label="Checking template" size={12} /> },
 } as const;
 
@@ -92,10 +92,8 @@ type Props = {
 export function Intro() {
   return (
     <Typography variant="body1" color="text.secondary">
-      We use GitHub repositories to store your custom configuration and settings. That repository will also run GitHub actions to deploy your configuration into
-      the target cloud environments. <br />
-      Select the GitHub location and type the name of the repository you want to create.
-      <br />
+      GitHub stores your configuration and settings. New repositories must be cloned from the supported template. GitHub Actions creates Terraform plans for
+      review; deployment is applied through the remote terminal. Select a GitHub account and repository to continue.
     </Typography>
   );
 }
@@ -172,7 +170,7 @@ export default function RepoDetail({
           {accounts.map((acc) => (
             <MenuItem key={acc.id} value={String(acc.id)}>
               <Box data-sensitive="true" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                {acc.type === "User" ? <PersonIcon aria-hidden="true" sx={{ fontSize: 16, color: "text.secondary" }} /> : <BusinessIcon aria-hidden="true" sx={{ fontSize: 16, color: "text.secondary" }} />}
+                {acc.type === "User" ? <PersonIcon aria-hidden="true" sx={{ typography: "body1", color: "text.secondary" }} /> : <BusinessIcon aria-hidden="true" sx={{ typography: "body1", color: "text.secondary" }} />}
                 {acc.login}
               </Box>
             </MenuItem>
@@ -214,12 +212,12 @@ export default function RepoDetail({
               <Box key={key} component="li" {...props}>
                 {option.isNew ? (
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "primary.main" }}>
-                    <AddIcon aria-hidden="true" sx={{ fontSize: 16 }} />
+                    <AddIcon aria-hidden="true" sx={{ typography: "body1" }} />
                     Clone as &ldquo;{option.name}&rdquo;
                   </Box>
                 ) : (
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.primary" }}>
-                    <Box aria-hidden="true" sx={{ fontSize: 12, color: "text.muted" }}>▪</Box>
+                    <Box aria-hidden="true" sx={{ typography: "caption", color: "text.muted" }}>▪</Box>
                     {option.name}
                   </Box>
                 )}
@@ -263,7 +261,7 @@ export default function RepoDetail({
                   border: "1px solid",
                   borderColor: "divider",
                   color: "text.secondary",
-                  fontFamily: "monospace",
+                  typography: "technicalBody",
                 }}
               >
                 {templateName}
@@ -289,10 +287,10 @@ export default function RepoDetail({
           role="status"
           aria-live="polite"
         >
-          <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 16, color: "warning.light", flexShrink: 0 }} />
+          <WarningAmberIcon aria-hidden="true" sx={{ typography: "body1", color: "warning.light", flexShrink: 0 }} />
           <Typography color="warning.light">
             This repo is not a clone of the template. Only repos cloned from{" "}
-            <Box component="span" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
+            <Box component="span" sx={{ typography: "technicalBody", fontWeight: 600 }}>
               {defaultTemplateRepo}
             </Box>{" "}
             can be used.
@@ -320,7 +318,7 @@ export default function RepoDetail({
                   sx={{ "& .Mui-checked + .MuiSwitch-track": { backgroundColor: "primary.light" } }}
                 />
               }
-              label={<Typography color="text.secondary">Private</Typography>}
+              label={<Typography color="text.secondary">Private repository</Typography>}
             />
             <FormControlLabel
               control={
@@ -335,7 +333,7 @@ export default function RepoDetail({
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                   <Typography color="text.secondary">Clone all branches</Typography>
                   <Tooltip title="When enabled, all branches from the template will be copied. Otherwise only the default branch is cloned.">
-                    <InfoOutlinedIcon aria-hidden="true" sx={{ fontSize: 14, color: "text.muted" }} />
+                    <InfoOutlinedIcon aria-hidden="true" sx={{ typography: "body2", color: "text.muted" }} />
                   </Tooltip>
                 </Box>
               }
@@ -354,12 +352,17 @@ export default function RepoDetail({
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                   <Typography color="text.secondary">Create environments</Typography>
                   <Tooltip title="Automatically creates PROD and TEST GitHub environments in the new repo.">
-                    <InfoOutlinedIcon aria-hidden="true" sx={{ fontSize: 14, color: "text.muted" }} />
+                    <InfoOutlinedIcon aria-hidden="true" sx={{ typography: "body2", color: "text.muted" }} />
                   </Tooltip>
                 </Box>
               }
             />
           </Box>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            A private repository is visible only to people with access. “Clone all branches” copies every template branch; otherwise only the default branch is
+            copied. “Create environments” adds PROD and TEST to the new repository.
+          </Typography>
 
           {cloneError && (
             <Box
@@ -377,7 +380,7 @@ export default function RepoDetail({
               role="alert"
               aria-live="assertive"
             >
-              <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 15, color: "error.main" }} />
+              <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "body2", color: "error.main" }} />
               <ErrorText>{cloneError}</ErrorText>
             </Box>
           )}
@@ -397,7 +400,7 @@ export default function RepoDetail({
               role="status"
               aria-live="polite"
             >
-              <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 15, color: "warning.light" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ typography: "body2", color: "warning.light" }} />
               <Typography color="warning.light">{cloneEnvWarning}</Typography>
             </Box>
           )}

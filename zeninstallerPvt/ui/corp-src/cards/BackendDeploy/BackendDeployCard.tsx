@@ -39,7 +39,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
           Builds the Zeninstaller backend in GitHub Actions, then pushes the package straight from this browser to{" "}
-          <Box component="code" sx={{ fontFamily: "monospace" }}>
+          <Box component="code" sx={{ typography: "technical" }}>
             {appName || "the Function App"}
           </Box>
           .
@@ -50,13 +50,13 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
             <Typography color="text.muted">
               Latest build:{" "}
-              <Box component="span" sx={{ color: "text.primary", fontFamily: "monospace" }}>
+              <Box component="span" sx={{ color: "text.primary", typography: "technical" }}>
                 {loadingLatest ? "checking..." : latest ? `${latest.sha.slice(0, 7)} · ${when(latest.builtAt)}` : "none yet"}
               </Box>
             </Typography>
             <Typography color="text.muted">
               Live on the app:{" "}
-              <Box component="span" sx={{ color: "text.primary", fontFamily: "monospace" }}>
+              <Box component="span" sx={{ color: "text.primary", typography: "technical" }}>
                 {loadingDeployed
                   ? "checking..."
                   : deployed
@@ -115,14 +115,14 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           {/* Mutually exclusive with the prompt below, so both share the slot by the button. */}
           {!loadingLatest && latest && !updateAvailable && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <CheckCircleIcon aria-hidden="true" sx={{ fontSize: 14, color: "success.main" }} />
+              <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main" }} />
               <Typography color="success.dark">The Function App is running the latest build.</Typography>
             </Box>
           )}
 
           {!loadingLatest && updateAvailable && deployed && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14, color: "warning.main" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
               <Typography color="warning.dark">Ready to deploy the new build</Typography>
             </Box>
           )}

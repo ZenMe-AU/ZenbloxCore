@@ -119,7 +119,7 @@ export default function CloudVariableDetail({
           {variables.loading && <CircularProgress aria-label="Loading variables" size={12} sx={{ color: "text.muted" }} />}
           {!variables.loading && notConfigured > 0 && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 12, color: "warning.light" }} />
+              <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.light" }} />
               <Typography color="warning.light">{notConfigured} not configured</Typography>
             </Box>
           )}
@@ -172,7 +172,7 @@ export default function CloudVariableDetail({
               <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
                 Manage on GitHub
               </Box>
-              <OpenInNewIcon aria-hidden="true" sx={{ fontSize: 12 }} />
+              <OpenInNewIcon aria-hidden="true" sx={{ typography: "caption" }} />
             </Box>
           </ExternalLink>
         )}

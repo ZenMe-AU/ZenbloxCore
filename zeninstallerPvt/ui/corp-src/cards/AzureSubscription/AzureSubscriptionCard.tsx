@@ -166,7 +166,7 @@ export default function AzureSubscriptionCard({
             </Select>
           ) : subscriptionNoAccess ? (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-              <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14, color: "warning.main" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
               <Typography color="warning.main">This tenant has no subscriptions you can access.</Typography>
             </Box>
           ) : (
@@ -197,7 +197,7 @@ export default function AzureSubscriptionCard({
           saveHint={
             subscriptionDrift ? (
               <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14, color: "warning.main" }} />
+                <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
                 <Typography color="warning.main">Unsaved change — save to apply.</Typography>
               </Box>
             ) : undefined

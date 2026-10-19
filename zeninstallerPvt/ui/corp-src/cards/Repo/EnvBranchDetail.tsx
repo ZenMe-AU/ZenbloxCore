@@ -61,7 +61,7 @@ export default function EnvBranchDetail({
             {branches.map((branch) => (
               <MenuItem key={branch.name} value={branch.name}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <CallSplitIcon aria-hidden="true" sx={{ fontSize: 13, color: "text.muted" }} />
+                  <CallSplitIcon aria-hidden="true" sx={{ typography: "caption", color: "text.muted" }} />
                   {branch.name}
                   {branch.protected && (
                     <Box component="span" sx={{ color: "warning.main", ml: 0.5 }}>
@@ -89,7 +89,7 @@ export default function EnvBranchDetail({
             borderColor: "error.light",
           }}
         >
-          <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 15, color: "error.main" }} />
+          <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "body2", color: "error.main" }} />
           <ErrorText>{createBranchError}</ErrorText>
         </Box>
       )}

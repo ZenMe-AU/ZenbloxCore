@@ -34,20 +34,20 @@ export default function RefreshButton({ busy, result, onClick, label = "Refresh"
       aria-label={text}
       startIcon={
         busy ? (
-          <CircularProgress size={12} sx={{ color: "#94a3b8" }} />
+          <CircularProgress size={12} sx={{ color: "text.muted" }} />
         ) : result === "done" ? (
-          <CheckIcon sx={{ fontSize: 14 }} />
+          <CheckIcon sx={{ typography: "caption" }} />
         ) : result === "failed" ? (
-          <ErrorOutlineIcon sx={{ fontSize: 14 }} />
+          <ErrorOutlineIcon sx={{ typography: "caption" }} />
         ) : (
-          <RefreshIcon sx={{ fontSize: 14 }} />
+          <RefreshIcon sx={{ typography: "caption" }} />
         )
       }
       sx={{
         ...refreshBtnSx,
         ...(result && {
-          color: result === "done" ? "#22c55e" : "#ef4444",
-          "&:hover": { color: result === "done" ? "#16a34a" : "#b91c1c" },
+          color: result === "done" ? "success.dark" : "error.dark",
+          "&:hover": { color: result === "done" ? "success.dark" : "error.dark" },
           transition: "color 0.15s",
         }),
         ...sx,

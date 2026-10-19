@@ -12,7 +12,6 @@ import "@xterm/xterm/css/xterm.css";
 import type { UseRemoteTerminal } from "./useRemoteTerminal";
 import type { Cloud, TerminalStatus } from "../../logic/remoteTerminal";
 import { stageLabel } from "../../config/remoteTerminal";
-import { MONO_FONT } from "../../config/styles";
 import { TERMINAL_COLORS } from "../../config/remoteTerminal";
 
 const STATUS_COLOR: Record<TerminalStatus, string> = {
@@ -82,24 +81,23 @@ function StatusBar({ session }: { session: UseRemoteTerminal }) {
           "@keyframes pulse": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0.3 } },
         }}
       />
-      <Typography sx={{ fontSize: "1rem", color: TERMINAL_COLORS.text, fontWeight: 600, ...MONO_FONT }}>{text}</Typography>
+      <Typography sx={{ typography: "technicalBody", color: TERMINAL_COLORS.text, fontWeight: 600 }}>{text}</Typography>
       {session.stage && (
         <Typography
           sx={{
-            fontSize: "1rem",
+            typography: "technicalBody",
             color: TERMINAL_COLORS.accent,
             background: TERMINAL_COLORS.border,
             px: 0.75,
             py: 0.15,
             borderRadius: "4px",
-            ...MONO_FONT,
           }}
         >
           {stageLabel(session.stage)}
         </Typography>
       )}
       {session.sessionId && (
-        <Typography sx={{ fontSize: "1rem", color: TERMINAL_COLORS.muted, ml: "auto", ...MONO_FONT }}>{session.sessionId.slice(0, 8)}</Typography>
+        <Typography sx={{ typography: "technicalBody", color: TERMINAL_COLORS.muted, ml: "auto" }}>{session.sessionId.slice(0, 8)}</Typography>
       )}
       {/* Gone once the session is over — the panel stays, but there is nothing left to end. */}
       {session.status !== "closed" && session.status !== "idle" && (
@@ -136,7 +134,7 @@ function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code
         textAlign: "center",
       }}
     >
-      <Typography sx={{ fontSize: "1rem", color: TERMINAL_COLORS.accent, fontWeight: 600, mb: 1, ...MONO_FONT }}>
+      <Typography sx={{ typography: "technicalBody", color: TERMINAL_COLORS.accent, fontWeight: 600, mb: 1 }}>
         {cloud === "aws" ? "AWS Console Sign-In" : "Azure Device Code Login"}
       </Typography>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, flexWrap: "wrap" }}>
@@ -144,15 +142,14 @@ function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code
           <>
             <Typography
               sx={{
-                fontSize: "1rem",
+                typography: "technicalBody",
                 fontWeight: 700,
-                letterSpacing: "0.2rem",
+                letterSpacing: 0,
                 color: TERMINAL_COLORS.yellow,
                 background: TERMINAL_COLORS.border,
                 px: 1.5,
                 py: 0.5,
                 borderRadius: "6px",
-                ...MONO_FONT,
               }}
             >
               {code}
@@ -168,7 +165,7 @@ function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code
           rel="noopener noreferrer"
           aria-label={`${cloud === "aws" ? "Open AWS sign-in" : "Open Microsoft device login"} (opens in new tab)`}
           size="small"
-          endIcon={<OpenInNewIcon sx={{ fontSize: 13 }} />}
+          endIcon={<OpenInNewIcon sx={{ typography: "caption" }} />}
           sx={{
             ...darkBtnSx,
             background: TERMINAL_COLORS.accent,
@@ -180,7 +177,7 @@ function DeviceCodePanel({ cloud, url, code }: { cloud: Cloud; url: string; code
           {cloud === "aws" ? "Open AWS Sign-In" : "Open Microsoft Device Login"}
         </Button>
       </Box>
-      <Typography sx={{ fontSize: "1rem", color: TERMINAL_COLORS.muted, mt: 1, ...MONO_FONT }}>
+      <Typography sx={{ typography: "technicalBody", color: TERMINAL_COLORS.muted, mt: 1 }}>
         {cloud === "aws"
           ? "Sign in, then paste the authorization code it gives you into the terminal below."
           : "Enter the code on the Microsoft page — it cannot be pre-filled from the link."}
@@ -227,14 +224,13 @@ export default function RemoteTerminal({ session }: { session: UseRemoteTerminal
           role="status"
           aria-live="polite"
           sx={{
-            fontSize: "1rem",
+            typography: "technicalBody",
             color: TERMINAL_COLORS.green,
             background: TERMINAL_COLORS.successBg,
             borderBottom: `1px solid ${TERMINAL_COLORS.green}`,
             px: 1.5,
             py: 0.875,
             textAlign: "center",
-            ...MONO_FONT,
           }}
         >
           {session.loggedIn.map((c) => CLOUD_NAME[c]).join(" and ")} sign-in completed.
@@ -245,12 +241,11 @@ export default function RemoteTerminal({ session }: { session: UseRemoteTerminal
           role="alert"
           aria-live="assertive"
           sx={{
-            fontSize: "1rem",
+            typography: "technicalBody",
             color: TERMINAL_COLORS.red,
             px: 1.5,
             py: 0.75,
             borderBottom: `1px solid ${TERMINAL_COLORS.border}`,
-            ...MONO_FONT,
           }}
         >
           {session.error}

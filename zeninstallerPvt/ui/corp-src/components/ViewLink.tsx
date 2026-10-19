@@ -5,7 +5,7 @@
 
 import { Box, Button } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import { borderHoverTint, UI_FONT as uiFont } from "../config/styles";
+import { borderHoverTint } from "../config/styles";
 
 type Props = {
   href: string;
@@ -22,18 +22,16 @@ export default function ViewLink({ href, label = "View" }: Props) {
       rel="noopener noreferrer"
       title={href}
       aria-label={`${label} (opens in new tab)`}
-      endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
+      endIcon={<OpenInNewIcon sx={{ typography: "caption" }} />}
       sx={{
         flexShrink: 0,
-        borderColor: "#e2e8f0",
-        color: "#475569",
-        fontSize: "1rem",
+        borderColor: "divider",
+        color: "text.secondary",
         textTransform: "none",
-        ...uiFont,
         "&:hover": {
-          borderColor: "#cbd5e1",
-          color: "#0f172a",
-          background: borderHoverTint("#cbd5e1"),
+          borderColor: "divider",
+          color: "text.primary",
+          background: (theme) => borderHoverTint(theme.palette.divider),
         },
         "&.Mui-focusVisible, &.Mui-focusVisible:hover": {
           background: "transparent",

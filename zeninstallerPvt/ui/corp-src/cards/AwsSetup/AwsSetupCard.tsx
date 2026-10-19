@@ -36,8 +36,9 @@ type Props = {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Create an AWS IAM role GitHub Actions can assume through OIDC, then save the role ARN to this GitHub environment so the deployment stages can use the same
-      AWS target.
+      Create an AWS IAM role that lets GitHub Actions get temporary AWS credentials without storing access keys. The role receives the AWS-managed
+      AdministratorAccess policy, which allows broad access to your AWS account. ZenInstaller saves the role ARN to the selected GitHub environment for
+      deployment stages to use.
     </Typography>
   );
 }
@@ -50,13 +51,13 @@ function Action({ roleName }: { roleName: string }) {
 function StepRow({ step }: { step: SetupStep }) {
   const icon =
     step.status === "done" ? (
-      <CheckCircleOutlineIcon sx={{ fontSize: 14, color: (theme) => theme.palette.success.main }} />
+      <CheckCircleOutlineIcon sx={{ typography: "caption", color: (theme) => theme.palette.success.main }} />
     ) : step.status === "error" ? (
-      <ErrorOutlineIcon sx={{ fontSize: 14, color: (theme) => theme.palette.error.light }} />
+      <ErrorOutlineIcon sx={{ typography: "caption", color: (theme) => theme.palette.error.light }} />
     ) : step.status === "running" ? (
       <CircularProgress size={12} sx={{ color: (theme) => theme.palette.primary.main }} />
     ) : (
-      <RadioButtonUncheckedIcon sx={{ fontSize: 14, color: (theme) => theme.palette.card.icon.unavailable }} />
+      <RadioButtonUncheckedIcon sx={{ typography: "caption", color: (theme) => theme.palette.card.icon.unavailable }} />
     );
 
   return (
@@ -144,9 +145,9 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
             }}
           >
             {bannerState === "error" ? (
-              <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 16, color: "error.light" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "error.light" }} />
             ) : (
-              <CheckCircleOutlineIcon aria-hidden="true" sx={{ fontSize: 16, color: "success.main" }} />
+              <CheckCircleOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main" }} />
             )}
             <Typography color={bannerState === "error" ? "error.dark" : "success.dark"}>
               {bannerState === "saved" && "Connection details saved."}
@@ -179,15 +180,18 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 sx={{
                   py: 1,
                   px: 2.5,
-                  boxShadow: "0 2px 8px #2563eb33",
+                  boxShadow: (theme) => `0 2px 8px ${theme.palette.primary.main}33`,
                 }}
               >
                 Create IAM Role
               </Button>
               {varHasAny && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14, color: "warning.main" }} />
-                  <Typography color="warning.main">This will overwrite your current connection details</Typography>
+                  <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
+                  <Typography color="warning.main">
+                    This replaces the saved AWS role ARN for this GitHub environment. The role will have AdministratorAccess; if it already exists, its GitHub
+                    trust policy will be updated.
+                  </Typography>
                 </Box>
               )}
             </Box>
@@ -232,7 +236,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
           </Typography>
           <KeyboardArrowDownIcon
             sx={{
-              fontSize: 14,
+              typography: "caption",
               color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
               transition: "transform 0.2s",

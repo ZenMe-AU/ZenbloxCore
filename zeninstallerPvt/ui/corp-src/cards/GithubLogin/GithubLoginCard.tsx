@@ -158,7 +158,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                           }}
                           tabIndex={-1}
                         >
-                          <ClearIcon sx={{ fontSize: 14, color: "text.muted" }} />
+                          <ClearIcon sx={{ typography: "caption", color: "text.muted" }} />
                         </IconButton>
                       )}
                       <IconButton
@@ -168,7 +168,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                         tabIndex={-1}
                         aria-label={showPat ? "Hide token" : "Show token"}
                       >
-                        {showPat ? <VisibilityOffIcon sx={{ fontSize: 14, color: "text.muted" }} /> : <VisibilityIcon sx={{ fontSize: 14, color: "text.muted" }} />}
+                        {showPat ? <VisibilityOffIcon sx={{ typography: "caption", color: "text.muted" }} /> : <VisibilityIcon sx={{ typography: "caption", color: "text.muted" }} />}
                       </IconButton>
                     </InputAdornment>
                   ),
@@ -198,9 +198,9 @@ export default function GithubLoginCard({ card, auth }: Props) {
               sx={{
                 py: 1,
                 px: 2.5,
-                boxShadow: "0 2px 8px #2563eb33",
+                boxShadow: (theme) => `0 2px 8px ${theme.palette.primary.main}33`,
                 "&:hover": {
-                  boxShadow: "0 4px 12px #2563eb44",
+                  boxShadow: (theme) => `0 4px 12px ${theme.palette.primary.main}44`,
                 },
                 "&.Mui-disabled": { boxShadow: "none" },
               }}

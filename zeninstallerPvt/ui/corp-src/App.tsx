@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Box, Link, Typography } from "@mui/material";
+import { Box, Button, LinearProgress, Link, Typography } from "@mui/material";
 import { PIPELINE } from "./logic/pipeline";
 import { type CardChrome, type CardHook, type CardId } from "./types";
 import { groupSx } from "./config/cardLayout";
@@ -51,8 +51,6 @@ import StageCard from "./cards/Stage/StageCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
-
-// TODO: Remove fontSize and fontFamily from all Typography components and rely on theme defaults instead.
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -300,6 +298,44 @@ function AppDashboard() {
     onToggle: toggle,
     onRequirementClick: openCard,
   });
+
+  const progressCards = [
+    ...([
+      ["github_login", "GitHub login"],
+      ["repo", "Repository & environment"],
+      ["azure_login", "Azure login"],
+      ["azure_subscription", "Choose Azure subscription"],
+      ["azure_app_registration", "Create an app registration in Azure"],
+      ["core_infra", "Terraform state backend"],
+      ["create_domain", "Core domain"],
+      ["remote_terminal_infra", "Remote terminal environment"],
+      ["backend_deploy", "Private Zeninstaller Backend"],
+      ["private_frontend_infra", "Frontend hosting environment"],
+      ["web_deploy", "Private Zeninstaller Frontend"],
+      ["aws_login", "AWS login"],
+      ["aws_setup", "AWS setup"],
+    ] as const).map(([id, title]) => ({
+      id,
+      title,
+      done: allCards[id].done,
+      chrome: cardProps(id),
+    })),
+    ...stageCards.map(({ card, stageDef }) => ({
+      id: card.cardId,
+      title: stageDef.label,
+      done: card.status === "complete" || card.status === "skipped",
+      chrome: card,
+    })),
+    {
+      id: "access_pass" as const,
+      title: "Access pass",
+      done: allCards.access_pass.done,
+      chrome: cardProps("access_pass"),
+    },
+  ];
+  const completedCount = progressCards.filter((item) => item.done).length;
+  const nextStep = progressCards.find((item) => !item.done && !item.chrome.locked && !item.chrome.unavailable && item.chrome.status !== "loading");
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
@@ -319,31 +355,34 @@ function AppDashboard() {
           <Box
             id="installer-intro"
             sx={{
-              background: "#ffffff",
-              borderRadius: "12px",
-              border: "1px solid #e2e8f0",
+              bgcolor: "background.paper",
+              borderRadius: (theme) => theme.palette.card.radius,
+              border: "1px solid",
+              borderColor: "divider",
               px: { xs: 2, sm: 3 },
               py: 2.5,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              boxShadow: (theme) => theme.palette.card.shadow,
             }}
           >
-            <CardIntro sx={{ lineHeight: 1.7, mb: 1 }}>
-              ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers of your choosing. Before starting, you will need
-              the following:
+            <CardIntro variant="body1" sx={{ lineHeight: 1.7, mb: 1 }}>
+              ZenInstaller helps you set up cloud resources for your organisation. Before you start, prepare:
             </CardIntro>
             <Box component="ol" sx={{ m: 0, pl: 3, color: "text.secondary" }}>
-              <Typography component="li" sx={{ lineHeight: 1.7 }}>
-                A personal email address, using Google, or any other email hosting provider.
+              <Typography component="li" variant="body2" sx={{ lineHeight: 1.7 }}>
+                A personal email address.
               </Typography>
-              <Typography component="li" sx={{ lineHeight: 1.7 }}>
-                An organisation name and domain name. We recommend that you register the domain name with{" "}
+              <Typography component="li" variant="body2" sx={{ lineHeight: 1.7 }}>
+                A GitHub account with permission to create a repository in the account or organisation that will own it.
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ lineHeight: 1.7 }}>
+                An organisation name and domain. You can register the domain with{" "}
                 <ExternalLink href="https://www.godaddy.com/" label="GoDaddy">
                   GoDaddy
-                </ExternalLink>{" "}
-                because we will have automations in place with them.
+                </ExternalLink>
+                {" "}or another provider.
               </Typography>
             </Box>
-            <CardIntro sx={{ lineHeight: 1.7, mt: 1, mb: 0 }}>
+            <CardIntro variant="body1" sx={{ lineHeight: 1.7, mt: 1, mb: 0 }}>
               Complete the cards below in any order — each shows what it needs before it can run.
             </CardIntro>
           </Box>
@@ -352,6 +391,27 @@ function AppDashboard() {
             <Typography id="deployment-steps-heading" component="h2" variant="h2" sx={{ gridColumn: "1 / -1" }}>
               Deployment steps
             </Typography>
+            <Box sx={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr auto" }, alignItems: "center", gap: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
+                <Typography variant="sectionLabel">Setup progress</Typography>
+                <Typography color="text.secondary">{completedCount} of {progressCards.length} tasks complete</Typography>
+              </Box>
+              <LinearProgress
+                aria-label="Setup progress"
+                variant="determinate"
+                value={(completedCount / progressCards.length) * 100}
+                sx={{ gridColumn: "1 / -1", height: 6, borderRadius: 3 }}
+              />
+              <Button
+                size="small"
+                variant="text"
+                disabled={!nextStep}
+                onClick={() => nextStep && openCard(nextStep.id)}
+                sx={{ justifySelf: { xs: "start", sm: "end" }, gridColumn: "1 / -1" }}
+              >
+                {nextStep ? `Next step: ${nextStep.title}` : "All setup tasks complete"}
+              </Button>
+            </Box>
             <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
 
             <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />

@@ -32,14 +32,15 @@ function Intro() {
         You will need to copy the credentials from AWS after&nbsp;
         <ExternalLink href={CLOUD_DOCS.aws.bootstrapCredentials} label="AWS setup guide">
           following the AWS set-up guide
-          <OpenInNewIcon aria-hidden="true" sx={{ fontSize: 11 }} />
+          <OpenInNewIcon aria-hidden="true" sx={{ typography: "caption" }} />
         </ExternalLink>
         <br />
-        If you do not have an AWS account yet,&nbsp;
+        If you do not have an AWS account yet, {" "}
         <ExternalLink href={CLOUD_DOCS.aws.createAccount} label="Create an AWS account">
-          Create a free one
-          <OpenInNewIcon aria-hidden="true" sx={{ fontSize: 11 }} />
+          Create an AWS account
+          <OpenInNewIcon aria-hidden="true" sx={{ typography: "caption" }} />
         </ExternalLink>
+        . AWS may ask for payment details during signup.
       </>
     </Typography>
   );
@@ -90,8 +91,8 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
           <>
             <Box>
               <Typography variant="body2" color="text.muted" sx={{ mb: 1.5, lineHeight: 1.6 }}>
-                Generate access keys from your AWS account's Security credentials. They're exchanged for short-term session credentials and can be deleted after
-                setup.
+                Use an IAM user allowed to create identity providers and roles. Generate access keys from Security credentials; they are exchanged for short-term
+                session credentials. After the role is created, deactivate and delete these access keys.
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 <TextField
@@ -128,7 +129,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                           edge="end"
                           tabIndex={-1}
                         >
-                          {showSecret ? <VisibilityOff sx={{ fontSize: 16 }} /> : <Visibility sx={{ fontSize: 16 }} />}
+                          {showSecret ? <VisibilityOff sx={{ typography: "caption" }} /> : <Visibility sx={{ typography: "caption" }} />}
                         </IconButton>
                       </InputAdornment>
                     ),
@@ -146,7 +147,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
               <Box component="span" sx={{ color: done ? "success.main" : undefined, fontWeight: 600 }}>
                 {account.username}
               </Box>
-              <Box component="span" sx={{ fontFamily: "monospace" }}>
+              <Box component="span" sx={{ typography: "technical" }}>
                 {" "}
                 ({account.accountId})
               </Box>
@@ -191,7 +192,6 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                 if (e.key === "Enter" && canSignIn && !loggingIn) login();
               }}
               placeholder="123456"
-              autoFocus
               helperText={usableDevices.length > 1 ? "Code from the selected device" : `Code from ${usableDevices[0]?.name ?? "your MFA device"}`}
               className="corpTechnicalInput"
               inputProps={{ maxLength: 6 }}
@@ -202,7 +202,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
 
         {fidoOnly && (
           <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "flex-start", gap: 0.75, maxWidth: 420 }}>
-            <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 14, color: "warning.main", mt: "2px" }} />
+            <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", mt: "2px" }} />
             <Typography color="warning.dark" sx={{ lineHeight: 1.6 }}>
               Your only MFA is a security key (FIDO), which AWS can't use for CLI/API sign-in. We'll continue without MFA — if your account requires MFA,
               register an authenticator-app (TOTP) device or use access keys that don't enforce MFA.
@@ -222,9 +222,9 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                 alignSelf: "flex-start",
                 py: 1,
                 px: 2.5,
-                boxShadow: "0 2px 8px #2563eb33",
+                boxShadow: (theme) => `0 2px 8px ${theme.palette.primary.main}33`,
                 "&:hover": {
-                  boxShadow: "0 4px 12px #2563eb44",
+                  boxShadow: (theme) => `0 4px 12px ${theme.palette.primary.main}44`,
                 },
               }}
             >

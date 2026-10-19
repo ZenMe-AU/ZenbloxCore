@@ -234,7 +234,7 @@ export default function CreateDomainCard({
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
               {nameServers.map((ns) => (
-                <Typography key={ns} color="text.primary" sx={{ fontFamily: "monospace" }}>
+                <Typography key={ns} color="text.primary" sx={{ typography: "technical" }}>
                   {ns}
                 </Typography>
               ))}
@@ -246,7 +246,7 @@ export default function CreateDomainCard({
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {domainVerified && isPrimary ? (
               <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                <CheckCircleOutlineIcon aria-hidden="true" sx={{ fontSize: 16, color: "success.main" }} />
+                <CheckCircleOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main" }} />
                 <Typography color="success.dark">
                   Domain <b>{dnsName}</b> is verified and set as the primary domain.
                 </Typography>
@@ -269,7 +269,7 @@ export default function CreateDomainCard({
                   </Button>
                   {!domainVerified && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 13, color: "warning.main" }} />
+                      <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
                       <Typography color="warning.main">DNS propagation can take minutes to hours</Typography>
                     </Box>
                   )}

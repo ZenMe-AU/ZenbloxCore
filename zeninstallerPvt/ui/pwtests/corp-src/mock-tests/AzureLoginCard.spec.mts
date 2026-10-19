@@ -79,8 +79,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
       await expect(intro.getByRole("link", { name: "GoDaddy" })).toHaveAttribute("href", "https://www.godaddy.com/");
 
       const card = page.locator("#card-azure_login");
-      const toggle = card.getByRole("button", { name: /^Azure login,/ });
-      await expect(toggle).toHaveAccessibleName(/^Azure login, /);
+      const toggle = card.getByRole("button", { name: /^Azure login/ });
+      await expect(toggle).toHaveAccessibleName(/^Azure login/);
       await expect(toggle).toHaveAttribute("aria-expanded", "false");
       await expect(toggle.locator(".MuiTouchRipple-root")).toHaveCount(0);
       const titleText = card.locator("h3 button .MuiTypography-root").first();

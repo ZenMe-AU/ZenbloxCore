@@ -14,22 +14,22 @@ import type { SetupStep } from "../types";
 export default function StepRow({ step }: { step: SetupStep }) {
   const icon =
     step.status === "done" ? (
-      <CheckCircleOutlineIcon sx={{ fontSize: 14, color: (theme) => theme.palette.card.icon.complete }} />
+      <CheckCircleOutlineIcon sx={{ typography: "body2", color: (theme) => theme.palette.card.icon.complete }} />
     ) : step.status === "skipped" ? (
-      <RemoveCircleOutlineIcon sx={{ fontSize: 14, color: (theme) => theme.palette.card.icon.skipped }} />
+      <RemoveCircleOutlineIcon sx={{ typography: "body2", color: (theme) => theme.palette.card.icon.skipped }} />
     ) : step.status === "error" ? (
-      <ErrorOutlineIcon sx={{ fontSize: 14, color: (theme) => theme.palette.error.light }} />
+      <ErrorOutlineIcon sx={{ typography: "body2", color: (theme) => theme.palette.error.light }} />
     ) : step.status === "running" ? (
       <CircularProgress size={12} sx={{ color: (theme) => theme.palette.primary.main }} />
     ) : (
-      <RadioButtonUncheckedIcon sx={{ fontSize: 14, color: (theme) => theme.palette.card.icon.unavailable }} />
+      <RadioButtonUncheckedIcon sx={{ typography: "body2", color: (theme) => theme.palette.card.icon.unavailable }} />
     );
 
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: "18px 1fr", alignItems: "start", py: 0.5 }}>
       <Box sx={{ display: "flex", alignItems: "center", height: "1.2em" }}>{icon}</Box>
       <Box>
-        <Typography sx={{ color: (theme) => step.status === "error" ? theme.palette.error.light : theme.palette.text.secondary }}>{step.label}</Typography>
+        <Typography sx={{ color: (theme) => step.status === "error" ? theme.palette.error.dark : theme.palette.text.secondary }}>{step.label}</Typography>
         {step.detail && (
           <Typography data-sensitive="true" sx={{ color: (theme) => theme.palette.card.mutedText, mt: 0.25, wordBreak: "break-all" }}>
             {step.detail}

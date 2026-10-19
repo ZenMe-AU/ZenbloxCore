@@ -308,7 +308,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                   }}
                                 >
                                   <Typography color="warning.dark">
-                                    If you continue, all existing access for this user will be deleted and a 1 hour temporary access pass will be created.
+                                    This removes the user's existing sign-in methods, resets their password, and creates a Temporary Access Pass that expires after one hour. They may be unable to sign in until they use the pass.
                                   </Typography>
                                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                                     <input
@@ -326,7 +326,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                       style={{ margin: 0, width: 14, height: 14 }}
                                     />
                                     <Typography component="label" htmlFor={`access-pass-photo-id-${user.id}`} color="warning.dark">
-                                      Confirm that you have viewed the photo ID and confirm it to be the person selected
+                                      I verified the selected user's identity against their photo ID.
                                     </Typography>
                                   </Box>
                                   <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 0.35 }}>
@@ -452,7 +452,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     />
                                     <Box>
                                       <Typography component="label" htmlFor={`access-pass-delivery-${user.id}`} color="primary.dark">
-                                        Confirm that the person has successfully logged in and created their long term access pass on:
+                                        Confirm that the person has signed in and set up their own sign-in method at:
                                       </Typography>{" "}
                                       <ExternalLink href="https://mysignins.microsoft.com/" label="Microsoft My Sign-ins">
                                         https://mysignins.microsoft.com/
@@ -565,7 +565,9 @@ export default function AccessPassCard({ card, accessPass }: Props) {
             )}
 
             {!managerUsersLoading && managerUsers.length === 0 && !managerUsersError && (
-              <Typography color="text.secondary" role="status">No users found that are managed by your signed-in account.</Typography>
+              <Typography color="text.secondary" role="status">
+                No users managed by your signed-in account were found. Check that you signed in to the correct Entra tenant and have permission to view these users.
+              </Typography>
             )}
 
             {managerUsersError && (

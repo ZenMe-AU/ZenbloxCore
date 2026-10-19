@@ -130,7 +130,7 @@ export default function EnvSecretsDetail({
             const n = AZURE_SECRET_KEYS.filter((k) => !presentKeys.includes(k)).length;
             return n > 0 && azureSecretsStatus.configured !== null ? (
               <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 12, color: "warning.light" }} />
+                <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.light" }} />
                 <Typography color="warning.light">{n} not configured</Typography>
               </Box>
             ) : null;
@@ -155,7 +155,7 @@ export default function EnvSecretsDetail({
             const n = AWS_SECRET_KEYS.filter((k) => !presentKeys.includes(k)).length;
             return n > 0 && awsSecretsStatus.configured !== null ? (
               <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <ErrorOutlineIcon aria-hidden="true" sx={{ fontSize: 12, color: "warning.light" }} />
+                <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.light" }} />
                 <Typography color="warning.light">{n} not configured</Typography>
               </Box>
             ) : null;

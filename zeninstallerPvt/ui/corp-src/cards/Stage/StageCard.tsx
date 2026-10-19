@@ -212,7 +212,7 @@ function RunStatusUpdateButton({
       variant="outlined"
       size="small"
       aria-busy={running}
-      startIcon={running ? undefined : <PlayArrowIcon sx={{ fontSize: 15 }} />}
+      startIcon={running ? undefined : <PlayArrowIcon sx={{ typography: "body2" }} />}
       sx={{
         alignSelf: "flex-start",
         borderColor: "primary.light",
@@ -448,16 +448,16 @@ export default function StageCard({
                     >
                       {met && prereqHasDeployedDiff ? (
                         <Tooltip title="Changed since last plan" placement="top" arrow>
-                          <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 13, color: "warning.main", flexShrink: 0 }} />
+                          <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
                         </Tooltip>
                       ) : met ? (
-                        <CheckCircleIcon aria-hidden="true" sx={{ fontSize: 13, color: "success.main", flexShrink: 0 }} />
+                        <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main", flexShrink: 0 }} />
                       ) : (
-                        <RadioButtonUncheckedIcon aria-hidden="true" sx={{ fontSize: 13, color: "text.disabled", flexShrink: 0 }} />
+                        <RadioButtonUncheckedIcon aria-hidden="true" sx={{ typography: "caption", color: "text.disabled", flexShrink: 0 }} />
                       )}
                       <Typography color={met ? "text.secondary" : "text.muted"} sx={{ flex: 1 }}>{label}</Typography>
                       {isExpandable &&
-                        (isOpen ? <ExpandLessIcon aria-hidden="true" sx={{ fontSize: 14, color: "text.disabled" }} /> : <ExpandMoreIcon aria-hidden="true" sx={{ fontSize: 14, color: "text.disabled" }} />)}
+                        (isOpen ? <ExpandLessIcon aria-hidden="true" sx={{ typography: "body2", color: "text.disabled" }} /> : <ExpandMoreIcon aria-hidden="true" sx={{ typography: "body2", color: "text.disabled" }} />)}
                     </Box>
 
                     {isExpandable && isOpen && (
@@ -538,7 +538,7 @@ export default function StageCard({
 
         {!hasDetails && stage.status !== "pending" && (
           <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
-            No plan available for this stage.
+            No plan is available for this stage. Check the GitHub Actions run for errors, then create a new plan.
           </Typography>
         )}
 
@@ -556,11 +556,11 @@ export default function StageCard({
                 row and everything below indents past it rather than sharing a column with it. */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               {stage.deployStatus === "success" ? (
-                <CheckCircleIcon aria-hidden="true" sx={{ fontSize: 13, color: "success.main", flexShrink: 0 }} />
+                <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main", flexShrink: 0 }} />
               ) : stage.deployStatus === "cancelled" ? (
-                <BlockIcon aria-hidden="true" sx={{ fontSize: 13, color: "text.muted", flexShrink: 0 }} />
+                <BlockIcon aria-hidden="true" sx={{ typography: "caption", color: "text.muted", flexShrink: 0 }} />
               ) : stage.deployStatus === "failed" ? (
-                <WarningAmberIcon aria-hidden="true" sx={{ fontSize: 13, color: "error.main", flexShrink: 0 }} />
+                <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "error.main", flexShrink: 0 }} />
               ) : null}
               {stage.deployedAt && <Typography color="text.secondary">{relativeTime(stage.deployedAt)}</Typography>}
               {/* The apply's own run, not the plan's — the header link points at the plan. */}

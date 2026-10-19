@@ -8,7 +8,7 @@ import { Terminal } from "@xterm/xterm";
 import { triggerRemoteLogin } from "../../api";
 import { deleteSession, negotiateSession, registerSession } from "../../api/backend";
 import { TERMINAL_COLS, TERMINAL_ROWS, TERMINAL_THEME } from "../../config/remoteTerminal";
-import { createSessionCredentials, parseSocketEvent } from "../../logic/remoteTerminal";
+import { createSessionCredentials, parseSocketEvent, parseWebPubSubUrl } from "../../logic/remoteTerminal";
 import type { Cloud, RunnerMessage, SessionCredentials, TerminalStatus } from "../../logic/remoteTerminal";
 import type { Account, GhEnv } from "../../types";
 
@@ -215,8 +215,16 @@ export function useRemoteTerminal(opts: {
     }
     if (stoppedRef.current) return;
 
+    const webPubSubUrl = parseWebPubSubUrl(clientUrl);
+    if (!webPubSubUrl) {
+      disconnect(0);
+      setStatus("error");
+      setError("The terminal relay returned an invalid connection URL.");
+      return;
+    }
+
     setStatus("connecting");
-    const ws = new WebSocket(clientUrl, "json.webpubsub.azure.v1");
+    const ws = new WebSocket(webPubSubUrl, "json.webpubsub.azure.v1");
     wsRef.current = ws;
     joinedRef.current = false;
 

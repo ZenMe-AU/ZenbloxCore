@@ -25,11 +25,11 @@ import StatusText from "../../components/StatusText";
 function RowStatusIcon({ row, result, dirty }: { row: GroupRow; result: GroupRowResult | undefined; dirty: boolean }) {
   const status = result?.status;
   if (status === "running") return <CircularProgress aria-label={`Syncing ${row.groupName || "group"}`} size={13} sx={{ color: "primary.main" }} />;
-  if (status === "done" || status === "skipped") return <CheckCircleOutlineIcon aria-label={`${row.groupName || "Group"} synced`} sx={{ fontSize: 15, color: "success.main" }} />;
-  if (status === "error") return <ErrorOutlineIcon aria-label={`${row.groupName || "Group"} sync failed`} sx={{ fontSize: 15, color: "error.main" }} />;
-  if (row.isNew && !row.groupName.trim()) return <RadioButtonUncheckedIcon aria-hidden="true" sx={{ fontSize: 14, color: "text.disabled" }} />;
-  if (dirty) return <RadioButtonCheckedIcon aria-label={`${row.groupName || "Group"} has unsaved changes`} sx={{ fontSize: 14, color: "warning.main" }} />;
-  return <CheckCircleOutlineIcon aria-label={`${row.groupName || "Group"} unchanged`} sx={{ fontSize: 15, color: "text.muted" }} />;
+  if (status === "done" || status === "skipped") return <CheckCircleOutlineIcon aria-label={`${row.groupName || "Group"} synced`} sx={{ typography: "caption", color: "success.main" }} />;
+  if (status === "error") return <ErrorOutlineIcon aria-label={`${row.groupName || "Group"} sync failed`} sx={{ typography: "caption", color: "error.main" }} />;
+  if (row.isNew && !row.groupName.trim()) return <RadioButtonUncheckedIcon aria-hidden="true" sx={{ typography: "caption", color: "text.disabled" }} />;
+  if (dirty) return <RadioButtonCheckedIcon aria-label={`${row.groupName || "Group"} has unsaved changes`} sx={{ typography: "caption", color: "warning.main" }} />;
+  return <CheckCircleOutlineIcon aria-label={`${row.groupName || "Group"} unchanged`} sx={{ typography: "caption", color: "text.muted" }} />;
 }
 
 // Invisible until hovered/focused — reads as plain text at rest, becomes an input on interaction.
@@ -43,7 +43,7 @@ const ghostFieldSx = (muted: boolean) => (theme: import("@mui/material/styles").
   },
   "& .MuiInputBase-input": {
     padding: "1px 4px",
-    fontSize: muted ? "0.75rem" : "1rem",
+    typography: muted ? "caption" : "body1",
     color: muted ? theme.palette.text.muted : theme.palette.text.primary,
   },
 });
@@ -235,12 +235,12 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                       aria-label={`Undo changes to ${row.groupName}`}
                       sx={{ color: "text.disabled", "&:hover": { color: "warning.main" } }}
                     >
-                      <UndoIcon sx={{ fontSize: 14 }} />
+                      <UndoIcon sx={{ typography: "caption" }} />
                     </IconButton>
                   )}
                   {row.isNew ? (
                     <IconButton aria-label={`Remove new group ${row.groupName || "row"}`} size="small" onClick={() => removeRow(row.id)} disabled={disabled} sx={{ color: "text.disabled", "&:hover": { color: "error.main" } }}>
-                      <CloseIcon sx={{ fontSize: 14 }} />
+                      <CloseIcon sx={{ typography: "caption" }} />
                     </IconButton>
                   ) : (
                     <IconButton
@@ -250,7 +250,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                       disabled={disabled}
                       sx={{ color: "text.disabled", "&:hover": { color: "error.main" } }}
                     >
-                      <DeleteOutlineIcon sx={{ fontSize: 15 }} />
+                      <DeleteOutlineIcon sx={{ typography: "caption" }} />
                     </IconButton>
                   )}
                 </Box>
@@ -272,7 +272,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                         </Box>
                       )}
                       renderInput={(params) => (
-                        <TextField {...params} autoFocus placeholder="Member of..." inputProps={{ ...params.inputProps, "aria-label": `Memberships for ${row.groupName || "new group"}` }} />
+                        <TextField {...params} placeholder="Member of..." inputProps={{ ...params.inputProps, "aria-label": `Memberships for ${row.groupName || "new group"}` }} />
                       )}
                     />
                     <Button
@@ -355,7 +355,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
               "&:hover": { backgroundColor: "action.hover", color: "primary.main" },
             }}
           >
-            <AddIcon aria-hidden="true" sx={{ fontSize: 14 }} />
+            <AddIcon aria-hidden="true" sx={{ typography: "caption" }} />
             <Typography color="inherit">Add group</Typography>
           </ButtonBase>
         </Box>
@@ -375,7 +375,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
           </Button>
           <Button
             size="small"
-            startIcon={<AddIcon sx={{ fontSize: 14 }} />}
+            startIcon={<AddIcon sx={{ typography: "caption" }} />}
             onClick={addDefaultGroups}
             disabled={disabled}
             sx={{ color: "text.secondary", "&:hover": { color: "primary.main" } }}
