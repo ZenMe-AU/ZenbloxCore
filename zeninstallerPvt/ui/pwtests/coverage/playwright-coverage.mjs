@@ -16,8 +16,8 @@ const { createCoverageMap } = coverageLib;
 const { createContext } = reportLib;
 
 const webDir = resolve(".");
-const resultsDir = resolve(webDir, "pwtests/test-results");
-const reportDir = resolve(webDir, "pwtests/coverage-report");
+const resultsDir = resolve(webDir, "../../pwtest-results");
+const reportDir = resolve(resultsDir, "coverage-report");
 const coverageMap = createCoverageMap({});
 let converted = 0;
 
@@ -71,10 +71,9 @@ for await (const file of findCoverageFiles(resultsDir)) {
 
     if (url.origin !== "http://localhost:5173") continue;
     if (!/\.[cm]?[jt]sx?$/.test(url.pathname) && !url.pathname.startsWith("/@fs/")) continue;
-    if (url.pathname.startsWith("/node_modules/")) continue;
-
     const sourcePath = sourcePathFromUrl(url);
     if (!sourcePath) continue;
+    if (sourcePath.split(/[\\/]/).some((segment) => segment.toLowerCase() === "node_modules")) continue;
 
     const istanbulData = await convert({
       ast: await parseAstAsync(entry.source),
@@ -100,7 +99,7 @@ if (converted === 0) {
     coverageMap,
   });
 
-  reports.create("html").execute(context);
+  reports.create("lcovonly").execute(context);
   reports.create("text-summary").execute(context);
-  console.log(`Coverage report: ${join(reportDir, "index.html")}`);
+  console.log(`Coverage report: ${join(reportDir, "lcov.info")}`);
 }

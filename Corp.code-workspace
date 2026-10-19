@@ -105,5 +105,8 @@
       "accessPass/func/playwright.config.ts"
     ],
     "sarif-viewer.connectToGithubCodeScanning": "off",
+    "coverage-gutters.coverageBaseDir": "pwtest-results/coverage-report",
+    "coverage-gutters.showGutterCoverage": true,
+    "coverage-gutters.showLineCoverage": true
   },
 }
