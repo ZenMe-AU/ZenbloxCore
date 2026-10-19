@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ensureScopeConsent, getMsal } from "../../auth/msal";
 import { APP_SCOPES, DNS_PROVIDERS, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_PERMISSIONS } from "../../config/azureConfig";
-import { ensureDnsZone, ensureDnsTxtRecord } from "../../api/azureArm";
+import { ensureDnsZone, ensureDnsTxtRecord, ensureResourceGroup, ensureLogAnalyticsWorkspace, findDnsZone } from "../../api/azureArm";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
 import {
   getEntraDomain,
@@ -17,10 +17,11 @@ import {
   listVerifiedDomains,
   getExistingSP,
   grantAdminConsent,
+  listAppRoleAssignments,
 } from "../../api/azureGraph";
 import type { VerifiedDomain } from "../../api/azureGraph";
 import { isConsentError } from "../../logic/consent";
-import { getRootResourceGroupName } from "../../logic/naming";
+import { getCoreResourceGroupName, getCoreLogAnalyticsName, DEFAULT_AZURE_LOCATION } from "../../logic/naming";
 import { createResultStorage } from "../../logic/resultStorage";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { AZURE_CLIENT_ID } from "../../config/azureConfig";
@@ -33,6 +34,7 @@ export type CreateDomainResult = {
   nameServers: string[];
   domainVerified: boolean;
   isPrimary: boolean;
+  makePrimary?: boolean; // Missing on results saved before the choice existed, which always made it primary.
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -48,9 +50,14 @@ export interface UseCreateDomainCard extends CardHook, AzureConfigHook {
   checkingStatus: boolean;
   checkStatusError: string | null;
   resourcesDone: boolean;
+  resourceGroupName: string;
+  lawName: string;
   nameServers: string[];
   domainVerified: boolean;
   isPrimary: boolean;
+  makePrimary: boolean;
+  setMakePrimary: (v: boolean) => void;
+  runNonce: number;
   verifying: boolean;
   verifyError: string | null;
   verify: () => Promise<void>;
@@ -67,9 +74,7 @@ const { save: saveResult, load: loadResult } = createResultStorage<CreateDomainR
 
 /*
  * The DNS + Entra custom-domain half of corp setup: create the DNS zone, add the domain to
- * Entra, write the verification TXT record, verify, and set it primary. The resource group /
- * storage / observability live in useCoreInfraCard — this card locks behind it, so the RG the
- * DNS zone needs already exists when this runs.
+ * Entra, write the verification TXT record, verify, and set it primary.
  */
 export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dnsName, spClientId, tenantId }: UseCreateDomainCardParams): UseCreateDomainCard {
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
@@ -78,6 +83,8 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
   const [nameServers, setNameServers] = useState<string[]>(loadResult()?.nameServers ?? []);
   const [domainVerified, setDomainVerified] = useState<boolean>(loadResult()?.domainVerified ?? false);
   const [isPrimary, setIsPrimary] = useState<boolean>(loadResult()?.isPrimary ?? false);
+  const [makePrimary, setMakePrimaryState] = useState<boolean>(loadResult()?.makePrimary ?? true);
+  const [runNonce, setRunNonce] = useState(0);
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
 
@@ -95,7 +102,8 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     }
   }, [result, resultMatches, resetSteps]);
 
-  const resourceGroupName = getRootResourceGroupName(corpName);
+  const resourceGroupName = getCoreResourceGroupName(corpName);
+  const lawName = getCoreLogAnalyticsName(corpName);
 
   /*
    * Once a subscription is known, check Graph directly for verified+primary status instead of
@@ -111,18 +119,40 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     setCheckingStatus(true);
     setCheckStatusError(null);
     getEntraDomain(azureAccount, dnsName, tenantId)
-      .then((domain) => {
+      .then(async (domain) => {
         if (cancelled || !domain) return;
         setDomainVerified(domain.isVerified);
         setIsPrimary(domain.isDefault);
-        if (domain.isVerified && domain.isDefault) {
+        // Added but unverified: if the zone already holds Microsoft's TXT value, only Verify is left to do.
+        if (!domain.isVerified) {
+          const [expected, zone] = await Promise.all([
+            getDomainVerificationTxt(azureAccount, dnsName, tenantId),
+            findDnsZone(azureAccount, subscriptionId, dnsName, tenantId),
+          ]);
+          if (cancelled || !expected || !zone?.txtValues.includes(expected)) return;
+          setNameServers(zone.nameServers);
+          const r: CreateDomainResult = {
+            corpName,
+            dnsName,
+            subscriptionId,
+            nameServers: zone.nameServers,
+            domainVerified: false,
+            isPrimary: false,
+            makePrimary,
+          };
+          setResult(r);
+          saveResult(r);
+          return;
+        }
+        if (domain.isDefault || !makePrimary) {
           const r: CreateDomainResult = {
             corpName,
             dnsName,
             subscriptionId,
             nameServers: [],
             domainVerified: true,
-            isPrimary: true,
+            isPrimary: domain.isDefault,
+            makePrimary,
           };
           setResult(r);
           saveResult(r);
@@ -143,7 +173,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     return () => {
       cancelled = true;
     };
-  }, [azureAccount, subscriptionId, corpName, dnsName, tenantId]);
+  }, [azureAccount, subscriptionId, corpName, dnsName, tenantId, makePrimary]);
 
   useEffect(() => {
     if (!azureAccount) return;
@@ -195,6 +225,8 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     const initialSteps: SetupStep[] = [
       { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
+      { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
+      { id: "law", label: `Create Log Analytics workspace ${lawName}`, status: "pending" },
       { id: "dns", label: `Create DNS zone ${dnsName}`, status: "pending" },
       { id: "domain", label: "Add custom domain to Entra ID", status: "pending" },
       { id: "txt", label: "Create domain-verification TXT record", status: "pending" },
@@ -220,6 +252,16 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
         providers.registered.length === 0 ? "skipped" : "done",
         providers.registered.length === 0 ? "Already registered" : providers.registered.join(", ")
       );
+
+      currentStep = "rg";
+      updateStep("rg", "running");
+      const rg = await ensureResourceGroup(azureAccount, subscriptionId, resourceGroupName, DEFAULT_AZURE_LOCATION, tenantId);
+      updateStep("rg", rg === "exists" ? "skipped" : "done", rg === "exists" ? "Already exists" : undefined);
+
+      currentStep = "law";
+      updateStep("law", "running");
+      const law = await ensureLogAnalyticsWorkspace(azureAccount, subscriptionId, resourceGroupName, lawName, DEFAULT_AZURE_LOCATION, tenantId);
+      updateStep("law", law.result === "exists" ? "skipped" : "done", law.result === "exists" ? "Already exists" : undefined);
 
       currentStep = "dns";
       updateStep("dns", "running");
@@ -250,8 +292,10 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
       }
 
       currentStep = "primary";
-      let primaryNow = false;
-      if (!domain.isVerified) {
+      let primaryNow = domain.isDefault;
+      if (!makePrimary) {
+        updateStep("primary", "skipped", "Not selected");
+      } else if (!domain.isVerified) {
         updateStep("primary", "skipped", "Set automatically after domain verification");
       } else if (domain.isDefault) {
         updateStep("primary", "skipped", "Already the primary domain");
@@ -271,8 +315,13 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
         updateStep("grant", "running");
         const sp = await getExistingSP(azureAccount, spClientId, tenantId);
         if (!sp) throw new Error(`Service principal for app ${spClientId} not found — run the app registration card first`);
-        await grantAdminConsent(azureAccount, sp.id, [GRAPH_PERMISSIONS.DomainReadWriteAll], tenantId);
-        updateStep("grant", "done");
+        const granted = await listAppRoleAssignments(azureAccount, sp.id, tenantId);
+        if (granted.includes(GRAPH_PERMISSIONS.DomainReadWriteAll)) {
+          updateStep("grant", "skipped", "Already granted");
+        } else {
+          await grantAdminConsent(azureAccount, sp.id, [GRAPH_PERMISSIONS.DomainReadWriteAll], tenantId);
+          updateStep("grant", "done");
+        }
       }
 
       const r: CreateDomainResult = {
@@ -282,9 +331,11 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
         nameServers: zone.nameServers,
         domainVerified: domain.isVerified,
         isPrimary: primaryNow,
+        makePrimary,
       };
       setResult(r);
       saveResult(r);
+      setRunNonce((n) => n + 1);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
       if (isConsentError(msg)) {
@@ -304,7 +355,9 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     dnsName,
     spClientId,
     tenantId,
+    makePrimary,
     resourceGroupName,
+    lawName,
     setSteps,
     setRunning,
     updateStep,
@@ -326,7 +379,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
       let primary = domain.isDefault;
       if (!domain.isVerified) {
         setVerifyError("Verification did not complete — DNS may still be propagating. Try again shortly.");
-      } else if (!primary) {
+      } else if (!primary && makePrimary) {
         try {
           await setPrimaryEntraDomain(azureAccount, dnsName, tenantId);
           primary = true;
@@ -337,7 +390,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
       setIsPrimary(primary);
 
       if (result) {
-        const r = { ...result, domainVerified: domain.isVerified, isPrimary: primary };
+        const r = { ...result, domainVerified: domain.isVerified, isPrimary: primary, makePrimary };
         setResult(r);
         saveResult(r);
       }
@@ -352,7 +405,20 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     } finally {
       setVerifying(false);
     }
-  }, [azureAccount, dnsName, tenantId, domainVerified, result]);
+  }, [azureAccount, dnsName, tenantId, domainVerified, makePrimary, result]);
+
+  // Also changed after setup, next to Verify, so it goes into the saved result straight away.
+  const setMakePrimary = useCallback(
+    (v: boolean) => {
+      setMakePrimaryState(v);
+      if (result) {
+        const r = { ...result, makePrimary: v };
+        setResult(r);
+        saveResult(r);
+      }
+    },
+    [result]
+  );
 
   const reset = useCallback(() => {
     resetSteps();
@@ -364,12 +430,12 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     setVerifyError(null);
   }, [resetSteps]);
 
-  const done = domainVerified && isPrimary;
+  const done = domainVerified && (isPrimary || !makePrimary);
   const azureConfigured = !!AZURE_CLIENT_ID;
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
   const status: CardStatus = !azureConfigured ? "error" : done ? "complete" : "warning";
-  const summary = !azureConfigured ? "Unavailable" : done ? "Domain verified and primary" : "Set up the corp domain";
+  const summary = !azureConfigured ? "Unavailable" : done ? (isPrimary ? "Domain verified and primary" : "Domain verified") : "Set up the corp domain";
 
   return {
     cardId: "create_domain" as const,
@@ -379,9 +445,14 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     steps,
     running,
     resourcesDone,
+    resourceGroupName,
+    lawName,
     nameServers,
     domainVerified,
     isPrimary,
+    makePrimary,
+    setMakePrimary,
+    runNonce,
     verifying,
     verifyError,
     verify,

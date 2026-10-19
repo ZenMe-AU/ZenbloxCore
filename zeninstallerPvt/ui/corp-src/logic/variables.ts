@@ -25,6 +25,7 @@ export const AWS_VARIABLE_KEYS = ["AWS_ROLE_ARN"] as const;
 export const CORP_NAME_KEYS = ["NAME"] as const;
 export const TFSTATE_BACKEND_KEYS = ["TF_STATE_RESOURCE_GROUP", "TF_STATE_STORAGE_ACCOUNT", "TF_STATE_CONTAINER"] as const;
 export const DNS_KEYS = ["DNS"] as const;
+export const CORE_RESOURCE_GROUP_KEYS = ["CORE_RESOURCE_GROUP"] as const;
 export const C01_KEYS = ["CONTACT_EMAILS"] as const;
 
 export const AZURE_SECRET_KEYS = ["AZURE_CLIENT_SECRET"];
@@ -39,6 +40,7 @@ const VARIABLE_DISPLAY_NAMES: Record<string, string> = {
   TF_STATE_RESOURCE_GROUP: "Terraform State Resource Group",
   TF_STATE_STORAGE_ACCOUNT: "Terraform State Storage Account",
   TF_STATE_CONTAINER: "Terraform State Container",
+  CORE_RESOURCE_GROUP: "Core Resource Group",
 };
 
 // Returns the UI label for a variable key, falling back to the key itself

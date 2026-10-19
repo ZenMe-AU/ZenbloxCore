@@ -164,7 +164,7 @@ function main(corpEnvFile) {
     setTfVar("subscription_id", subscriptionId);
     setTfVar("dns_name", dnsName);
     setTfVar("cloudfront_alias_suffix", bucketNameSuffix);
-    setTfVar("resource_group_name", resourceGroupName);
+    setTfVar("resource_group_name", env.get("CORE_RESOURCE_GROUP") || resourceGroupName);
     // relative paths for TF vars (combined with path.module in main.tf locals)
     setTfVar("app_registration_name", getAppRegistrationName(corpName, "login"));
     const spaRelDir = "source/loginApp";

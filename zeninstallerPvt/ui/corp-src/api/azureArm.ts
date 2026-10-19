@@ -409,6 +409,22 @@ export async function ensureDnsTxtRecord(
   return "created";
 }
 
+export async function findDnsZone(
+  account: AzureAccount,
+  subscriptionId: string,
+  dnsName: string,
+  overrideTenantId?: string
+): Promise<{ nameServers: string[]; txtValues: string[] } | null> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const list = await armGet(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Network/dnszones?api-version=2018-05-01`);
+  type Zone = { id: string; name: string; properties?: { nameServers?: string[] } };
+  const zone = ((list as { value?: Zone[] } | null)?.value ?? []).find((z) => z.name === dnsName);
+  if (!zone) return null;
+  const txt = await armGet(token, `${zone.id}/TXT/@?api-version=2018-05-01`);
+  const records: { value: string[] }[] = txt?.properties?.TXTRecords ?? [];
+  return { nameServers: zone.properties?.nameServers ?? [], txtValues: records.flatMap((r) => r.value) };
+}
+
 // ── Storage account + container ────────────────────────────────────────────────
 
 type StorageAccountRow = { id?: string; name?: string; properties?: { primaryEndpoints?: { web?: string } } };
