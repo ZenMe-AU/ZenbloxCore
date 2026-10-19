@@ -56,3 +56,28 @@ export async function expandAzureAppRegistrationCard(page: Page) {
   await expect(introText).toBeVisible();
   return appRegistrationCard;
 }
+
+export async function openBackendCard(page: Page) {
+  const card = page.locator("#card-backend_deploy");
+  await expect(card).toBeVisible();
+  if (await card.locator('svg[data-testid="ExpandMoreIcon"]').count()) {
+    await card.getByText("Private Zeninstaller Backend", { exact: true }).click();
+  }
+  await expect(card.getByText(/Builds the Zeninstaller backend in GitHub Actions/)).toBeVisible({ timeout: 60_000 });
+  await expect(card.getByText(/checking\.\.\./)).toHaveCount(0, { timeout: 60_000 });
+  return card;
+}
+
+export function backendStepLabels(appName: string) {
+  return ["Download the built package", `Upload it to ${appName}`, "Wait for the Function App to unpack it"];
+}
+
+export async function openRemoteTerminalCard(page: Page) {
+  const card = page.locator("#card-remote_terminal_infra");
+  const description = card.getByText(/The relay behind the stage-card terminal:/);
+  if (await card.locator('svg[data-testid="ExpandMoreIcon"]').count()) {
+    await card.getByText("Private Zeninstaller Environment", { exact: true }).click();
+  }
+  await expect(description).toBeVisible({ timeout: 60_000 });
+  return card;
+}

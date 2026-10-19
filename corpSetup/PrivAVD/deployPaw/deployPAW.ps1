@@ -1,0 +1,248 @@
+<#
+.SYNOPSIS
+Import existing resources when state is missing, then plan and apply PAW resources.
+
+.PARAMETER PlanOnly
+deployPAW.ps1 -PlanOnly
+Show the Terraform plan without applying it.
+
+.PARAMETER Import
+deployPAW.ps1 -Import
+Force an import scan even when Terraform state exists.
+#>
+param(
+    [switch]$PlanOnly,
+    [switch]$Import
+)
+
+$ErrorActionPreference = "Stop"
+
+$scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+$terraformDirectory = $scriptDirectory
+$envFile = Join-Path $scriptDirectory "..\.env"
+
+if (-not (Test-Path -LiteralPath $envFile)) {
+    throw "Environment file was not found: $envFile"
+}
+
+if (-not (Get-Command terraform -ErrorAction SilentlyContinue)) {
+    throw "terraform was not found on PATH. Install Terraform before running this script."
+}
+
+if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
+    throw "Azure CLI (az) was not found on PATH. Install it and sign in before running this script."
+}
+
+
+function Import-DotEnv {
+    param(
+        [string]$Path = (Join-Path $PSScriptRoot "..\.env")
+    )
+    Get-Content -LiteralPath $Path | ForEach-Object {
+        $line = $_.Trim()
+        if ([string]::IsNullOrWhiteSpace($line) -or $line.StartsWith('#')) {
+            return
+        }
+        $idx = $line.IndexOf('=')
+        if ($idx -lt 1) {
+            return
+        }
+        $name = $line.Substring(0, $idx).Trim()
+        $value = $line.Substring($idx + 1).Trim('"', "'")
+        [Environment]::SetEnvironmentVariable($name, $value, 'Process')
+    }
+}
+
+function Get-RequiredEnvironmentVariable {
+    param(
+        [Parameter(Mandatory)] [string]$Name
+    )
+
+    $value = [Environment]::GetEnvironmentVariable($Name, "Process")
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        throw "Required PAW setting '$Name' is missing from $envFile."
+    }
+
+    return $value
+}
+
+function ConvertTo-NormalizedAzureRegion {
+    param(
+        [Parameter(Mandatory)] [string]$Name
+    )
+
+    return ($Name -replace '[^a-zA-Z0-9]', '').ToLowerInvariant()
+}
+
+Import-DotEnv -Path $envFile
+
+$subscriptionId = Get-RequiredEnvironmentVariable -Name "TF_VAR_SUBSCRIPTION_ID"
+$targetLocation = Get-RequiredEnvironmentVariable -Name "TF_VAR_PAW_LOCATION"
+$hostPoolName = Get-RequiredEnvironmentVariable -Name "TF_VAR_HOST_POOL_NAME"
+$targetResourceGroup = "$hostPoolName-rg"
+$galleryResourceGroup = Get-RequiredEnvironmentVariable -Name "TF_VAR_GALLERY_RG"
+$galleryName = $galleryResourceGroup
+$imageName = Get-RequiredEnvironmentVariable -Name "TF_VAR_IMAGE_NAME"
+
+$imageVersionsJson = az sig image-version list `
+    --subscription $subscriptionId `
+    --resource-group $galleryResourceGroup `
+    --gallery-name $galleryName `
+    --gallery-image-definition $imageName `
+    --output json
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to list Azure Compute Gallery image versions. Confirm Azure CLI login and gallery access."
+}
+
+$imageVersions = @($imageVersionsJson | ConvertFrom-Json)
+$normalizedTargetLocation = ConvertTo-NormalizedAzureRegion -Name $targetLocation
+$latestImageVersion = $imageVersions |
+Where-Object {
+    $targetRegions = @($_.publishingProfile.targetRegions)
+    $_.name -and
+    $_.publishingProfile.publishedDate -and
+    ($targetRegions | Where-Object {
+        $_.name -and
+        (ConvertTo-NormalizedAzureRegion -Name $_.name) -eq $normalizedTargetLocation
+    })
+} |
+Sort-Object { [DateTime]$_.publishingProfile.publishedDate } -Descending |
+Select-Object -First 1
+
+if ($null -eq $latestImageVersion) {
+    throw "No published image versions for $galleryName/$imageName are replicated to Azure region '$targetLocation'."
+}
+
+[Environment]::SetEnvironmentVariable("TF_VAR_IMAGE_VERSION", $latestImageVersion.name, "Process")
+Write-Host "Using latest Azure Compute Gallery image version in ${targetLocation}: $($latestImageVersion.name)"
+Write-Host "Deploying all AVD resources to resource group '$targetResourceGroup' in '$targetLocation'"
+
+Push-Location $terraformDirectory
+try {
+    terraform init -input=false
+    if ($LASTEXITCODE -ne 0) {
+        throw "terraform init failed with exit code $LASTEXITCODE."
+    }
+
+    terraform workspace select $targetResourceGroup
+    if ($LASTEXITCODE -ne 0) {
+        terraform workspace new $targetResourceGroup
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to select or create Terraform workspace '$targetResourceGroup'."
+        }
+    }
+
+    $stateOutput = @(terraform state list 2>&1)
+    $stateExitCode = $LASTEXITCODE
+    $stateIsMissing = ($stateOutput -join "`n") -match "No state file was found!"
+    if ($stateExitCode -ne 0 -and -not $stateIsMissing) {
+        throw "Unable to inspect Terraform state for workspace '$targetResourceGroup'."
+    }
+
+    $hasStateResources = $stateExitCode -eq 0 -and @(
+        $stateOutput | Where-Object { -not [string]::IsNullOrWhiteSpace("$_") }
+    ).Count -gt 0
+    if ($Import -or -not $hasStateResources) {
+        if (-not $Import) {
+            Write-Host "Terraform state is missing or empty; importing existing PAW resources."
+        }
+        & (Join-Path $scriptDirectory "importPAW.ps1")
+    }
+
+    terraform validate
+    if ($LASTEXITCODE -ne 0) {
+        throw "terraform validate failed with exit code $LASTEXITCODE."
+    }
+
+    # --- Phase 1: apply the host-pool connection private endpoint first ---
+    # The A records in private_link.tf are generated from the endpoint's
+    # custom_dns_configs, which Terraform cannot evaluate until the endpoint
+    # exists in state, so a full plan on an empty state always fails with
+    # "Invalid for_each argument". Apply the endpoint (plus its dependency
+    # closure) in a targeted first phase; the full plan below then sees the
+    # DNS configs and plans the A records normally.
+    $stateForEndpoint = @(terraform state list 2>&1)
+    $hasConnectionEndpoint = [bool]($stateForEndpoint | Where-Object { "$_" -match '^azurerm_private_endpoint\.hostpool_connection$' })
+    if (-not $hasConnectionEndpoint) {
+        Write-Host "Phase 1: private endpoint is not in state; planning the targeted endpoint apply..."
+        $pePlanFile = Join-Path $terraformDirectory "avd-pe.tfplan"
+        terraform plan -input=false "-out=$pePlanFile" "-target=azurerm_private_endpoint.hostpool_connection"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Phase 1 targeted plan failed with exit code $LASTEXITCODE."
+        }
+
+        if ($PlanOnly) {
+            Write-Host "PlanOnly: the full plan requires the private endpoint to exist in state first."
+            Write-Host "PlanOnly: run deployPAW.ps1 without -PlanOnly to apply the endpoint, then re-run -PlanOnly for the full plan."
+            return
+        }
+
+        Write-Host "Phase 1: applying the host-pool connection private endpoint..."
+        terraform apply -input=false $pePlanFile
+        if ($LASTEXITCODE -ne 0) {
+            throw "Phase 1 targeted apply failed with exit code $LASTEXITCODE."
+        }
+    }
+
+    # --- Self-heal: subscription-scoped autoscale role assignment ---
+    # The autoscale role lives at subscription scope, so it SURVIVES resource
+    # group deletion. A fresh workspace (new HOST_POOL_NAME, or a
+    # delete-and-restart) then tries to create it again and Azure rejects the
+    # apply with 409 RoleAssignmentExists. Import the orphan before planning
+    # so the apply becomes a no-op instead of a collision. Every branch below
+    # prints a message, so a future failure names itself instead of dying
+    # silently (the previous version had silent skip paths - that is why it
+    # did nothing on the erv8 and erv9 runs).
+    #
+    # This runs AFTER the phase-1 endpoint apply because terraform import
+    # evaluates the whole configuration internally, and the A-record
+    # for_each in private_link.tf aborts it while the endpoint is missing
+    # from state.
+    try {
+        $currentState = @(terraform state list 2>&1)
+        $hasAutoscaleAssignment = [bool]($currentState | Where-Object { "$_" -match '^azurerm_role_assignment\.avd_power_management$' })
+        if (-not $hasAutoscaleAssignment) {
+            Write-Host "Self-heal: looking for the existing subscription-scope autoscale role assignment..."
+            # Role definition GUID for 'Desktop Virtualization Power On Off
+            # Contributor' - stable and identical in every tenant.
+            $autoscaleRoleGuid = "40c5ff49-9181-41f8-ae61-143b0e78555e"
+            $assignmentsJson = az rest --method get --url "https://management.azure.com/subscriptions/$subscriptionId/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01" -o json
+            if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace("$assignmentsJson")) {
+                $assignmentsDoc = "$assignmentsJson" | ConvertFrom-Json
+                $existing = @($assignmentsDoc.value) | Where-Object { ("$($_.properties.scope)") -eq "/subscriptions/$subscriptionId" -and ("$($_.properties.roleDefinitionId)") -like "*$autoscaleRoleGuid*" }
+                Write-Host ("Self-heal: found {0} subscription-scope autoscale assignment(s) in Azure." -f $existing.Count)
+                if ($existing.Count -ge 1) {
+                    $orphanId = "$($existing[0].id)"
+                    Write-Host "Self-heal: importing $orphanId"
+                    terraform import -input=false azurerm_role_assignment.avd_power_management $orphanId
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "Self-heal: import succeeded."
+                    } else {
+                        Write-Host "WARNING: self-heal import failed with exit code $LASTEXITCODE; the apply may fail with 409 RoleAssignmentExists."
+                    }
+                }
+            } else {
+                Write-Host "WARNING: self-heal could not list role assignments (az rest exit code $LASTEXITCODE); the apply may fail with 409 RoleAssignmentExists."
+            }
+        }
+    } catch {
+        Write-Host "WARNING: self-heal skipped - $($_.Exception.Message)"
+    }
+
+    $planFile = Join-Path $terraformDirectory "avd.tfplan"
+    terraform plan -input=false "-out=$planFile"
+    if ($LASTEXITCODE -ne 0) {
+        throw "terraform plan failed with exit code $LASTEXITCODE."
+    }
+
+    if (-not $PlanOnly) {
+        terraform apply -input=false $planFile
+        if ($LASTEXITCODE -ne 0) {
+            throw "terraform apply failed with exit code $LASTEXITCODE."
+        }
+    }
+}
+finally {
+    Pop-Location
+}

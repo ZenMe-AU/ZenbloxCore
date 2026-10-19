@@ -9,6 +9,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "node:url";
 import type { BrowserContext } from "@playwright/test";
+import { CORP_URL } from "../../testInit";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const githubPatSetupFile = path.join(currentDirectory, "/pwtests/corp-src/setup/github-pat-login.setup.ts");
@@ -74,12 +75,14 @@ async function restoreSessionStorageFrom(context: BrowserContext, sourceFile: st
 
   const sessionStorageData = JSON.parse(fs.readFileSync(sourceFile, "utf-8")) as Record<string, string>;
   await context.addInitScript(
-    ({ storage }) => {
+    ({ storage, origin, marker }) => {
+      if (window.location.origin !== origin || sessionStorage.getItem(marker)) return;
       for (const [key, value] of Object.entries(storage)) {
         window.sessionStorage.setItem(key, value);
       }
+      sessionStorage.setItem(marker, "true");
     },
-    { storage: sessionStorageData }
+    { storage: sessionStorageData, origin: new URL(CORP_URL).origin, marker: `pwtests-restored-${path.basename(sourceFile)}` }
   );
 }
 

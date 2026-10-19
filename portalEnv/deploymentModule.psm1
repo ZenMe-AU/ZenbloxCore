@@ -81,6 +81,7 @@ function Install-DevTools {
     Install-AwsCli
     Install-AzureCli
     Install-GitHubCli
+    Install-M365DSC
 }
 
 function Install-DevAiTools {
@@ -97,6 +98,38 @@ function Install-DevAiTools {
     Install-GitHubCli
     Install-Packer
     Install-DockerCli
+    Install-M365DSC
+}
+
+function Install-M365DSC {
+    if (-not $script:IsWindows) {
+        Write-Warning "Microsoft365DSC can only be installed on Windows."
+        return 1
+    }
+
+    $m365Dsc = Get-Module -ListAvailable -Name Microsoft365DSC
+    if (-not $m365Dsc) {
+        if (-not (Get-Command Install-Module -ErrorAction SilentlyContinue)) {
+            Write-Error "Install-Module is unavailable. Install PowerShellGet before installing Microsoft365DSC."
+            return 1
+        }
+
+        Write-Output "Microsoft365DSC not found. Installing from PowerShell Gallery..."
+        try {
+            Install-Module -Name Microsoft365DSC -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
+        } catch {
+            Write-Error "Microsoft365DSC installation failed: $($_.Exception.Message)"
+            return 1
+        }
+
+        $m365Dsc = Get-Module -ListAvailable -Name Microsoft365DSC
+        if (-not $m365Dsc) {
+            Write-Error "Microsoft365DSC installation failed. Install it manually with Install-Module Microsoft365DSC."
+            return 1
+        }
+    } else {
+        Write-Output "Microsoft365DSC is already installed."
+    }
 }
 
 function Install-Pnpm {
@@ -725,4 +758,4 @@ function Update-ProcessPathFromEnvironment {
     }
 }
 
-Export-ModuleMember -Function Initialize-PlatformState,Install-Pnpm,Install-NodeJsAndNpm,Install-Terraform,Install-Packer,Install-DockerCli,Install-PostgreSql,Install-AwsCli,Install-AzureCli,Install-Ripgrep,Install-Fd,Install-Jq,Install-Yq,Install-GitHubCli,Set-TerraformEnvironmentType,Set-ProjectRootFolder,Install-ProjectDependencies,Initialize-ResourceGroupBootstrap,Publish-MainEnvironment,Publish-ModuleDeployments,Publish-UserInterface,Test-InitializationEnvironment,Install-DevTools,Install-DevAiTools
+Export-ModuleMember -Function Initialize-PlatformState,Install-Pnpm,Install-NodeJsAndNpm,Install-Terraform,Install-Packer,Install-DockerCli,Install-PostgreSql,Install-AwsCli,Install-AzureCli,Install-Ripgrep,Install-Fd,Install-Jq,Install-Yq,Install-GitHubCli,Install-M365DSC,Set-TerraformEnvironmentType,Set-ProjectRootFolder,Install-ProjectDependencies,Initialize-ResourceGroupBootstrap,Publish-MainEnvironment,Publish-ModuleDeployments,Publish-UserInterface,Test-InitializationEnvironment,Install-DevTools,Install-DevAiTools

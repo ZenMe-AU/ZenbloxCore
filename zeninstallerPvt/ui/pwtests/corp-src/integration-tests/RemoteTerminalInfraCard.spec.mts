@@ -42,7 +42,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expectSuccessfulSteps(card, remoteTerminalStepLabels(corpName));
 				await openConnectionDetails(card);
 				await expect(connectionInput(card, "WEBPUBSUB_ENDPOINT")).toHaveValue(`${corpName}-wpubsub.webpubsub.azure.com`);
-				await expect(connectionInput(card, "BACKEND_API")).toHaveValue(`https://${corpName}-terminal-app.azurewebsites.net`);
+				await expect(connectionInput(card, "VITE_API_URL")).toHaveValue(`https://${corpName}-terminal-app.azurewebsites.net`);
 				await expect(connectionInput(card, "WEBPUBSUB_TENANT_ID")).toHaveValue(tenantId);
 				await expect(connectionInput(card, "WEBPUBSUB_CLIENT_ID")).toHaveValue(/^[0-9a-f-]{36}$/i);
 				await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled({ timeout: 60_000 });
@@ -60,7 +60,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				await expect(connectionInput(card, "WEBPUBSUB_CLIENT_ID")).toHaveValue(clientId);
 				await expect(connectionInput(card, "WEBPUBSUB_TENANT_ID")).toHaveValue(tenantId);
 				await expect(connectionInput(card, "WEBPUBSUB_ENDPOINT")).toHaveValue(`${corpName}-wpubsub.webpubsub.azure.com`);
-				await expect(connectionInput(card, "BACKEND_API")).toHaveValue(`https://${corpName}-terminal-app.azurewebsites.net`);
+				await expect(connectionInput(card, "VITE_API_URL")).toHaveValue(`https://${corpName}-terminal-app.azurewebsites.net`);
 				await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
 				await expectSnapshot(page, card, testInfo, "persisted", viewportName);
 			});
@@ -75,7 +75,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 
 			await test.step("Keep an unsaved connection edit while details are collapsed", async () => {
-				const input = connectionInput(card, "BACKEND_API");
+				const input = connectionInput(card, "VITE_API_URL");
 				const original = await input.inputValue();
 				await input.fill("https://unsaved.example");
 				await expect(card.getByRole("button", { name: "Save 1 variable", exact: true })).toBeEnabled();

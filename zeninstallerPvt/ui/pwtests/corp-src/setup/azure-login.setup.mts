@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { expect, Locator, Page, test as setup } from "@playwright/test";
+import { expect, type Locator, type Page, test as setup } from "@playwright/test";
 import fs from "fs";
 import { CORP_URL } from "../../testInit";
 import { authDir, azureSessionStorageFile, azureStorageStateFile, corpAzureAuthStateExists, saveAzureSessionStorage } from "../util/setupHelper.mts";
