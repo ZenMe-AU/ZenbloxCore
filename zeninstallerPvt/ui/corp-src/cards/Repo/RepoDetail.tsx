@@ -301,14 +301,14 @@ export default function RepoDetail({
       {/* ── Clone panel ── */}
       <Collapse in={isNewRepo} sx={{ display: isNewRepo ? "block" : "none" }}>
         <Box sx={{ p: 2.5, border: "1px solid", borderColor: "primary.light", borderRadius: 1, backgroundColor: "background.default" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2.5 }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: 1, rowGap: 0.5, mb: 2.5 }}>
             <Typography color="text.muted">Clone from template</Typography>
-            <Typography color="primary.main" sx={{ fontWeight: 600 }}>
+            <Typography color="primary.main" sx={{ fontWeight: 600, overflowWrap: "anywhere" }}>
               {defaultTemplateRepo}
             </Typography>
           </Box>
 
-          <Box sx={{ display: "flex", gap: 4, mb: 2 }}>
+          <Box sx={{ display: "flex", flexWrap: "wrap", columnGap: 4, rowGap: 0.5, mb: 2 }}>
             <FormControlLabel
               control={
                 <Switch

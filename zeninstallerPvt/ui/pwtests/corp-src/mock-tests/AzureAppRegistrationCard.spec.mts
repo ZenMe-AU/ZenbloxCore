@@ -80,7 +80,7 @@ test("Recovers from a provisioning failure", async ({ page, context }, testInfo)
     "Confirm Microsoft permissions",
     "Create app registration",
     "Create service principal",
-    "Switch GitHub OIDC to immutable subject",
+    "Link Azure sign-in to this GitHub repository",
     "Add federated credentials",
     "Assign RBAC roles",
   ]);
@@ -163,11 +163,11 @@ test("Warns when there is no subscription role", async ({ page, context }, testI
   });
   const card = prepared.appRegistrationCard;
   await expect(card.getByText(/Missing on the selected subscription:/)).toContainText("Reader");
-  await expect(card.getByRole("button", { name: "Grant access on this subscription" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Grant Reader access on this subscription" })).toBeVisible();
   await expectSnapshot(page, card, testInfo, "saved-app-role-missing", viewportName);
-  await card.getByRole("button", { name: "Grant access on this subscription" }).click();
+  await card.getByRole("button", { name: "Grant Reader access on this subscription" }).click();
   await expect(card.getByText(/Missing on the selected subscription:/)).toHaveCount(0);
-  await expect(card.getByRole("button", { name: "Grant access on this subscription" })).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Grant Reader access on this subscription" })).toHaveCount(0);
   expect(prepared.azure.rbacAssigned).toBe(true);
   expect(prepared.azure.roleAssignmentWrites).toEqual([
     {
@@ -182,7 +182,7 @@ test("Warns when there is no subscription role", async ({ page, context }, testI
     "Confirm Microsoft permissions",
     "Create app registration",
     "Create service principal",
-    "Switch GitHub OIDC to immutable subject",
+    "Link Azure sign-in to this GitHub repository",
     "Add federated credentials",
     "Assign RBAC roles",
   ]);
@@ -250,7 +250,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
       "Confirm Microsoft permissions",
       "Create app registration",
       "Create service principal",
-      "Switch GitHub OIDC to immutable subject",
+      "Link Azure sign-in to this GitHub repository",
       "Add federated credentials",
       "Assign RBAC roles",
     ]) {
@@ -260,7 +260,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
       "Confirm Microsoft permissions",
       "Create app registration",
       "Create service principal",
-      "Switch GitHub OIDC to immutable subject",
+      "Link Azure sign-in to this GitHub repository",
       "Add federated credentials",
       "Assign RBAC roles",
     ]);

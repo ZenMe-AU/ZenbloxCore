@@ -45,12 +45,10 @@ test("Allows manual region entry when Azure region lookup fails", async ({ page,
   });
   await saveCoreCompanyCode(card);
   await expect(card.getByText("Couldn't load Azure region list — type the region name manually.", { exact: true })).toBeVisible();
-  const locationRow = card.getByText(/Location:/).locator("..");
-  await locationRow.getByRole("button").click();
-  const regionInput = locationRow.getByRole("textbox");
-  await regionInput.fill("westus2");
-  await locationRow.getByRole("button").click();
-  await expect(locationRow).toContainText("westus2");
+  await card.getByRole("button", { name: "Edit Azure region" }).click();
+  await card.locator("#core-infra-location").fill("westus2");
+  await card.getByRole("button", { name: "Confirm Azure region" }).click();
+  await expect(card.getByText(/Location:/)).toContainText("westus2");
   await card.getByRole("button", { name: "Create core infrastructure" }).click();
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
   await expectSuccessfulSteps(card, coreInfraStepLabels("pwtests"));
@@ -174,7 +172,7 @@ test("Shows prerequisites before infrastructure setup", async ({ page, context }
   const card = page.locator("#card-core_infra");
   await card.getByText("Terraform state backend", { exact: true }).click();
 
-  await expect(card.getByText("Complete these first", { exact: true })).toBeVisible();
+  await expect(card.getByText("Complete these setup steps first. Select a step to open its card.", { exact: true })).toBeVisible();
   for (const prerequisite of ["Sign in to Azure", "Select a repository & environment", "Select a subscription", "Complete the Azure app registration"]) {
     await expect(card.getByText(prerequisite, { exact: true })).toBeVisible();
   }
@@ -397,12 +395,11 @@ async function saveCoreCompanyCode(card: import("@playwright/test").Locator) {
 }
 
 async function chooseAustraliaEast(card: import("@playwright/test").Locator, page: Page) {
-  const locationRow = card.getByText(/Location:/).locator("..");
-  await locationRow.getByRole("button").click();
-  await locationRow.getByRole("combobox").click();
+  await card.getByRole("button", { name: "Edit Azure region" }).click();
+  await card.locator("#core-infra-location").click();
   await page.getByRole("option", { name: /Australia East.*australiaeast/i }).click();
-  await locationRow.getByRole("button").click();
-  await expect(locationRow).toContainText("Australia East");
+  await card.getByRole("button", { name: "Confirm Azure region" }).click();
+  await expect(card.getByText(/Location:/)).toContainText("Australia East");
 }
 
 async function runCoreInfrastructure(card: import("@playwright/test").Locator) {
