@@ -33,6 +33,11 @@ export function getTerminalStorageAccountName(corpName: string): string {
 // One private installer environment per tenant, so these are fixed rather than derived from the corp.
 export const PRIVATE_RESOURCE_GROUP = "zeninstaller-private-rg";
 export const PRIVATE_LOG_ANALYTICS = "zeninstaller-private-law";
+export const PRIVATE_APP_INSIGHTS = "zeninstaller-private-ai";
+export const PRIVATE_WEB_PUBSUB = "zeninstaller-private-wpubsub";
+export const PRIVATE_FUNCTION_APP = "zeninstaller-private-app";
+// The identity GitHub Actions mints Web PubSub tokens with, kept apart from the plan pipeline's.
+export const PRIVATE_PIPELINE_APP = "zeninstaller-private-pipeline";
 /*
  * Storage account names are globally unique across all of Azure, so a fixed one would be claimed by
  * whoever installs first. The subscription's own id is random, per-customer and stable, which keeps
@@ -40,6 +45,11 @@ export const PRIVATE_LOG_ANALYTICS = "zeninstaller-private-law";
  */
 export function getWebStorageAccountName(subscriptionId: string): string {
   return `zeninstallerpvtweb${subscriptionId.replace(/-/g, "").slice(0, 6)}`.toLowerCase();
+}
+
+// The backend's own account (session table, deployment package), on the same scheme as the site's.
+export function getApiStorageAccountName(subscriptionId: string): string {
+  return `zeninstallerpvtapi${subscriptionId.replace(/-/g, "").slice(0, 6)}`.toLowerCase();
 }
 
 // The private installer's own sign-in app, so consent happens in the customer's tenant.

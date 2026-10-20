@@ -782,7 +782,7 @@ export async function ensureFlexFunctionApp(
     });
     await pollProvisioning(async () => {
       const t = await getToken(account, ARM_SCOPES, overrideTenantId);
-      return (await armGet(t, path))?.properties?.provisioningState;
+      return (await armGet(t, path))?.identity?.principalId ? "Succeeded" : undefined;
     }, "Function App");
   }
 

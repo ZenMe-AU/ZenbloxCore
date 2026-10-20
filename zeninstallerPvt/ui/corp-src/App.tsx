@@ -145,12 +145,13 @@ function AppDashboard() {
     useRemoteTerminalInfraCard({
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
-      corpName,
+      variableValues: githubVariableValues,
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
       allowedOrigins: [window.location.origin, ...(dnsName ? [`https://www.${dnsName}`, `https://${dnsName}`] : [])],
       githubAccount: githubRepoEnv.repo.selectedAccount,
       githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
       githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,
+      githubEnvName: githubRepoEnv.env.selectedEnv?.name ?? null,
     })
   );
   const backendDeploy = addCard(

@@ -4,19 +4,32 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Button, CircularProgress, Collapse, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Collapse, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
+import CheckIcon from "@mui/icons-material/Check";
+import EditIcon from "@mui/icons-material/Edit";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import type { UseRemoteTerminalInfraCard } from "./useRemoteTerminalInfraCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
-import { getAdminConsentUrl, getAzureResourceUrl } from "../../logic/consoleUrls";
+import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
 import { MONO as mono, labelSx } from "../../config/styles";
 import CloudVariableDetail from "../CloudVariableDetail";
 import { DEPLOYMENT_TERMINAL_KEYS } from "../../logic/variables";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import type { Account, CardChrome, GhEnv } from "../../types";
+
+function PlainRow({ label, value }: { label: string; value: string }) {
+  return (
+    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+      {label}:{" "}
+      <Box component="span" sx={{ color: "#0f172a" }}>
+        {value}
+      </Box>
+    </Typography>
+  );
+}
 
 type Props = {
   card: CardChrome;
@@ -32,6 +45,8 @@ type Props = {
 
 export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, tenantId, githubAccount, repoName, selectedEnv, variables, githubUrl }: Props) {
   const [varExpanded, setVarExpanded] = useState(false);
+  const [editingStorage, setEditingStorage] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const prevRunNonceRef = useRef(infra.runNonce);
 
@@ -54,13 +69,13 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
           WEBPUBSUB_CLIENT_ID: infra.result.pipelineClientId,
           WEBPUBSUB_TENANT_ID: infra.result.pipelineTenantId,
           VITE_API_URL: infra.result.apiUrl,
-          VITE_AZURE_CLIENT_ID: infra.result.installerClientId,
           VITE_APPINSIGHTS_CONNECTION_STRING: infra.result.appInsightsConnectionString,
+          API_STORAGE_ACCOUNT: infra.result.storageAccountName,
         }
       : undefined;
 
   return (
-    <Card title="Private Zeninstaller Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} {...card}>
+    <Card title="Private Zeninstaller Backend Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.6 }}>
           The relay behind the stage-card terminal: Web PubSub, the session table, and the Function App that issues group-scoped tokens. Everything connects by
@@ -71,25 +86,98 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
           <Box>
             <Typography sx={{ ...labelSx, mb: 0.75 }}>Resources</Typography>
             <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
-              {[
-                ["Resource group", infra.resourceGroupName],
-                ["Log Analytics", infra.lawName],
-                ["Application Insights", infra.appInsightsName],
-                ["Storage account", infra.storageAccountName],
-                ["Site storage account", infra.webStorageAccountName],
-                ["Web PubSub", infra.webPubSubName],
-                ["Hub", infra.hubName],
-                ["Function App", infra.functionAppName],
-                ["App registration", infra.pipelineAppName],
-                ["Sign-in app registration", "Zeninstaller Private"],
-              ].map(([label, value]) => (
-                <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
-                  {label}:{" "}
-                  <Box component="span" sx={{ color: "#0f172a" }}>
-                    {value}
-                  </Box>
-                </Typography>
-              ))}
+              <PlainRow label="Resource group" value={infra.resourceGroupName} />
+              <PlainRow label="Log Analytics" value={infra.lawName} />
+              <PlainRow label="Application Insights" value={infra.appInsightsName} />
+
+              {/* Global to Azure, so it has to be changeable when another tenant already holds it. */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
+                <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>Storage account:</Typography>
+                {editingStorage ? (
+                  <>
+                    <TextField
+                      size="small"
+                      value={infra.storageAccountName}
+                      onChange={(e) => infra.setStorageAccount(e.target.value)}
+                      error={!!infra.storageError}
+                      helperText={infra.storageError ?? undefined}
+                      sx={{ width: 200 }}
+                      inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.75rem" } }}
+                    />
+                    {/* Stays open until the name is one this installation can actually create or reuse. */}
+                    <IconButton
+                      size="small"
+                      disabled={infra.storageChecking}
+                      onClick={() => void infra.checkStorageAccount().then((ok) => ok && setEditingStorage(false))}
+                      sx={{ color: "#22c55e", p: 0.25 }}
+                    >
+                      {infra.storageChecking ? <CircularProgress size={12} /> : <CheckIcon sx={{ fontSize: 14 }} />}
+                    </IconButton>
+                  </>
+                ) : (
+                  <>
+                    <Typography sx={{ fontSize: "0.75rem", color: "#0f172a", ...mono }}>{infra.storageAccountName}</Typography>
+                    <IconButton size="small" onClick={() => setEditingStorage(true)} sx={{ color: "#cbd5e1", p: 0.25, "&:hover": { color: "#2563eb" } }}>
+                      <EditIcon sx={{ fontSize: 13 }} />
+                    </IconButton>
+                  </>
+                )}
+              </Box>
+
+              <PlainRow label="Web PubSub" value={infra.webPubSubName} />
+              <PlainRow label="Hub" value={infra.hubName} />
+              <PlainRow label="Function App" value={infra.functionAppName} />
+              <PlainRow label="Web PubSub app registration" value={infra.pipelineAppName} />
+              {/* Every resource above lands in this region, so it is chosen before the first run. */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
+                {editingLocation ? (
+                  <>
+                    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>Location:</Typography>
+                    {infra.locations.length > 0 ? (
+                      <Select
+                        size="small"
+                        value={infra.location}
+                        onChange={(e) => infra.setLocation(e.target.value)}
+                        sx={{ fontSize: "0.75rem", ...mono, minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
+                      >
+                        {infra.locations.map((l) => (
+                          <MenuItem key={l.name} value={l.name} sx={{ fontSize: "0.78rem", ...mono }}>
+                            {l.displayName}{" "}
+                            <Box component="span" sx={{ color: "#94a3b8", ml: 0.5 }}>
+                              ({l.name})
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    ) : (
+                      <TextField
+                        size="small"
+                        value={infra.location}
+                        onChange={(e) => infra.setLocation(e.target.value)}
+                        placeholder={infra.locationsLoading ? "Loading regions..." : "e.g. australiaeast"}
+                        sx={{ minWidth: 220 }}
+                        inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                      />
+                    )}
+                    {infra.locationsLoading && <CircularProgress size={12} />}
+                    <IconButton size="small" onClick={() => setEditingLocation(false)} sx={{ color: "#22c55e", p: 0.25 }}>
+                      <CheckIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </>
+                ) : (
+                  <>
+                    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+                      Location:{" "}
+                      <Box component="span" sx={{ color: "#0f172a" }}>
+                        {infra.locations.find((l) => l.name === infra.location)?.displayName ?? infra.location}
+                      </Box>
+                    </Typography>
+                    <IconButton size="small" onClick={() => setEditingLocation(true)} sx={{ color: "#cbd5e1", p: 0.25, "&:hover": { color: "#2563eb" } }}>
+                      <EditIcon sx={{ fontSize: 13 }} />
+                    </IconButton>
+                  </>
+                )}
+              </Box>
             </Box>
           </Box>
         )}
@@ -97,7 +185,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
         <Box>
           <Button
             onClick={() => void infra.run()}
-            disabled={infra.running}
+            disabled={infra.running || editingStorage || !infra.location.trim()}
             variant="contained"
             size="small"
             sx={{
@@ -123,31 +211,6 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
             )}
           </Button>
         </Box>
-
-        {infra.result && infra.resultMatches && (
-          <Box>
-            <Typography sx={{ ...labelSx, mb: 0.75 }}>Admin consent</Typography>
-            <Typography sx={{ fontSize: "0.72rem", color: "#475569", mb: 0.5 }}>
-              An administrator opens this once so everyone else can sign in without being prompted.
-            </Typography>
-            <Typography
-              component="a"
-              href={getAdminConsentUrl(infra.result.pipelineTenantId, infra.result.installerClientId)}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{
-                fontSize: "0.72rem",
-                ...mono,
-                color: "#1d4ed8",
-                wordBreak: "break-all",
-                textDecoration: "none",
-                "&:hover": { textDecoration: "underline" },
-              }}
-            >
-              {getAdminConsentUrl(infra.result.pipelineTenantId, infra.result.installerClientId)}
-            </Typography>
-          </Box>
-        )}
 
         {infra.steps.length > 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
@@ -184,6 +247,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
             repo={repoName}
             envName={selectedEnv?.name ?? null}
             keys={DEPLOYMENT_TERMINAL_KEYS}
+            hiddenKeys={["API_STORAGE_ACCOUNT"]}
             variables={variables}
             populate={populate}
             title="Connection details"
