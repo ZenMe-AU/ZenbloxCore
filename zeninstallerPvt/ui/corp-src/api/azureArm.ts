@@ -51,8 +51,6 @@ export type DeployedBackend = {
 };
 
 const DEPLOY_TIMEOUT_MS = 600_000;
-// Published through ARM, not the app's own scm host, which a site with public access denied never answers.
-const ONEDEPLOY_API = "2026-03-15";
 
 /*
  * The deployment history, which is where the verdict is read from. extensions/onedeploy also answers
@@ -120,11 +118,10 @@ export async function deployZipToFunctionApp(
   onProgress?: (phase: "uploading" | "deploying") => void
 ): Promise<void> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
-  const url = `${ARM}/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Web/sites/${appName}/extensions/onedeploy?api-version=${ONEDEPLOY_API}`;
 
   onProgress?.("uploading");
-  const res = await fetch(url, {
-    method: "PUT",
+  const res = await fetch(`https://${appName}.scm.azurewebsites.net/api/publish?type=zip`, {
+    method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/zip" },
     body: zip,
   });

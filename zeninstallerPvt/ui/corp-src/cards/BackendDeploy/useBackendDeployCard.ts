@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchArtifactZip, fetchStageReport, triggerWorkflow } from "../../api";
 import { deployZipToFunctionApp, fetchDeployedBackend, updateFunctionAppSettings, type DeployedBackend } from "../../api/azureArm";
-import { getRootResourceGroupName, getTerminalFunctionAppName } from "../../logic/naming";
+import { PRIVATE_FUNCTION_APP, PRIVATE_RESOURCE_GROUP } from "../../logic/naming";
 import { BACKEND_VERSION_KEYS } from "../../config/azureConfig";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import type { Account, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
@@ -25,7 +25,6 @@ export interface UseBackendDeployCardParams {
   azureAccount: import("../../types").AzureAccount | null;
   subscriptionId: string;
   tenantId?: string;
-  corpName: string;
   githubAccount: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
@@ -61,7 +60,6 @@ export function useBackendDeployCard({
   azureAccount,
   subscriptionId,
   tenantId,
-  corpName,
   githubAccount,
   repoName,
   selectedEnv,
@@ -74,9 +72,9 @@ export function useBackendDeployCard({
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const appName = corpName ? getTerminalFunctionAppName(corpName) : "";
-  const resourceGroup = corpName ? getRootResourceGroupName(corpName) : "";
-  const ready = !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv && !!corpName;
+  const appName = PRIVATE_FUNCTION_APP;
+  const resourceGroup = PRIVATE_RESOURCE_GROUP;
+  const ready = !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv;
 
   const readLatest = useCallback(async (): Promise<BackendBuild | null> => {
     if (!githubAccount || !repoName || !selectedEnv) return null;

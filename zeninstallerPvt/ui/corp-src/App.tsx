@@ -159,7 +159,6 @@ function AppDashboard() {
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-      corpName,
       githubAccount: githubRepoEnv.repo.selectedAccount,
       repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
       selectedEnv: githubRepoEnv.env.selectedEnv,
