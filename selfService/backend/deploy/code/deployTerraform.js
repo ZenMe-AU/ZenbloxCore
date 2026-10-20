@@ -108,17 +108,13 @@ function ensureAzureAuth(tenantId) {
 
 // Looks up the object ID of an existing app registration by display name, if any
 function findExistingAppObjectId() {
-  const apps = JSON.parse(
-    runAzureCli(["ad", "app", "list", "--filter", `displayName eq '${APP_DISPLAY_NAME}'`, "--output", "json"]),
-  );
+  const apps = JSON.parse(runAzureCli(["ad", "app", "list", "--filter", `displayName eq '${APP_DISPLAY_NAME}'`, "--output", "json"]));
   return apps?.[0]?.id ?? null;
 }
 
 // Looks up the object ID of an existing group by display name, if any
 function findExistingGroupObjectId() {
-  const groups = JSON.parse(
-    runAzureCli(["ad", "group", "list", "--filter", `displayName eq '${GROUP_DISPLAY_NAME}'`, "--output", "json"]),
-  );
+  const groups = JSON.parse(runAzureCli(["ad", "group", "list", "--filter", `displayName eq '${GROUP_DISPLAY_NAME}'`, "--output", "json"]));
   return groups?.[0]?.id ?? null;
 }
 
@@ -137,9 +133,7 @@ function findAppClientId(appObjectId) {
 
 // Looks up the object ID of an existing service principal for the given client ID, if any
 function findExistingServicePrincipalObjectId(clientId) {
-  const servicePrincipals = JSON.parse(
-    runAzureCli(["ad", "sp", "list", "--filter", `appId eq '${clientId}'`, "--output", "json"]),
-  );
+  const servicePrincipals = JSON.parse(runAzureCli(["ad", "sp", "list", "--filter", `appId eq '${clientId}'`, "--output", "json"]));
   return servicePrincipals?.[0]?.id ?? null;
 }
 
@@ -152,9 +146,7 @@ function findExistingGraphApiAccessId(appObjectId) {
 
 // Looks up the object ID of the Microsoft Graph service principal
 function findGraphServicePrincipalObjectId() {
-  const servicePrincipal = JSON.parse(
-    runAzureCli(["ad", "sp", "show", "--id", GRAPH_RESOURCE_APP_ID, "--output", "json"]),
-  );
+  const servicePrincipal = JSON.parse(runAzureCli(["ad", "sp", "show", "--id", GRAPH_RESOURCE_APP_ID, "--output", "json"]));
   return servicePrincipal.id;
 }
 
@@ -169,7 +161,7 @@ function findExistingAppRoleAssignments(servicePrincipalObjectId, graphServicePr
   return new Map(
     (result.value || [])
       .filter((assignment) => assignment.resourceId === graphServicePrincipalObjectId)
-      .map((assignment) => [assignment.appRoleId, assignment.id]),
+      .map((assignment) => [assignment.appRoleId, assignment.id])
   );
 }
 
@@ -226,60 +218,34 @@ async function deployTerraform() {
   runTerraform(["init", "-input=false"]);
 
   const appObjectId = findExistingAppObjectId();
-  importIfExists(
-    "azuread_application.access_pass_backend",
-    APP_DISPLAY_NAME,
-    appObjectId,
-    tenantId,
-    (id) => `/applications/${id}`,
-  );
+  importIfExists("azuread_application.access_pass_backend", APP_DISPLAY_NAME, appObjectId, tenantId, (id) => `/applications/${id}`);
 
   const existingClientId = appObjectId ? findAppClientId(appObjectId) : null;
   const servicePrincipalObjectId = existingClientId ? findExistingServicePrincipalObjectId(existingClientId) : null;
-  importIfExists(
-    "azuread_service_principal.access_pass_backend",
-    "Service principal",
-    servicePrincipalObjectId,
-    tenantId,
-    (id) => `/servicePrincipals/${id}`,
-  );
+  importIfExists("azuread_service_principal.access_pass_backend", "Service principal", servicePrincipalObjectId, tenantId, (id) => `/servicePrincipals/${id}`);
 
   importIfExists(
     "azuread_application_api_access.msgraph",
     "Microsoft Graph API access",
     appObjectId ? findExistingGraphApiAccessId(appObjectId) : null,
     tenantId,
-    () => `/applications/${appObjectId}/apiAccess/${GRAPH_RESOURCE_APP_ID}`,
+    () => `/applications/${appObjectId}/apiAccess/${GRAPH_RESOURCE_APP_ID}`
   );
 
-  importIfExists(
-    "azuread_group.pass_reset_managers",
-    GROUP_DISPLAY_NAME,
-    findExistingGroupObjectId(),
-    tenantId,
-    (id) => `/groups/${id}`,
-  );
+  importIfExists("azuread_group.pass_reset_managers", GROUP_DISPLAY_NAME, findExistingGroupObjectId(), tenantId, (id) => `/groups/${id}`);
   importIfExists(
     "azuread_administrative_unit.pass_reset_targets",
     ADMIN_UNIT_DISPLAY_NAME,
     findExistingAdministrativeUnitObjectId(),
     tenantId,
-    (id) => `/directory/administrativeUnits/${id}`,
+    (id) => `/directory/administrativeUnits/${id}`
   );
 
   const graphServicePrincipalObjectId = findGraphServicePrincipalObjectId();
   const appRoleAssignments = findExistingAppRoleAssignments(servicePrincipalObjectId, graphServicePrincipalObjectId);
   const roleResources = [
-    [
-      "azuread_app_role_assignment.group_member_read_write_all",
-      "GroupMember.ReadWrite.All admin consent",
-      GRAPH_ROLE_IDS[0],
-    ],
-    [
-      "azuread_app_role_assignment.administrative_unit_read_write_all",
-      "AdministrativeUnit.ReadWrite.All admin consent",
-      GRAPH_ROLE_IDS[1],
-    ],
+    ["azuread_app_role_assignment.group_member_read_write_all", "GroupMember.ReadWrite.All admin consent", GRAPH_ROLE_IDS[0]],
+    ["azuread_app_role_assignment.administrative_unit_read_write_all", "AdministrativeUnit.ReadWrite.All admin consent", GRAPH_ROLE_IDS[1]],
   ];
 
   for (const [resourceAddress, displayName, roleId] of roleResources) {
@@ -288,7 +254,7 @@ async function deployTerraform() {
       displayName,
       appRoleAssignments.get(roleId),
       tenantId,
-      (assignmentId) => `/servicePrincipals/${graphServicePrincipalObjectId}/appRoleAssignedTo/${assignmentId}`,
+      (assignmentId) => `/servicePrincipals/${graphServicePrincipalObjectId}/appRoleAssignedTo/${assignmentId}`
     );
   }
 

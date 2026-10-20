@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { execFileSync } from "node:child_process";
 import { X509Certificate } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -9,9 +14,7 @@ const samlProviderArn = process.env.SAML_PROVIDER_ARN;
 const maxRetries = Number.parseInt(process.env.MAX_RETRIES || "20", 10);
 const retryDelaySeconds = Number.parseInt(process.env.RETRY_DELAY_SECONDS || "5", 10);
 const minSigningCerts = Number.parseInt(process.env.MIN_SIGNING_CERTS || "1", 10);
-const expectedSigningThumbprint = (process.env.EXPECTED_SIGNING_THUMBPRINT || "")
-  .replace(/[^A-Fa-f0-9]/g, "")
-  .toUpperCase();
+const expectedSigningThumbprint = (process.env.EXPECTED_SIGNING_THUMBPRINT || "").replace(/[^A-Fa-f0-9]/g, "").toUpperCase();
 
 if (!federationMetadataUrl) {
   console.error("FEDERATION_METADATA_URL is required.");
@@ -42,9 +45,7 @@ function hasX509Certificate(xml) {
 
 function extractAllX509Certificates(xml) {
   const matches = [...xml.matchAll(/<[^>]*X509Certificate\b[^>]*>([\s\S]*?)<\/[^>]*X509Certificate>/gi)];
-  return matches
-    .map((m) => (m && m[1] ? m[1].replace(/\s+/g, "").trim() : ""))
-    .filter(Boolean);
+  return matches.map((m) => (m && m[1] ? m[1].replace(/\s+/g, "").trim() : "")).filter(Boolean);
 }
 
 function certificateBase64ToPem(certBase64) {
@@ -85,9 +86,7 @@ async function fetchMetadata(url) {
 }
 
 async function main() {
-  const metadataPath = isAbsolute(metadataPathInput)
-    ? metadataPathInput
-    : resolve(process.cwd(), metadataPathInput);
+  const metadataPath = isAbsolute(metadataPathInput) ? metadataPathInput : resolve(process.cwd(), metadataPathInput);
   let lastCheck = { entity: false, cert: false, signingCount: 0, thumbprintMatched: expectedSigningThumbprint ? false : true };
 
   for (let count = 0; count < maxRetries; count += 1) {
@@ -97,13 +96,10 @@ async function main() {
       const cert = hasX509Certificate(xml);
       const signingCount = countSigningDescriptors(xml);
       const thumbprints = extractX509Thumbprints(xml);
-      const thumbprintMatched =
-        !expectedSigningThumbprint || thumbprints.includes(expectedSigningThumbprint);
+      const thumbprintMatched = !expectedSigningThumbprint || thumbprints.includes(expectedSigningThumbprint);
       lastCheck = { entity, cert, signingCount, thumbprintMatched };
 
-      console.log(
-        `Attempt ${count + 1}/${maxRetries}: entity=${entity} cert=${cert} signing=${signingCount} thumbprintMatched=${thumbprintMatched}`
-      );
+      console.log(`Attempt ${count + 1}/${maxRetries}: entity=${entity} cert=${cert} signing=${signingCount} thumbprintMatched=${thumbprintMatched}`);
 
       if (entity && cert && signingCount >= minSigningCerts && thumbprintMatched) {
         console.log("Metadata ready and minimum signing cert count found");
@@ -116,31 +112,13 @@ async function main() {
         const expectedCerts = extractAllX509Certificates(xml);
 
         try {
-          execFileSync(
-            "aws",
-            [
-              "iam",
-              "update-saml-provider",
-              "--saml-provider-arn",
-              samlProviderArn,
-              "--saml-metadata-document",
-              metadataDocumentArg,
-            ],
-            { stdio: "inherit" }
-          );
+          execFileSync("aws", ["iam", "update-saml-provider", "--saml-provider-arn", samlProviderArn, "--saml-metadata-document", metadataDocumentArg], {
+            stdio: "inherit",
+          });
 
           const appliedMetadata = execFileSync(
             "aws",
-            [
-              "iam",
-              "get-saml-provider",
-              "--saml-provider-arn",
-              samlProviderArn,
-              "--query",
-              "SAMLMetadataDocument",
-              "--output",
-              "text",
-            ],
+            ["iam", "get-saml-provider", "--saml-provider-arn", samlProviderArn, "--query", "SAMLMetadataDocument", "--output", "text"],
             { encoding: "utf8", stdio: "pipe" }
           );
 

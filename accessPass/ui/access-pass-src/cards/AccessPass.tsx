@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import type { CardStatus } from "../types";
 import { AZURE_CLIENT_ID } from "../config/accessPassConfig";
 import type { useAzureAccessPass } from "../hooks/useAccessPass";
@@ -22,10 +27,10 @@ export default function AzureAccessPass({ status, expanded, onToggle, disabled, 
   const subtitle = locked
     ? "Complete Azure login and tenant ID first"
     : azureSetup.result
-    ? `Access pass created`
-    : azureSetup.azureAccount
-      ? `Choose a user and create an access pass directly from the table.`
-      : "Create Temporary Access Pass for selected user";
+      ? `Access pass created`
+      : azureSetup.azureAccount
+        ? `Choose a user and create an access pass directly from the table.`
+        : "Create Temporary Access Pass for selected user";
 
   return (
     <AppInsightsErrorBoundary onError={() => <p>Error: Unable to load component!</p>} appInsights={reactPlugin}>
@@ -33,6 +38,5 @@ export default function AzureAccessPass({ status, expanded, onToggle, disabled, 
         <AzureAccessPassCard {...azureSetup} disabled={disabled} locked={locked} validEnvs={validEnvs} onComplete={onComplete} />
       </StepWrapper>
     </AppInsightsErrorBoundary>
-    
   );
 }

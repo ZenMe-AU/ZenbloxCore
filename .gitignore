@@ -6,10 +6,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Config files
+.env
+corp.env
+local.settings.json
+
 node_modules
 dist
 dist-ssr
 *.local
+
+# VitePress
+docs/.vitepress/dist
+docs/.vitepress/cache
 
 # Editor directories and files
 .idea
@@ -22,12 +31,11 @@ dist-ssr
 package-lock.json
 */package-lock.json
 
-api/src/module/shared/db/migration
-ui/.react-router
-
-#Build files
-
-
+# Playwright
+pwtest-results/
+playwright-report/
+.auth/
+zeninstallerPvt/ui/pwtests/test-results/
 
 # Terraform files
 *.tfstate
@@ -37,9 +45,8 @@ terraform.tfstate.backup
 *.tfplan
 .env
 planfile
-selfService/backend/local.settings.json
-corpSetup/corp.env
-corpSetup/c25cloudfront/source/loginApp/config.js
+
+# Azure
 __azurite_db_blob__.json
 __azurite_db_blob_extent__.json
 __azurite_db_queue__.json
@@ -47,4 +54,5 @@ __azurite_db_queue_extent__.json
 __azurite_db_table__.json
 __blobstorage__/
 AzuriteConfig
-selfService/web/pwtests/test-results/
+
+corpSetup/c25cloudfront/source/loginApp/config.js

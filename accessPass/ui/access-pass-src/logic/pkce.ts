@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 // Pure PKCE (Proof Key for Code Exchange) crypto utilities.
 // No side effects — safe to test in isolation.
 

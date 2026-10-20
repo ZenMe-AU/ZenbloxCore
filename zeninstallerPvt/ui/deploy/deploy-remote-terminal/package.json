@@ -1,0 +1,16 @@
+{
+  "name": "deploy-remote-terminal",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "gen": "node scripts/genTfVars.js",
+    "tf": "node scripts/genTfVars.js && terraform -chdir=env init && terraform -chdir=env apply",
+    "out": "terraform -chdir=env output"
+  },
+  "license": "ISC",
+  "description": "Terraform for the remote terminal session backend - Web PubSub, storage, Key Vault, Function App",
+  "dependencies": {
+    "dotenv": "^16.0.0"
+  }
+}

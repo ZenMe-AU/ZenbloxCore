@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import type { ActionType, PlanItem, PlanSummary } from "../../access-pass-src/types";
 
 export function getActionType(actions: string[]): ActionType | null {
@@ -13,12 +18,12 @@ export function computePlanSummary(items: PlanItem[]): PlanSummary {
   return items.reduce(
     (acc, item) => {
       const t = getActionType(item.change.actions);
-      if (t === "create")  acc.create++;
-      if (t === "update")  acc.update++;
-      if (t === "delete")  acc.delete++;
+      if (t === "create") acc.create++;
+      if (t === "update") acc.update++;
+      if (t === "delete") acc.delete++;
       if (t === "replace") acc.replace++;
       return acc;
     },
-    { create: 0, update: 0, delete: 0, replace: 0 },
+    { create: 0, update: 0, delete: 0, replace: 0 }
   );
 }

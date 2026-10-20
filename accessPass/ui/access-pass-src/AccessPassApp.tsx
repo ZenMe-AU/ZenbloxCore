@@ -1,4 +1,9 @@
-import { useState, useEffect} from "react";
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
+import { useState, useEffect } from "react";
 import { Box, Typography } from "@mui/material";
 import { useAzureAccessPass } from "./hooks/useAccessPass";
 import Connector from "./components/Connector";
@@ -14,7 +19,7 @@ export default function AccessPassApp() {
     try {
       logPageView("AccessPassApp");
     } catch {}
-  },[]);
+  }, []);
 
   const azureAccessPass = useAzureAccessPass({
     githubAccount: null,
@@ -22,7 +27,6 @@ export default function AccessPassApp() {
     validEnvs: [],
   });
 
-  
   const [loginExpanded, setLoginExpanded] = useState(true);
   const [accessPassExpanded, setAccessPassExpanded] = useState(true);
   const loginReady = !!azureAccessPass.azureAccount && !azureAccessPass.needsTenantId;
@@ -46,19 +50,13 @@ export default function AccessPassApp() {
           }}
         >
           <Typography sx={{ fontSize: "0.85rem", color: "#475569", lineHeight: 1.7, fontFamily: "'IBM Plex Sans', sans-serif" }}>
-            The ZenInstaller is used to deploy Zenblox to your environment. It requires a Github repository in your own account, an Azure, and AWS
-            subscription in your name. ZenInstaller will guide you through each step of the process starting from nothing.
+            The ZenInstaller is used to deploy Zenblox to your environment. It requires a Github repository in your own account, an Azure, and AWS subscription
+            in your name. ZenInstaller will guide you through each step of the process starting from nothing.
           </Typography>
         </Box>
 
         <Connector>
-          <AccessPassLogin
-            {...azureAccessPass}
-            status={loginStatus}
-            expanded={loginExpanded}
-            onToggle={() => setLoginExpanded((p) => !p)}
-            disabled={false}
-          />
+          <AccessPassLogin {...azureAccessPass} status={loginStatus} expanded={loginExpanded} onToggle={() => setLoginExpanded((p) => !p)} disabled={false} />
 
           <AzureAccessPass
             {...azureAccessPass}

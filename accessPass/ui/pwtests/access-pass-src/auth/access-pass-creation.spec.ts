@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 // Verifies temporary Access Pass creation for configured and permitted user pairs.
 
 import { expect, test } from "@playwright/test";
@@ -23,10 +28,7 @@ console.log("RUN_ACCESS_PASS_CREATION:", process.env.RUN_ACCESS_PASS_CREATION);
 
 test.describe("AP-Desktop - Temporary Access Pass Creation", () => {
   test.use({ viewport: desktopViewport, deviceScaleFactor: 1 });
-  test.skip(
-    ({ browserName }) => browserName !== "chromium",
-    "Saved Microsoft passkey sessions are only tested in Chromium.",
-  );
+  test.skip(({ browserName }) => browserName !== "chromium", "Saved Microsoft passkey sessions are only tested in Chromium.");
 
   for (const user of users) {
     if (user.expectedEntraResult !== "users") {
@@ -41,21 +43,14 @@ test.describe("AP-Desktop - Temporary Access Pass Creation", () => {
 
         test.skip(
           !auth.exists,
-          [
-            `Missing auth files for ${user.id}.`,
-            `Expected storage: ${auth.storageStateFile}`,
-            `Expected session: ${auth.sessionStorageFile}`,
-          ].join(" "),
+          [`Missing auth files for ${user.id}.`, `Expected storage: ${auth.storageStateFile}`, `Expected session: ${auth.sessionStorageFile}`].join(" ")
         );
       });
 
       for (const target of targets) {
         test(`Creating Temporary Access Pass for ${target.id}`, async ({ browser }, testInfo) => {
           console.log(process.env);
-          test.skip(
-            process.env.RUN_ACCESS_PASS_CREATION !== "true",
-            "Set RUN_ACCESS_PASS_CREATION=true to run real Access Pass creation.",
-          );
+          test.skip(process.env.RUN_ACCESS_PASS_CREATION !== "true", "Set RUN_ACCESS_PASS_CREATION=true to run real Access Pass creation.");
           test.skip(!user.canCreateAccessPass, `${user.id} is not allowed to create access passes.`);
           test.skip(!target.allowRealAccessPassCreation, `Real Access Pass creation is disabled for ${target.id}.`);
           test.skip(!user.tenantId, `No tenantId configured for ${user.id}.`);
@@ -92,10 +87,7 @@ test.describe("AP-Desktop - Temporary Access Pass Creation", () => {
             // Second click: start real Access Pass creation.
             await confirmCreateAccessPassButton.click();
             const createAgainButton = targetRow.getByRole("button", { name: "Create Again", exact: true });
-            await expect(
-              createAgainButton,
-              `Expected Temporary Access Pass creation to complete for ${target.email}.`,
-            ).toBeVisible({ timeout: 120_000 });
+            await expect(createAgainButton, `Expected Temporary Access Pass creation to complete for ${target.email}.`).toBeVisible({ timeout: 120_000 });
             await expect(page.getByText("Access pass created", { exact: true }).first()).toBeVisible();
             const accessPassLabel = page.getByText("New Temporary Access Pass:", { exact: true }).last();
             await expect(accessPassLabel).toBeVisible();

@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { Box, Button, CircularProgress, TextField, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { useAzureAccessPass } from "../hooks/useAccessPass";
@@ -118,9 +123,7 @@ export default function AccessPassLoginCard({
               }}
             >
               <Typography sx={{ fontSize: "0.78rem", color: "#713f12", ...mono, fontWeight: 600 }}>Enter Tenant ID</Typography>
-              <Typography sx={{ fontSize: "0.72rem", color: "#854d0e", ...mono }}>
-                Find this in Entra ID - Overview - Tenant ID.
-              </Typography>
+              <Typography sx={{ fontSize: "0.72rem", color: "#854d0e", ...mono }}>Find this in Entra ID - Overview - Tenant ID.</Typography>
               <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexDirection: "column" }}>
                 <TextField
                   size="small"
@@ -149,7 +152,16 @@ export default function AccessPassLoginCard({
           <Button
             size="small"
             onClick={changeTenant}
-            sx={{ alignSelf: "flex-start", minWidth: 0, fontSize: "0.68rem", color: "#94a3b8", textTransform: "none", ...mono, py: 0, "&:hover": { color: "#2563eb" } }}
+            sx={{
+              alignSelf: "flex-start",
+              minWidth: 0,
+              fontSize: "0.68rem",
+              color: "#94a3b8",
+              textTransform: "none",
+              ...mono,
+              py: 0,
+              "&:hover": { color: "#2563eb" },
+            }}
           >
             Change tenant ID
           </Button>

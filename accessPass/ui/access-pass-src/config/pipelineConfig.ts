@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import type { CardStatus, StageStatus } from "../types";
 
 export const PIPELINE_LINE_COLOR: Record<CardStatus, string> = {
@@ -11,8 +16,8 @@ export const PIPELINE_LINE_COLOR: Record<CardStatus, string> = {
 
 export const STAGE_STATUS_CONFIG: Record<StageStatus, { color: string; label: string }> = {
   deployed: { color: "#22c55e", label: "Deployed" },
-  success:  { color: "#f97316", label: "Ready to deploy" },
-  failed:   { color: "#ef4444", label: "Failed" },
-  pending:  { color: "#94a3b8", label: "Not yet executed" },
-  skipped:  { color: "#94a3b8", label: "Skipped" },
+  success: { color: "#f97316", label: "Ready to deploy" },
+  failed: { color: "#ef4444", label: "Failed" },
+  pending: { color: "#94a3b8", label: "Not yet executed" },
+  skipped: { color: "#94a3b8", label: "Skipped" },
 };

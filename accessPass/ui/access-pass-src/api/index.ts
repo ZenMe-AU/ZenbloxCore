@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import * as B from "./backend";
 import { createGithubApi } from "./github";
 import type { ApiProvider } from "./github";
@@ -8,8 +13,12 @@ import type { ApiProvider } from "./github";
 
 let _provider: ApiProvider = B;
 
-export const switchToDirect  = (token: string) => { _provider = createGithubApi(token); };
-export const switchToBackend = ()              => { _provider = B; };
+export const switchToDirect = (token: string) => {
+  _provider = createGithubApi(token);
+};
+export const switchToBackend = () => {
+  _provider = B;
+};
 
 // Re-export factory so callers can inspect / create a provider directly
 export { createGithubApi } from "./github";
@@ -28,7 +37,7 @@ export const verifyAuth: ApiProvider["verifyAuth"] = () => _provider.verifyAuth(
 // ─── Orgs & Repos ─────────────────────────────────────────────────────────────
 
 export const fetchOrgList: ApiProvider["fetchOrgList"] = (...a) => _provider.fetchOrgList(...a);
-export const fetchRepos:   ApiProvider["fetchRepos"]   = (...a) => _provider.fetchRepos(...a);
+export const fetchRepos: ApiProvider["fetchRepos"] = (...a) => _provider.fetchRepos(...a);
 
 // ─── Template ─────────────────────────────────────────────────────────────────
 
@@ -41,7 +50,7 @@ export const generateRepo: ApiProvider["generateRepo"] = (...a) => _provider.gen
 // ─── Branches ─────────────────────────────────────────────────────────────────
 
 export const fetchBranches: ApiProvider["fetchBranches"] = (...a) => _provider.fetchBranches(...a);
-export const createBranch:  ApiProvider["createBranch"]  = (...a) => _provider.createBranch(...a);
+export const createBranch: ApiProvider["createBranch"] = (...a) => _provider.createBranch(...a);
 
 // ─── Pull Requests ────────────────────────────────────────────────────────────
 
@@ -57,9 +66,9 @@ export const fetchEnvs: ApiProvider["fetchEnvs"] = (...a) => _provider.fetchEnvs
 
 // ─── Secrets ──────────────────────────────────────────────────────────────────
 
-export const fetchSecrets:   ApiProvider["fetchSecrets"]   = (...a) => _provider.fetchSecrets(...a);
+export const fetchSecrets: ApiProvider["fetchSecrets"] = (...a) => _provider.fetchSecrets(...a);
 export const fetchPublicKey: ApiProvider["fetchPublicKey"] = (...a) => _provider.fetchPublicKey(...a);
-export const upsertSecret:   ApiProvider["upsertSecret"]   = (...a) => _provider.upsertSecret(...a);
+export const upsertSecret: ApiProvider["upsertSecret"] = (...a) => _provider.upsertSecret(...a);
 
 // ─── Variables ────────────────────────────────────────────────────────────────
 
@@ -70,16 +79,16 @@ export const updateVariable: ApiProvider["updateVariable"] = (...a) => _provider
 // ─── Status & Env files ───────────────────────────────────────────────────────
 
 export const fetchStatus: ApiProvider["fetchStatus"] = (...a) => _provider.fetchStatus(...a);
-export const fetchEnv:    ApiProvider["fetchEnv"]    = (...a) => _provider.fetchEnv(...a);
+export const fetchEnv: ApiProvider["fetchEnv"] = (...a) => _provider.fetchEnv(...a);
 
 // ─── Artifacts ────────────────────────────────────────────────────────────────
 
-export const getPlanEnv:     ApiProvider["getPlanEnv"]     = (...a) => _provider.getPlanEnv(...a);
+export const getPlanEnv: ApiProvider["getPlanEnv"] = (...a) => _provider.getPlanEnv(...a);
 export const fetchDeployLog: ApiProvider["fetchDeployLog"] = (...a) => _provider.fetchDeployLog(...a);
-export const fetchPlan:      ApiProvider["fetchPlan"]      = (...a) => _provider.fetchPlan(...a);
+export const fetchPlan: ApiProvider["fetchPlan"] = (...a) => _provider.fetchPlan(...a);
 
 // ─── Workflow dispatch ────────────────────────────────────────────────────────
 
-export const triggerWorkflow:       ApiProvider["triggerWorkflow"]       = (...a) => _provider.triggerWorkflow(...a);
+export const triggerWorkflow: ApiProvider["triggerWorkflow"] = (...a) => _provider.triggerWorkflow(...a);
 export const triggerWorkflowFromPR: ApiProvider["triggerWorkflowFromPR"] = (...a) => _provider.triggerWorkflowFromPR(...a);
-export const deployChangeset:       ApiProvider["deployChangeset"]       = (...a) => _provider.deployChangeset(...a);
+export const deployChangeset: ApiProvider["deployChangeset"] = (...a) => _provider.deployChangeset(...a);

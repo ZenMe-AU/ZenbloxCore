@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { parse } from "dotenv";
 import JSZip from "jszip";
 import type { Account, Branch, GhEnv, PullRequest, Repo, WorkflowRun, UpsertSecretResult } from "../types";
@@ -84,7 +89,7 @@ export async function generateRepo(
   includeAllBranch: boolean,
   createEnvs: boolean,
   templateRepo?: string,
-  validEnvs?: readonly string[],
+  validEnvs?: readonly string[]
 ): Promise<{ repo: Repo; envSuccess: boolean; results: { envs: { name: string; success: boolean; error?: string }[] } }> {
   const res = await fetchWithAuth(`${url}/generateRepo`, {
     method: "POST",
@@ -179,7 +184,7 @@ export async function upsertSecret(
   name: string,
   encryptedValue: string,
   keyId: string,
-  envName?: string,
+  envName?: string
 ): Promise<UpsertSecretResult> {
   const res = await fetchWithAuth(`${url}/upsertSecret`, {
     method: "PUT",

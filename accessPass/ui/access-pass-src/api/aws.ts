@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import { STSClient, GetSessionTokenCommand, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import {
   IAMClient,
@@ -67,14 +72,14 @@ export async function getAwsMfaDevices(accessKeyId: string, secretAccessKey: str
 export async function getAwsSessionCredentials(
   accessKeyId: string,
   secretAccessKey: string,
-  mfa?: { serialNumber: string; tokenCode: string },
+  mfa?: { serialNumber: string; tokenCode: string }
 ): Promise<AwsSessionCredentials> {
   const sts = new STSClient({ region: "us-east-1", credentials: { accessKeyId, secretAccessKey } });
   const session = await sts.send(
     new GetSessionTokenCommand({
       DurationSeconds: SESSION_DURATION_SECONDS,
       ...(mfa ? { SerialNumber: mfa.serialNumber, TokenCode: mfa.tokenCode } : {}),
-    }),
+    })
   );
   const { AccessKeyId, SecretAccessKey, SessionToken, Expiration } = session.Credentials ?? {};
   if (!AccessKeyId || !SecretAccessKey || !SessionToken) {
@@ -111,7 +116,7 @@ export async function ensureGithubOidcProvider(credentials: AwsSessionCredential
         Url: GITHUB_OIDC_URL,
         ClientIDList: ["sts.amazonaws.com"],
         ThumbprintList: GITHUB_OIDC_THUMBPRINTS,
-      }),
+      })
     );
     return { created: true };
   } catch (err) {
@@ -133,7 +138,7 @@ export type CreateAwsIamRoleParams = {
 // additional environments merges them into the existing trust policy.
 export async function createOrUpdateGithubOidcRole(
   credentials: AwsSessionCredentials,
-  { accountId, org, repo, environments, roleName }: CreateAwsIamRoleParams,
+  { accountId, org, repo, environments, roleName }: CreateAwsIamRoleParams
 ): Promise<{ roleArn: string; updated: boolean }> {
   const iam = new IAMClient({ region: "us-east-1", credentials });
 
@@ -159,7 +164,7 @@ export async function createOrUpdateGithubOidcRole(
         RoleName: roleName,
         AssumeRolePolicyDocument: JSON.stringify({ Version: "2012-10-17", Statement: [newStatement] }),
         Description: `GitHub Actions OIDC role for ${org}/${repo}`,
-      }),
+      })
     );
     if (!createRes.Role?.Arn) throw new Error("AWS did not return a role ARN");
     roleArn = createRes.Role.Arn;
@@ -183,9 +188,7 @@ export async function createOrUpdateGithubOidcRole(
     let mergedPolicy: TrustPolicyDocument;
     if (existingPolicyObj) {
       // Find an existing GitHub OIDC statement to merge subs into.
-      const githubStmt = existingPolicyObj.Statement?.find(
-        (s) => s.Condition?.StringLike?.[GITHUB_OIDC_SUB_CONDITION_KEY] !== undefined,
-      );
+      const githubStmt = existingPolicyObj.Statement?.find((s) => s.Condition?.StringLike?.[GITHUB_OIDC_SUB_CONDITION_KEY] !== undefined);
       if (githubStmt) {
         const existingSubs = ([] as string[]).concat(githubStmt.Condition.StringLike[GITHUB_OIDC_SUB_CONDITION_KEY]);
         githubStmt.Condition.StringLike[GITHUB_OIDC_SUB_CONDITION_KEY] = [...new Set([...existingSubs, ...newSubs])];

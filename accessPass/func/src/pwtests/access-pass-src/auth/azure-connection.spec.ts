@@ -16,10 +16,12 @@ import {
   loadAccessPassUsers,
   openAuthenticatedAccessPassPage,
   sensitiveTextMasks,
-} from "../testHelper";
+} from "../testHelper.mjs";
 
 const users = loadAccessPassUsers({ softFail: true });
-test.skip(() => users.length === 0, "No local Access Pass users file was found. Authenticated tests are skipped.");
+if (users.length === 0) {
+  throw new Error("No local Access Pass users file was found.");
+}
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
   test.describe(`AP-${viewportName} - Connect Azure`, () => {
@@ -31,17 +33,16 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
     });
 
     test("Connecting Azure", async ({ page, browser, browserName }, testInfo) => {
-      test.skip(browserName !== "chromium", "Microsoft authentication journey is only tested in Chromium.");
+      if (browserName !== "chromium") {
+        throw new Error("Microsoft authentication journey is only tested in Chromium.");
+      }
       const user = getAzureJourneyUser(users);
       const auth = getAccessPassUserAuth(user);
-      test.skip(
-        !auth.exists,
-        [
-          `Missing auth files for ${user.id}.`,
-          `Expected storage: ${auth.storageStateFile}`,
-          `Expected session: ${auth.sessionStorageFile}`,
-        ].join(" "),
-      );
+      if (!auth.exists) {
+        throw new Error(
+          [`Missing auth files for ${user.id}.`, `Expected storage: ${auth.storageStateFile}`, `Expected session: ${auth.sessionStorageFile}`].join(" ")
+        );
+      }
 
       await test.step("Signed-out Access Pass page shows Azure Login prerequisite", async () => {
         await expect(page).toHaveTitle("Access Pass");
@@ -78,9 +79,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
         try {
           await expectAuthenticatedAccessPassState(authenticatedPage, user);
-          await expect(
-            authenticatedPage.getByText(new RegExp(escapeRegExp(user.expectedPostLoginText), "i")).first(),
-          ).toBeVisible({ timeout: 45_000 });
+          await expect(authenticatedPage.getByText(new RegExp(escapeRegExp(user.expectedPostLoginText), "i")).first()).toBeVisible({ timeout: 45_000 });
           await expect(authenticatedPage.getByTestId("txtAzureUsername")).toBeVisible();
 
           await expectPageSnapshot(authenticatedPage, testInfo, "after-connect.png", {

@@ -1,5 +1,5 @@
 /**
- * @license SPDX-FileCopyrightText: © 2025 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
  * @license SPDX-License-Identifier: MIT
  */
 
@@ -40,6 +40,14 @@ export default [
         ],
       ],
       "linebreak-style": "off", // Do not check line endings
+      "prettier/prettier": [
+        "warn",
+        {
+          printWidth: 160,
+          trailingComma: "es5",
+          endOfLine: "auto",
+        },
+      ],
     },
     linterOptions: {
       reportUnusedDisableDirectives: true,

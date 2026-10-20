@@ -1,0 +1,100 @@
+name: Build backend
+
+# Builds the backend at BACKEND_DIR into a self-contained package and publishes it as an artifact.
+# ZenInstaller's backend card downloads that artifact and pushes it to the Function App itself.
+on:
+  workflow_dispatch:
+    inputs:
+      github_env_name:
+        required: false
+        description: "GitHub Environment name"
+
+permissions:
+  contents: read
+  deployments: write
+
+env:
+  BACKEND_DIR: zeninstallerPvt/func
+
+jobs:
+  build:
+    name: Build the backend package
+    environment: ${{ inputs.github_env_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Compute a unique version identifier based on the backend tree and the lockfile.
+      - name: Work out the backend version
+        id: version
+        shell: bash
+        run: |
+          TREE=$(git rev-parse HEAD:$BACKEND_DIR)
+          LOCK=$(git rev-parse HEAD:pnpm-lock.yaml)
+          echo "version=$(printf '%s %s' "$TREE" "$LOCK" | sha256sum | cut -c1-12)" >> $GITHUB_OUTPUT
+          echo "tree=$TREE" >> $GITHUB_OUTPUT
+
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@22
+          install: false
+
+      - name: Install dependencies
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: pnpm install --frozen-lockfile
+
+      # pnpm's store is a symlink farm; Azure Functions needs real files, which this prunes into dist.
+      - name: Build the deployable package
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: pnpm run build
+
+      # Travels inside the package, so whatever the card reads back is by definition what is running.
+      - name: Stamp the build
+        shell: bash
+        run: |
+          jq -nc --arg version "${{ steps.version.outputs.version }}" \
+            --arg tree "${{ steps.version.outputs.tree }}" \
+            --arg sha "${{ github.sha }}" --arg runId "${{ github.run_id }}" \
+            --argjson builtAt "$(date +%s)" \
+            '{ version: $version, tree: $tree, sha: $sha, runId: $runId, builtAt: $builtAt }' \
+            > $BACKEND_DIR/dist/build-info.json
+          cat $BACKEND_DIR/dist/build-info.json
+
+      - name: Upload the package
+        id: pkg
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-pkg
+          path: ${{ env.BACKEND_DIR }}/dist
+          if-no-files-found: error
+
+      - name: Build the report
+        id: report
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.pkg.outputs.artifact-id }}
+          ARTIFACT_URL: ${{ steps.pkg.outputs.artifact-url }}
+        run: |
+          # The card compares this sha against what it last deployed to decide if an update is due.
+          PAYLOAD=$(jq -nc \
+            --arg version "${{ steps.version.outputs.version }}" \
+            --arg sha "${{ github.sha }}" \
+            --arg runId "${{ github.run_id }}" \
+            --arg artifactUrl "$ARTIFACT_URL" \
+            --argjson artifactId "${ARTIFACT_ID:-null}" \
+            --argjson builtAt "$(date +%s)" \
+            '{ version: $version, sha: $sha, runId: $runId, artifactId: $artifactId,
+               artifactUrl: $artifactUrl, builtAt: $builtAt }')
+          echo "payload=$PAYLOAD" >> $GITHUB_OUTPUT
+          echo "$PAYLOAD"
+
+      # task=build:backend is what the card queries the Deployments API for.
+      - uses: ./.github/actions/record-deployment
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          environment: ${{ inputs.github_env_name }}
+          ref: ${{ github.ref_name }}
+          kind: build
+          dir: backend
+          state: success
+          payload: ${{ steps.report.outputs.payload }}

@@ -1,9 +1,16 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 import sodium from "libsodium-wrappers";
 
 export async function deterministicUuid(scope: string, roleId: string, principalId: string): Promise<string> {
   const data = new TextEncoder().encode(`${scope}|${roleId}|${principalId}`);
   const hash = await crypto.subtle.digest("SHA-256", data);
-  const h = Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const h = Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${((parseInt(h.slice(16, 18), 16) & 0x3f) | 0x80).toString(16)}${h.slice(18, 20)}-${h.slice(20, 32)}`;
 }
 

@@ -1,0 +1,33 @@
+name: Playwright Environment Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-playwright-environment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ^22.13.0 || >=24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps
+
+      # - name: Confirm Playwright is available
+      #   run: pnpm exec playwright --version
