@@ -14,6 +14,12 @@ async function expectAxeClean(page: Page, state: string) {
 }
 
 test.describe("Installer accessibility", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      if (!localStorage.getItem("zeninstaller-corp-mode")) localStorage.setItem("zeninstaller-corp-mode", "dark");
+    });
+  });
+
   test("collapsed page has no axe violations", async ({ page }) => {
     await page.goto(CORP_URL);
     await expectAxeClean(page, "collapsed page");
@@ -52,8 +58,8 @@ test.describe("Installer accessibility", () => {
     await expect(page.getByRole("progressbar", { name: "Deployment setup progress" })).toBeVisible();
     const intro = page.locator("#installer-intro");
     const footer = page.locator("footer > div");
-    await expect(intro).toHaveCSS("background-color", "rgb(255, 255, 255)");
-    await expect(footer).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await expect(intro).toHaveCSS("background-color", "rgb(27, 38, 41)");
+    await expect(footer).toHaveCSS("background-color", "rgb(27, 38, 41)");
     await expect(page.locator("#card-remote_terminal_infra h3 button")).toHaveAccessibleName(/Remote terminal environment/);
     await expect(page.locator("#card-private_frontend_infra h3 button")).toHaveAccessibleName(/Frontend hosting environment/);
 
@@ -63,26 +69,29 @@ test.describe("Installer accessibility", () => {
     await expect(page.locator("#card-github_login h3 button")).toHaveAttribute("aria-expanded", "true");
   });
 
-  test("day and night modes toggle and persist after reload", async ({ page }) => {
+  test("night and day modes toggle and persist after reload", async ({ page }) => {
     await page.goto(CORP_URL);
 
-    const dayToggle = page.getByRole("button", { name: "Switch to night mode" });
-    await expect(dayToggle).toBeVisible();
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(248, 250, 252)");
-    await expect(page.locator("#card-github_login")).toHaveCSS("background-color", "rgb(255, 255, 255)");
-
-    await dayToggle.click();
-    await expect(page.getByRole("button", { name: "Switch to day mode" })).toBeVisible();
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(18, 26, 29)");
+    const nightToggle = page.getByRole("button", { name: "Switch to light mode" });
+    await expect(nightToggle).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(15, 23, 26)");
     await expect(page.locator("#card-github_login")).toHaveCSS("background-color", "rgb(27, 38, 41)");
     await page.mouse.move(0, 0);
     await expect(page.getByRole("tooltip")).toBeHidden();
     await expectAxeClean(page, "night mode page");
 
+    await nightToggle.click();
+    await expect(page.getByRole("button", { name: "Switch to dark mode" })).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(248, 250, 252)");
+    await expect(page.locator("#card-github_login")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole("tooltip")).toBeHidden();
+    await expectAxeClean(page, "day mode page");
+
     await page.reload();
-    await expect(page.getByRole("button", { name: "Switch to day mode" })).toBeVisible();
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(18, 26, 29)");
-    await expect(page.locator("#card-github_login")).toHaveCSS("background-color", "rgb(27, 38, 41)");
+    await expect(page.getByRole("button", { name: "Switch to dark mode" })).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(248, 250, 252)");
+    await expect(page.locator("#card-github_login")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   });
 
   test("footer shortcuts dialog lists keys, closes with Escape, and restores focus", async ({ page }) => {
@@ -149,7 +158,7 @@ test.describe("Installer accessibility", () => {
     await page.setViewportSize({ width: 320, height: 720 });
     await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "active" });
     await page.goto(CORP_URL);
-    await expect(page.getByRole("button", { name: "Switch to night mode" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Switch to light mode" })).toBeVisible();
 
     const layout = await page.evaluate(() => {
       const card = document.getElementById("card-github_login");

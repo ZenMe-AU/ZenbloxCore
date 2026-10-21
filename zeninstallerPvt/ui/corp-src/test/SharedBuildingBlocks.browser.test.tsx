@@ -23,7 +23,7 @@ import theme from "../theme";
 describe("shared UI building blocks", () => {
   it("defines distinct accessible palettes for day and night modes", () => {
     expect(theme.colorSchemes.light.palette.background.default).toBe("#f8fafc");
-    expect(theme.colorSchemes.dark.palette.background.default).toBe("#121a1d");
+    expect(theme.colorSchemes.dark.palette.background.default).toBe("#0f171a");
     expect(theme.colorSchemes.light.palette.background.paper).toBe("#ffffff");
     expect(theme.colorSchemes.dark.palette.background.paper).toBe("#1b2629");
     expect(theme.colorSchemes.dark.palette.text.primary).toBe("#e7edef");

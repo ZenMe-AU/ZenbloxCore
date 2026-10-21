@@ -197,7 +197,7 @@ const theme = createTheme({
         },
         divider: "#354448",
         background: {
-          default: "#121a1d",
+          default: "#0f171a",
           paper: "#1b2629",
         },
         card: {
