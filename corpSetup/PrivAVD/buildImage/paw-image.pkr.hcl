@@ -135,6 +135,15 @@ build {
     script = "img-install-wingetrepo.ps1"
   }
 
+  # Restart after the Winget-Repo install: the Python installer and pip can
+  # set pending-reboot flags (VC++ redistributables, service registrations)
+  # that silently hang sysprep if not cleared. This restart clears them,
+  # and the AtStartup trigger fires the WingetRepo service so the generalize
+  # script can verify it starts correctly before stopping it for sysprep.
+  provisioner "windows-restart" {
+    restart_timeout = "15m"
+  }
+
   provisioner "powershell" {
     script = "img-generalize.ps1"
   }
