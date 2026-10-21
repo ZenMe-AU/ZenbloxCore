@@ -73,7 +73,43 @@ if ($pythonProcs) {
     Start-Sleep -Seconds 3
 }
 
-# Check for pending reboot (a pending reboot blocks sysprep)
+# Suspend BitLocker — sysprep refuses to run with BitLocker protection on.
+# Windows 11 auto-enables device encryption when a vTPM is present
+# (Trusted Launch provides vTPM). Suspending puts ProtectionStatus to Off,
+# which lets sysprep proceed. The deployed PAW re-enables BitLocker
+# automatically on first boot with its own vTPM.
+Write-Host '  Checking BitLocker...'
+try {
+    $blVol = Get-BitLockerVolume -MountPoint 'C:' -ErrorAction Stop
+    Write-Host "  BitLocker: ProtectionStatus=$($blVol.ProtectionStatus), VolumeStatus=$($blVol.VolumeStatus)"
+    if ($blVol.ProtectionStatus -eq 'On') {
+        Write-Host '  BitLocker is ON — suspending protection for sysprep...'
+        Suspend-BitLocker -MountPoint 'C:' -RebootCount 0 -ErrorAction Stop
+        Start-Sleep -Seconds 5
+        $blAfter = Get-BitLockerVolume -MountPoint 'C:' -ErrorAction SilentlyContinue
+        Write-Host "  BitLocker after suspend: ProtectionStatus=$($blAfter.ProtectionStatus)"
+        if ($blAfter.ProtectionStatus -eq 'On') {
+            Write-Host '  Suspend failed — disabling BitLocker (full decrypt)...' -ForegroundColor Yellow
+            Disable-BitLocker -MountPoint 'C:' -ErrorAction SilentlyContinue
+            $decryptStart = Get-Date
+            while ($true) {
+                $vol = Get-BitLockerVolume -MountPoint 'C:' -ErrorAction SilentlyContinue
+                if ($vol.VolumeStatus -eq 'FullyDecrypted') { break }
+                if ([int]((Get-Date) - $decryptStart).TotalSeconds -gt 900) {
+                    Write-Host '  WARNING: decryption not complete after 15 min, continuing...' -ForegroundColor Yellow
+                    break
+                }
+                Start-Sleep -Seconds 15
+            }
+        }
+    } else {
+        Write-Host '  BitLocker is not active. Good.'
+    }
+} catch {
+    Write-Host "  BitLocker check skipped: $_" -ForegroundColor Yellow
+}
+
+# Check for pending reboot (a pending reboot can also block sysprep)
 $pendingReboot = $false
 if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') {
     $pendingReboot = $true
