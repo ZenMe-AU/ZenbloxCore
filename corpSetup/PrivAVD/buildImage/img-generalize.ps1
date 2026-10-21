@@ -82,31 +82,42 @@ Write-Host '  Checking BitLocker...'
 try {
     $blVol = Get-BitLockerVolume -MountPoint 'C:' -ErrorAction Stop
     Write-Host "  BitLocker: ProtectionStatus=$($blVol.ProtectionStatus), VolumeStatus=$($blVol.VolumeStatus)"
-    if ($blVol.ProtectionStatus -eq 'On') {
-        Write-Host '  BitLocker is ON — suspending protection for sysprep...'
-        Suspend-BitLocker -MountPoint 'C:' -RebootCount 0 -ErrorAction Stop
-        Start-Sleep -Seconds 5
-        $blAfter = Get-BitLockerVolume -MountPoint 'C:' -ErrorAction SilentlyContinue
-        Write-Host "  BitLocker after suspend: ProtectionStatus=$($blAfter.ProtectionStatus)"
-        if ($blAfter.ProtectionStatus -eq 'On') {
-            Write-Host '  Suspend failed — disabling BitLocker (full decrypt)...' -ForegroundColor Yellow
-            Disable-BitLocker -MountPoint 'C:' -ErrorAction SilentlyContinue
-            $decryptStart = Get-Date
-            while ($true) {
-                $vol = Get-BitLockerVolume -MountPoint 'C:' -ErrorAction SilentlyContinue
-                if ($vol.VolumeStatus -eq 'FullyDecrypted') { break }
-                if ([int]((Get-Date) - $decryptStart).TotalSeconds -gt 900) {
-                    Write-Host '  WARNING: decryption not complete after 15 min, continuing...' -ForegroundColor Yellow
-                    break
-                }
-                Start-Sleep -Seconds 15
+    if ($blVol.VolumeStatus -ne 'FullyDecrypted') {
+        Write-Host '  BitLocker is ENCRYPTED — disabling (full decrypt, may take several minutes)...'
+        # Suspend is NOT enough: sysprep checks VolumeStatus, not ProtectionStatus.
+        # A suspended volume is still FullyEncrypted and sysprep still blocks (0x80310039).
+        Disable-BitLocker -MountPoint 'C:' -ErrorAction SilentlyContinue
+        $decryptStart = Get-Date
+        while ($true) {
+            $vol = Get-BitLockerVolume -MountPoint 'C:' -ErrorAction SilentlyContinue
+            $elapsed = [int]((Get-Date) - $decryptStart).TotalSeconds
+            if ($vol.VolumeStatus -eq 'FullyDecrypted') {
+                Write-Host "  BitLocker decryption completed in $elapsed seconds."
+                break
             }
+            if ($elapsed % 30 -eq 0) {
+                Write-Host "  Decrypting... $elapsed seconds elapsed, VolumeStatus=$($vol.VolumeStatus)"
+            }
+            if ($elapsed -gt 1800) {
+                Write-Host '  WARNING: decryption not complete after 30 minutes, continuing anyway...' -ForegroundColor Yellow
+                break
+            }
+            Start-Sleep -Seconds 5
         }
+        $final = Get-BitLockerVolume -MountPoint 'C:' -ErrorAction SilentlyContinue
+        Write-Host "  BitLocker final: ProtectionStatus=$($final.ProtectionStatus), VolumeStatus=$($final.VolumeStatus)"
     } else {
-        Write-Host '  BitLocker is not active. Good.'
+        Write-Host '  BitLocker is not encrypted. Good.'
     }
 } catch {
-    Write-Host "  BitLocker check skipped: $_" -ForegroundColor Yellow
+    Write-Host "  BitLocker check failed: $_" -ForegroundColor Yellow
+    # If Get-BitLockerVolume fails, try manage-bde as fallback
+    try {
+        $bdeStatus = & manage-bde -status C: 2>$null | Select-String 'Conversion Status'
+        Write-Host "  manage-bde status: $bdeStatus"
+    } catch {
+        Write-Host '  manage-bde also failed - BitLocker may not be present' -ForegroundColor Yellow
+    }
 }
 
 # Check for pending reboot (a pending reboot can also block sysprep)
