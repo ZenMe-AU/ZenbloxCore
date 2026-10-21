@@ -1,6 +1,6 @@
 import type { Suite, TestCase, TestResult } from "@playwright/test/reporter";
 import { createHash } from "node:crypto";
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 function pathSegment(value: string, identity: string): string {
@@ -14,12 +14,7 @@ function isInside(directory: string, file: string): boolean {
   return relative !== "" && !path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.sep}`);
 }
 
-export async function organizeTestResult(
-  test: TestCase,
-  result: TestResult,
-  outputDirectory: string,
-  runTimestamp: Date,
-): Promise<void> {
+export async function organizeTestResult(test: TestCase, result: TestResult, outputDirectory: string): Promise<void> {
   let fileSuite: Suite = test.parent;
   const titles = [test.title];
   while (fileSuite.type !== "file") {
@@ -27,14 +22,15 @@ export async function organizeTestResult(
     if (!fileSuite.parent) throw new Error(`Cannot identify the spec for test: ${test.title}`);
     fileSuite = fileSuite.parent;
   }
-
   const project = test.parent.project();
   const spec = fileSuite.title;
-  const twoDigits = (value: number) => String(value).padStart(2, "0");
-  const timestamp = `${twoDigits(runTimestamp.getHours())}h ${twoDigits(runTimestamp.getMinutes())}m ${twoDigits(runTimestamp.getSeconds())}s - ${twoDigits(runTimestamp.getDate())}-${twoDigits(runTimestamp.getMonth() + 1)}-${runTimestamp.getFullYear()}`;
+  const specSegments = spec.split(/[\\/]/);
+  const testType = specSegments.includes("integration-tests") ? "integration"
+    : specSegments.includes("mock-tests") ? "mock" : undefined;
+  const specName = specSegments[specSegments.length - 1];
   const destination = path.join(
     outputDirectory,
-    `[${timestamp}]${pathSegment(path.basename(spec), spec)}`,
+    testType ? `${specName}--${testType}` : pathSegment(specName, spec),
     `${pathSegment(titles.join(" - "), JSON.stringify([test.id, project?.name]))}${test.repeatEachIndex ? `-repeat-${test.repeatEachIndex + 1}` : ""}${result.retry ? `-retry-${result.retry}` : ""}`,
   );
   const sourceDirectories = new Set<string>();
@@ -47,8 +43,9 @@ export async function organizeTestResult(
   if (sourceDirectories.size > 1) {
     throw new Error(`Artifacts span multiple test directories for: ${test.title}`);
   }
-
   await mkdir(path.dirname(destination), { recursive: true });
+  // Windows cannot rename a directory onto an existing non-empty result.
+  await rm(destination, { recursive: true, force: true });
   const [sourceDirectory] = sourceDirectories;
   if (sourceDirectory) {
     await rename(sourceDirectory, destination);
