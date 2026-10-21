@@ -648,6 +648,46 @@ export function subscriptionScope(subscriptionId: string): string {
 const WEBPUBSUB_API = "2023-02-01";
 const WEB_API = "2023-12-01";
 
+export async function findWebPubSubGroup(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<string | null> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const data = await armGet(token, `/subscriptions/${subscriptionId}/providers/Microsoft.SignalRService/webPubSub?api-version=${WEBPUBSUB_API}`);
+  const found = ((data as { value?: { id?: string; name?: string }[] } | null)?.value ?? []).find((w) => w.name === name);
+  return found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1] ?? null;
+}
+
+export async function webPubSubNameAvailable(
+  account: AzureAccount,
+  subscriptionId: string,
+  location: string,
+  name: string,
+  overrideTenantId?: string
+): Promise<boolean> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const availability = await gFetch(
+    token,
+    ARM,
+    `/subscriptions/${subscriptionId}/providers/Microsoft.SignalRService/locations/${location}/checkNameAvailability?api-version=${WEBPUBSUB_API}`,
+    { method: "POST", body: JSON.stringify({ name, type: "Microsoft.SignalRService/WebPubSub" }) }
+  );
+  return availability?.nameAvailable !== false;
+}
+
+export async function findFunctionAppGroup(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<string | null> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const data = await armGet(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Web/sites?api-version=${WEB_API}`);
+  const found = ((data as { value?: { id?: string; name?: string }[] } | null)?.value ?? []).find((s) => s.name === name);
+  return found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1] ?? null;
+}
+
+export async function functionAppNameAvailable(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<boolean> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const availability = await gFetch(token, ARM, `/subscriptions/${subscriptionId}/providers/Microsoft.Web/checknameavailability?api-version=${WEB_API}`, {
+    method: "POST",
+    body: JSON.stringify({ name, type: "Microsoft.Web/sites" }),
+  });
+  return availability?.nameAvailable !== false;
+}
+
 export async function ensureWebPubSub(
   account: AzureAccount,
   subscriptionId: string,

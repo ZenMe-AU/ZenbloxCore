@@ -5,11 +5,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchArtifactZip, fetchStageReport, triggerWorkflow } from "../../api";
-import { deployZipToFunctionApp, fetchDeployedBackend, updateFunctionAppSettings, type DeployedBackend } from "../../api/azureArm";
-import { PRIVATE_FUNCTION_APP, PRIVATE_RESOURCE_GROUP } from "../../logic/naming";
+import {
+  deployZipToFunctionApp,
+  fetchDeployedBackend,
+  findFunctionAppGroup,
+  updateFunctionAppSettings,
+  type DeployedBackend,
+} from "../../api/azureArm";
+import { PRIVATE_RESOURCE_GROUP, functionAppFromApiUrl, getFunctionAppName } from "../../logic/naming";
 import { BACKEND_VERSION_KEYS } from "../../config/azureConfig";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
-import type { Account, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
+import type { Account, AzureAccount, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
 
 // What the build workflow recorded, as the card reads it back off the Deployments API.
 type BackendBuild = {
@@ -28,6 +34,7 @@ export interface UseBackendDeployCardParams {
   githubAccount: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
+  variableValues: Record<string, string>;
 }
 
 const BUILD_WORKFLOW = "buildBackend.yml";
@@ -63,6 +70,7 @@ export function useBackendDeployCard({
   githubAccount,
   repoName,
   selectedEnv,
+  variableValues,
 }: UseBackendDeployCardParams): UseBackendDeployCard {
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const [latest, setLatest] = useState<BackendBuild | null>(null);
@@ -72,8 +80,12 @@ export function useBackendDeployCard({
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const appName = PRIVATE_FUNCTION_APP;
-  const resourceGroup = PRIVATE_RESOURCE_GROUP;
+  // The same name the Backend Environment card created; where it lives is asked of Azure, since it may be reused elsewhere.
+  const appName = functionAppFromApiUrl(variableValues.VITE_API_URL) || getFunctionAppName(subscriptionId);
+  const findGroup = useCallback(
+    async (account: AzureAccount) => (await findFunctionAppGroup(account, subscriptionId, appName, tenantId || undefined)) ?? PRIVATE_RESOURCE_GROUP,
+    [subscriptionId, appName, tenantId]
+  );
   const ready = !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv;
 
   const readLatest = useCallback(async (): Promise<BackendBuild | null> => {
@@ -105,13 +117,13 @@ export function useBackendDeployCard({
     if (!azureAccount || !appName || !subscriptionId) return;
     setLoadingDeployed(true);
     try {
-      setDeployed(await fetchDeployedBackend(azureAccount, subscriptionId, resourceGroup, appName, tenantId || undefined));
+      setDeployed(await fetchDeployedBackend(azureAccount, subscriptionId, await findGroup(azureAccount), appName, tenantId || undefined));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not read the deployed version");
     } finally {
       setLoadingDeployed(false);
     }
-  }, [azureAccount, subscriptionId, resourceGroup, appName, tenantId]);
+  }, [azureAccount, subscriptionId, appName, tenantId, findGroup]);
 
   // Deferred so the loading flag is not set during the render that schedules this.
   useEffect(() => {
@@ -169,6 +181,7 @@ export function useBackendDeployCard({
       );
       updateStep("download", "done", `${mb(zip.size)} MB`);
 
+      const resourceGroup = await findGroup(azureAccount);
       await deployZipToFunctionApp(azureAccount, subscriptionId, resourceGroup, appName, zip, tenantId, (phase) => {
         if (phase === "uploading") updateStep("upload", "running");
         else {
@@ -199,7 +212,7 @@ export function useBackendDeployCard({
     } finally {
       setRunning(false);
     }
-  }, [azureAccount, githubAccount, repoName, latest, subscriptionId, resourceGroup, appName, tenantId, readDeployed, setRunning, setSteps, updateStep]);
+  }, [azureAccount, githubAccount, repoName, latest, subscriptionId, appName, tenantId, findGroup, readDeployed, setRunning, setSteps, updateStep]);
 
   const reset = useCallback(() => {
     resetSteps();

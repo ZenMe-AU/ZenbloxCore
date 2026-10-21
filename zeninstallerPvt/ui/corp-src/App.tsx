@@ -162,6 +162,7 @@ function AppDashboard() {
       githubAccount: githubRepoEnv.repo.selectedAccount,
       repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
       selectedEnv: githubRepoEnv.env.selectedEnv,
+      variableValues: githubVariableValues,
     })
   );
   const privateFrontendInfra = addCard(

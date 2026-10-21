@@ -34,8 +34,6 @@ export function getTerminalStorageAccountName(corpName: string): string {
 export const PRIVATE_RESOURCE_GROUP = "zeninstaller-private-rg";
 export const PRIVATE_LOG_ANALYTICS = "zeninstaller-private-law";
 export const PRIVATE_APP_INSIGHTS = "zeninstaller-private-ai";
-export const PRIVATE_WEB_PUBSUB = "zeninstaller-private-wpubsub";
-export const PRIVATE_FUNCTION_APP = "zeninstaller-private-app";
 // The identity GitHub Actions mints Web PubSub tokens with, kept apart from the plan pipeline's.
 export const PRIVATE_PIPELINE_APP = "zeninstaller-private-pipeline";
 /*
@@ -45,6 +43,18 @@ export const PRIVATE_PIPELINE_APP = "zeninstaller-private-pipeline";
  */
 export function getWebStorageAccountName(subscriptionId: string): string {
   return `zeninstallerpvtweb${subscriptionId.replace(/-/g, "").slice(0, 6)}`.toLowerCase();
+}
+
+export function getFunctionAppName(subscriptionId: string): string {
+  return `zeninstaller-private-app-${subscriptionId.replace(/-/g, "").slice(0, 6)}`.toLowerCase();
+}
+
+export function functionAppFromApiUrl(apiUrl: string | undefined): string | undefined {
+  return apiUrl?.match(/^https:\/\/([^.]+)\.azurewebsites\.net/i)?.[1];
+}
+
+export function getWebPubSubName(subscriptionId: string): string {
+  return `zeninstaller-private-wpubsub-${subscriptionId.replace(/-/g, "").slice(0, 6)}`.toLowerCase();
 }
 
 // The backend's own account (session table, deployment package), on the same scheme as the site's.
