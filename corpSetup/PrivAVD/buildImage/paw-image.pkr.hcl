@@ -125,6 +125,16 @@ build {
     restart_timeout = "15m"
   }
 
+  # Winget-Repo: installs the private winget repository into the image as a
+  # localhost-only service (Task Scheduler, AtStartup, SYSTEM, ssl=true).
+  # Every deployed PAW gets Python 3.12 + Winget-Repo V2.9.2 + a 10-year
+  # localhost TLS cert + a winget source pointing at the local repo.
+  # Default winget/msstore sources are removed. The service is stopped at
+  # the end of this provisioner (before sysprep) and re-starts on first boot.
+  provisioner "powershell" {
+    script = "img-install-wingetrepo.ps1"
+  }
+
   provisioner "powershell" {
     script = "img-generalize.ps1"
   }
