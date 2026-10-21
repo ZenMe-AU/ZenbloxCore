@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { parseSocketEvent, parseWebPubSubUrl } from "../logic/remoteTerminal";
-import { stageLabel } from "../config/remoteTerminal";
+import { stageLabel, TERMINAL_COLORS, TERMINAL_THEME } from "../config/remoteTerminal";
 
 const SESSION = "11111111-2222-3333-4444-555555555555";
 
@@ -98,5 +98,15 @@ describe("stageLabel", () => {
     expect(stageLabel("aws-login")).toBe("AWS Login");
     expect(stageLabel("terraform-plan")).toBe("Terraform Plan");
     expect(stageLabel("something-new")).toBe("something-new");
+  });
+});
+
+describe("terminal color schemes", () => {
+  it("provides coordinated light and dark terminal palettes", () => {
+    expect(TERMINAL_THEME.light.background).toBe(TERMINAL_COLORS.light.panel);
+    expect(TERMINAL_THEME.light.foreground).toBe(TERMINAL_COLORS.light.text);
+    expect(TERMINAL_THEME.dark.background).toBe(TERMINAL_COLORS.dark.panel);
+    expect(TERMINAL_THEME.dark.foreground).toBe(TERMINAL_COLORS.dark.text);
+    expect(TERMINAL_COLORS.light.panel).not.toBe(TERMINAL_COLORS.dark.panel);
   });
 });

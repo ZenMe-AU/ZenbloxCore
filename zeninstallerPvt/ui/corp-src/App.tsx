@@ -387,30 +387,26 @@ function AppDashboard() {
             </CardIntro>
           </Box>
 
-          <Box component="section" aria-labelledby="deployment-steps-heading" sx={{ ...groupSx, mt: 3 }}>
-            <Typography id="deployment-steps-heading" component="h2" variant="h2" sx={{ gridColumn: "1 / -1" }}>
-              Deployment steps
-            </Typography>
-            <Box sx={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr auto" }, alignItems: "center", gap: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 1 }}>
-                <Typography variant="sectionLabel">Setup progress</Typography>
-                <Typography color="text.secondary">{completedCount} of {progressCards.length} tasks complete</Typography>
+          <Box component="section" aria-label="Deployment setup progress" sx={{ ...groupSx, mt: 3 }}>
+            <Box sx={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr", alignItems: "center", gap: 0.5, mb: 1 }}>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                <Typography component="h2" variant="sectionLabel">Deployment setup progress</Typography>
+                <Button
+                  size="small"
+                  variant="text"
+                  disabled={!nextStep}
+                  onClick={() => nextStep && openCard(nextStep.id)}
+                  sx={{ flexShrink: 0 }}
+                >
+                  {nextStep ? `Next step: ${nextStep.title}` : "All setup tasks complete"}
+                </Button>
               </Box>
               <LinearProgress
-                aria-label="Setup progress"
+                aria-label="Deployment setup progress"
                 variant="determinate"
                 value={(completedCount / progressCards.length) * 100}
                 sx={{ gridColumn: "1 / -1", height: 6, borderRadius: 3 }}
               />
-              <Button
-                size="small"
-                variant="text"
-                disabled={!nextStep}
-                onClick={() => nextStep && openCard(nextStep.id)}
-                sx={{ justifySelf: { xs: "start", sm: "end" }, gridColumn: "1 / -1" }}
-              >
-                {nextStep ? `Next step: ${nextStep.title}` : "All setup tasks complete"}
-              </Button>
             </Box>
             <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
 

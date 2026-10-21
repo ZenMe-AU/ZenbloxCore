@@ -6,6 +6,7 @@
 import { useEffect } from "react";
 import { Box, Button, CircularProgress, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { warningMessageIconSx } from "../../config/styles";
 import type { Account, CardChrome, GhEnv } from "../../types";
 import type { UseAzureAccount } from "../AzureLogin/useAzureAccount";
 import type { UseAzureSubscriptionCard } from "./useAzureSubscriptionCard";
@@ -166,7 +167,7 @@ export default function AzureSubscriptionCard({
             </Select>
           ) : subscriptionNoAccess ? (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-              <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
               <Typography color="warning.main">This tenant has no subscriptions you can access.</Typography>
             </Box>
           ) : (
@@ -197,7 +198,7 @@ export default function AzureSubscriptionCard({
           saveHint={
             subscriptionDrift ? (
               <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
+                <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                 <Typography color="warning.main">Unsaved change — save to apply.</Typography>
               </Box>
             ) : undefined

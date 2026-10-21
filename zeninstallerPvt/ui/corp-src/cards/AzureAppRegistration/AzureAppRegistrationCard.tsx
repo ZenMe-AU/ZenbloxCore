@@ -8,6 +8,7 @@ import { Box, Button, ButtonBase, Collapse, TextField, Typography } from "@mui/m
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { warningMessageIconSx } from "../../config/styles";
 import type { Account, CardChrome, GhEnv } from "../../types";
 import type { UseAzureAppRegistrationCard } from "./useAzureAppRegistrationCard";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
@@ -153,7 +154,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
             aria-live={bannerState === "error" ? "assertive" : "polite"}
           >
             {bannerState === "error" ? (
-              <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "error.main" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
             ) : (
               <CheckCircleOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main" }} />
             )}
@@ -198,7 +199,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                   role="status"
                   aria-live="polite"
                 >
-                  <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
+                  <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                   <Typography color="warning.dark">
                     This app registration doesn't exist in the selected tenant — create a new one.
                   </Typography>
@@ -220,7 +221,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                   role="status"
                   aria-live="polite"
                 >
-                  <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
+                  <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                   <Typography color="warning.dark">
                     Missing on the selected subscription: <b>{rbacMissingRoles.join(", ") || "access"}</b> — re-run to grant it.
                   </Typography>
@@ -242,7 +243,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                   role="status"
                   aria-live="polite"
                 >
-                  <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
+                  <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                   <Typography color="warning.dark">
                     AZURE_PLAN_CLIENT_ID doesn't match AZURE_CLIENT_ID — re-run to bring it back in sync.
                   </Typography>
@@ -278,7 +279,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                     </Button>
                     {varHasAny && !rbacMissing && !spNotFound && (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                        <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
+                        <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                         <Typography color="warning.main">This replaces the saved Azure app IDs for the selected GitHub environment.</Typography>
                       </Box>
                     )}

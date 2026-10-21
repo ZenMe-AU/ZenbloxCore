@@ -6,6 +6,7 @@
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { warningMessageIconSx } from "../../config/styles";
 import type { UseCreateDomainCard } from "./useCreateDomainCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
@@ -269,7 +270,7 @@ export default function CreateDomainCard({
                   </Button>
                   {!domainVerified && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                      <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
+                      <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                       <Typography color="warning.main">DNS propagation can take minutes to hours</Typography>
                     </Box>
                   )}

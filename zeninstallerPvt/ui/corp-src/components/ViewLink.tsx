@@ -31,7 +31,7 @@ export default function ViewLink({ href, label = "View" }: Props) {
         "&:hover": {
           borderColor: "divider",
           color: "text.primary",
-          background: (theme) => borderHoverTint(theme.palette.divider),
+          background: (theme) => borderHoverTint(theme.palette.divider, theme.vars.palette.background.paper),
         },
         "&.Mui-focusVisible, &.Mui-focusVisible:hover": {
           background: "transparent",

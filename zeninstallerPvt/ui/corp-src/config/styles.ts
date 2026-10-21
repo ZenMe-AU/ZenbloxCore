@@ -10,7 +10,15 @@
 
 export const MONO_FONT = { fontFamily: "monospace" } as const;
 
-export const borderHoverTint = (borderColor: string) => `color-mix(in srgb, ${borderColor} 20%, white)`;
+export const borderHoverTint = (borderColor: string, surfaceColor: string) =>
+  `color-mix(in srgb, ${borderColor} 20%, ${surfaceColor})`;
+
+export const warningMessageIconSx = {
+  fontSize: 16,
+  flexShrink: 0,
+  alignSelf: "center",
+  verticalAlign: "middle",
+} as const;
 
 // Slim "Refresh" text button used by every card that re-fetches remote state.
 export const refreshBtnSx = {

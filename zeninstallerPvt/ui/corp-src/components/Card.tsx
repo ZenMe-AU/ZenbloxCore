@@ -90,7 +90,7 @@ export default function Card({
   children,
 }: Props) {
   const theme = useTheme();
-  const colors = theme.palette.card;
+  const colors = theme.vars.palette.card;
   /*
    * locked and unavailable share the same muted chrome - the only visual
    * difference between them is the icon (padlock vs warning triangle).
@@ -113,9 +113,9 @@ export default function Card({
         gridColumn: expanded ? "1 / -1" : "auto",
         maxWidth: "100%",
         border: "1px solid",
-        borderColor: muted ? theme.palette.divider : colors.border[status],
+        borderColor: muted ? theme.vars.palette.divider : colors.border[status],
         borderRadius: theme.palette.card.radius,
-        background: muted ? colors.mutedBackground : theme.palette.background.paper,
+        background: muted ? colors.mutedBackground : theme.vars.palette.background.paper,
         overflow: "hidden",
         boxShadow: colors.shadow,
         transition: "width 0.25s ease, border-color 0.2s, background 0.2s, box-shadow 0.2s",
@@ -136,7 +136,7 @@ export default function Card({
           minHeight: 80,
           boxSizing: "border-box",
           "&:hover": {
-            background: borderHoverTint(muted ? theme.palette.divider : colors.border[status]),
+            background: borderHoverTint(muted ? theme.palette.divider : colors.border[status], theme.vars.palette.background.paper),
           },
         }}
       >
@@ -174,7 +174,7 @@ export default function Card({
                   display: "block",
                   typography: "body1",
                   fontWeight: 600,
-                  color: muted ? colors.mutedText : theme.palette.text.primary,
+                  color: muted ? colors.mutedText : theme.vars.palette.text.primary,
                   letterSpacing: 0,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
@@ -259,14 +259,14 @@ export default function Card({
                   px: 1.75,
                   py: 1.5,
                   background: colors.requirementPanel,
-                  border: `1px solid ${theme.palette.divider}`,
+                  border: `1px solid ${theme.vars.palette.divider}`,
                   borderRadius: "8px",
                 }}
               >
                 <Typography
                   sx={{
                     typography: "body1",
-                    color: theme.palette.text.secondary,
+                    color: theme.vars.palette.text.secondary,
                   }}
                 >
                   Complete these setup steps first. Select a step to open its card.

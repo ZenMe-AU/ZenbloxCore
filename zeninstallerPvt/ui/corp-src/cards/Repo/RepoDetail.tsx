@@ -18,6 +18,7 @@ import type { Account, Repo, RepoOption } from "../../types";
 import RefreshButton from "../../components/RefreshButton";
 import ErrorText from "../../components/ErrorText";
 import { useRefreshIndicator } from "../../hooks/util/useRefreshIndicator";
+import { warningMessageIconSx } from "../../config/styles";
 
 // ─── Template status badge ────────────────────────────────────────────────────
 
@@ -287,7 +288,7 @@ export default function RepoDetail({
           role="status"
           aria-live="polite"
         >
-          <WarningAmberIcon aria-hidden="true" sx={{ typography: "body1", color: "warning.light", flexShrink: 0 }} />
+          <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.light" }} />
           <Typography color="warning.light">
             This repo is not a clone of the template. Only repos cloned from{" "}
             <Box component="span" sx={{ typography: "technicalBody", fontWeight: 600 }}>
@@ -400,7 +401,7 @@ export default function RepoDetail({
               role="status"
               aria-live="polite"
             >
-              <WarningAmberIcon aria-hidden="true" sx={{ typography: "body2", color: "warning.light" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.light" }} />
               <Typography color="warning.light">{cloneEnvWarning}</Typography>
             </Box>
           )}

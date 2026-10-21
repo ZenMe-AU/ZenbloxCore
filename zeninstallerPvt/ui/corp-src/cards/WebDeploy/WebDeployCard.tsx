@@ -16,6 +16,7 @@ import StatusText from "../../components/StatusText";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import CloudVariableDetail from "../CloudVariableDetail";
 import { FRONTEND_VARIABLE_KEYS } from "../../logic/variables";
+import { warningMessageIconSx } from "../../config/styles";
 import { GITHUB_OAUTH_DOC } from "./config";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import type { Account, GhEnv } from "../../types";
@@ -100,7 +101,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
 
         {staleVariables.length > 0 && (
           <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <WarningAmberIcon aria-hidden="true" sx={{ typography: "body2", color: "warning.main" }} />
+            <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
             <Typography color="warning.dark">
               Changed since the last build: {staleVariables.join(", ")} — build again to pick them up.
             </Typography>
@@ -109,7 +110,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
 
         {missingGithubClientId && (
           <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <WarningAmberIcon aria-hidden="true" sx={{ typography: "body2", color: "warning.main" }} />
+            <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
             <Typography color="warning.dark">
               Set VITE_GITHUB_CLIENT_ID on this environment first — the build bakes it in.
             </Typography>
@@ -203,7 +204,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
 
           {!loadingLatest && updateAvailable && deployed && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <WarningAmberIcon aria-hidden="true" sx={{ typography: "body2", color: "warning.main" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
               <Typography color="warning.dark">Ready to deploy the new build</Typography>
             </Box>
           )}

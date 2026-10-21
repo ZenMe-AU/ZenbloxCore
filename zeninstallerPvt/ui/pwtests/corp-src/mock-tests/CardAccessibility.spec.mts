@@ -41,7 +41,15 @@ test.describe("Installer accessibility", () => {
   test("progress summary identifies and opens the next available card", async ({ page }) => {
     await page.goto(CORP_URL);
 
-    await expect(page.getByText("0 of 20 tasks complete")).toBeVisible();
+    const progressLabel = page.getByText("Deployment setup progress", { exact: true });
+    await expect(progressLabel).toBeVisible();
+    await expect(page.getByText("Deployment steps", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("0 of 20 tasks complete", { exact: true })).toHaveCount(0);
+    const progressHeader = progressLabel.locator("..");
+    await expect(progressHeader).toHaveCSS("display", "flex");
+    await expect(progressHeader.getByRole("button", { name: "Next step: GitHub login" })).toBeVisible();
+    await expect(progressHeader.locator("..")).toHaveCSS("margin-bottom", "8px");
+    await expect(page.getByRole("progressbar", { name: "Deployment setup progress" })).toBeVisible();
     const intro = page.locator("#installer-intro");
     const footer = page.locator("footer > div");
     await expect(intro).toHaveCSS("background-color", "rgb(255, 255, 255)");
@@ -53,6 +61,28 @@ test.describe("Installer accessibility", () => {
     await expect(nextStep).toBeVisible();
     await nextStep.click();
     await expect(page.locator("#card-github_login h3 button")).toHaveAttribute("aria-expanded", "true");
+  });
+
+  test("day and night modes toggle and persist after reload", async ({ page }) => {
+    await page.goto(CORP_URL);
+
+    const dayToggle = page.getByRole("button", { name: "Switch to night mode" });
+    await expect(dayToggle).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(248, 250, 252)");
+    await expect(page.locator("#card-github_login")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+
+    await dayToggle.click();
+    await expect(page.getByRole("button", { name: "Switch to day mode" })).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(18, 26, 29)");
+    await expect(page.locator("#card-github_login")).toHaveCSS("background-color", "rgb(27, 38, 41)");
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole("tooltip")).toBeHidden();
+    await expectAxeClean(page, "night mode page");
+
+    await page.reload();
+    await expect(page.getByRole("button", { name: "Switch to day mode" })).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(18, 26, 29)");
+    await expect(page.locator("#card-github_login")).toHaveCSS("background-color", "rgb(27, 38, 41)");
   });
 
   test("footer shortcuts dialog lists keys, closes with Escape, and restores focus", async ({ page }) => {
@@ -119,6 +149,7 @@ test.describe("Installer accessibility", () => {
     await page.setViewportSize({ width: 320, height: 720 });
     await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "active" });
     await page.goto(CORP_URL);
+    await expect(page.getByRole("button", { name: "Switch to night mode" })).toBeVisible();
 
     const layout = await page.evaluate(() => {
       const card = document.getElementById("card-github_login");

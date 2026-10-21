@@ -4,10 +4,11 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useColorScheme } from "@mui/material/styles";
 import { Terminal } from "@xterm/xterm";
 import { triggerRemoteLogin } from "../../api";
 import { deleteSession, negotiateSession, registerSession } from "../../api/backend";
-import { TERMINAL_COLS, TERMINAL_ROWS, TERMINAL_THEME } from "../../config/remoteTerminal";
+import { TERMINAL_COLS, TERMINAL_ROWS, TERMINAL_THEME, type TerminalMode } from "../../config/remoteTerminal";
 import { createSessionCredentials, parseSocketEvent, parseWebPubSubUrl } from "../../logic/remoteTerminal";
 import type { Cloud, RunnerMessage, SessionCredentials, TerminalStatus } from "../../logic/remoteTerminal";
 import type { Account, GhEnv } from "../../types";
@@ -40,6 +41,8 @@ export function useRemoteTerminal(opts: {
   planRunId: string | undefined;
   selectedEnv: GhEnv | null;
 }): UseRemoteTerminal {
+  const { mode } = useColorScheme();
+  const terminalMode: TerminalMode = mode === "dark" ? "dark" : "light";
   const optsRef = useRef(opts);
   useLayoutEffect(() => {
     optsRef.current = opts;
@@ -55,6 +58,7 @@ export function useRemoteTerminal(opts: {
   const [error, setError] = useState<string | null>(null);
 
   const termRef = useRef<Terminal | null>(null);
+  const terminalModeRef = useRef<TerminalMode>(terminalMode);
   const wsRef = useRef<WebSocket | null>(null);
   const credsRef = useRef<SessionCredentials | null>(null);
   const stoppedRef = useRef(true);
@@ -62,6 +66,11 @@ export function useRemoteTerminal(opts: {
   const attemptsRef = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connectRef = useRef<() => Promise<void>>(async () => {});
+
+  useLayoutEffect(() => {
+    terminalModeRef.current = terminalMode;
+    if (termRef.current) termRef.current.options.theme = TERMINAL_THEME[terminalMode];
+  }, [terminalMode]);
 
   const sendToGroup = useCallback((payload: object) => {
     const ws = wsRef.current;
@@ -277,7 +286,7 @@ export function useRemoteTerminal(opts: {
       fontSize: 12,
       cursorBlink: true,
       scrollback: 5000,
-      theme: TERMINAL_THEME,
+      theme: TERMINAL_THEME[terminalModeRef.current],
     });
     term.onData((data) => sendToGroup({ type: "input", data }));
     termRef.current = term;

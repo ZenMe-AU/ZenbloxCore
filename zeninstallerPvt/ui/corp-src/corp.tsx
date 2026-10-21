@@ -18,7 +18,14 @@ rootElement.style.setProperty("--card-w-expanded", `${EXPANDED_W}px`);
 
 createRoot(rootElement).render(
   <StrictMode>
-    <ThemeProvider theme={theme}>
+    <ThemeProvider
+      theme={theme}
+      defaultMode="dark"
+      modeStorageKey="zeninstaller-corp-mode"
+      colorSchemeStorageKey="zeninstaller-corp-color-scheme"
+      disableTransitionOnChange
+      forceThemeRerender
+    >
       <CssBaseline />
       <App />
     </ThemeProvider>

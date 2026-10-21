@@ -6,6 +6,7 @@
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { warningMessageIconSx } from "../../config/styles";
 import type { UseBackendDeployCard } from "./useBackendDeployCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
@@ -122,7 +123,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
 
           {!loadingLatest && updateAvailable && deployed && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
               <Typography color="warning.dark">Ready to deploy the new build</Typography>
             </Box>
           )}

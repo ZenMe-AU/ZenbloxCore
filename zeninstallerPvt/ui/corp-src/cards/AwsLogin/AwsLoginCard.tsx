@@ -14,6 +14,7 @@ import ExternalLink from "../../components/ExternalLink";
 import ViewLink from "../../components/ViewLink";
 import { getAwsConsoleUrl } from "./consoleUrls";
 import { CLOUD_DOCS } from "./docsConfig";
+import { warningMessageIconSx } from "../../config/styles";
 import type { UseAwsLoginCard } from "./useAwsLoginCard";
 import type { CardChrome } from "../../types";
 
@@ -202,7 +203,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
 
         {fidoOnly && (
           <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "flex-start", gap: 0.75, maxWidth: 420 }}>
-            <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", mt: "2px" }} />
+            <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
             <Typography color="warning.dark" sx={{ lineHeight: 1.6 }}>
               Your only MFA is a security key (FIDO), which AWS can't use for CLI/API sign-in. We'll continue without MFA — if your account requires MFA,
               register an authenticator-app (TOTP) device or use access keys that don't enforce MFA.

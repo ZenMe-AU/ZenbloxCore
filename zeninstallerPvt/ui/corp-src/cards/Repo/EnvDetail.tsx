@@ -16,6 +16,7 @@ import { useRefreshIndicator } from "../../hooks/util/useRefreshIndicator";
 import { getEnvironmentsUrl, getEnvSettingsUrl } from "../../logic/github";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
+import { warningMessageIconSx } from "../../config/styles";
 import StatusText from "../../components/StatusText";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -181,7 +182,7 @@ export default function EnvDetail({
       {/* Branch match warning */}
       {branchMatchWarning && (
         <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
-          <WarningAmberIcon aria-hidden="true" sx={{ typography: "body2", color: "warning.main", flexShrink: 0 }} />
+          <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
           <Typography color="warning.main">{branchMatchWarning}</Typography>
         </Box>
       )}

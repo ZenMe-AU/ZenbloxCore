@@ -376,10 +376,12 @@ async function prepareCoreInfraCard(
 }
 
 async function openCoreInfraCard(card: import("@playwright/test").Locator) {
-  await expect(card.getByText("Terraform state backend", { exact: true })).toBeVisible();
-  if (await card.locator('svg[data-testid="ExpandMoreIcon"]').count()) {
-    await card.getByText("Terraform state backend", { exact: true }).click();
+  const header = card.getByRole("button", { name: /^Terraform state backend/ });
+  await expect(header).toBeVisible();
+  if ((await header.getAttribute("aria-expanded")) !== "true") {
+    await header.click();
   }
+  await expect(header).toHaveAttribute("aria-expanded", "true");
   await expect(card.getByText("Company short code", { exact: true })).toBeVisible();
 }
 

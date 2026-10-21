@@ -12,6 +12,7 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { warningMessageIconSx } from "../../config/styles";
 import Card from "../../components/Card";
 import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
@@ -145,7 +146,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
             }}
           >
             {bannerState === "error" ? (
-              <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "error.light" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.light" }} />
             ) : (
               <CheckCircleOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main" }} />
             )}
@@ -187,7 +188,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
               </Button>
               {varHasAny && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
+                  <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                   <Typography color="warning.main">
                     This replaces the saved AWS role ARN for this GitHub environment. The role will have AdministratorAccess; if it already exists, its GitHub
                     trust policy will be updated.

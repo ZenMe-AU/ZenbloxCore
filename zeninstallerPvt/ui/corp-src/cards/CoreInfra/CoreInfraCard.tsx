@@ -8,6 +8,7 @@ import { Box, Button, CircularProgress, IconButton, MenuItem, Select, TextField,
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { warningMessageIconSx } from "../../config/styles";
 import type { UseCoreInfraCard } from "./useCoreInfraCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
@@ -150,7 +151,7 @@ export default function CoreInfraCard({
             role="status"
             aria-live="polite"
           >
-            <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
+            <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
             <Typography color="warning.dark">
               The resource group doesn't exist in the selected subscription anymore — re-run to recreate it.
             </Typography>
@@ -172,7 +173,7 @@ export default function CoreInfraCard({
             role="status"
             aria-live="polite"
           >
-            <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
+            <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
             <Typography color="warning.dark">GitHub Actions has no access on the resource group — re-run to grant it.</Typography>
           </Box>
         )}
