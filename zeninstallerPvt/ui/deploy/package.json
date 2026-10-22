@@ -16,5 +16,8 @@
     "@azure/identity": "^4.13.1",
     "@azure/keyvault-secrets": "^4.11.1",
     "dotenv": "^16.0.0"
+  },
+  "engines": {
+    "node": "^24.22.1"
   }
 }
