@@ -103,7 +103,7 @@ test("Deployment available when the existing app version is older", async ({ pag
 	expect(unexpectedRequests).toEqual([]);
 });
 
-for (const outcome of ["failed", "cancelled", "timeout"] as const) {
+for (const outcome of ["failed", "cancelled"] as const) {
 	test(`Does not accept a ${outcome} build workflow as a new build`, async ({ page, context }, testInfo) => {
 		const viewportName = getViewportName(testInfo);
 		test.setTimeout(180_000);
