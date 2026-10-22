@@ -10,6 +10,7 @@ import { type CardChrome, type CardHook, type CardId } from "./types";
 import { groupSx, EXPANDED_W } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./cards/GithubLogin/useGithubLoginCard";
+import { useGithubSignupCard } from "./cards/GithubSignup/useGithubSignupCard";
 import { useRepoCard } from "./cards/Repo/useRepoCard";
 import { useGithubVariables } from "./hooks/useGithubVariables";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
@@ -31,6 +32,7 @@ import { useAwsSetupCard } from "./cards/AwsSetup/useAwsSetupCard";
 import Header from "./components/Header";
 import RestoreToast from "./components/RestoreToast";
 import GithubLoginCard from "./cards/GithubLogin/GithubLoginCard";
+import GithubSignupCard from "./cards/GithubSignup/GithubSignupCard";
 import RepoCard from "./cards/Repo/RepoCard";
 import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
@@ -65,6 +67,7 @@ function AppDashboard() {
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const githubLogin = addCard(useGithubLoginCard());
+  const githubSignup = addCard(useGithubSignupCard(githubLogin.done));
 
   const githubRepoEnv = addCard(
     useRepoCard({
@@ -326,6 +329,8 @@ function AppDashboard() {
           </Box>
 
           <Box sx={groupSx}>
+            <GithubSignupCard card={cardProps("github_signup")} signup={githubSignup} onOpenLogin={() => openCard("github_login")} />
+
             <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
 
             <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
