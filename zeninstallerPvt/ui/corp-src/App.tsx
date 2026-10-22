@@ -390,7 +390,7 @@ function AppDashboard() {
             </CardIntro>
           </Box>
 
-          <Box>
+          <Box sx={groupSx}>
             <Box component="section" aria-label="Deployment setup progress" sx={{ ...groupSx, mt: 3 }}>
               <Box sx={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr", alignItems: "center", gap: 0.5, mb: 1 }}>
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
