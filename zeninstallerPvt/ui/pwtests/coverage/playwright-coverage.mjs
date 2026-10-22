@@ -6,14 +6,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { convert } from "ast-v8-to-istanbul";
-import { parseAstAsync } from "vite";
-import coverageLib from "istanbul-lib-coverage";
-import reportLib from "istanbul-lib-report";
-import reports from "istanbul-reports";
-
-const { createCoverageMap } = coverageLib;
-const { createContext } = reportLib;
+import MCR from "monocart-coverage-reports";
 
 const webDir = resolve(".");
 
@@ -48,8 +41,8 @@ function sourcePathFromUrl(url, sourceRoot) {
   return sourcePath;
 }
 
-async function addV8Coverage(entries, coverageMap, sourceRoot) {
-  let converted = 0;
+function getApplicationCoverage(entries, sourceRoot) {
+  const coverage = [];
   for (const entry of entries) {
     if (!entry.source || !entry.url) continue;
     let url;
@@ -63,56 +56,42 @@ async function addV8Coverage(entries, coverageMap, sourceRoot) {
     const sourcePath = sourcePathFromUrl(url, sourceRoot);
     if (!sourcePath) continue;
     if (sourcePath.split(/[\\/]/).some((segment) => segment.toLowerCase() === "node_modules")) continue;
-    const istanbulData = await convert({
-      ast: await parseAstAsync(entry.source),
-      code: entry.source,
-      wrapperLength: 0,
-      coverage: {
-        scriptId: entry.scriptId,
-        url: pathToFileURL(sourcePath).href,
-        functions: entry.functions,
-      },
+    coverage.push({
+      ...entry,
+      url: pathToFileURL(sourcePath).href,
     });
-    coverageMap.merge(istanbulData);
-    converted++;
   }
-  return converted;
-}
-
-function writeLcovReport(coverageMap, reportDirectory) {
-  const context = createContext({
-    dir: reportDirectory,
-    coverageMap,
-  });
-  reports.create("lcovonly").execute(context);
+  return coverage;
 }
 
 export async function generateCoverageReports(resultsDirectory, sourceRoot = webDir) {
   const resultsDir = resolve(resultsDirectory);
-  const aggregateMap = createCoverageMap({});
-  let aggregateConverted = 0;
+  const aggregateCoverage = [];
   for await (const file of findCoverageFiles(resultsDir)) {
     const entries = JSON.parse(await readFile(file, "utf8"));
-    const testCoverageMap = createCoverageMap({});
-    const testConverted = await addV8Coverage(entries, testCoverageMap, sourceRoot);
-    if (testConverted > 0) {
-      writeLcovReport(testCoverageMap, resolve(dirname(file), "coverage-report"));
-      aggregateMap.merge(testCoverageMap);
-      aggregateConverted += testConverted;
-    }
+    aggregateCoverage.push(...getApplicationCoverage(entries, sourceRoot));
   }
-  if (aggregateConverted === 0) {
+  if (aggregateCoverage.length === 0) {
     console.log("No application coverage was collected in this run.");
     return;
   }
+
   const aggregateReportDirectory = resolve(resultsDir, "coverage-report");
-  writeLcovReport(aggregateMap, aggregateReportDirectory);
-  reports.create("text-summary").execute(createContext({
-    dir: aggregateReportDirectory,
-    coverageMap: aggregateMap,
-  }));
-  console.log(`Coverage report: ${join(aggregateReportDirectory, "lcov.info")}`);
-  console.log("Per-test coverage reports are saved in each test-result directory.");
+  const workspaceRoot = resolve(sourceRoot, "../..");
+  const report = MCR({
+    name: "Playwright Coverage",
+    baseDir: workspaceRoot,
+    outputDir: aggregateReportDirectory,
+    reports: ["v8-json"],
+    sourcePath: (sourcePath, { url, distFile }) => {
+      if (!distFile || URL.canParse(url) || isAbsolute(url)) return sourcePath;
+      // Vite source-map filenames are relative to the captured script, not cwd.
+      return relative(workspaceRoot, resolve(workspaceRoot, dirname(distFile), url)).replace(/\\/g, "/");
+    },
+  });
+  await report.add(aggregateCoverage);
+  await report.generate();
+  console.log(`Coverage report: ${join(aggregateReportDirectory, "coverage-report.json")}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
