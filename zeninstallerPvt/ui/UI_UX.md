@@ -22,13 +22,13 @@ There is no wizard or global navigation; a completion summary and next-action cu
 
 ```mermaid
 flowchart TB
-  subgraph Page["Page (min-height 100vh, bg #f8fafc)"]
+  subgraph Page["Page (min-height 100vh; dark by default, persisted light/dark scheme)"]
     Skip["Skip link (visible on focus)"]
-    Header["header: ZB mark + h1 (document.title)"]
+    Header["header: ZB mark + h1 (document.title) + color-scheme toggle"]
     subgraph Main["main#main-content (max-width 1280px)"]
       Intro["Intro panel: prerequisites ol + GoDaddy link"]
-      Progress["Setup progress: completed / 20 + next available card"]
-      subgraph Section["section aria-labelledby: h2 'Deployment steps'"]
+      subgraph Section["section aria-label: 'Deployment setup progress'"]
+        Progress["Determinate progress bar for 20 tasks + next available card"]
         Grid["Card grid: auto-fit, min 360px, gap 12px"]
       end
     end
@@ -41,11 +41,10 @@ flowchart TB
 | Region | Component | Notes |
 |---|---|---|
 | Skip link | `Link.visually-hidden.skip-link` in [App.tsx](corp-src/App.tsx) | Revealed on `:focus-visible` by [App.css](corp-src/App.css); targets `#main-content` (`tabIndex=-1`). |
-| Header | [Header.tsx](corp-src/components/Header.tsx) | 28px gradient "ZB" mark plus the single page `h1`, whose text is `document.title`. |
+| Header | [Header.tsx](corp-src/components/Header.tsx) | 28px gradient "ZB" mark, the single page `h1` (`document.title`), and a labelled dark/light scheme toggle. Dark is the default; MUI persists the selection. |
 | Intro | inline in `App.tsx` + [CardIntro](corp-src/components/CardIntro.tsx) | Ordered list of prerequisites (personal email, org/domain name) with a secure `ExternalLink` to GoDaddy. |
-| Progress | inline in `App.tsx` | Determinate count/bar for the 20 rendered tasks plus a button that opens and scrolls to the first incomplete, unlocked card. |
-| Card grid | `groupSx` in [config/cardLayout.ts](corp-src/config/cardLayout.ts) | `repeat(auto-fit, minmax(min(100%, 360px), 1fr))`; expanded cards span `1 / -1`. |
-| Footer | [Footer.tsx](corp-src/components/Footer.tsx) | Shortcut help dialog (`?` opens outside editable fields), Contact (placeholder), Policies, Support. |
+| Progress and card grid | inline in `App.tsx` / `groupSx` in [config/cardLayout.ts](corp-src/config/cardLayout.ts) | One section named "Deployment setup progress" contains a determinate bar for the 20 rendered tasks and a next-step button, followed by the auto-fitting card grid. It does not display a numeric completion count or a separate "Deployment steps" heading. Expanded cards span `1 / -1`. |
+| Footer | [Footer.tsx](corp-src/components/Footer.tsx) | Shortcut help dialog (`?` opens outside editable fields), Contact (placeholder), Privacy policy, Terms of use (placeholder), and Support documentation. |
 | Restore toast | [RestoreToast.tsx](corp-src/components/RestoreToast.tsx) | Polite `status` while restoring URL state; dismissible warning when a value cannot be restored. |
 
 Responsive behaviour is intrinsic to the grid (3 to 2 to 1 columns as width shrinks) plus `xs`/`sm` MUI breakpoints for padding and for hiding button text labels (`RefreshButton`, `SaveButton`, `ViewLink`; the accessible name is kept).
@@ -108,7 +107,7 @@ classDiagram
 | `unavailable` | Misconfigured (missing env var) | divider, muted | warning triangle (grey) | `#64748b` |
 | *locked* (overlay) | Prerequisites unmet | divider, muted bg `#f8fafc` | block glyph (grey) | none shown |
 
-Locked and unavailable share the same muted chrome; only the glyph differs. An unavailable card still shows its summary (it is the error message) and `ConfigErrorNotice`.
+The values in this table describe the light scheme. The dark scheme has corresponding status colors in the theme. Locked and unavailable share the same muted chrome; only the glyph differs. An unavailable card still shows its summary (it is the error message) and `ConfigErrorNotice`.
 
 ```mermaid
 stateDiagram-v2
@@ -392,7 +391,7 @@ Source of truth: [theme.ts](corp-src/theme.ts) (MUI theme, CSS variables) and [A
 | `background` default / paper | `#f8fafc` / `#ffffff` | page / surfaces |
 | `card.*` | per-status border, icon, dark-contrast summary; muted bg `#f8fafc`; muted text `#94a3b8`; radius 10px; shadows | card chrome (typed `theme.palette.card`) |
 
-Visual language: light, slate neutrals, blue brand accent; status carried by a coloured 1px border plus glyph plus text.
+Visual language: selectable light or dark slate-neutral schemes with a blue brand accent; dark is the default and the user's choice persists. Status is carried by a coloured 1px border, glyph, and text. The palette table above lists light-scheme values; `theme.ts` defines both schemes.
 
 ### 7.2 Typography
 
@@ -431,7 +430,7 @@ ESLint ([eslint.config.js](eslint.config.js)): recommended `jsx-a11y`; `no-restr
 
 | Area | Implementation |
 |---|---|
-| Landmarks / headings | skip link, `header`, `main`, `footer`; one `h1`; `h2` "Deployment steps" and "Help & information"; cards are `h3` |
+| Landmarks / headings | skip link, `header`, `main`, `footer`; one `h1`; `h2` "Deployment setup progress" and "Help & information"; cards are `h3` |
 | Keyboard | native `button`/`a`/inputs only; title and chevron are separate tab stops; Enter/Space toggle; requirement rows are buttons |
 | Focus | global `:focus-visible` (2px blue + halo) and explicit card focus styles; skip link focus reveal |
 | Names | toggle name = visible title + summary + hidden status ("Locked" wins); icon-only buttons labelled; new-tab links announce "(opens in new tab)"; inputs tied to `FieldLabel` |
@@ -440,7 +439,7 @@ ESLint ([eslint.config.js](eslint.config.js)): recommended `jsx-a11y`; `no-restr
 | Reflow | fluid grid; automated check at 320px |
 | Colour independence | status always has text (summary, hidden status, pill text), not colour alone |
 | Privacy | opt-in blur for `data-sensitive` content; secrets masked by default |
-| Automated tests | `@axe-core/playwright` scans (collapsed, expanded, locked), card-height/accessibility-name regression, footer shortcut dialog checks, and Tab/Enter/Space sweep in [CardAccessibility.spec.mts](pwtests/corp-src/mock-tests/CardAccessibility.spec.mts); forced-colors and reduced-motion emulation |
+| Automated tests | `@axe-core/playwright` scans (collapsed, expanded, locked), card-height/accessibility-name regression, dark/light toggle and persistence, footer shortcut dialog checks, and Tab/Enter/Space sweep in [CardAccessibility.spec.mts](pwtests/corp-src/mock-tests/CardAccessibility.spec.mts); 320px reflow, forced-colors and reduced-motion emulation |
 | Shortcuts | `?` opens footer help when focus is outside input, textarea, select, and contenteditable controls; Escape closes the modal; other listed keys use native control behavior |
 
 The footer dialog lists the supported behavior: `?` opens help; Tab/Shift+Tab moves focus; Enter/Space activates a focused button; Enter follows a focused link or runs a focused control's supported action; Escape closes the dialog. The `?` handler ignores Ctrl/Meta/Alt combinations and editable targets.
@@ -467,14 +466,14 @@ Observed from source review; none of these have been confirmed with assistive te
 | 4 | Medium | Status text used `success.main`, `warning.main`, and `error.light`, which fall short of 4.5:1 on white. | Resolved: status summaries and text use dark shades; lighter shades remain on icons, borders and backgrounds. |
 | 5 | Medium | `StepRow` conveys state by icon only (no `aria-hidden`, no text), so progress state is invisible to screen readers. | Add hidden status text per row and a `role=status` summary. |
 | 6 | Low | `ConfigErrorNotice` has no `role`; the message is only exposed when the card is opened. | Add `role="alert"`/`status` or reference it from the summary. |
-| 7 | Low | Card titles are single-line ellipsis with the full text only in a `title` attribute (not touch/keyboard friendly). | Allow wrapping, or accept since the accessible name contains the full title. |
+| 7 | Low | Card titles use single-line ellipsis, which can hide text visually on touch screens. | Resolved for assistive technology: the full title and summary remain in the toggle's accessible name and in `title` attributes. Visual truncation remains intentional to keep card headers aligned. |
 | 8 | Low | Header "ZB" mark is read as text before the `h1`; the `h1` text is `document.title`, so it depends on `index.html`. | Mark the logo `aria-hidden`; keep the title static in the header or assert it in a test. |
 | 9 | Low | Expanding a card makes it span the full grid width and reflows neighbours, which can shift focus position and context. | Keep the existing scroll-into-view, and consider restoring focus/scroll after toggle. |
 | 10 | Low | The page had no overall progress indicator or recommended-next-step cue. | Resolved: the page reports completed tasks out of 20 and provides a button to open the first incomplete, unlocked card. |
 | 11 | Low | Footer Contact and Terms content are placeholders. | Provide content or remove the entry points before release. Keyboard shortcuts help is now implemented. |
 | 12 | Low | Icons are sized via `typography: "caption"` (about 12px), and `IconButton size="small"` targets are about 30px. | Acceptable for WCAG 2.2 AA (24px), but consider larger targets on touch. |
 | 13 | Info | `GlobalGroupsCard` is built, tested and unused in `App.tsx`. | Remove or render it. |
-| 14 | Info | Disabled primary buttons (`#cbd5e1` on `#f1f5f9`) are very faint; exempt from contrast rules but hard to see as buttons. | Add a border or lighter-weight outline style. |
+| 14 | Info | Disabled primary buttons in the light scheme (`#cbd5e1` on `#f1f5f9`) are very faint; exempt from contrast rules but hard to see as buttons. | Add a border or lighter-weight outline style. |
 | 15 | Info | Destructive actions (sign-out, end session) are one click with no confirmation. | Consider confirmation where state is lost. |
 
 ---
