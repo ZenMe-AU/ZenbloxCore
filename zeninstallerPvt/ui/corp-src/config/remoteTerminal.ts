@@ -9,28 +9,55 @@ export const REMOTE_TERMINAL_TTL_SECONDS = 1800;
 export const TERMINAL_COLS = 120;
 export const TERMINAL_ROWS = 24;
 
+export type TerminalMode = "light" | "dark";
+
 export const TERMINAL_COLORS = {
-  panel: "#1e1e2e",
-  header: "#181825",
-  border: "#313244",
-  text: "#cdd6f4",
-  muted: "#6c7086",
-  accent: "#89b4fa",
-  green: "#a6e3a1",
-  yellow: "#f9e2af",
-  red: "#f38ba8",
-  // Catppuccin surface1 — the raised state, used for button hovers and the xterm selection alike.
-  surface: "#45475a",
-  accentHover: "#74a0fc",
-  successBg: "#1e3a1e",
+  light: {
+    panel: "#f8fafc",
+    header: "#eef3f4",
+    border: "#cbd5d8",
+    text: "#1c2b30",
+    muted: "#5e7075",
+    accent: "#2563eb",
+    green: "#15803d",
+    yellow: "#a16207",
+    red: "#b91c1c",
+    surface: "#dce5e7",
+    accentHover: "#1d4ed8",
+    successBg: "#ecfdf3",
+  },
+  dark: {
+    panel: "#1e1e2e",
+    header: "#181825",
+    border: "#313244",
+    text: "#cdd6f4",
+    muted: "#a6adc8",
+    accent: "#89b4fa",
+    green: "#a6e3a1",
+    yellow: "#f9e2af",
+    red: "#f38ba8",
+    surface: "#45475a",
+    accentHover: "#74a0fc",
+    successBg: "#1e3a1e",
+  },
 } as const;
+
+export type TerminalColors = (typeof TERMINAL_COLORS)[TerminalMode];
 
 // The subset xterm takes, derived rather than restated.
 export const TERMINAL_THEME = {
-  background: TERMINAL_COLORS.panel,
-  foreground: TERMINAL_COLORS.text,
-  cursor: TERMINAL_COLORS.accent,
-  selectionBackground: TERMINAL_COLORS.surface,
+  light: {
+    background: TERMINAL_COLORS.light.panel,
+    foreground: TERMINAL_COLORS.light.text,
+    cursor: TERMINAL_COLORS.light.accent,
+    selectionBackground: TERMINAL_COLORS.light.surface,
+  },
+  dark: {
+    background: TERMINAL_COLORS.dark.panel,
+    foreground: TERMINAL_COLORS.dark.text,
+    cursor: TERMINAL_COLORS.dark.accent,
+    selectionBackground: TERMINAL_COLORS.dark.surface,
+  },
 } as const;
 
 // The runner names the stages; these are what the card shows for them.

@@ -5,7 +5,7 @@
 
 import { Box, Button } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import { MONO as mono } from "../config/styles";
+import { borderHoverTint } from "../config/styles";
 
 type Props = {
   href: string;
@@ -17,21 +17,26 @@ export default function ViewLink({ href, label = "View" }: Props) {
     <Button
       size="small"
       variant="outlined"
-      aria-label={label}
-      endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
-      // The card header toggles collapse on click, so this must not bubble.
-      onClick={(e) => {
-        e.stopPropagation();
-        window.open(href, "_blank", "noopener,noreferrer");
-      }}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={href}
+      aria-label={`${label} (opens in new tab)`}
+      endIcon={<OpenInNewIcon sx={{ typography: "caption" }} />}
       sx={{
         flexShrink: 0,
-        borderColor: "#e2e8f0",
-        color: "#475569",
-        fontSize: "0.72rem",
+        borderColor: "divider",
+        color: "text.secondary",
         textTransform: "none",
-        ...mono,
-        "&:hover": { borderColor: "#cbd5e1", color: "#0f172a", background: "#f8fafc" },
+        "&:hover": {
+          borderColor: "divider",
+          color: "text.primary",
+          background: (theme) => borderHoverTint(theme.palette.divider, theme.vars.palette.background.paper),
+        },
+        "&.Mui-focusVisible, &.Mui-focusVisible:hover": {
+          background: "transparent",
+          boxShadow: "none",
+        },
       }}
     >
       <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>

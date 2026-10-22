@@ -19,14 +19,14 @@ export default function ConfigErrorNotice() {
         gap: 1,
         px: 1.5,
         py: 1.25,
-        background: "#fef2f2",
-        border: "1px solid #fecaca",
+        background: (theme) => `color-mix(in srgb, ${theme.palette.error.main} 6%, white)`,
+        border: (theme) => `1px solid color-mix(in srgb, ${theme.palette.error.main} 24%, white)`,
         borderRadius: "8px",
       }}
     >
-      <ErrorOutlineIcon sx={{ fontSize: 16, color: "#ef4444", flexShrink: 0, mt: "1px" }} />
-      <Typography sx={{ fontSize: "0.78rem", color: "#991b1b", lineHeight: 1.6 }}>
-        This card isn't configured correctly and can't be used right now. Contact your administrator.
+      <ErrorOutlineIcon sx={{ typography: "caption", color: "error.light", flexShrink: 0, mt: "1px" }} />
+      <Typography sx={{ typography: "body1", color: "error.dark", lineHeight: 1.6 }}>
+        This card is unavailable because a required setting is missing or invalid. Ask your ZenInstaller administrator to check the installer configuration.
       </Typography>
     </Box>
   );
