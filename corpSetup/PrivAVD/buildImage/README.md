@@ -29,8 +29,9 @@ image definition must already exist.
   dependencies, works on a born-locked PAW.
 - Winget-Repo is pinned to V2.9.2. Upgrades = new image build (monthly patch
   cycle).
-- Python 3.12.10 is installed system-wide with all 19 Winget-Repo dependencies
-  (Flask, FastAPI, cryptography, pymsix, etc.) baked at build time.
+- Python 3.12.10 is installed system-wide from the offline package set, with all
+  19 Winget-Repo dependencies (Flask, FastAPI, cryptography, pymsix, etc.)
+  baked at build time.
 - A 10-year self-signed localhost TLS certificate is generated at build time
   and trusted in the machine Root store. Every PAW gets the same cert —
   acceptable because the service is localhost-only (no network exposure).
@@ -67,6 +68,40 @@ image definition must already exist.
   127.0.0.1 only, so the default deny-all inbound is sufficient.
 - The provisioner is idempotent (safe to re-run on a test VM to validate
   before a Packer build).
+
+### Offline package set (2026-10-22)
+
+- The Winget-Repo provisioner no longer downloads anything at build time.
+  Everything it installs comes from a local package set:
+  - Source on the BUILD HOST (the machine running packer):
+    `C:\zenme\dependencies\packages` — absolute path for now; the permanent
+    home should be the repo or a network share.
+  - Uploaded by the Packer `file` provisioner to `C:\packages` on the build VM.
+  - Contents: `python-3.12.10-amd64.exe`, `V2.9.2.zip`, `requirements.txt`
+    and the CPython 3.12 / win_amd64 wheelhouse (`*.whl`, 55 packages).
+- pip runs with `--no-index --find-links C:\packages`: a missing or
+  wrong-version wheel fails the build loudly instead of silently reaching
+  the internet.
+- The wheelhouse must match the Python version installed in the image
+  (CPython 3.12). Wheels tagged cp313/cp314 will NOT install on 3.12.
+  Regenerate the wheelhouse from any machine (any Python version):
+
+  ```bash
+  uv pip compile requirements.txt --python-platform x86_64-pc-windows-msvc \
+      --python-version 3.12 --no-header -o locked.txt
+  python3 -m pip download --no-deps --only-binary=:all: --platform win_amd64 \
+      --python-version 3.12 --implementation cp --abi cp312 --abi abi3 --abi none \
+      -d . -r locked.txt
+  ```
+
+  (pip's resolver backtracks badly when cross-downloading for another
+  Python/platform — resolve with uv first, then fetch exact pins with
+  `--no-deps`.)
+- The build host needs NO Python for the build itself: only Packer + the az
+  CLI. The wheelhouse is frozen in the package set.
+- Still requires internet during the build: the `windows-update` provisioner
+  and the Microsoft-hosted AVD agent downloads. This change makes ONLY the
+  Winget-Repo step offline-capable.
 
 ### Existing decisions (pre-Winget-Repo)
 
