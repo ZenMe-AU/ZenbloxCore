@@ -1,6 +1,11 @@
 #requires -RunAsAdministrator
 # Installs Winget-Repo into the golden image as a localhost-only service.
-# Runs during the Packer build; the build VM has internet access.
+# Runs during the Packer build from a LOCAL package set (no internet):
+# the Packer "file" provisioner in paw-image.pkr.hcl uploads
+#   C:\zenme\dependencies\packages   (build host / Erv-pc)
+# to
+#   C:\packages                      (build VM)
+# before this script runs.
 # Idempotent - safe to re-run on a test VM to validate before a build.
 #
 # After this script runs, every PAW deployed from this image has:
@@ -24,6 +29,14 @@ $toolsDir = 'C:\Tools'
 $pythonExe = 'C:\Program Files\Python312\python.exe'
 $wingetRepoTag = 'V2.9.2'
 
+# Offline package set, uploaded to the build VM by the Packer "file"
+# provisioner. Contents:
+#   python-3.12.10-amd64.exe
+#   V2.9.2.zip                        (Winget-Repo source archive)
+#   requirements.txt                  (reference copy)
+#   *.whl                             (wheelhouse for CPython 3.12 / win_amd64)
+$packageDir = 'C:\packages'
+
 # Fixed client token for the winget REST API (localhost-only, baked into every
 # PAW from this image; usable only by processes already running on the PAW).
 $clientToken = '9f8e7d6c-5b4a-3c2d-1e0f-9a8b7c6d5e4f'
@@ -32,20 +45,25 @@ function Write-Step([string]$message) {
     Write-Host ">> $message" -ForegroundColor Cyan
 }
 
+Write-Step "Offline package source: $packageDir"
+if (-not (Test-Path $packageDir)) {
+    throw "Package directory not found: $packageDir (did the Packer file provisioner run?)"
+}
+
 # --- 1. Install Python 3.12 (all users, on PATH) ---
 Write-Step 'Install Python 3.12'
 if (-not (Test-Path $pythonExe)) {
-    $installer = "$env:TEMP\python-3.12.10-amd64.exe"
-    Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe' -OutFile $installer -UseBasicParsing
+    $installer = Join-Path $packageDir 'python-3.12.10-amd64.exe'
+    if (-not (Test-Path $installer)) { throw "Python installer not found: $installer" }
     $p = Start-Process -FilePath $installer -ArgumentList '/quiet','InstallAllUsers=1','PrependPath=1','Include_test=0' -Wait -PassThru
     if ($p.ExitCode -ne 0) { throw "Python installer exited $($p.ExitCode)" }
 }
 
-# --- 2. Download and install Winget-Repo (pinned version) ---
-Write-Step "Install Winget-Repo $wingetRepoTag"
+# --- 2. Install Winget-Repo from the local archive (pinned version) ---
+Write-Step "Install Winget-Repo $wingetRepoTag (local archive)"
 if (-not (Test-Path "$repoDir\main.py")) {
-    $zip = "$env:TEMP\wingetrepo.zip"
-    Invoke-WebRequest -Uri "https://github.com/dev-fYnn/Winget-Repo/archive/refs/tags/$wingetRepoTag.zip" -OutFile $zip -UseBasicParsing
+    $zip = Join-Path $packageDir "$wingetRepoTag.zip"
+    if (-not (Test-Path $zip)) { throw "Winget-Repo archive not found: $zip" }
     Expand-Archive -Path $zip -DestinationPath "$env:TEMP\wr-extract" -Force
     $inner = Get-ChildItem "$env:TEMP\wr-extract" -Directory | Select-Object -First 1
     New-Item -ItemType Directory -Force -Path $repoDir | Out-Null
@@ -53,10 +71,15 @@ if (-not (Test-Path "$repoDir\main.py")) {
 }
 if (-not (Test-Path "$repoDir\main.py")) { throw 'main.py missing after extraction' }
 
-# --- 3. Python dependencies ---
-Write-Step 'pip install requirements'
-& $pythonExe -m pip install --no-warn-script-location -r "$repoDir\requirements.txt"
-if ($LASTEXITCODE -ne 0) { throw 'pip install failed' }
+# --- 3. Python dependencies (offline wheelhouse only) ---
+Write-Step 'pip install requirements (offline wheelhouse)'
+# --no-index + --find-links: install ONLY from the uploaded wheelhouse.
+# If a wheel is missing or built for the wrong Python version, pip fails
+# loudly here instead of silently reaching the internet.
+& $pythonExe -m pip install --no-index --find-links $packageDir --no-warn-script-location -r "$repoDir\requirements.txt"
+if ($LASTEXITCODE -ne 0) {
+    throw "pip install failed from offline wheelhouse ($packageDir). Check that the wheels match CPython 3.12 / win_amd64 (cp312 or abi3 tags, not cp313/cp314)."
+}
 
 # --- 4. Generate localhost TLS certificate (10-year) ---
 Write-Step 'Generate TLS certificate'
@@ -202,6 +225,7 @@ if ($stillListening) {
 
 Write-Host ''
 Write-Host 'WINGET-REPO GOLDEN IMAGE INSTALLATION COMPLETE' -ForegroundColor Green
+Write-Host "  Package source: $packageDir (offline - no internet used)"
 Write-Host "  Service: Task Scheduler 'WingetRepo' (AtStartup, SYSTEM, localhost-only)"
 Write-Host "  Endpoint: https://localhost:5000/ (first dashboard visit = create admin)"
 Write-Host "  winget source: WingetRepo -> https://localhost:5000/api/"

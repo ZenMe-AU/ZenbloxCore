@@ -125,12 +125,24 @@ build {
     restart_timeout = "15m"
   }
 
+  # Upload the offline package set from the BUILD HOST (the machine running
+  # packer - Erv-pc) to the build VM. Absolute local source path for now;
+  # the permanent home should be the repo or a network share.
+  # Contents: python-3.12.10-amd64.exe, V2.9.2.zip, requirements.txt and the
+  # CPython 3.12 win_amd64 wheelhouse (~100 MB over WinRM; adds a few minutes).
+  provisioner "file" {
+    source      = "C:/zenme/dependencies/packages"
+    destination = "C:/packages"
+  }
+
   # Winget-Repo: installs the private winget repository into the image as a
   # localhost-only service (Task Scheduler, AtStartup, SYSTEM, ssl=true).
-  # Every deployed PAW gets Python 3.12 + Winget-Repo V2.9.2 + a 10-year
-  # localhost TLS cert + a winget source pointing at the local repo.
-  # Default winget/msstore sources are removed. The service is stopped at
-  # the end of this provisioner (before sysprep) and re-starts on first boot.
+  # Installs from the uploaded package set in C:\packages - NO internet used
+  # by this provisioner. Every deployed PAW gets Python 3.12 + Winget-Repo
+  # V2.9.2 + a 10-year localhost TLS cert + a winget source pointing at the
+  # local repo. Default winget/msstore sources are removed. The service is
+  # stopped at the end of this provisioner (before sysprep) and re-starts on
+  # first boot.
   provisioner "powershell" {
     script = "img-install-wingetrepo.ps1"
   }
