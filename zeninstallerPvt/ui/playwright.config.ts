@@ -9,7 +9,7 @@ import { defineConfig, devices } from "@playwright/test";
 import * as dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { viewports } from "./zeninstallerPvt/ui/pwtests/testInit.js";
+import { viewports } from "./pwtests/testInit.js";
 
 process.env.NODE_ENV = process.env.NODE_ENV || "dev";
 // Enable Playwright API logs for normal and coverage runs, preserving other namespaces.

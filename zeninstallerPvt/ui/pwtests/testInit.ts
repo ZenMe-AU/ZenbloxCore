@@ -22,6 +22,7 @@ export const GRAPH_APPLICATION_SCOPE = `${MICROSOFT_GRAPH_URL}/application.readw
 export const GRAPH_APP_ROLE_ASSIGNMENT_SCOPE = `${MICROSOFT_GRAPH_URL}/approleassignment.readwrite.all`;
 
 /* GITHUB_TOKEN must be configured in web/.env file due to Github commit security */
+// #TODO: make sure the subscription ID is correctly configured for the local tenant
 export const SUBSCRIPTION_ID = "Zenme Azure 1";
 
 // Repo names to be used repo creation
