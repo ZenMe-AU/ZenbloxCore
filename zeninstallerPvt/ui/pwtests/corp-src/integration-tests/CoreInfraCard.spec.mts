@@ -32,15 +32,11 @@ test("Happy path", async ({ page, context }, testInfo) => {
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
   const viewportName = getViewportName(testInfo);
-  test.skip(
-    process.env.RUN_CORE_INFRA_LIVE_PROVISIONING !== "true",
-    "Set RUN_CORE_INFRA_LIVE_PROVISIONING=true only for an approved isolated Azure subscription."
-  );
   const companyShortCode = process.env.PWTESTS_CORE_INFRA_COMPANY_CODE?.trim() ?? "";
-  test.skip(
-    !/^[a-z0-9]{3,21}$/.test(companyShortCode),
+  expect(
+    companyShortCode,
     "Set PWTESTS_CORE_INFRA_COMPANY_CODE to a unique lowercase 3-21 character code for this disposable live run."
-  );
+  ).toMatch(/^[a-z0-9]{3,21}$/);
   test.setTimeout(600_000);
   let setupAlreadyExists = false;
 
@@ -74,20 +70,19 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     }
   });
 
-  if (setupAlreadyExists) {
-    await test.step.skip("Provision the Terraform state backend", async () => {});
-  } else {
-    await test.step("Provision the Terraform state backend", async () => {
-      const card = page.locator("#card-core_infra");
-      await card.getByRole("button", { name: "Create core infrastructure" }).click();
-      await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 500_000 });
+  await test.step("Provision the Terraform state backend", async () => {
+    const card = page.locator("#card-core_infra");
+    await card.getByRole("button", {
+      name: setupAlreadyExists ? "Re-run setup" : "Create core infrastructure",
+      exact: true,
+    }).click();
+    await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 500_000 });
 
-      await expectSuccessfulSteps(card, coreInfraStepLabels(companyShortCode));
-      await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Start over button", 50_000);
-      await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
-      await expectSnapshot(page, card, testInfo, "provisioned", viewportName);
-    });
-  }
+    await expectSuccessfulSteps(card, coreInfraStepLabels(companyShortCode));
+    await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Start over button", 50_000);
+    await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
+    await expectSnapshot(page, card, testInfo, "provisioned", viewportName);
+  });
 
   await test.step("Verify the completed card state", async () => {
     let card = page.locator("#card-core_infra");

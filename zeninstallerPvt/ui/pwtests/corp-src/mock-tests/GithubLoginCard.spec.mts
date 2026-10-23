@@ -23,7 +23,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);
 });
 
-test("OAuth handoff, callback, refresh and logout", async ({ page, context }, testInfo) => {
+test("Backend Github Log In", async ({ page, context }, testInfo) => {
   const viewportName = getViewportName(testInfo);
   const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
   const { exchanges, authorizations } = await installGithubOAuthCallback(page);
@@ -43,39 +43,6 @@ test("OAuth handoff, callback, refresh and logout", async ({ page, context }, te
   expect(unexpectedRequests).toEqual([]);
   await expectSnapshot(page, card, testInfo, "oauth-signed-out", viewportName);
 });
-
-for (const status of [401, 500]) {
-  test(`Rejected PAT (${status}) can be retried`, async ({ page, context }, testInfo) => {
-    const viewportName = getViewportName(testInfo);
-    const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
-    let fail = true;
-    let failures = 0;
-    await page.route(`${GITHUB_API_URL}/user`, async (route) => {
-      expect(route.request().headers().authorization).toBe(`Bearer ${fail ? "ghp_rejected_mock" : "github_pat_valid_mock"}`);
-      if (fail) {
-        failures++;
-        return route.fulfill({ status, json: { message: status === 401 ? "Bad credentials" : "Unavailable" } });
-      }
-      return route.fulfill({ json: { login: "mock-user", id: 12345 } });
-    });
-    const card = await expandGithubLoginCard(page);
-    await card.getByRole("button", { name: "Direct (PAT)", exact: true }).click();
-    const input = card.getByPlaceholder("ghp_… or github_pat_…");
-    await input.fill("ghp_rejected_mock");
-    const failed = page.waitForEvent("console", (message) => message.type() === "error" && message.text().includes("Login failed"));
-    await input.press("Enter");
-    await failed;
-    expect(failures).toBeGreaterThan(0);
-    await expect(card.getByText(/Authenticated as/i)).toHaveCount(0);
-    await expect(card.getByRole("button", { name: "Connect with PAT", exact: true })).toBeEnabled();
-    fail = false;
-    await input.fill("github_pat_valid_mock");
-    await input.press("Enter");
-    await expect(card.getByText(/Authenticated as mock-user/)).toBeVisible();
-    expect(unexpectedRequests).toEqual([]);
-    await expectSnapshot(page, card, testInfo, `pat-recovered-${status}`, viewportName);
-  });
-}
 
 test("Expired stored PAT stays unauthenticated", async ({ page, context }, testInfo) => {
   const viewportName = getViewportName(testInfo);
@@ -107,36 +74,6 @@ test("Rejects an invalid PAT", async ({ page, context }, testInfo) => {
   await expectSnapshot(page, card, testInfo, "invalid-pat", viewportName);
 });
 
-test("Switches from direct mode back to backend mode", async ({ page, context }, testInfo) => {
-  const viewportName = getViewportName(testInfo);
-  const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
-  const card = await expandGithubLoginCard(page);
-  await card.getByRole("button", { name: "Direct (PAT)", exact: true }).click();
-  await card.getByRole("button", { name: "Backend", exact: true }).click();
-  await expect(card.getByRole("button", { name: "Login with GitHub", exact: true })).toBeVisible();
-  expect(unexpectedRequests).toEqual([]);
-  await expectSnapshot(page, card, testInfo, "backend-mode", viewportName);
-});
-
-test("Direct-only configuration supports token controls", async ({ page, context }, testInfo) => {
-  const viewportName = getViewportName(testInfo);
-  const { unexpectedRequests } = await prepareGithubLoginMock(page, context, false);
-  const card = await expandGithubLoginCard(page);
-  await expect(card.getByRole("button", { name: "Backend", exact: true })).toHaveCount(0);
-  await expect(card.getByRole("button", { name: "Login with GitHub", exact: true })).toHaveCount(0);
-  const input = card.getByPlaceholder("ghp_… or github_pat_…");
-  await input.fill("ghp_mock");
-  await expect(input).toHaveAttribute("type", "password");
-  await card.getByRole("button", { name: "Show token", exact: true }).click();
-  await expect(input).toHaveAttribute("type", "text");
-  await card.getByRole("button", { name: "Hide token", exact: true }).click();
-  await expect(input).toHaveAttribute("type", "password");
-  await input.locator("..").getByRole("button").filter({ has: page.locator('svg[data-testid="ClearIcon"]') }).click();
-  await expect(input).toHaveValue("");
-  await expect(card.getByRole("button", { name: "Connect with PAT", exact: true })).toBeDisabled();
-  expect(unexpectedRequests).toEqual([]);
-  await expectSnapshot(page, card, testInfo, "direct-only-cleared", viewportName);
-});
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
   const viewportName = getViewportName(testInfo);

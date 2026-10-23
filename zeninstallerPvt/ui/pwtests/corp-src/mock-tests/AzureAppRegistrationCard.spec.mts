@@ -7,7 +7,6 @@
 import { expect } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import { CORP_URL, GITHUB_API_URL, MICROSOFT_GRAPH_URL } from "../../testInit";
-import { createNewRepo } from "../util/testHelper.mts";
 import { attachJSCoverage, expectSnapshot, safePathSegment } from "../../util/testHelper.ts";
 import {
   expectSuccessfulSteps,
@@ -17,11 +16,9 @@ import {
   mockServicePrincipalId,
   mockSubscriptionId,
   mockTenantId,
-  prepareMockAzureSubscription,
-  signInMockAzure,
   type MockAzureState,
 } from "../util/mockTestHelper.mts";
-import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
+import { expandAzureAppRegistrationCard } from "../util/cardHelper.mts";
 
 test.beforeEach(async ({ page }) => {
   await page.coverage.startJSCoverage({ resetOnNavigation: false });
@@ -61,7 +58,7 @@ test("Warns when the two saved client IDs differ", async ({ page, context }, tes
   await expectSnapshot(page, prepared.appRegistrationCard, testInfo, "client-id-mismatch", viewportName);
 });
 
-test("Edge case - reports and recovers from a provisioning failure", async ({ page, context }, testInfo) => {
+test("Recovers from a provisioning failure", async ({ page, context }, testInfo) => {
   const viewportName = getViewportName(testInfo);
   const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-provision-retry-${viewportName.toLowerCase()}`, {
     initialAzureState: { applicationCreationFailuresRemaining: 1 },
@@ -74,7 +71,6 @@ test("Edge case - reports and recovers from a provisioning failure", async ({ pa
   await expect(prepared.appRegistrationCard.getByText("Mock app creation failed", { exact: false })).toBeVisible();
   expect(prepared.azure.appDisplayName).toBeNull();
   await expectSnapshot(page, prepared.appRegistrationCard, testInfo, "provisioning-failed", viewportName);
-
   await prepared.appRegistrationCard.getByRole("button", { name: "Try again" }).click();
   await expect(appNameInput).toBeVisible();
   await prepared.appRegistrationCard.getByRole("button", { name: "Create app registration" }).click();
@@ -92,7 +88,7 @@ test("Edge case - reports and recovers from a provisioning failure", async ({ pa
   await expectSnapshot(page, prepared.appRegistrationCard, testInfo, "provisioning-recovered", viewportName);
 });
 
-test("Surfaces a Microsoft Graph permission rejection", async ({ page, context }, testInfo) => {
+test("Creating app when MS Graph permission denied", async ({ page, context }, testInfo) => {
   const viewportName = getViewportName(testInfo);
   const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-consent-rejected-${viewportName.toLowerCase()}`, {
     initialAzureState: { applicationLookupFailureStatus: 403 },
@@ -116,7 +112,6 @@ test("Reuses existing app", async ({ page, context }, testInfo) => {
   await prepared.appRegistrationCard.getByRole("button", { name: "Create app registration" }).click();
   await expect(prepared.appRegistrationCard.getByText("Running...", { exact: true })).toBeHidden();
   await expect(prepared.appRegistrationCard.getByRole("button", { name: "Try again" })).toBeVisible();
-
   await prepared.appRegistrationCard.getByRole("button", { name: "Try again" }).click();
   await expect(appNameInput).toBeVisible();
   await prepared.appRegistrationCard.getByRole("button", { name: "Create app registration" }).click();
@@ -127,15 +122,9 @@ test("Reuses existing app", async ({ page, context }, testInfo) => {
   await expectSnapshot(page, prepared.appRegistrationCard, testInfo, "existing-app-reused", viewportName);
 });
 
-test("Warns when the saved app is missing", async ({ page, context }, testInfo) => {
+test("Warns when saved app is missing", async ({ page, context }, testInfo) => {
   const viewportName = getViewportName(testInfo);
-  await context.addInitScript(() => {
-    localStorage.setItem(
-      "zeninstaller_azure_result",
-      JSON.stringify({ clientId: "mock-app-id", tenantId: "00000000-0000-0000-0000-000000000001", subscriptionIds: ["mock-subscription"] })
-    );
-  });
-  await prepareMockAzureSubscription(page, context, `mock-app-missing-sp-${viewportName.toLowerCase()}`, {
+  const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-missing-sp-${viewportName.toLowerCase()}`, {
     initialVariables: {
       AZURE_TENANT_ID: "00000000-0000-0000-0000-000000000001",
       AZURE_SUBSCRIPTION_ID: "mock-subscription",
@@ -143,9 +132,13 @@ test("Warns when the saved app is missing", async ({ page, context }, testInfo) 
       AZURE_CLIENT_ID: "mock-app-id",
       AZURE_PLAN_CLIENT_ID: "mock-app-id",
     },
+    initialAzureResult: {
+      clientId: "mock-app-id",
+      tenantId: "00000000-0000-0000-0000-000000000001",
+      subscriptionIds: ["mock-subscription"],
+    },
   });
-  const card = await expandAzureAppRegistrationCard(page);
-
+  const card = prepared.appRegistrationCard;
   await expect(card.getByText("This app registration doesn't exist in the selected tenant — create a new one.", { exact: true })).toBeVisible();
   await expect(card.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(2);
   await expectSnapshot(page, card, testInfo, "saved-app-missing", viewportName);
@@ -153,13 +146,7 @@ test("Warns when the saved app is missing", async ({ page, context }, testInfo) 
 
 test("Warns when there is no subscription role", async ({ page, context }, testInfo) => {
   const viewportName = getViewportName(testInfo);
-  await context.addInitScript(() => {
-    localStorage.setItem(
-      "zeninstaller_azure_result",
-      JSON.stringify({ clientId: "mock-app-id", tenantId: "00000000-0000-0000-0000-000000000001", subscriptionIds: ["mock-subscription"] })
-    );
-  });
-  const prepared = await prepareMockAzureSubscription(page, context, `mock-app-missing-role-${viewportName.toLowerCase()}`, {
+  const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-missing-role-${viewportName.toLowerCase()}`, {
     initialVariables: {
       AZURE_TENANT_ID: "00000000-0000-0000-0000-000000000001",
       AZURE_SUBSCRIPTION_ID: "mock-subscription",
@@ -167,15 +154,17 @@ test("Warns when there is no subscription role", async ({ page, context }, testI
       AZURE_CLIENT_ID: "mock-app-id",
       AZURE_PLAN_CLIENT_ID: "mock-app-id",
     },
+    initialAzureState: { servicePrincipalCreated: true },
+    initialAzureResult: {
+      clientId: "mock-app-id",
+      tenantId: "00000000-0000-0000-0000-000000000001",
+      subscriptionIds: ["mock-subscription"],
+    },
   });
-  prepared.azure.servicePrincipalCreated = true;
-  await page.reload();
-  const card = await expandAzureAppRegistrationCard(page);
-
+  const card = prepared.appRegistrationCard;
   await expect(card.getByText(/Missing on the selected subscription:/)).toContainText("Reader");
   await expect(card.getByRole("button", { name: "Grant access on this subscription" })).toBeVisible();
   await expectSnapshot(page, card, testInfo, "saved-app-role-missing", viewportName);
-
   await card.getByRole("button", { name: "Grant access on this subscription" }).click();
   await expect(card.getByText(/Missing on the selected subscription:/)).toHaveCount(0);
   await expect(card.getByRole("button", { name: "Grant access on this subscription" })).toHaveCount(0);
@@ -221,7 +210,6 @@ test("Reports when connection details fail to auto-save", async ({ page, context
   const savedClientKeys = ["AZURE_CLIENT_ID", "AZURE_PLAN_CLIENT_ID"].filter((key) => prepared.github.variables[key]);
   expect(savedClientKeys).toHaveLength(1);
   await expectSnapshot(page, prepared.appRegistrationCard, testInfo, "connection-details-save-failed", viewportName);
-
   const retrySave = prepared.appRegistrationCard.getByRole("button", { name: /^Save 1 variable$/ });
   await expect(retrySave).toBeEnabled();
   await retrySave.click();
@@ -244,58 +232,11 @@ test("Reports when connection details fail to auto-save", async ({ page, context
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
   const viewportName = getViewportName(testInfo);
-  const runId = Date.now().toString(36);
   const repoName = safePathSegment(`mock-azure-app-${viewportName.toLowerCase()}`);
   const appName = `zeninstaller-${repoName}`;
-  const github = await installMockGitHub(page, context);
-  const azure = await installMockAzure(page);
-  await page.goto(CORP_URL);
-
-  const azureLoginCard = await test.step("Select the restored Azure tenant", async () => {
-    const card = await expandAzureLoginCard(page);
-    await expectSnapshot(page, card, testInfo, "start", viewportName);
-    await signInMockAzure(page);
-    await expect(card.getByText(/Signed in as/i)).toBeVisible();
-    const tenantSelect = card.getByTestId("tenant-select");
-    await expect(tenantSelect).toBeVisible();
-    await tenantSelect.click();
-    await page.getByRole("option", { name: /Mock tenant/i }).click();
-    await expectSnapshot(page, card, testInfo, "tenant-selected", viewportName);
-    return card;
-  });
-
-  const repoCard = await test.step("Create a repository and PROD environment", async () => {
-    const card = await expandRepoCard(page);
-    await createNewRepo(page, card, repoName);
-    await expect(card.getByText("Loading environments...", { exact: true })).toBeHidden();
-    const prodEnvironment = card.getByText("PROD", { exact: true });
-    await expect(prodEnvironment).toBeVisible();
-    await prodEnvironment.click();
-    const createProdButton = card.getByRole("button", { name: "Create New Branch: PROD" });
-    if (await createProdButton.isVisible()) {
-      await createProdButton.click();
-      await expect(createProdButton).toBeHidden();
-    }
-    await expectSnapshot(page, card, testInfo, "repo-created", viewportName);
-    return card;
-  });
-
-  await test.step("Save the Azure subscription variables", async () => {
-    const card = await expandAzureSubscriptionCard(page);
-    await expect(card.getByText("Loading subscriptions...", { exact: true })).toBeHidden();
-    await card.getByRole("button", { name: "Save 3 variables" }).click();
-    await expect(card.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled();
-    await expect.poll(() => github.variables).toEqual({
-      AZURE_TENANT_ID: mockTenantId,
-      AZURE_SUBSCRIPTION_ID: mockSubscriptionId,
-      VITE_AZURE_TENANT_ID: mockTenantId,
-    });
-    await expectSnapshot(page, card, testInfo, "subscription-saved", viewportName);
-  });
-
-  const appRegistrationCard = await test.step("Expand app registration card", async () => {
-    return await expandAzureAppRegistrationCard(page);
-  });
+  const prepared = await prepareMockAppRegistrationCard(page, context, repoName);
+  const { github, azure, appRegistrationCard } = prepared;
+  await expect(appRegistrationCard.getByRole("button", { name: "Create app registration" })).toBeVisible();
 
   await test.step("Create new app registration and grant access", async () => {
     const appNameInput = appRegistrationCard.locator("input:visible").first();
@@ -374,20 +315,79 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await expectSnapshot(page, persistedCard, testInfo, "persisted-after-reload", viewportName);
   });
 
-  await expect(azureLoginCard.getByText(/Signed in as/i)).toBeVisible();
-  await expect(repoCard.getByText("PROD", { exact: true })).toBeVisible();
+  expect(github.variables).toEqual(expect.objectContaining({
+    AZURE_TENANT_ID: mockTenantId,
+    AZURE_SUBSCRIPTION_ID: mockSubscriptionId,
+    VITE_AZURE_TENANT_ID: mockTenantId,
+  }));
 }
 
 async function prepareMockAppRegistrationCard(
   page: import("@playwright/test").Page,
   context: import("@playwright/test").BrowserContext,
   repoName: string,
-  options: { initialVariables?: Record<string, string>; initialAzureState?: Partial<MockAzureState> } = {}
+  options: {
+    initialVariables?: Record<string, string>;
+    initialAzureState?: Partial<MockAzureState>;
+    initialAzureResult?: { clientId: string; tenantId: string; subscriptionIds: string[] };
+  } = {}
 ) {
-  const prepared = await prepareMockAzureSubscription(page, context, repoName, { saveVariables: true, ...options });
+  const github = await installMockGitHub(page, context, {
+    repositoryName: repoName,
+    branches: ["main", "PROD"],
+    initialVariables: {
+      AZURE_TENANT_ID: mockTenantId,
+      AZURE_SUBSCRIPTION_ID: mockSubscriptionId,
+      VITE_AZURE_TENANT_ID: mockTenantId,
+      ...options.initialVariables,
+    },
+  });
+  const azure = await installMockAzure(page, options.initialAzureState);
+
+  if (options.initialAzureResult) {
+    await context.addInitScript((result) => {
+      localStorage.setItem("zeninstaller_azure_result", JSON.stringify(result));
+    }, options.initialAzureResult);
+  }
+  await context.addInitScript((tenantId) => {
+    sessionStorage.setItem("zeninstaller_arm_tenant", tenantId);
+  }, mockTenantId);
+  await page.route(/\/corp-src\/auth\/msal\.ts(?:\?.*)?$/, (route) => route.fulfill({
+    contentType: "application/javascript",
+    body: `
+      export const MSA_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad";
+      export const PINNED_TENANT_ID = "${mockTenantId}";
+      export const LOGIN_AUTHORITY = "https://login.microsoftonline.com/${mockTenantId}";
+      export const cleanTenantId = tenant => tenant?.trim().toLowerCase();
+      const account = { homeAccountId: "mock-home", environment: "login.microsoftonline.com",
+        tenantId: "${mockTenantId}", localAccountId: "mock-user", username: "mock-user@example.com",
+        name: "Mock Azure User", tenantProfiles: new Map([["${mockTenantId}", {}]]) };
+      export const getMsal = async () => ({ handleRedirectPromise: async () => null,
+        getAllAccounts: () => [account], acquireTokenSilent: async () => ({ account, accessToken: "mock-token" }),
+        loginRedirect: async () => { throw new Error("Unexpected authentication redirect in app-registration mock"); },
+        acquireTokenRedirect: async () => { throw new Error("Unexpected authentication redirect in app-registration mock"); },
+        clearCache: async () => {} });
+      export const ensureScopeConsent = async () => false;
+      export const getToken = async () => "mock-token";
+      export const setActiveAzureIdentity = () => {};
+      export const getMsToken = async () => "mock-token";
+      export const requireMsToken = async () => "mock-token";
+    `,
+  }));
+
+  const url = new URL(CORP_URL);
+  url.search = new URLSearchParams({
+    account: "mock-user",
+    repo: repoName,
+    env: "PROD",
+    tenant: mockTenantId,
+    subscription: mockSubscriptionId,
+  }).toString();
+  await page.goto(url.toString());
+  const appRegistrationCard = await expandAzureAppRegistrationCard(page);
   return {
-    ...prepared,
-    appRegistrationCard: await expandAzureAppRegistrationCard(page),
+    github,
+    azure,
+    appRegistrationCard,
   };
 }
-

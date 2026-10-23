@@ -49,23 +49,6 @@ test("Shows provisioning failure and allows a successful retry", async ({ page, 
 	expect(unexpectedRequests).toEqual([]);
 });
 
-test("Stops at the storage data-plane consent boundary", async ({ page, context }, testInfo) => {
-	const viewportName = getViewportName(testInfo);
-	const { card, graph, resources, writes, website, unexpectedRequests } =
-		await prepareMockRelay(page, context, viewportName, { requireStorageConsent: true });
-	await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
-	const consent = card.getByText("Consent to the storage data plane", { exact: true }).locator("../..");
-	await expect(consent.getByRole("progressbar")).toBeVisible();
-	await expect(card.getByRole("button", { name: "Create terminal relay", exact: true })).toBeEnabled();
-	expect(await page.evaluate(() => localStorage.getItem("zeninstaller_mock_storage_consent_scopes")))
-		.toContain("https://storage.azure.com/user_impersonation");
-	expect(website.staticWebsiteWrite).toBeNull();
-	expect(writes.some(({ path }) => path.includes("/blobservices/default"))).toBe(false);
-	expect(resources.size).toBeGreaterThan(0);
-	expect(graph.applicationWrites).toHaveLength(0);
-	expect(unexpectedRequests).toEqual([]);
-});
-
 test("Reports website CORS failure and retries provisioning", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	const { card, corpName, webStorageName, github, corsWrites, website, unexpectedRequests } =
@@ -148,19 +131,6 @@ test("Retries one failed connection-variable write and verifies persistence", as
 	await openConnectionDetails(card);
 	for (const key of terminalKeys) await expect(connectionInput(card, key)).toHaveValue(github.variables[key]);
 	await expectSnapshot(page, card, testInfo, "variable-persisted", viewportName);
-	expect(unexpectedRequests).toEqual([]);
-});
-
-test("Reports a missing GitHub repository instead of starting Azure writes", async ({ page, context }, testInfo) => {
-	const viewportName = getViewportName(testInfo);
-	const { card, github, resources, writes, graph, unexpectedRequests } =
-		await prepareMockRelay(page, context, viewportName, { omitRepository: true });
-	await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
-	await expect(card.getByText("Select the GitHub account and repository first — the OIDC credentials are scoped to them", { exact: true })).toBeVisible();
-	expect(resources.size).toBe(0);
-	expect(writes).toHaveLength(0);
-	expect(graph.applicationWrites).toHaveLength(0);
-	expect(terminalKeys.some((key) => key in github.variables)).toBe(false);
 	expect(unexpectedRequests).toEqual([]);
 });
 

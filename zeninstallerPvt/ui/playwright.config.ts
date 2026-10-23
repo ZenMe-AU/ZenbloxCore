@@ -27,7 +27,8 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [
     // A terminal reporter is what streams worker stdout/stderr (incl. pw:api) to the console.
-    ["line"],
+    ["line"], 
+    ["./zeninstallerPvt/ui/pwtests/coverage/coverage-reporter.ts"],
   ],
   timeout: 60_000,
   expect: {
@@ -89,7 +90,7 @@ export default defineConfig({
    * Start the server automatically
    */
   webServer: {
-    command: "pnpm run dev",
+    command: "pnpm --dir ./zeninstallerPvt/ui run dev",
     url: process.env.BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
