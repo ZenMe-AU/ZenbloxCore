@@ -26,7 +26,7 @@ resource "azurerm_virtual_desktop_host_pool" "pooled" {
   load_balancer_type       = "BreadthFirst"
   start_vm_on_connect      = true
   validate_environment     = false
-  custom_rdp_properties    = "targetisaadjoined:i:1;enablerdsaadauth:i:1;"
+  custom_rdp_properties    = "targetisaadjoined:i:1;enablerdsaadauth:i:1;redirectclipboard:i:1;"
   # Session hosts still reach the broker/gateway through the connection
   # private endpoint (private_link.tf); clients may also use the public
   # gateway (windows.app from anywhere). VMs keep zero inbound exposure
