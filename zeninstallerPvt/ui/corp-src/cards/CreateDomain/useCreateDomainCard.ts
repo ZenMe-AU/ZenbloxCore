@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ensureScopeConsent, getMsal } from "../../auth/msal";
 import { APP_SCOPES, DNS_PROVIDERS, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_PERMISSIONS } from "../../config/azureConfig";
-import { ensureDnsZone, ensureDnsTxtRecord, ensureResourceGroup, ensureLogAnalyticsWorkspace, findDnsZone } from "../../api/azureArm";
+import { ensureDnsZone, ensureDnsTxtRecord, ensureResourceGroup, ensureLogAnalyticsWorkspace, findDnsZone, listLocations, type AzureLocation } from "../../api/azureArm";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
 import {
   getEntraDomain,
@@ -49,6 +49,11 @@ export interface UseCreateDomainCard extends CardHook, AzureConfigHook {
   readonly cardId: "create_domain";
   checkingStatus: boolean;
   checkStatusError: string | null;
+  location: string;
+  setLocation: (loc: string) => void;
+  locations: AzureLocation[];
+  locationsLoading: boolean;
+  locationsError: string | null;
   resourcesDone: boolean;
   resourceGroupName: string;
   lawName: string;
@@ -87,6 +92,10 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
   const [runNonce, setRunNonce] = useState(0);
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [location, setLocation] = useState(DEFAULT_AZURE_LOCATION);
+  const [locations, setLocations] = useState<AzureLocation[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [locationsError, setLocationsError] = useState<string | null>(null);
 
   // A persisted result only counts if it matches the current NAME/DNS/subscription.
   const resultMatches = !!result && result.corpName === corpName && result.dnsName === dnsName && result.subscriptionId === subscriptionId;
@@ -193,6 +202,30 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     };
   }, [azureAccount, tenantId]);
 
+  // Load the subscription's available regions once an account + subscription are known.
+  useEffect(() => {
+    if (!azureAccount || !subscriptionId) {
+      setLocations([]);
+      return;
+    }
+    let cancelled = false;
+    setLocationsLoading(true);
+    setLocationsError(null);
+    listLocations(azureAccount, subscriptionId, tenantId)
+      .then((locs) => {
+        if (!cancelled) setLocations(locs);
+      })
+      .catch((err) => {
+        if (!cancelled) setLocationsError(err instanceof Error ? err.message : "Failed to load Azure regions");
+      })
+      .finally(() => {
+        if (!cancelled) setLocationsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [azureAccount, subscriptionId, tenantId]);
+
   // Redirects for Domain.ReadWrite.All incremental consent; user re-runs after returning.
   const requestDomainConsent = useCallback(async () => {
     if (!azureAccount) return;
@@ -255,12 +288,12 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
 
       currentStep = "rg";
       updateStep("rg", "running");
-      const rg = await ensureResourceGroup(azureAccount, subscriptionId, resourceGroupName, DEFAULT_AZURE_LOCATION, tenantId);
+      const rg = await ensureResourceGroup(azureAccount, subscriptionId, resourceGroupName, location, tenantId);
       updateStep("rg", rg === "exists" ? "skipped" : "done", rg === "exists" ? "Already exists" : undefined);
 
       currentStep = "law";
       updateStep("law", "running");
-      const law = await ensureLogAnalyticsWorkspace(azureAccount, subscriptionId, resourceGroupName, lawName, DEFAULT_AZURE_LOCATION, tenantId);
+      const law = await ensureLogAnalyticsWorkspace(azureAccount, subscriptionId, resourceGroupName, lawName, location, tenantId);
       updateStep("law", law.result === "exists" ? "skipped" : "done", law.result === "exists" ? "Already exists" : undefined);
 
       currentStep = "dns";
@@ -356,6 +389,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     spClientId,
     tenantId,
     makePrimary,
+    location,
     resourceGroupName,
     lawName,
     setSteps,
@@ -442,6 +476,11 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     verifiedDomains,
     checkingStatus,
     checkStatusError,
+    location,
+    setLocation,
+    locations,
+    locationsLoading,
+    locationsError,
     steps,
     running,
     resourcesDone,

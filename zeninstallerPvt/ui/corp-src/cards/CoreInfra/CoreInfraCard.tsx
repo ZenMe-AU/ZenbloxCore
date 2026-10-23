@@ -4,24 +4,20 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Button, CircularProgress, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import CheckIcon from "@mui/icons-material/Check";
+import { Box, Button, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseCoreInfraCard } from "./useCoreInfraCard";
 import StepRow from "../StepRow";
-import EditableNameRow from "../RemoteTerminalInfra/EditableNameRow";
 import Card from "../../components/Card";
+import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_RESOURCE_GROUPS_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
 import { getVariableDisplayName, CORP_NAME_KEYS, TFSTATE_BACKEND_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
-import FieldLabel from "../../components/FieldLabel";
 import StatusText from "../../components/StatusText";
-import ErrorText from "../../components/ErrorText";
 import type { Account, CardChrome, AzureAccount, GhEnv } from "../../types";
 
 const CORE_INFRA_KEYS = [...CORP_NAME_KEYS, ...TFSTATE_BACKEND_KEYS];
@@ -126,7 +122,6 @@ export default function CoreInfraCard({
   const rgNotFound = resultMatches && infraRbacStatus === "rg-not-found";
   const rgRbacMissing = resultMatches && infraRbacStatus === "missing-role";
 
-  const locationDisplayName = locations.find((l) => l.name === location)?.displayName ?? location;
 
   const rgExists = !!subscriptionId && !!infra.resourceGroupName && (infra.infraRbacStatus === "ready" || infra.infraRbacStatus === "missing-role");
 
@@ -215,17 +210,8 @@ export default function CoreInfraCard({
             <Box>
               <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
-                {[
-                  ["Resource group", resourceGroupName],
-                  ["Log Analytics", lawName],
-                ].map(([label, value]) => (
-                  <Typography key={label} color="text.muted">
-                    {label}:{" "}
-                    <Box component="span" sx={{ color: "text.primary" }}>
-                      {value}
-                    </Box>
-                  </Typography>
-                ))}
+                <PlainRow label="Resource group" value={resourceGroupName} />
+                <PlainRow label="Log Analytics" value={lawName} />
 
                 {/* Global to Azure, so it has to be changeable when another tenant already holds it. */}
                 <EditableNameRow
@@ -240,70 +226,21 @@ export default function CoreInfraCard({
                   width={200}
                 />
 
-                <Typography color="text.muted">
-                  State container:{" "}
-                  <Box component="span" sx={{ color: "text.primary" }}>
-                    {containerName}
-                  </Box>
-                </Typography>
+                <PlainRow label="State container" value={containerName} />
 
-                {/* Location — inline editable */}
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
-                  {editingLocation ? (
-                    <>
-                      <FieldLabel htmlFor="core-infra-location">Location</FieldLabel>
-                      {locations.length > 0 ? (
-                        <Select
-                          id="core-infra-location"
-                          size="small"
-                          value={location}
-                          onChange={(e) => setLocation(e.target.value)}
-                          sx={{ minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
-                        >
-                          {locations.map((locationOption) => (
-                            <MenuItem key={locationOption.name} value={locationOption.name}>
-                              {locationOption.displayName}{" "}
-                              <Box component="span" sx={{ color: "text.muted", ml: 0.5 }}>
-                                ({locationOption.name})
-                              </Box>
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      ) : (
-                        <TextField
-                          id="core-infra-location"
-                          size="small"
-                          value={location}
-                          onChange={(e) => setLocation(e.target.value)}
-                          placeholder={locationsLoading ? "Loading regions..." : "e.g. australiaeast"}
-                          sx={{ minWidth: 220 }}
-                          className="corpTechnicalInput"
-                        />
-                      )}
-                      {locationsLoading && <CircularProgress aria-label="Loading Azure regions" size={12} />}
-                      <IconButton aria-label="Confirm Azure region" size="small" onClick={() => setEditingLocation(false)} sx={{ color: "success.main", p: 0.25 }}>
-                        <CheckIcon sx={{ typography: "caption" }} />
-                      </IconButton>
-                    </>
-                  ) : (
-                    <>
-                      <Typography color="text.muted">
-                        Location:{" "}
-                          <Box component="span" sx={{ color: "text.primary" }}>
-                          {locationDisplayName}
-                        </Box>
-                      </Typography>
-                      <IconButton aria-label="Edit Azure region" size="small" onClick={() => setEditingLocation(true)} sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}>
-                        <EditIcon sx={{ typography: "caption" }} />
-                      </IconButton>
-                    </>
-                  )}
-                </Box>
-                {locationsError && (
-                  <ErrorText>
-                    Couldn't load Azure region list — type the region name manually.
-                  </ErrorText>
-                )}
+                <SelectionRow
+                  id="core-infra-location"
+                  label="Location"
+                  name="Azure region"
+                  value={location}
+                  onChange={setLocation}
+                  options={locations.map((l) => ({ value: l.name, label: l.displayName }))}
+                  error={locationsError ? "Couldn't load Azure region list — type the region name manually." : null}
+                  loading={locationsLoading}
+                  placeholder="e.g. australiaeast"
+                  editing={editingLocation}
+                  setEditing={setEditingLocation}
+                />
               </Box>
             </Box>
 

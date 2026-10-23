@@ -4,32 +4,20 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Button, ButtonBase, CircularProgress, Collapse, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
-import CheckIcon from "@mui/icons-material/Check";
-import EditIcon from "@mui/icons-material/Edit";
+import { Box, Button, ButtonBase, Collapse, Typography } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import type { UseRemoteTerminalInfraCard } from "./useRemoteTerminalInfraCard";
 import StepRow from "../StepRow";
-import EditableNameRow from "./EditableNameRow";
 import Card from "../../components/Card";
+import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
+import StatusText from "../../components/StatusText";
 import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
 import CloudVariableDetail from "../CloudVariableDetail";
 import { DEPLOYMENT_TERMINAL_KEYS } from "../../logic/variables";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import type { Account, CardChrome, GhEnv } from "../../types";
-
-function PlainRow({ label, value }: { label: string; value: string }) {
-  return (
-    <Typography color="text.muted">
-      {label}:{" "}
-      <Box component="span" sx={{ color: "text.primary" }}>
-        {value}
-      </Box>
-    </Typography>
-  );
-}
 
 function Intro() {
   return (
@@ -91,132 +79,101 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
         <Intro />
 
         {infra.steps.length === 0 && (
-          <Box>
-            <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
-            <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
-              <PlainRow label="Resource group" value={infra.resourceGroupName} />
-              <PlainRow label="Log Analytics" value={infra.lawName} />
-              <PlainRow label="Application Insights" value={infra.appInsightsName} />
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box>
+              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
+              <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
+                <PlainRow label="Resource group" value={infra.resourceGroupName} />
+                <PlainRow label="Log Analytics" value={infra.lawName} />
+                <PlainRow label="Application Insights" value={infra.appInsightsName} />
 
-              {/* These names are global to Azure, so they have to be changeable when another tenant already holds one. */}
-              <EditableNameRow
-                label="Storage account"
-                value={infra.storageAccountName}
-                onChange={infra.setStorageAccount}
-                error={infra.storageError}
-                checking={infra.storageChecking}
-                check={infra.checkStorageAccount}
-                editing={editingStorage}
-                setEditing={setEditingStorage}
-                width={200}
-              />
-              <EditableNameRow
-                label="Web PubSub"
-                value={infra.webPubSubName}
-                onChange={infra.setWebPubSub}
-                error={infra.webPubSubError}
-                checking={infra.webPubSubChecking}
-                check={infra.checkWebPubSub}
-                editing={editingWebPubSub}
-                setEditing={setEditingWebPubSub}
-                width={300}
-              />
-              <PlainRow label="Hub" value={infra.hubName} />
-              <EditableNameRow
-                label="Function App"
-                value={infra.functionAppName}
-                onChange={infra.setFunctionApp}
-                error={infra.functionAppError}
-                checking={infra.functionAppChecking}
-                check={infra.checkFunctionApp}
-                editing={editingFunctionApp}
-                setEditing={setEditingFunctionApp}
-                width={280}
-              />
-              <PlainRow label="Web PubSub app registration" value={infra.pipelineAppName} />
-              {/* Every resource above lands in this region, so it is chosen before the first run. */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
-                {editingLocation ? (
-                  <>
-                    <Typography color="text.muted">Location:</Typography>
-                    {infra.locations.length > 0 ? (
-                      <Select
-                        size="small"
-                        value={infra.location}
-                        onChange={(e) => infra.setLocation(e.target.value)}
-                        inputProps={{ "aria-label": "Location" }}
-                        sx={{ minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
-                      >
-                        {infra.locations.map((l) => (
-                          <MenuItem key={l.name} value={l.name}>
-                            {l.displayName}{" "}
-                            <Box component="span" sx={{ color: "text.muted", ml: 0.5 }}>
-                              ({l.name})
-                            </Box>
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    ) : (
-                      <TextField
-                        size="small"
-                        value={infra.location}
-                        onChange={(e) => infra.setLocation(e.target.value)}
-                        placeholder={infra.locationsLoading ? "Loading regions..." : "e.g. australiaeast"}
-                        sx={{ minWidth: 220 }}
-                        className="corpTechnicalInput"
-                        inputProps={{ "aria-label": "Location" }}
-                      />
-                    )}
-                    {infra.locationsLoading && <CircularProgress aria-label="Loading Azure regions" size={12} />}
-                    <IconButton aria-label="Confirm Azure region" size="small" onClick={() => setEditingLocation(false)} sx={{ color: "success.main", p: 0.25 }}>
-                      <CheckIcon sx={{ typography: "caption" }} />
-                    </IconButton>
-                  </>
-                ) : (
-                  <>
-                    <Typography color="text.muted">
-                      Location:{" "}
-                      <Box component="span" sx={{ color: "text.primary" }}>
-                        {infra.locations.find((l) => l.name === infra.location)?.displayName ?? infra.location}
-                      </Box>
-                    </Typography>
-                    <IconButton aria-label="Edit Azure region" size="small" onClick={() => setEditingLocation(true)} sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}>
-                      <EditIcon sx={{ typography: "caption" }} />
-                    </IconButton>
-                  </>
-                )}
+                {/* These names are global to Azure, so they have to be changeable when another tenant already holds one. */}
+                <EditableNameRow
+                  label="Storage account"
+                  value={infra.storageAccountName}
+                  onChange={infra.setStorageAccount}
+                  error={infra.storageError}
+                  checking={infra.storageChecking}
+                  check={infra.checkStorageAccount}
+                  editing={editingStorage}
+                  setEditing={setEditingStorage}
+                  width={200}
+                />
+                <EditableNameRow
+                  label="Web PubSub"
+                  value={infra.webPubSubName}
+                  onChange={infra.setWebPubSub}
+                  error={infra.webPubSubError}
+                  checking={infra.webPubSubChecking}
+                  check={infra.checkWebPubSub}
+                  editing={editingWebPubSub}
+                  setEditing={setEditingWebPubSub}
+                  width={300}
+                />
+                <PlainRow label="Hub" value={infra.hubName} />
+                <EditableNameRow
+                  label="Function App"
+                  value={infra.functionAppName}
+                  onChange={infra.setFunctionApp}
+                  error={infra.functionAppError}
+                  checking={infra.functionAppChecking}
+                  check={infra.checkFunctionApp}
+                  editing={editingFunctionApp}
+                  setEditing={setEditingFunctionApp}
+                  width={280}
+                />
+                <PlainRow label="Web PubSub app registration" value={infra.pipelineAppName} />
+                {/* Every resource above lands in this region, so it is chosen before the first run. */}
+                <SelectionRow
+                  label="Location"
+                  name="Azure region"
+                  value={infra.location}
+                  onChange={infra.setLocation}
+                  options={infra.locations.map((l) => ({ value: l.name, label: l.displayName }))}
+                  error={infra.locationsFailed ? "Couldn't load Azure region list — type the region name manually." : null}
+                  loading={infra.locationsLoading}
+                  placeholder="e.g. australiaeast"
+                  editing={editingLocation}
+                  setEditing={setEditingLocation}
+                />
               </Box>
             </Box>
+
+            <Button
+              variant="contained"
+              onClick={() => void infra.run()}
+              disabled={infra.running || editingStorage || editingWebPubSub || editingFunctionApp || !infra.location.trim()}
+              sx={{
+                alignSelf: "flex-start",
+                py: 0.85,
+                px: 2.5,
+              }}
+            >
+              {infra.done ? "Re-run setup" : "Create backend environment"}
+            </Button>
           </Box>
         )}
 
-        <Box>
-          <Button
-            onClick={() => void infra.run()}
-            disabled={infra.running || editingStorage || editingWebPubSub || editingFunctionApp || !infra.location.trim()}
-            variant="contained"
-            size="small"
-            aria-busy={infra.running}
-            sx={{ py: 0.6, px: 2 }}
-          >
-            {infra.running ? (
-              <Box component="span" role="status" aria-live="polite" sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
-                <CircularProgress aria-label="Creating backend environment" size={12} />
-                Creating...
-              </Box>
-            ) : infra.done ? (
-              "Re-run"
-            ) : (
-              "Create backend environment"
-            )}
-          </Button>
-        </Box>
-
         {infra.steps.length > 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid", borderColor: "divider", pl: 1.5 }}>
             {infra.steps.map((s) => (
               <StepRow key={s.id} step={s} />
             ))}
+            {infra.running && <StatusText>Running...</StatusText>}
+            {!infra.running && (
+              <Button
+                size="small"
+                onClick={infra.reset}
+                sx={{
+                  alignSelf: "flex-start",
+                  mt: 0.5,
+                  color: "text.muted",
+                  "&:hover": { color: "primary.main" },
+                }}
+              >
+                ↩ Start over
+              </Button>
+            )}
           </Box>
         )}
 

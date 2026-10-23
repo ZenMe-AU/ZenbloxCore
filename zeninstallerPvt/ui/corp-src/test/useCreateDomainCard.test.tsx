@@ -36,6 +36,7 @@ const { apiMocks } = vi.hoisted(() => ({
     ensureDnsTxtRecord: vi.fn(),
     ensureResourceGroup: vi.fn(),
     ensureLogAnalyticsWorkspace: vi.fn(),
+    listLocations: vi.fn().mockResolvedValue([]),
     getEntraDomain: vi.fn(),
     createEntraDomain: vi.fn(),
     getDomainVerificationTxt: vi.fn(),
@@ -67,6 +68,7 @@ vi.mock("../api/azureArm", () => ({
   ensureDnsTxtRecord: apiMocks.ensureDnsTxtRecord,
   ensureResourceGroup: apiMocks.ensureResourceGroup,
   ensureLogAnalyticsWorkspace: apiMocks.ensureLogAnalyticsWorkspace,
+  listLocations: apiMocks.listLocations,
 }));
 
 vi.mock("../api/azureGraph", () => ({

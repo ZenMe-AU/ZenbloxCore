@@ -11,6 +11,7 @@ import { warningMessageIconSx } from "../../config/styles";
 import type { UseCreateDomainCard } from "./useCreateDomainCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
+import { PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_DNS_ZONES_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { dnsZoneScope } from "../../api/azureArm";
@@ -78,6 +79,11 @@ export default function CreateDomainCard({
   const {
     checkingStatus,
     checkStatusError,
+    location,
+    setLocation,
+    locations,
+    locationsLoading,
+    locationsError,
     steps,
     running,
     resourcesDone,
@@ -96,6 +102,7 @@ export default function CreateDomainCard({
     reset,
   } = createDomain;
   const disabled = card.locked;
+  const [editingLocation, setEditingLocation] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const prevRunNonceRef = useRef(runNonce);
 
@@ -164,20 +171,23 @@ export default function CreateDomainCard({
             <Box>
               <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
-                {[
-                  ["Resource group", createDomain.resourceGroupName],
-                  ["Log Analytics", createDomain.lawName],
-                  ["Location", "Australia East"],
-                  ["DNS zone", dnsName],
-                  ["Custom domain", dnsName],
-                ].map(([label, value]) => (
-                  <Typography key={label} color="text.muted">
-                    {label}:{" "}
-                    <Box component="span" sx={{ color: "text.primary" }}>
-                      {value}
-                    </Box>
-                  </Typography>
-                ))}
+                <PlainRow label="Resource group" value={createDomain.resourceGroupName} />
+                <PlainRow label="Log Analytics" value={createDomain.lawName} />
+                <SelectionRow
+                  id="create-domain-location"
+                  label="Location"
+                  name="Azure region"
+                  value={location}
+                  onChange={setLocation}
+                  options={locations.map((l) => ({ value: l.name, label: l.displayName }))}
+                  error={locationsError ? "Couldn't load Azure region list — type the region name manually." : null}
+                  loading={locationsLoading}
+                  placeholder="e.g. australiaeast"
+                  editing={editingLocation}
+                  setEditing={setEditingLocation}
+                />
+                <PlainRow label="DNS zone" value={dnsName} />
+                <PlainRow label="Custom domain" value={dnsName} />
               </Box>
             </Box>
 
@@ -187,7 +197,7 @@ export default function CreateDomainCard({
               <Button
                 variant="contained"
                 onClick={run}
-                disabled={disabled || running}
+                disabled={disabled || running || !location.trim()}
                 sx={{
                   py: 0.85,
                   px: 2.5,

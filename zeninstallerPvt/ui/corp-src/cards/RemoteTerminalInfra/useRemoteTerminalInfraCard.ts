@@ -81,6 +81,7 @@ export interface UseRemoteTerminalInfraCard extends CardHook, AzureConfigHook {
   setLocation: (loc: string) => void;
   locations: AzureLocation[];
   locationsLoading: boolean;
+  locationsFailed: boolean; // The region list could not load; the location is typed by hand.
   resourceGroupName: string;
   webPubSubName: string;
   setWebPubSub: (name: string) => void;
@@ -267,11 +268,7 @@ export function useRemoteTerminalInfraCard({
     };
   }, [azureAccount, subscriptionId, tenantId]);
 
-  const reset = useCallback(() => {
-    resetSteps();
-    setResult(null);
-    saveResult(null);
-  }, [resetSteps]);
+  const reset = resetSteps;
 
   const run = useCallback(async () => {
     if (!azureAccount || !subscriptionId) return;
@@ -511,6 +508,7 @@ export function useRemoteTerminalInfraCard({
     setLocation,
     locations,
     locationsLoading,
+    locationsFailed,
     steps,
     running,
     done,
