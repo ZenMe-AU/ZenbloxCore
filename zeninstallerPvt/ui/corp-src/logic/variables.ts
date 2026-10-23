@@ -8,14 +8,14 @@ export const AZURE_VARIABLE_KEYS = ["AZURE_CLIENT_ID", "AZURE_PLAN_CLIENT_ID", "
 export const AZURE_TARGET_KEYS = ["AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID", "VITE_AZURE_TENANT_ID"] as const;
 // App-registration client ids — saved by the Azure app registration card.
 export const AZURE_APP_KEYS = ["AZURE_CLIENT_ID", "AZURE_PLAN_CLIENT_ID"] as const;
-// Relay connection details — saved by the deployment terminal card.
+// Relay connection details — saved by the Private Zeninstaller Backend Environment card.
 export const DEPLOYMENT_TERMINAL_KEYS = [
   "WEBPUBSUB_ENDPOINT",
   "WEBPUBSUB_CLIENT_ID",
   "WEBPUBSUB_TENANT_ID",
   "VITE_API_URL",
-  "VITE_AZURE_CLIENT_ID",
   "VITE_APPINSIGHTS_CONNECTION_STRING",
+  "API_STORAGE_ACCOUNT",
 ] as const;
 // Private frontend — saved by the private frontend infra card.
 export const PRIVATE_FRONTEND_KEYS = ["VITE_AZURE_CLIENT_ID", "SITE_STORAGE_ACCOUNT"] as const;
@@ -23,7 +23,9 @@ export const PRIVATE_FRONTEND_KEYS = ["VITE_AZURE_CLIENT_ID", "SITE_STORAGE_ACCO
 export const FRONTEND_VARIABLE_KEYS = ["VITE_GITHUB_CLIENT_ID"] as const;
 export const AWS_VARIABLE_KEYS = ["AWS_ROLE_ARN"] as const;
 export const CORP_NAME_KEYS = ["NAME"] as const;
+export const TFSTATE_BACKEND_KEYS = ["TF_STATE_RESOURCE_GROUP", "TF_STATE_STORAGE_ACCOUNT", "TF_STATE_CONTAINER"] as const;
 export const DNS_KEYS = ["DNS"] as const;
+export const CORE_RESOURCE_GROUP_KEYS = ["CORE_RESOURCE_GROUP"] as const;
 export const C01_KEYS = ["CONTACT_EMAILS"] as const;
 
 export const AZURE_SECRET_KEYS = ["AZURE_CLIENT_SECRET"];
@@ -35,6 +37,16 @@ const VARIABLE_DISPLAY_NAMES: Record<string, string> = {
   VITE_GITHUB_CLIENT_ID: "OAuth App Client ID",
   VITE_AZURE_CLIENT_ID: "Sign-in App Client ID",
   SITE_STORAGE_ACCOUNT: "Site Storage Account",
+  API_STORAGE_ACCOUNT: "Backend Storage Account",
+  TF_STATE_RESOURCE_GROUP: "Terraform State Resource Group",
+  TF_STATE_STORAGE_ACCOUNT: "Terraform State Storage Account",
+  TF_STATE_CONTAINER: "Terraform State Container",
+  CORE_RESOURCE_GROUP: "Core Resource Group",
+  WEBPUBSUB_ENDPOINT: "Web PubSub Endpoint",
+  WEBPUBSUB_CLIENT_ID: "Web PubSub Client ID",
+  WEBPUBSUB_TENANT_ID: "Web PubSub Tenant ID",
+  VITE_API_URL: "API URL",
+  VITE_APPINSIGHTS_CONNECTION_STRING: "App Insights Connection String",
 };
 
 // Returns the UI label for a variable key, falling back to the key itself

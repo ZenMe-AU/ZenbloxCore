@@ -1,0 +1,89 @@
+{
+  "version": 4,
+  "terraform_version": "1.16.2",
+  "serial": 17,
+  "lineage": "6379a7d6-1c95-80f2-0496-dab9552496b4",
+  "outputs": {
+    "virtual_network_id": {
+      "value": "/subscriptions/51d0ca21-eaa5-4d34-aeb3-fa9f7d454b5d/resourceGroups/paw2-hp-rg/providers/Microsoft.Network/virtualNetworks/paw2-hp-vnet",
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "azurerm_private_dns_zone",
+      "name": "wvd",
+      "provider": "provider[\"registry.terraform.io/hashicorp/azurerm\"]",
+      "instances": [
+        {
+          "status": "tainted",
+          "schema_version": 0,
+          "attributes": {
+            "id": "/subscriptions/51d0ca21-eaa5-4d34-aeb3-fa9f7d454b5d/resourceGroups/paw2-hp-rg/providers/Microsoft.Network/privateDnsZones/privatelink.wvd.microsoft.com",
+            "max_number_of_record_sets": 25000,
+            "max_number_of_virtual_network_links": 1000,
+            "max_number_of_virtual_network_links_with_registration": 100,
+            "name": "privatelink.wvd.microsoft.com",
+            "number_of_record_sets": 1,
+            "resource_group_name": "paw2-hp-rg",
+            "soa_record": null,
+            "tags": {
+              "managed": "terraform",
+              "workload": "privileged-access-workstation"
+            },
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "identity": {
+            "name": "privatelink.wvd.microsoft.com",
+            "resource_group_name": "paw2-hp-rg",
+            "subscription_id": "51d0ca21-eaa5-4d34-aeb3-fa9f7d454b5d"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjoxODAwMDAwMDAwMDAwLCJkZWxldGUiOjE4MDAwMDAwMDAwMDAsInJlYWQiOjMwMDAwMDAwMDAwMCwidXBkYXRlIjoxODAwMDAwMDAwMDAwfX0=",
+          "dependencies": [
+            "azurerm_resource_group.avd"
+          ]
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "azurerm_resource_group",
+      "name": "avd",
+      "provider": "provider[\"registry.terraform.io/hashicorp/azurerm\"]",
+      "instances": [
+        {
+          "schema_version": 0,
+          "attributes": {
+            "id": "/subscriptions/51d0ca21-eaa5-4d34-aeb3-fa9f7d454b5d/resourceGroups/paw2-hp-rg",
+            "location": "westeurope",
+            "managed_by": "",
+            "name": "paw2-hp-rg",
+            "tags": {
+              "managed": "terraform",
+              "workload": "privileged-access-workstation"
+            },
+            "timeouts": null
+          },
+          "sensitive_attributes": [],
+          "identity_schema_version": 0,
+          "identity": {
+            "name": "paw2-hp-rg",
+            "subscription_id": "51d0ca21-eaa5-4d34-aeb3-fa9f7d454b5d"
+          },
+          "private": "eyJlMmJmYjczMC1lY2FhLTExZTYtOGY4OC0zNDM2M2JjN2M0YzAiOnsiY3JlYXRlIjo1NDAwMDAwMDAwMDAwLCJkZWxldGUiOjU0MDAwMDAwMDAwMDAsInJlYWQiOjMwMDAwMDAwMDAwMCwidXBkYXRlIjo1NDAwMDAwMDAwMDAwfX0="
+        }
+      ]
+    }
+  ],
+  "check_results": [
+    {
+      "object_kind": "var",
+      "config_addr": "var.SESSION_HOST_COUNT",
+      "status": "unknown",
+      "objects": null
+    }
+  ]
+}

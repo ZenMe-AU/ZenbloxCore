@@ -3,6 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
+import { useEffect, useRef, useState } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -12,13 +13,14 @@ import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_DNS_ZONES_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { dnsZoneScope } from "../../api/azureArm";
-import { getRootResourceGroupName } from "../../logic/naming";
 import { getVariableDisplayName } from "../../logic/variables";
 import { MONO as mono, labelSx } from "../../config/styles";
-import { DNS_KEYS } from "../../logic/variables";
+import { DNS_KEYS, CORE_RESOURCE_GROUP_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import type { Account, CardChrome, AzureAccount, GhEnv } from "../../types";
+
+const CORE_DOMAIN_KEYS = [...DNS_KEYS, ...CORE_RESOURCE_GROUP_KEYS];
 
 type Props = {
   card: CardChrome;
@@ -37,8 +39,20 @@ type Props = {
 function Intro({ dnsName }: { dnsName: string }) {
   return (
     <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-      Creates the DNS zone for <b>{dnsName || "your domain"}</b>, adds it to Entra ID as a custom domain, then verifies it and sets it as primary.
+      Creates the DNS zone for <b>{dnsName || "your domain"}</b>, adds it to Entra ID as a custom domain, then verifies it and, if you choose, sets it as
+      primary.
     </Typography>
+  );
+}
+
+function PrimaryCheckbox({ checked, disabled, dnsName, onChange }: { checked: boolean; disabled: boolean; dnsName: string; onChange: (v: boolean) => void }) {
+  return (
+    <Box component="label" sx={{ display: "flex", alignItems: "center", gap: 0.75, cursor: "pointer" }}>
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} style={{ margin: 0, width: 14, height: 14 }} />
+      <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+        Set <b>{dnsName}</b> as the tenant's primary domain
+      </Typography>
+    </Box>
   );
 }
 
@@ -69,13 +83,29 @@ export default function CreateDomainCard({
     verifiedDomains,
     domainVerified,
     isPrimary,
+    makePrimary,
+    setMakePrimary,
+    runNonce,
     verifying,
+    done,
     verifyError,
     verify,
     run,
     reset,
   } = createDomain;
   const disabled = card.locked;
+  const [autoSaveCounter, setAutoSaveCounter] = useState(0);
+  const prevRunNonceRef = useRef(runNonce);
+
+  // A finished run saves the zone's group straight away: stages read it from corp.env, not from here.
+  useEffect(() => {
+    if (runNonce === prevRunNonceRef.current) return;
+    prevRunNonceRef.current = runNonce;
+    const t = setTimeout(() => setAutoSaveCounter((c) => c + 1), 0);
+    return () => clearTimeout(t);
+  }, [runNonce]);
+
+  const populate = resourcesDone ? { CORE_RESOURCE_GROUP: createDomain.resourceGroupName } : undefined;
   const missing: string[] = [];
   if (!corpName) missing.push(getVariableDisplayName("NAME"));
   if (!dnsName) missing.push(getVariableDisplayName("DNS"));
@@ -88,7 +118,7 @@ export default function CreateDomainCard({
         <Action
           resourceId={
             createDomain.resourcesDone && subscriptionId && dnsName && corpName
-              ? dnsZoneScope(subscriptionId, getRootResourceGroupName(corpName), dnsName)
+              ? dnsZoneScope(subscriptionId, createDomain.resourceGroupName, dnsName)
               : null
           }
         />
@@ -103,10 +133,13 @@ export default function CreateDomainCard({
           account={githubAccount}
           repo={repoName}
           envName={selectedEnv?.name ?? null}
-          keys={DNS_KEYS}
+          keys={CORE_DOMAIN_KEYS}
+          hiddenKeys={CORE_RESOURCE_GROUP_KEYS}
           variables={variables}
+          populate={populate}
           title="Core domain"
           githubUrl={githubUrl}
+          autoSaveCounter={autoSaveCounter}
         />
 
         {/* Gating hints */}
@@ -122,12 +155,6 @@ export default function CreateDomainCard({
             </Typography>
           </Box>
         )}
-        {checkingStatus && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-            <CircularProgress size={12} />
-            <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", ...mono }}>Checking whether this domain is already set up...</Typography>
-          </Box>
-        )}
         {checkStatusError && <Typography sx={{ fontSize: "0.68rem", color: "#d97706", ...mono }}>Couldn't check existing setup: {checkStatusError}</Typography>}
         {/* Planned resources */}
         {ready && steps.length === 0 && (
@@ -136,6 +163,9 @@ export default function CreateDomainCard({
               <Typography sx={{ ...labelSx, mb: 0.75 }}>Resources</Typography>
               <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
                 {[
+                  ["Resource group", createDomain.resourceGroupName],
+                  ["Log Analytics", createDomain.lawName],
+                  ["Location", "Australia East"],
                   ["DNS zone", dnsName],
                   ["Custom domain", dnsName],
                 ].map(([label, value]) => (
@@ -149,26 +179,35 @@ export default function CreateDomainCard({
               </Box>
             </Box>
 
-            <Button
-              variant="contained"
-              onClick={run}
-              disabled={disabled || running}
-              sx={{
-                alignSelf: "flex-start",
-                background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                textTransform: "none",
-                ...mono,
-                fontSize: "0.85rem",
-                py: 0.85,
-                px: 2.5,
-                borderRadius: "8px",
-                boxShadow: "0 2px 6px #2563eb33",
-                "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-                "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-              }}
-            >
-              {resourcesDone ? "Re-run setup" : "Set up core DNS domain"}
-            </Button>
+            <PrimaryCheckbox checked={makePrimary} disabled={disabled} dnsName={dnsName} onChange={setMakePrimary} />
+
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <Button
+                variant="contained"
+                onClick={run}
+                disabled={disabled || running}
+                sx={{
+                  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                  textTransform: "none",
+                  ...mono,
+                  fontSize: "0.85rem",
+                  py: 0.85,
+                  px: 2.5,
+                  borderRadius: "8px",
+                  boxShadow: "0 2px 6px #2563eb33",
+                  "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
+                  "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
+                }}
+              >
+                {resourcesDone ? "Re-run setup" : "Set up core DNS domain"}
+              </Button>
+              {checkingStatus && (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                  <CircularProgress size={12} />
+                  <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8", ...mono }}>Checking whether this domain is already set up...</Typography>
+                </Box>
+              )}
+            </Box>
           </Box>
         )}
         {/* Progress steps */}
@@ -253,15 +292,16 @@ export default function CreateDomainCard({
         {/* Domain verification + primary promotion (one button drives both) */}
         {resourcesDone && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            {domainVerified && isPrimary ? (
+            {done ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                 <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} />
                 <Typography sx={{ fontSize: "0.78rem", color: "#15803d" }}>
-                  Domain <b>{dnsName}</b> is verified and set as the primary domain.
+                  Domain <b>{dnsName}</b> is verified{isPrimary && " and set as the primary domain"}.
                 </Typography>
               </Box>
             ) : (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <PrimaryCheckbox checked={makePrimary} disabled={disabled || verifying} dnsName={dnsName} onChange={setMakePrimary} />
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
                   <Button
                     variant="outlined"

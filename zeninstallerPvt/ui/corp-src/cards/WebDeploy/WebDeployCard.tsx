@@ -22,6 +22,30 @@ import type { CardChrome } from "../../types";
 
 const when = (unixSeconds: number) => new Date(unixSeconds * 1000).toLocaleString();
 
+function SiteLink({ label, color, href }: { label: string; color: string; href: string }) {
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+      <Typography sx={{ fontSize: "0.75rem", color, ...mono }}>{label}</Typography>
+      <Typography
+        component="a"
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{
+          fontSize: "0.75rem",
+          ...mono,
+          color: "#1d4ed8",
+          wordBreak: "break-all",
+          textDecoration: "none",
+          "&:hover": { textDecoration: "underline" },
+        }}
+      >
+        {href}
+      </Typography>
+    </Box>
+  );
+}
+
 type Props = {
   card: CardChrome;
   web: UseWebDeployCard;
@@ -88,30 +112,33 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           variables={variables}
           title="Build settings"
           githubUrl={githubUrl}
+          keyHints={{
+            VITE_GITHUB_CLIENT_ID: (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8" }}>Where does this come from?</Typography>
+                <Box
+                  component="a"
+                  href={GITHUB_OAUTH_DOC}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.25,
+                    color: "#1d4ed8",
+                    textDecoration: "none",
+                    "&:hover": { textDecoration: "underline" },
+                  }}
+                >
+                  <Typography component="span" sx={{ fontSize: "0.7rem", color: "inherit" }}>
+                    Creating the GitHub OAuth app
+                  </Typography>
+                  <OpenInNewIcon sx={{ fontSize: 11 }} />
+                </Box>
+              </Box>
+            ),
+          }}
         />
-
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: -1 }}>
-          <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8" }}>Where does this come from?</Typography>
-          <Box
-            component="a"
-            href={GITHUB_OAUTH_DOC}
-            target="_blank"
-            rel="noopener noreferrer"
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.25,
-              color: "#1d4ed8",
-              textDecoration: "none",
-              "&:hover": { textDecoration: "underline" },
-            }}
-          >
-            <Typography component="span" sx={{ fontSize: "0.7rem", color: "inherit" }}>
-              Creating the GitHub OAuth app
-            </Typography>
-            <OpenInNewIcon sx={{ fontSize: 11 }} />
-          </Box>
-        </Box>
 
         {staleVariables.length > 0 && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -152,29 +179,6 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             </Typography>
           </Box>
         </Box>
-
-        {/* Until something is deployed the endpoint is a 404, so the link waits for it. */}
-        {siteLink && deployed && (
-          <Box>
-            <Typography sx={{ ...labelSx, mb: 0.75 }}>Continue in Zeninstaller Private</Typography>
-            <Typography
-              component="a"
-              href={siteLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{
-                fontSize: "0.75rem",
-                ...mono,
-                color: "#1d4ed8",
-                wordBreak: "break-all",
-                textDecoration: "none",
-                "&:hover": { textDecoration: "underline" },
-              }}
-            >
-              {siteLink}
-            </Typography>
-          </Box>
-        )}
 
         {error && (
           <Box sx={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", px: 2, py: 1.25 }}>
@@ -230,14 +234,6 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             )}
           </Button>
 
-          {/* Mutually exclusive with the prompt below, so both share the slot by the button. */}
-          {!loadingLatest && latest && !updateAvailable && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...mono }}>The site is serving the latest build.</Typography>
-            </Box>
-          )}
-
           {!loadingLatest && updateAvailable && deployed && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
@@ -245,6 +241,24 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             </Box>
           )}
         </Box>
+
+        {/* All clear: the box carries the link, since that is where the reader goes next. Otherwise the
+            endpoint still exists as soon as the storage account does, so the link shows on its own. */}
+        {!loadingLatest && latest && !updateAvailable ? (
+          <Box sx={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", px: 2, py: 1.25 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
+              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...mono }}>The site is serving the latest build.</Typography>
+            </Box>
+            {siteLink && (
+              <Box sx={{ mt: 0.75 }}>
+                <SiteLink label="Click the link below to continue in your own private Zeninstaller:" color="#15803d" href={siteLink} />
+              </Box>
+            )}
+          </Box>
+        ) : (
+          siteLink && <SiteLink label="The private Zeninstaller endpoint is available at:" color="#64748b" href={siteLink} />
+        )}
 
         {steps.length > 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid #e2e8f0", pl: 1.5 }}>

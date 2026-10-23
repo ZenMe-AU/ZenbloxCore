@@ -12,5 +12,8 @@
   "description": "Terraform for the remote terminal session backend - Web PubSub, storage, Key Vault, Function App",
   "dependencies": {
     "dotenv": "^16.0.0"
+  },
+  "engines": {
+    "node": "^24.22.1"
   }
 }

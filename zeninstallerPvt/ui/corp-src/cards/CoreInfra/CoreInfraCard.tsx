@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box, Button, CircularProgress, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
@@ -14,11 +14,13 @@ import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_RESOURCE_GROUPS_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
-import { getVariableDisplayName, CORP_NAME_KEYS } from "../../logic/variables";
+import { getVariableDisplayName, CORP_NAME_KEYS, TFSTATE_BACKEND_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import { MONO as mono, labelSx } from "../../config/styles";
 import type { Account, CardChrome, AzureAccount, GhEnv } from "../../types";
+
+const CORE_INFRA_KEYS = [...CORP_NAME_KEYS, ...TFSTATE_BACKEND_KEYS];
 
 type Props = {
   card: CardChrome;
@@ -79,11 +81,36 @@ export default function CoreInfraCard({
     resourceGroupName,
     lawName,
     storageAccountName,
-    appInsightsName,
+    setStorageAccount,
+    storageChecking,
+    storageError,
+    checkStorageAccount,
     containerName,
+    result,
+    runNonce,
   } = infra;
   const disabled = card.locked;
   const [editingLocation, setEditingLocation] = useState(false);
+  const [editingStorage, setEditingStorage] = useState(false);
+  const [autoSaveCounter, setAutoSaveCounter] = useState(0);
+  const prevRunNonceRef = useRef(runNonce);
+
+  // A finished run saves the backend names straight away: stages read them from corp.env, not from here.
+  useEffect(() => {
+    if (runNonce === prevRunNonceRef.current) return;
+    prevRunNonceRef.current = runNonce;
+    const t = setTimeout(() => setAutoSaveCounter((c) => c + 1), 0);
+    return () => clearTimeout(t);
+  }, [runNonce]);
+
+  const populate =
+    result && resultMatches
+      ? {
+          TF_STATE_RESOURCE_GROUP: result.stateResourceGroup,
+          TF_STATE_STORAGE_ACCOUNT: result.storageAccountName,
+          TF_STATE_CONTAINER: containerName,
+        }
+      : undefined;
 
   const missing: string[] = [];
   if (!corpName) missing.push(getVariableDisplayName("NAME"));
@@ -127,10 +154,13 @@ export default function CoreInfraCard({
           account={githubAccount}
           repo={repoName}
           envName={selectedEnv?.name ?? null}
-          keys={CORP_NAME_KEYS}
+          keys={CORE_INFRA_KEYS}
+          hiddenKeys={TFSTATE_BACKEND_KEYS}
           variables={variables}
+          populate={populate}
           title="Company short code"
           githubUrl={githubUrl}
+          autoSaveCounter={autoSaveCounter}
         />
 
         {rgNotFound && (
@@ -178,9 +208,6 @@ export default function CoreInfraCard({
                 {[
                   ["Resource group", resourceGroupName],
                   ["Log Analytics", lawName],
-                  ["App Insights", appInsightsName],
-                  ["Storage account", storageAccountName],
-                  ["State container", containerName],
                 ].map(([label, value]) => (
                   <Typography key={label} sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
                     {label}:{" "}
@@ -189,6 +216,51 @@ export default function CoreInfraCard({
                     </Box>
                   </Typography>
                 ))}
+
+                {/* Global to Azure, so it has to be changeable when another tenant already holds it. */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
+                  <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>Storage account:</Typography>
+                  {editingStorage ? (
+                    <>
+                      <TextField
+                        size="small"
+                        value={storageAccountName}
+                        onChange={(e) => setStorageAccount(e.target.value)}
+                        error={!!storageError}
+                        helperText={storageError ?? undefined}
+                        sx={{ width: 200 }}
+                        inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.75rem" } }}
+                      />
+                      {/* Stays open until the name is one this installation can actually create or reuse. */}
+                      <IconButton
+                        size="small"
+                        disabled={storageChecking}
+                        onClick={() => void checkStorageAccount().then((ok) => ok && setEditingStorage(false))}
+                        sx={{ color: "#22c55e", p: 0.25 }}
+                      >
+                        {storageChecking ? <CircularProgress size={12} /> : <CheckIcon sx={{ fontSize: 14 }} />}
+                      </IconButton>
+                    </>
+                  ) : (
+                    <>
+                      <Typography sx={{ fontSize: "0.75rem", color: "#0f172a", ...mono }}>{storageAccountName}</Typography>
+                      <IconButton
+                        size="small"
+                        onClick={() => setEditingStorage(true)}
+                        sx={{ color: "#cbd5e1", p: 0.25, "&:hover": { color: "#2563eb" } }}
+                      >
+                        <EditIcon sx={{ fontSize: 12 }} />
+                      </IconButton>
+                    </>
+                  )}
+                </Box>
+
+                <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+                  State container:{" "}
+                  <Box component="span" sx={{ color: "#0f172a" }}>
+                    {containerName}
+                  </Box>
+                </Typography>
 
                 {/* Location — inline editable */}
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
@@ -251,7 +323,7 @@ export default function CoreInfraCard({
             <Button
               variant="contained"
               onClick={run}
-              disabled={disabled || running || !location.trim()}
+              disabled={disabled || running || !location.trim() || editingStorage}
               sx={{
                 alignSelf: "flex-start",
                 background: "linear-gradient(135deg, #2563eb, #1d4ed8)",

@@ -151,17 +151,20 @@ function main(corpEnvFile) {
       console.log("Switching subscription to", subscriptionId);
     }
     const resourceGroupName = getResourceGroupName("root", corpName);
-    const storageAccountName = getStorageAccountName(corpName);
+    // The installer saves where the state lives; corp.env from before that still derives it from NAME.
+    const stateResourceGroup = env.get("TF_STATE_RESOURCE_GROUP") || resourceGroupName;
+    const stateStorageAccount = env.get("TF_STATE_STORAGE_ACCOUNT") || getStorageAccountName(corpName);
+    const stateContainer = env.get("TF_STATE_CONTAINER") || "terraformstate";
     try {
-      execSync(`az storage account show --resource-group ${resourceGroupName} --name ${storageAccountName}`, { stdio: "ignore" });
+      execSync(`az storage account show --resource-group ${stateResourceGroup} --name ${stateStorageAccount}`, { stdio: "ignore" });
     } catch {
-      throw new Error(`Storage Account ${storageAccountName} is not found. Please run c05rootrg stage first.`);
+      throw new Error(`Storage Account ${stateStorageAccount} is not found in ${stateResourceGroup}. Run the Terraform state backend card first.`);
     }
     setTfVar("tenant_id", tenantId);
     setTfVar("subscription_id", subscriptionId);
     setTfVar("dns_name", dnsName);
     setTfVar("cloudfront_alias_suffix", bucketNameSuffix);
-    setTfVar("resource_group_name", resourceGroupName);
+    setTfVar("resource_group_name", env.get("CORE_RESOURCE_GROUP") || resourceGroupName);
     // relative paths for TF vars (combined with path.module in main.tf locals)
     setTfVar("app_registration_name", getAppRegistrationName(corpName, "login"));
     const spaRelDir = "source/loginApp";
@@ -188,9 +191,9 @@ function main(corpEnvFile) {
     setTfVar("cf_response_headers_policy_name", responseHeadersPolicyName);
     execSync(
       `terraform init -reconfigure\
-            -backend-config="resource_group_name=${resourceGroupName}" \
-            -backend-config="storage_account_name=${storageAccountName}" \
-            -backend-config="container_name=terraformstate" \
+            -backend-config="resource_group_name=${stateResourceGroup}" \
+            -backend-config="storage_account_name=${stateStorageAccount}" \
+            -backend-config="container_name=${stateContainer}" \
             -backend-config="key=${workingDirName}.tfstate"`,
       { stdio: "pipe", shell: true, cwd: workingDirPath }
     );

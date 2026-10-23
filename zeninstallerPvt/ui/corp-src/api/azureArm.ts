@@ -51,8 +51,6 @@ export type DeployedBackend = {
 };
 
 const DEPLOY_TIMEOUT_MS = 600_000;
-// Published through ARM, not the app's own scm host, which a site with public access denied never answers.
-const ONEDEPLOY_API = "2026-03-15";
 
 /*
  * The deployment history, which is where the verdict is read from. extensions/onedeploy also answers
@@ -120,11 +118,10 @@ export async function deployZipToFunctionApp(
   onProgress?: (phase: "uploading" | "deploying") => void
 ): Promise<void> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
-  const url = `${ARM}/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Web/sites/${appName}/extensions/onedeploy?api-version=${ONEDEPLOY_API}`;
 
   onProgress?.("uploading");
-  const res = await fetch(url, {
-    method: "PUT",
+  const res = await fetch(`https://${appName}.scm.azurewebsites.net/api/publish?type=zip`, {
+    method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/zip" },
     body: zip,
   });
@@ -409,6 +406,22 @@ export async function ensureDnsTxtRecord(
   return "created";
 }
 
+export async function findDnsZone(
+  account: AzureAccount,
+  subscriptionId: string,
+  dnsName: string,
+  overrideTenantId?: string
+): Promise<{ nameServers: string[]; txtValues: string[] } | null> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const list = await armGet(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Network/dnszones?api-version=2018-05-01`);
+  type Zone = { id: string; name: string; properties?: { nameServers?: string[] } };
+  const zone = ((list as { value?: Zone[] } | null)?.value ?? []).find((z) => z.name === dnsName);
+  if (!zone) return null;
+  const txt = await armGet(token, `${zone.id}/TXT/@?api-version=2018-05-01`);
+  const records: { value: string[] }[] = txt?.properties?.TXTRecords ?? [];
+  return { nameServers: zone.properties?.nameServers ?? [], txtValues: records.flatMap((r) => r.value) };
+}
+
 // ── Storage account + container ────────────────────────────────────────────────
 
 type StorageAccountRow = { id?: string; name?: string; properties?: { primaryEndpoints?: { web?: string } } };
@@ -537,6 +550,22 @@ export async function getStaticWebsiteUrl(account: AzureAccount, subscriptionId:
   return web ? web.replace(/\/+$/, "") : null;
 }
 
+// ARM refuses to delete the resource (and so its group) until the lock is removed. Control plane only:
+// blobs inside can still be deleted, so this guards the account, not the state file.
+export async function ensureDeleteLock(
+  account: AzureAccount,
+  resourceId: string,
+  lockName: string,
+  notes: string,
+  overrideTenantId?: string
+): Promise<EnsureResult> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const path = `${resourceId}/providers/Microsoft.Authorization/locks/${lockName}?api-version=2020-05-01`;
+  if (await armGet(token, path)) return "exists";
+  await gFetch(token, ARM, path, { method: "PUT", body: JSON.stringify({ properties: { level: "CanNotDelete", notes } }) });
+  return "created";
+}
+
 export async function ensureStorageContainer(
   account: AzureAccount,
   subscriptionId: string,
@@ -618,6 +647,46 @@ export function subscriptionScope(subscriptionId: string): string {
 
 const WEBPUBSUB_API = "2023-02-01";
 const WEB_API = "2023-12-01";
+
+export async function findWebPubSubGroup(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<string | null> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const data = await armGet(token, `/subscriptions/${subscriptionId}/providers/Microsoft.SignalRService/webPubSub?api-version=${WEBPUBSUB_API}`);
+  const found = ((data as { value?: { id?: string; name?: string }[] } | null)?.value ?? []).find((w) => w.name === name);
+  return found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1] ?? null;
+}
+
+export async function webPubSubNameAvailable(
+  account: AzureAccount,
+  subscriptionId: string,
+  location: string,
+  name: string,
+  overrideTenantId?: string
+): Promise<boolean> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const availability = await gFetch(
+    token,
+    ARM,
+    `/subscriptions/${subscriptionId}/providers/Microsoft.SignalRService/locations/${location}/checkNameAvailability?api-version=${WEBPUBSUB_API}`,
+    { method: "POST", body: JSON.stringify({ name, type: "Microsoft.SignalRService/WebPubSub" }) }
+  );
+  return availability?.nameAvailable !== false;
+}
+
+export async function findFunctionAppGroup(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<string | null> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const data = await armGet(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Web/sites?api-version=${WEB_API}`);
+  const found = ((data as { value?: { id?: string; name?: string }[] } | null)?.value ?? []).find((s) => s.name === name);
+  return found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1] ?? null;
+}
+
+export async function functionAppNameAvailable(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<boolean> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const availability = await gFetch(token, ARM, `/subscriptions/${subscriptionId}/providers/Microsoft.Web/checknameavailability?api-version=${WEB_API}`, {
+    method: "POST",
+    body: JSON.stringify({ name, type: "Microsoft.Web/sites" }),
+  });
+  return availability?.nameAvailable !== false;
+}
 
 export async function ensureWebPubSub(
   account: AzureAccount,
@@ -750,7 +819,7 @@ export async function ensureFlexFunctionApp(
     });
     await pollProvisioning(async () => {
       const t = await getToken(account, ARM_SCOPES, overrideTenantId);
-      return (await armGet(t, path))?.properties?.provisioningState;
+      return (await armGet(t, path))?.identity?.principalId ? "Succeeded" : undefined;
     }, "Function App");
   }
 
