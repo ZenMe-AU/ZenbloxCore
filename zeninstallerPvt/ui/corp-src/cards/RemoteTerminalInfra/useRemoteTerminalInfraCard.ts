@@ -14,6 +14,10 @@ import {
   ensureResourceGroup,
   ensureStorageAccount,
   findStorageAccountGroup,
+  findFunctionAppGroup,
+  functionAppNameAvailable,
+  findWebPubSubGroup,
+  webPubSubNameAvailable,
   getAppInsightsConnectionString,
   listLocations,
   type AzureLocation,
@@ -32,15 +36,16 @@ import { useProviderRegistration } from "../../hooks/util/useProviderRegistratio
 import {
   DEFAULT_AZURE_LOCATION,
   PRIVATE_APP_INSIGHTS,
-  PRIVATE_FUNCTION_APP,
   PRIVATE_LOG_ANALYTICS,
   PRIVATE_PIPELINE_APP,
   PRIVATE_RESOURCE_GROUP,
-  PRIVATE_WEB_PUBSUB,
   TERMINAL_DEPLOY_CONTAINER,
   TERMINAL_HUB,
   TERMINAL_SESSION_TABLE,
   getApiStorageAccountName,
+  getWebPubSubName,
+  getFunctionAppName,
+  functionAppFromApiUrl,
   getFederatedCredential,
 } from "../../logic/naming";
 import { REMOTE_TERMINAL_PROVIDERS } from "../../config/azureConfig";
@@ -78,7 +83,15 @@ export interface UseRemoteTerminalInfraCard extends CardHook, AzureConfigHook {
   locationsLoading: boolean;
   resourceGroupName: string;
   webPubSubName: string;
+  setWebPubSub: (name: string) => void;
+  webPubSubChecking: boolean;
+  webPubSubError: string | null;
+  checkWebPubSub: () => Promise<boolean>;
   functionAppName: string;
+  setFunctionApp: (name: string) => void;
+  functionAppChecking: boolean;
+  functionAppError: string | null;
+  checkFunctionApp: () => Promise<boolean>;
   storageAccountName: string;
   setStorageAccount: (name: string) => void;
   storageChecking: boolean;
@@ -94,6 +107,8 @@ export interface UseRemoteTerminalInfraCard extends CardHook, AzureConfigHook {
 }
 
 const RESULT_KEY = "zeninstaller_remote_terminal_infra_result";
+const WEB_PUBSUB_NAME = /^[a-z][a-z0-9-]{1,61}[a-z0-9]$/;
+const FUNCTION_APP_NAME = /^[a-z0-9][a-z0-9-]{0,58}[a-z0-9]$/;
 const { save: saveResult, load: loadResult } = createResultStorage<RemoteTerminalInfraResult>(RESULT_KEY);
 
 /*
@@ -114,7 +129,7 @@ export function useRemoteTerminalInfraCard({
 }: UseRemoteTerminalInfraCardParams): UseRemoteTerminalInfraCard {
   const [location, setLocation] = useState(DEFAULT_AZURE_LOCATION);
   const [locations, setLocations] = useState<AzureLocation[]>([]);
-  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [locationsFailed, setLocationsFailed] = useState(false);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const { ensureRegistered } = useProviderRegistration({ azureAccount, subscriptionId, tenantId });
   const [result, setResult] = useState<RemoteTerminalInfraResult | null>(loadResult);
@@ -122,13 +137,21 @@ export function useRemoteTerminalInfraCard({
   const [storageOverride, setStorageOverride] = useState("");
   const [storageChecking, setStorageChecking] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [webPubSubOverride, setWebPubSubOverride] = useState("");
+  const [functionAppOverride, setFunctionAppOverride] = useState("");
+  const [functionAppChecking, setFunctionAppChecking] = useState(false);
+  const [functionAppError, setFunctionAppError] = useState<string | null>(null);
+  const [webPubSubChecking, setWebPubSubChecking] = useState(false);
+  const [webPubSubError, setWebPubSubError] = useState<string | null>(null);
 
   const resourceGroupName = PRIVATE_RESOURCE_GROUP;
   const lawName = PRIVATE_LOG_ANALYTICS;
   const appInsightsName = PRIVATE_APP_INSIGHTS;
   const storageAccountName = storageOverride || variableValues.API_STORAGE_ACCOUNT || getApiStorageAccountName(subscriptionId);
-  const webPubSubName = PRIVATE_WEB_PUBSUB;
-  const functionAppName = PRIVATE_FUNCTION_APP;
+  // The saved endpoint already names the instance, so a custom name survives a reload without a variable of its own.
+  const savedWebPubSub = variableValues.WEBPUBSUB_ENDPOINT?.replace(/\.webpubsub\.azure\.com\/?$/i, "");
+  const webPubSubName = webPubSubOverride || savedWebPubSub || getWebPubSubName(subscriptionId);
+  const functionAppName = functionAppOverride || functionAppFromApiUrl(variableValues.VITE_API_URL) || getFunctionAppName(subscriptionId);
   const planName = `${functionAppName}-plan`;
   const pipelineAppName = PRIVATE_PIPELINE_APP;
 
@@ -167,23 +190,77 @@ export function useRemoteTerminalInfraCard({
     }
   }, [azureAccount, subscriptionId, tenantId, storageAccountName]);
 
-  // Load the subscription's available regions once an account + subscription are known.
-  useEffect(() => {
-    if (!azureAccount || !subscriptionId) {
-      setLocations([]);
-      return;
+  const setWebPubSub = useCallback((name: string) => {
+    setWebPubSubOverride(name);
+    setWebPubSubError(
+      name.length > 63 ? `${name.length} characters; Azure allows 63` : /^[a-z0-9-]*$/.test(name) ? null : "Lowercase letters, digits and hyphens only"
+    );
+  }, []);
+
+  // Same as the storage check: one in this subscription is reused where it is, otherwise it must be free.
+  const checkWebPubSub = useCallback(async (): Promise<boolean> => {
+    const name = webPubSubName;
+    if (!WEB_PUBSUB_NAME.test(name)) {
+      setWebPubSubError("3-63 characters: lowercase letters, digits and hyphens, starting with a letter");
+      return false;
     }
+    if (!azureAccount || !subscriptionId) return true;
+    setWebPubSubChecking(true);
+    setWebPubSubError(null);
+    try {
+      if (await findWebPubSubGroup(azureAccount, subscriptionId, name, tenantId)) return true;
+      if (await webPubSubNameAvailable(azureAccount, subscriptionId, location, name, tenantId)) return true;
+      setWebPubSubError("This name is taken somewhere in Azure — choose a different one");
+      return false;
+    } catch (e) {
+      setWebPubSubError(e instanceof Error ? e.message : "Could not check the name");
+      return false;
+    } finally {
+      setWebPubSubChecking(false);
+    }
+  }, [azureAccount, subscriptionId, tenantId, location, webPubSubName]);
+
+  const setFunctionApp = useCallback((name: string) => {
+    setFunctionAppOverride(name);
+    setFunctionAppError(
+      name.length > 60 ? `${name.length} characters; Azure allows 60` : /^[a-z0-9-]*$/.test(name) ? null : "Lowercase letters, digits and hyphens only"
+    );
+  }, []);
+
+  const checkFunctionApp = useCallback(async (): Promise<boolean> => {
+    const name = functionAppName;
+    if (!FUNCTION_APP_NAME.test(name)) {
+      setFunctionAppError("2-60 characters: lowercase letters, digits and hyphens, not starting or ending with a hyphen");
+      return false;
+    }
+    if (!azureAccount || !subscriptionId) return true;
+    setFunctionAppChecking(true);
+    setFunctionAppError(null);
+    try {
+      if (await findFunctionAppGroup(azureAccount, subscriptionId, name, tenantId)) return true;
+      if (await functionAppNameAvailable(azureAccount, subscriptionId, name, tenantId)) return true;
+      setFunctionAppError("This name is taken somewhere in Azure — choose a different one");
+      return false;
+    } catch (e) {
+      setFunctionAppError(e instanceof Error ? e.message : "Could not check the name");
+      return false;
+    } finally {
+      setFunctionAppChecking(false);
+    }
+  }, [azureAccount, subscriptionId, tenantId, functionAppName]);
+
+  // Load the subscription's available regions once an account + subscription are known.
+  const locationsLoading = !!azureAccount && !!subscriptionId && locations.length === 0 && !locationsFailed;
+  useEffect(() => {
+    if (!azureAccount || !subscriptionId) return;
     let cancelled = false;
-    setLocationsLoading(true);
     listLocations(azureAccount, subscriptionId, tenantId)
       .then((locs) => {
         if (!cancelled) setLocations(locs);
       })
       .catch(() => {
         // The text field below takes a region by hand when the list can't be loaded.
-      })
-      .finally(() => {
-        if (!cancelled) setLocationsLoading(false);
+        if (!cancelled) setLocationsFailed(true);
       });
     return () => {
       cancelled = true;
@@ -217,6 +294,29 @@ export function useRemoteTerminalInfraCard({
           label: "Check resource names",
           status: "error",
           detail: `"${storageAccountName}" can't be a storage account name (3-24 lowercase letters and digits) — edit it above`,
+        },
+      ]);
+      return;
+    }
+
+    if (!FUNCTION_APP_NAME.test(functionAppName)) {
+      setSteps([
+        {
+          id: "name",
+          label: "Check resource names",
+          status: "error",
+          detail: `"${functionAppName}" can't be a Function App name (2-60 lowercase letters, digits and hyphens) — edit it above`,
+        },
+      ]);
+      return;
+    }
+    if (!WEB_PUBSUB_NAME.test(webPubSubName)) {
+      setSteps([
+        {
+          id: "name",
+          label: "Check resource names",
+          status: "error",
+          detail: `"${webPubSubName}" can't be a Web PubSub name (3-63 lowercase letters, digits and hyphens) — edit it above`,
         },
       ]);
       return;
@@ -280,13 +380,17 @@ export function useRemoteTerminalInfraCard({
       mark("container", await ensureStorageContainer(azureAccount, subscriptionId, storageGroup, storageAccountName, TERMINAL_DEPLOY_CONTAINER, tenantId));
 
       updateStep("wps", "running");
-      mark("wps", await ensureWebPubSub(azureAccount, subscriptionId, resourceGroupName, webPubSubName, location, "Free_F1", tenantId));
+      // Its host is global, so one that already exists in this subscription is used where it is.
+      const wpsGroup = (await findWebPubSubGroup(azureAccount, subscriptionId, webPubSubName, tenantId)) ?? resourceGroupName;
+      mark("wps", await ensureWebPubSub(azureAccount, subscriptionId, wpsGroup, webPubSubName, location, "Free_F1", tenantId));
 
       updateStep("hub", "running");
-      mark("hub", await ensureWebPubSubHub(azureAccount, subscriptionId, resourceGroupName, webPubSubName, TERMINAL_HUB, tenantId));
+      mark("hub", await ensureWebPubSubHub(azureAccount, subscriptionId, wpsGroup, webPubSubName, TERMINAL_HUB, tenantId));
 
       updateStep("plan", "running");
-      mark("plan", await ensureFlexServicePlan(azureAccount, subscriptionId, resourceGroupName, planName, location, tenantId));
+      // Its host is global, so one that already exists in this subscription keeps its group, plan included.
+      const appGroup = (await findFunctionAppGroup(azureAccount, subscriptionId, functionAppName, tenantId)) ?? resourceGroupName;
+      mark("plan", await ensureFlexServicePlan(azureAccount, subscriptionId, appGroup, planName, location, tenantId));
 
       updateStep("app", "running");
       const blobBase = `https://${storageAccountName}.blob.core.windows.net`;
@@ -294,10 +398,10 @@ export function useRemoteTerminalInfraCard({
       const { result: appResult, principalId } = await ensureFlexFunctionApp(
         azureAccount,
         subscriptionId,
-        resourceGroupName,
+        appGroup,
         functionAppName,
         location,
-        servicePlanId(subscriptionId, resourceGroupName, planName),
+        servicePlanId(subscriptionId, appGroup, planName),
         `${blobBase}/${TERMINAL_DEPLOY_CONTAINER}`,
         {
           APPLICATIONINSIGHTS_AUTHENTICATION_STRING: "Authorization=AAD",
@@ -320,7 +424,7 @@ export function useRemoteTerminalInfraCard({
 
       updateStep("rbac", "running");
       const saScope = storageAccountScope(subscriptionId, storageGroup, storageAccountName);
-      const wpsScope = webPubSubScope(subscriptionId, resourceGroupName, webPubSubName);
+      const wpsScope = webPubSubScope(subscriptionId, wpsGroup, webPubSubName);
       const grants: [string, string][] = [
         [saScope, "Storage Blob Data Contributor"],
         [saScope, "Storage Queue Data Contributor"],
@@ -399,7 +503,7 @@ export function useRemoteTerminalInfraCard({
   ]);
 
   const status: CardStatus = !azureConfigured ? "error" : done ? "complete" : "warning";
-  const summary = !azureConfigured ? "Unavailable" : done ? "Terminal relay ready" : "Set up the terminal relay";
+  const summary = !azureConfigured ? "Unavailable" : done ? "Backend environment ready" : "Set up the backend environment";
 
   return {
     cardId: "remote_terminal_infra" as const,
@@ -419,7 +523,15 @@ export function useRemoteTerminalInfraCard({
     runNonce,
     resourceGroupName,
     webPubSubName,
+    setWebPubSub,
+    webPubSubChecking,
+    webPubSubError,
+    checkWebPubSub,
     functionAppName,
+    setFunctionApp,
+    functionAppChecking,
+    functionAppError,
+    checkFunctionApp,
     storageAccountName,
     setStorageAccount,
     storageChecking,

@@ -30,8 +30,6 @@ test("Prerequisite steps listed before auth", async ({ page }, testInfo) => {
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
 	const viewportName = getViewportName(testInfo);
-	test.skip(process.env.RUN_BACKEND_DEPLOY_INTEGRATION !== "true",
-		"Set RUN_BACKEND_DEPLOY_INTEGRATION=true only after approving live build and deployment.");
 	test.setTimeout(1_200_000);
 	const { card, appName, readLatestBuild } = await prepareExistingBackend(page, context, viewportName);
 	const previousBuild = await readLatestBuild();

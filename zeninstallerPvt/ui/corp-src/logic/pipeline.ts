@@ -19,7 +19,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
     stages: [
       {
         dir: "c01subscription",
-        label: "Subscription Budget",
+        label: "Azure subscription budget",
         azurePermissions: [],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -36,7 +36,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       },
       {
         dir: "c02globalGroups",
-        label: "Global groups",
+        label: "Organisation security groups",
         azurePermissions: [
           GRAPH_PERMISSIONS.GroupReadWriteAll,
           GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
@@ -54,7 +54,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
        */
       {
         dir: "c07userAccounts",
-        label: "User accounts",
+        label: "User accounts and sign-in",
         azurePermissions: [
           GRAPH_PERMISSIONS.GroupReadWriteAll,
           GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
@@ -72,7 +72,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       },
       {
         dir: "c20awsentrasso",
-        label: "AWS Entra SSO",
+        label: "AWS single sign-on with Entra ID",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -82,7 +82,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       },
       {
         dir: "c21awsentrassoP2",
-        label: "AWS Entra SSO P2",
+        label: "AWS single sign-on with Microsoft Entra ID P2",
         azurePermissions: [GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll, GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -93,7 +93,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       },
       {
         dir: "c25cloudfront",
-        label: "CloudFront",
+        label: "AWS CloudFront distribution",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },

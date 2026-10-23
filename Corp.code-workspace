@@ -104,6 +104,6 @@
       "accessPass/ui/playwright.config.ts",
       "accessPass/func/playwright.config.ts"
     ],
-    "sarif-viewer.connectToGithubCodeScanning": "off",
+    "sarif-viewer.connectToGithubCodeScanning": "off"
   },
 }

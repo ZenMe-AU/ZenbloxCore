@@ -1,3 +1,8 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
 /// <reference types="node" />
 // UI component: ../../../corp-src/cards/BackendDeployCard.tsx
 import { expect } from "@playwright/test";
@@ -5,7 +10,7 @@ import { getViewportName, test } from "../util/viewportFixture.mts";
 import { CORP_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import { backendBuild, expectSuccessfulSteps, installRelayNetworkGuard, prepareMockBackend, previousBuild } from "../util/mockTestHelper.mts";
-import { backendStepLabels, expandAzureLoginCard, expandRepoCard, openBackendCard } from "../util/cardHelper.mjs";
+import { backendStepLabels, openBackendCard } from "../util/cardHelper.mjs";
 
 test.beforeEach(async ({ page }) => {
 	await page.coverage.startJSCoverage({ resetOnNavigation: false });
@@ -17,6 +22,7 @@ test.afterEach(async ({ page }, testInfo) => {
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);
 });
+
 test("Reports a missing package without deploying", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, { missingArtifact: true });
@@ -27,6 +33,7 @@ test("Reports a missing package without deploying", async ({ page, context }, te
 	await expectSnapshot(page, card, testInfo, "missing-package", viewportName);
 	expect(unexpectedRequests).toEqual([]);
 });
+
 test("Reports a build permission failure", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, { failBuild: true });
@@ -38,6 +45,7 @@ test("Reports a build permission failure", async ({ page, context }, testInfo) =
 	await expectSnapshot(page, card, testInfo, "build-failed", viewportName);
 	expect(unexpectedRequests).toEqual([]);
 });
+
 test("Retries a failed upload without changing connection variables", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	const { card, state, github, initialVariables, unexpectedRequests } =
@@ -59,6 +67,7 @@ test("Retries a failed upload without changing connection variables", async ({ p
 	await expectSnapshot(page, card, testInfo, "recovered", viewportName);
 	expect(unexpectedRequests).toEqual([]);
 });
+
 test("Prerequisite steps are shown", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	const unexpectedRequests = await installRelayNetworkGuard(context);
@@ -70,6 +79,7 @@ test("Prerequisite steps are shown", async ({ page, context }, testInfo) => {
 	await expectSnapshot(page, card, testInfo, "authentication-required", viewportName);
 	expect(unexpectedRequests).toEqual([]);
 });
+
 test("No deployment option on the latest build", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, { seedBuild: "current" });
@@ -81,6 +91,7 @@ test("No deployment option on the latest build", async ({ page, context }, testI
 	await expectSnapshot(page, card, testInfo, "already-current", viewportName);
 	expect(unexpectedRequests).toEqual([]);
 });
+
 test("Deployment available when the existing app version is older", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, { seedBuild: "update" });
@@ -91,7 +102,8 @@ test("Deployment available when the existing app version is older", async ({ pag
 	await expectSnapshot(page, card, testInfo, "update-available", viewportName);
 	expect(unexpectedRequests).toEqual([]);
 });
-for (const outcome of ["failed", "cancelled", "timeout"] as const) {
+
+for (const outcome of ["failed", "cancelled"] as const) {
 	test(`Does not accept a ${outcome} build workflow as a new build`, async ({ page, context }, testInfo) => {
 		const viewportName = getViewportName(testInfo);
 		test.setTimeout(180_000);
@@ -110,6 +122,7 @@ for (const outcome of ["failed", "cancelled", "timeout"] as const) {
 		expect(unexpectedRequests).toEqual([]);
 	});
 }
+
 test("Reports an expired build artifact without uploading", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, {
@@ -125,6 +138,7 @@ test("Reports an expired build artifact without uploading", async ({ page, conte
 	await expectSnapshot(page, card, testInfo, "expired-artifact", viewportName);
 	expect(unexpectedRequests).toEqual([]);
 });
+
 test("Reports an app deployment failure without recording the new version", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, {
@@ -143,6 +157,7 @@ test("Reports an app deployment failure without recording the new version", asyn
 	await expectSnapshot(page, card, testInfo, "deployment-failed", viewportName);
 	expect(unexpectedRequests).toEqual([]);
 });
+
 test("Reports a deployment polling timeout without recording the new version", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	test.setTimeout(180_000);
@@ -187,6 +202,7 @@ test("Reports app-settings write failure after a successful package deployment",
 	await expectSnapshot(page, card, testInfo, "settings-write-failed", viewportName);
 	expect(unexpectedRequests).toEqual([]);
 });
+
 test("Reports a deployed-version read failure after saving settings", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, {

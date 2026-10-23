@@ -6,6 +6,7 @@
 import { useEffect } from "react";
 import { Box, Button, CircularProgress, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { warningMessageIconSx } from "../../config/styles";
 import type { Account, CardChrome, GhEnv } from "../../types";
 import type { UseAzureAccount } from "../AzureLogin/useAzureAccount";
 import type { UseAzureSubscriptionCard } from "./useAzureSubscriptionCard";
@@ -15,9 +16,9 @@ import { tenantDisplayName } from "../../logic/tenant";
 import { AZURE_TARGET_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
 import Card from "../../components/Card";
+import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
-import { MONO as mono, labelSx } from "../../config/styles";
 
 type Props = {
   card: CardChrome;
@@ -37,7 +38,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
       Pick the subscription to deploy into. This is where the resource group, storage account and DNS zone will be created, and it's saved to GitHub so the
       pipeline uses the same target.
     </Typography>
@@ -106,18 +107,15 @@ export default function AzureSubscriptionCard({
         <Intro />
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
-          <Typography sx={{ ...labelSx, "& span": { color: "#0f172a", textTransform: "none" } }}>
-            Tenant: <span>{tenantLabel}</span>
+          <Typography color="text.muted">
+            Tenant: <Box component="span" sx={{ color: "text.primary" }}>{tenantLabel}</Box>
           </Typography>
           <Button
             size="small"
             onClick={onOpenAzureLogin}
             sx={{
               minWidth: 0,
-              fontSize: "0.68rem",
-              color: "#2563eb",
-              textTransform: "none",
-              ...mono,
+              color: "primary.main",
               py: 0,
               px: 0.5,
               "&:hover": { textDecoration: "underline" },
@@ -127,13 +125,15 @@ export default function AzureSubscriptionCard({
           </Button>
         </Box>
 
-        {subsError && !subscriptionNoAccess && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444" }}>{subsError}</Typography>}
+        {subsError && !subscriptionNoAccess && <Typography color="error.main" role="alert">{subsError}</Typography>}
 
         {/* Subscription */}
         <Box>
-          <Typography sx={{ ...labelSx, mb: 0.75 }}>Subscription</Typography>
+          <FieldLabel id="azure-subscription-label" htmlFor="azure-subscription-select">Subscription</FieldLabel>
           {subscriptionOptions.length > 0 ? (
             <Select
+              id="azure-subscription-select"
+              aria-labelledby="azure-subscription-label"
               size="small"
               value={selectedSubscriptionId || ""}
               onChange={(e) => {
@@ -142,23 +142,23 @@ export default function AzureSubscriptionCard({
               }}
               displayEmpty
               renderValue={(v) => {
-                if (!v) return <Typography sx={{ fontSize: "0.8rem", color: "#94a3b8", ...mono }}>Select a subscription</Typography>;
+                if (!v) return <Typography color="text.muted">Select a subscription</Typography>;
                 const name = subscriptionOptions.find((s) => s.id === v)?.displayName ?? v;
                 return (
-                  <Typography data-sensitive="true" sx={{ fontSize: "0.8rem", ...mono }}>
+                  <Typography data-sensitive="true">
                     {name}
                   </Typography>
                 );
               }}
-              sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%", fontSize: "0.8rem", ...mono }}
+              sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%" }}
             >
               {subscriptionOptions.map((s) => (
                 <MenuItem key={s.id} value={s.id} sx={{ py: 0.75 }}>
                   <Box>
-                    <Typography data-sensitive="true" sx={{ fontSize: "0.8rem", ...mono }}>
+                    <Typography data-sensitive="true">
                       {s.displayName}
                     </Typography>
-                    <Typography data-sensitive="true" sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono }}>
+                    <Typography data-sensitive="true" variant="body2" color="text.muted">
                       {s.id}
                     </Typography>
                   </Box>
@@ -166,20 +166,20 @@ export default function AzureSubscriptionCard({
               ))}
             </Select>
           ) : subscriptionNoAccess ? (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-              <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#d97706" }}>This tenant has no subscriptions you can access.</Typography>
+            <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+              <Typography color="warning.main">This tenant has no subscriptions you can access.</Typography>
             </Box>
           ) : (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <CircularProgress size={12} sx={{ color: "#cbd5e1" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", ...mono }}>Loading subscriptions...</Typography>
+            <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <CircularProgress aria-label="Loading Azure subscriptions" size={12} sx={{ color: "text.disabled" }} />
+              <Typography color="text.muted">Loading subscriptions...</Typography>
             </Box>
           )}
         </Box>
 
         {!selectedEnv && (
-          <Typography sx={{ fontSize: "0.72rem", color: "#d97706" }}>
+          <Typography color="warning.main" role="status">
             Select a repository & environment to save the tenant and subscription to GitHub.
           </Typography>
         )}
@@ -197,9 +197,9 @@ export default function AzureSubscriptionCard({
           githubUrl={githubUrl}
           saveHint={
             subscriptionDrift ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                <Typography sx={{ fontSize: "0.72rem", color: "#d97706" }}>Unsaved change — save to apply.</Typography>
+              <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+                <Typography color="warning.main">Unsaved change — save to apply.</Typography>
               </Box>
             ) : undefined
           }

@@ -4,23 +4,25 @@
  */
 
 import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { ACTION_CONFIG } from "./stageConfig";
 import { getActionType } from "../../logic/stage";
 import type { PlanItem, PlanSummary } from "../../types";
-import { MONO as mono } from "../../config/styles";
+import { MONO_FONT } from "../../config/styles";
+import ErrorText from "../../components/ErrorText";
+import StatusText from "../../components/StatusText";
 
-function SummaryPill({ label, count, color }: { label: string; count: number; color: string }) {
+function SummaryPill({ label, count, color }: { label: string; count: number; color: "success" | "warning" | "error" | "info" }) {
   return (
     <Box
-      sx={{
+      sx={(theme) => ({
         px: 0.875,
         py: 0.25,
         borderRadius: "4px",
-        border: `1px solid ${color}33`,
-        color,
-        fontSize: "0.65rem",
-        ...mono,
-      }}
+        border: "1px solid",
+        borderColor: alpha(theme.palette[color].main, 0.2),
+        color: theme.palette[color].dark,
+      })}
     >
       {label} {count}
     </Box>
@@ -36,13 +38,10 @@ function BehindPill({ planSha, latestSha }: { planSha?: string; latestSha?: stri
           px: 0.875,
           py: 0.25,
           borderRadius: "4px",
-          border: "1px solid #d9770633",
-          background: "#d977060d",
-          color: "#d97706",
-          fontSize: "0.65rem",
-          ...mono,
-          textTransform: "none",
-          letterSpacing: 0,
+          border: "1px solid",
+          borderColor: "warning.light",
+          backgroundColor: "action.hover",
+          color: "warning.dark",
           cursor: "default",
         }}
       >
@@ -60,14 +59,8 @@ function DeployButton({ onDeploy, disabled }: { onDeploy: () => void; disabled?:
       size="small"
       onClick={() => void onDeploy()}
       sx={{
-        background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-        ...mono,
-        fontSize: "0.72rem",
-        textTransform: "none",
         py: 0.45,
         px: 1.5,
-        "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-        "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
       }}
     >
       Deploy
@@ -99,32 +92,28 @@ export default function StagePlanDetail({
   if (loading) {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 1 }}>
-        <CircularProgress size={13} sx={{ color: "#cbd5e1" }} />
-        <Typography sx={{ fontSize: "0.75rem", color: "#94a3b8", ...mono }}>Loading plan...</Typography>
+        <CircularProgress aria-label="Loading deployment plan" size={13} sx={{ color: "text.disabled" }} />
+        <StatusText>Loading plan...</StatusText>
       </Box>
     );
   }
 
-  if (error) return <Typography sx={{ fontSize: "0.75rem", color: "#ef4444", ...mono }}>{error}</Typography>;
+  if (error) return <ErrorText>{error}</ErrorText>;
 
   const hasChanges = summary.create + summary.update + summary.delete + summary.replace > 0;
 
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-        <Typography
-          sx={{
-            fontSize: "0.68rem",
-            color: "#94a3b8",
-            ...mono,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-          }}
-        >
+        <Typography variant="sectionLabel">
           Planned Changes for Deployment
         </Typography>
         {behind && <BehindPill planSha={planSha} latestSha={latestSha} />}
       </Box>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Create adds resources, update changes existing resources, delete removes resources, and replace recreates a resource and may interrupt service. Review the
+        plan before deploying.
+      </Typography>
       <Box
         sx={{
           display: "flex",
@@ -137,20 +126,20 @@ export default function StagePlanDetail({
         <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
           {hasChanges ? (
             <>
-              <SummaryPill label="create" count={summary.create} color="#16a34a" />
-              <SummaryPill label="update" count={summary.update} color="#d97706" />
-              <SummaryPill label="delete" count={summary.delete} color="#dc2626" />
-              {summary.replace > 0 && <SummaryPill label="replace" count={summary.replace} color="#7c3aed" />}
+              <SummaryPill label="create" count={summary.create} color="success" />
+              <SummaryPill label="update" count={summary.update} color="warning" />
+              <SummaryPill label="delete" count={summary.delete} color="error" />
+              {summary.replace > 0 && <SummaryPill label="replace" count={summary.replace} color="info" />}
             </>
           ) : (
-            <Typography sx={{ fontSize: "0.72rem", color: "#94a3b8", ...mono }}>No changes detected.</Typography>
+            <Typography color="text.muted">No changes detected.</Typography>
           )}
         </Box>
         {onDeploy && <DeployButton onDeploy={onDeploy} disabled={stagesStale} />}
       </Box>
 
       {hasChanges && (
-        <Box sx={{ border: "1px solid #f1f5f9", borderRadius: "8px", overflow: "hidden" }}>
+        <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, overflow: "hidden" }}>
           {items.map((item, idx) => {
             const type = getActionType(item.change.actions) ?? "unknown";
             const cfg = ACTION_CONFIG[type];
@@ -163,12 +152,13 @@ export default function StagePlanDetail({
                   gap: 1.5,
                   px: 2,
                   py: 0.875,
-                  borderBottom: idx < items.length - 1 ? "1px solid #f8fafc" : "none",
-                  background: idx % 2 === 0 ? "#ffffff" : "#fafafa",
+                  borderBottom: idx < items.length - 1 ? "1px solid" : "none",
+                  borderColor: "divider",
+                  backgroundColor: idx % 2 === 0 ? "background.paper" : "background.default",
                 }}
               >
-                <Box sx={{ width: 26, color: cfg.color, fontSize: "0.72rem", fontWeight: 700, ...mono, flexShrink: 0 }}>{cfg.symbol}</Box>
-                <Typography sx={{ fontSize: "0.75rem", color: "#334155", wordBreak: "break-all", ...mono }}>{item.address}</Typography>
+                <Box sx={{ width: 26, color: cfg.color, fontWeight: 700, flexShrink: 0 }}>{cfg.symbol}</Box>
+                <Typography color="text.secondary" sx={{ wordBreak: "break-all", ...MONO_FONT }}>{item.address}</Typography>
               </Box>
             );
           })}

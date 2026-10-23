@@ -8,7 +8,26 @@
   // "azureFunctions.projectLanguageModel": 4,
   // "azureFunctions.preDeployTask": "npm prune (functions)",
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+  "[javascript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+  },
+  "eslint.enable": true,
+  "eslint.format.enable": true,
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
   "endOfLine": "auto",
   "workbench.editorAssociations": {
     "*.copilotmd": "vscode.markdown.preview.editor",
@@ -17,13 +36,24 @@
     "*.tsv": "duckdb.dataFileViewer",
     "*.xlsx": "duckdb.dataFileViewer"
   },
-
   "azurite.location": "${workspaceFolder}/azurite",
   "azurite.debug": true,
   "azurite.silent": true,
-  "eslint.workingDirectories": [{ "mode": "auto" }],
-    "sarif-viewer.connectToGithubCodeScanning": "off",
-    "cSpell.language": "en-AU",
-    "cSpell.dictionaries": ["en-au"],
-    "cSpell.enabledLanguageIds": ["markdown", "plaintext", "javascript", "typescript", "typescriptreact"]
+  "eslint.workingDirectories": [
+    {
+      "mode": "auto"
+    }
+  ],
+  "sarif-viewer.connectToGithubCodeScanning": "off",
+  "cSpell.language": "en-AU",
+  "cSpell.dictionaries": [
+    "en-au"
+  ],
+  "cSpell.enabledLanguageIds": [
+    "markdown",
+    "plaintext",
+    "javascript",
+    "typescript",
+    "typescriptreact"
+  ]
 }

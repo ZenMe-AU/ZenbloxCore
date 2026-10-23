@@ -6,6 +6,7 @@
 // GitHub URL builders shared across corp-src.
 
 export const GITHUB_LOGIN_URL = "https://github.com/login";
+export const GITHUB_SIGNUP_URL = "https://github.com/signup";
 
 export function getGithubUserUrl(login: string): string {
   return `https://github.com/${login}`;

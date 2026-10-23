@@ -4,20 +4,22 @@
  */
 
 import { useState, useEffect, useRef } from "react";
-import { Box, Button, Collapse, TextField, Typography } from "@mui/material";
+import { Box, Button, ButtonBase, Collapse, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { warningMessageIconSx } from "../../config/styles";
 import type { Account, CardChrome, GhEnv } from "../../types";
 import type { UseAzureAppRegistrationCard } from "./useAzureAppRegistrationCard";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
+import FieldLabel from "../../components/FieldLabel";
+import StatusText from "../../components/StatusText";
 import { AZURE_APP_REGISTRATIONS_URL, getAppRegistrationUrl } from "./consoleUrls";
 import { AZURE_APP_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
-import { MONO as mono, labelSx } from "../../config/styles";
 
 type Props = {
   card: CardChrome;
@@ -32,9 +34,10 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
-      Create an app registration for GitHub Actions and grant it access on your selected subscription. Name it and create it — the AZURE_CLIENT_ID connection
-      variables are written to GitHub automatically.
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+      Create a Microsoft Entra app registration for GitHub Actions. ZenInstaller configures GitHub OIDC trust for the selected environment, so workflows can sign
+      in without a stored client secret, and grants the app Reader access to the selected Azure subscription for Terraform plans. The app ID is saved to that
+      environment. This does not grant deployment permissions; deployments are applied separately through the remote-terminal flow.
     </Typography>
   );
 }
@@ -140,19 +143,22 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
               display: "flex",
               alignItems: "center",
               gap: 1,
-              background: bannerState === "error" ? "#fef9c3" : "#f0fdf4",
-              border: `1px solid ${bannerState === "error" ? "#fde047" : "#bbf7d0"}`,
+              backgroundColor: "background.default",
+              border: "1px solid",
+              borderColor: bannerState === "error" ? "error.main" : "success.main",
               borderRadius: "8px",
               px: 1.5,
               py: 1,
             }}
+            role={bannerState === "error" ? "alert" : "status"}
+            aria-live={bannerState === "error" ? "assertive" : "polite"}
           >
             {bannerState === "error" ? (
-              <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706" }} />
+              <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
             ) : (
-              <CheckCircleOutlineIcon sx={{ fontSize: 16, color: "#16a34a" }} />
+              <CheckCircleOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main" }} />
             )}
-            <Typography sx={{ fontSize: "0.75rem", color: bannerState === "error" ? "#713f12" : "#15803d" }}>
+            <Typography color={bannerState === "error" ? "error.dark" : "success.dark"}>
               {bannerState === "saved" && "Connection details saved."}
               {bannerState === "no-changes" && "Connection details saved — no changes needed."}
               {bannerState === "error" && "Some connection details failed to save — check below."}
@@ -171,9 +177,9 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
           {azureAccount && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
               {!subscriptionId && (
-                <Box sx={{ background: "#fef9c3", border: "1px solid #fde047", borderRadius: "8px", px: 2, py: 1.25 }}>
-                  <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
-                    Pick a subscription in the <b>Azure subscription</b> card first — this app registration grants access on it.
+                <Box role="status" aria-live="polite" sx={{ backgroundColor: "background.default", border: "1px solid", borderColor: "warning.main", borderRadius: 1, px: 2, py: 1.25 }}>
+                  <Typography color="warning.dark">
+                    Select a subscription in the <b>Azure subscription</b> card first. ZenInstaller grants this app Reader access to that subscription for Terraform planning.
                   </Typography>
                 </Box>
               )}
@@ -181,17 +187,20 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
               {spNotFound && (
                 <Box
                   sx={{
-                    background: "#fef9c3",
-                    border: "1px solid #fde047",
-                    borderRadius: "8px",
+                    backgroundColor: "background.default",
+                    border: "1px solid",
+                    borderColor: "warning.main",
+                    borderRadius: 1,
                     px: 2,
                     py: 1.25,
                     display: "flex",
                     gap: 1,
                   }}
+                  role="status"
+                  aria-live="polite"
                 >
-                  <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+                  <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+                  <Typography color="warning.dark">
                     This app registration doesn't exist in the selected tenant — create a new one.
                   </Typography>
                 </Box>
@@ -200,17 +209,20 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
               {rbacMissing && (
                 <Box
                   sx={{
-                    background: "#fef9c3",
-                    border: "1px solid #fde047",
-                    borderRadius: "8px",
+                    backgroundColor: "background.default",
+                    border: "1px solid",
+                    borderColor: "warning.main",
+                    borderRadius: 1,
                     px: 2,
                     py: 1.25,
                     display: "flex",
                     gap: 1,
                   }}
+                  role="status"
+                  aria-live="polite"
                 >
-                  <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+                  <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+                  <Typography color="warning.dark">
                     Missing on the selected subscription: <b>{rbacMissingRoles.join(", ") || "access"}</b> — re-run to grant it.
                   </Typography>
                 </Box>
@@ -219,17 +231,20 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
               {planClientIdMismatch && (
                 <Box
                   sx={{
-                    background: "#fef9c3",
-                    border: "1px solid #fde047",
-                    borderRadius: "8px",
+                    backgroundColor: "background.default",
+                    border: "1px solid",
+                    borderColor: "warning.main",
+                    borderRadius: 1,
                     px: 2,
                     py: 1.25,
                     display: "flex",
                     gap: 1,
                   }}
+                  role="status"
+                  aria-live="polite"
                 >
-                  <WarningAmberIcon sx={{ fontSize: 16, color: "#d97706", flexShrink: 0 }} />
-                  <Typography sx={{ fontSize: "0.75rem", color: "#713f12" }}>
+                  <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+                  <Typography color="warning.dark">
                     AZURE_PLAN_CLIENT_ID doesn't match AZURE_CLIENT_ID — re-run to bring it back in sync.
                   </Typography>
                 </Box>
@@ -239,16 +254,14 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
               {steps.length === 0 && (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <Box>
-                    <Typography sx={{ ...labelSx, mb: 0.75 }}>App registration name</Typography>
+                    <FieldLabel htmlFor="azure-app-registration-name">App registration name</FieldLabel>
                     <TextField
+                      id="azure-app-registration-name"
                       size="small"
                       value={appName}
                       onChange={(e) => setAppName(e.target.value)}
                       sx={{ minWidth: 280 }}
-                      inputProps={{
-                        "data-sensitive": true,
-                        style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" },
-                      }}
+                      inputProps={{ "data-sensitive": true }}
                     />
                   </Box>
 
@@ -258,24 +271,16 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                       onClick={handleRun}
                       disabled={disabled || !subscriptionId || !appName.trim()}
                       sx={{
-                        background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                        textTransform: "none",
-                        ...mono,
-                        fontSize: "0.85rem",
                         py: 0.85,
                         px: 2.5,
-                        borderRadius: "8px",
-                        boxShadow: "0 2px 6px #2563eb33",
-                        "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-                        "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
                       }}
                     >
-                      {rbacMissing ? "Grant access on this subscription" : "Create app registration"}
+                      {rbacMissing ? "Grant Reader access on this subscription" : "Create app registration"}
                     </Button>
                     {varHasAny && !rbacMissing && !spNotFound && (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                        <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-                        <Typography sx={{ fontSize: "0.68rem", color: "#d97706" }}>This will overwrite your current connection details</Typography>
+                        <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+                        <Typography color="warning.main">This replaces the saved Azure app IDs for the selected GitHub environment.</Typography>
                       </Box>
                     )}
                   </Box>
@@ -284,11 +289,11 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
 
               {/* Progress steps */}
               {steps.length > 0 && (
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid #e2e8f0", pl: 1.5 }}>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid", borderColor: "divider", pl: 1.5 }}>
                   {steps.map((s) => (
                     <StepRow key={s.id} step={s} />
                   ))}
-                  {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
+                  {running && <StatusText>Running...</StatusText>}
                   {!running && (
                     <Button
                       size="small"
@@ -296,11 +301,8 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                       sx={{
                         alignSelf: "flex-start",
                         mt: 0.5,
-                        textTransform: "none",
-                        ...mono,
-                        fontSize: "0.72rem",
-                        color: "#64748b",
-                        "&:hover": { color: "#2563eb" },
+                        color: "text.muted",
+                        "&:hover": { color: "primary.main" },
                       }}
                     >
                       ↩ Try again
@@ -313,27 +315,31 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
         </Box>
 
         {/* ── Divider (clickable toggle) ── */}
-        <Box
-          onClick={() => setVarExpanded((e) => !e)}
-          sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
+        <ButtonBase
+          disableRipple
+          onClick={() => setVarExpanded((expanded) => !expanded)}
+          aria-expanded={varExpanded}
+          aria-controls="azure-app-registration-connection-details"
+          sx={{ width: "100%", display: "flex", alignItems: "center", gap: 1.5, userSelect: "none", py: 0.25 }}
         >
-          <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, whiteSpace: "nowrap" }}>
+          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+          <Typography color="text.muted" sx={{ whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter application connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
             sx={{
-              fontSize: 14,
-              color: "#94a3b8",
+              typography: "caption",
+              color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
               transition: "transform 0.2s",
             }}
+            aria-hidden="true"
           />
-          <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-        </Box>
+          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+        </ButtonBase>
 
         {/* ── Variable editor (unmountOnExit=false keeps in-progress draft edits and auto-save state alive while collapsed) ── */}
-        <Collapse in={varExpanded} timeout={300} unmountOnExit={false}>
+        <Collapse id="azure-app-registration-connection-details" role="region" aria-label="Connection details" in={varExpanded} timeout={300} unmountOnExit={false}>
           <CloudVariableDetail
             account={githubAccount}
             repo={repoName}

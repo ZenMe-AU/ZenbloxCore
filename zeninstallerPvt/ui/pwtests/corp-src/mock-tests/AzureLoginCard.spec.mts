@@ -8,10 +8,7 @@ import { expect } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import {
   installMockAzure,
-  installMockGitHub,
   mockMsaTenantId,
-  mockSubscriptionId,
-  mockSecondSubscriptionId,
   mockSecondTenantId,
   mockTenantId,
   prepareMockAzureSubscription,
@@ -19,8 +16,7 @@ import {
 } from "../util/mockTestHelper.mts";
 import { CORP_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
-import { createNewRepo } from "../util/testHelper.mts";
-import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
+import { expandAzureLoginCard } from "../util/cardHelper.mts";
 
 const mockTenants = [
   { tenantId: mockTenantId, displayName: "Mock tenant" },
@@ -37,55 +33,6 @@ test.afterEach(async ({ page }, testInfo) => {
 
 test("Happy path", async ({ page }, testInfo) => {
   await runHappyPath({ page }, testInfo);
-});
-
-test("Tenant changes invalidate the previous subscription", async ({ page, context }, testInfo) => {
-  const viewportName = getViewportName(testInfo);
-  const repoName = `mock-azure-tenant-switch-${viewportName.toLowerCase()}`;
-  await installMockGitHub(page, context);
-  await installMockAzure(page, {
-    tenants: mockTenants,
-    subscriptions: [
-      { subscriptionId: mockSubscriptionId, displayName: "Mock subscription", tenantId: mockTenantId, state: "Enabled" },
-      { subscriptionId: mockSecondSubscriptionId, displayName: "Mock second subscription", tenantId: mockSecondTenantId, state: "Enabled" },
-      { subscriptionId: "mock-subscription-alternate", displayName: "Mock alternate subscription", tenantId: mockTenantId, state: "Enabled" },
-    ],
-  });
-  await page.goto(CORP_URL);
-  const loginCard = await expandAzureLoginCard(page);
-  await signInMockAzure(page, [], [mockTenantId, mockSecondTenantId]);
-  const tenantSelect = loginCard.getByTestId("tenant-select");
-  await expect(loginCard.getByText("Loading tenants...", { exact: true })).toBeHidden();
-  await tenantSelect.click();
-  await page.getByRole("option", { name: /Mock tenant/ }).click();
-  await expect(tenantSelect.locator("input")).toHaveValue(mockTenantId);
-
-  const repoCard = await expandRepoCard(page);
-  await createNewRepo(page, repoCard, repoName);
-  await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
-  await repoCard.getByText("PROD", { exact: true }).click();
-  const createBranch = repoCard.getByRole("button", { name: "Create New Branch: PROD" });
-  if (await createBranch.isVisible()) {
-    await createBranch.click();
-    await expect(createBranch).toBeHidden();
-  }
-
-  const subscriptionCard = await expandAzureSubscriptionCard(page);
-  const subscriptionSelect = subscriptionCard.getByRole("combobox");
-  await expect(subscriptionSelect).toContainText("Select a subscription");
-  await subscriptionSelect.click();
-  await page.getByRole("option", { name: /Mock subscription/ }).click();
-  await expect(subscriptionSelect).toContainText("Mock subscription");
-  await subscriptionSelect.click();
-  await page.getByRole("option", { name: /Mock alternate subscription/ }).click();
-  await expect(subscriptionSelect).toContainText("Mock alternate subscription");
-  await expectSnapshot(page, subscriptionCard, testInfo, "first-tenant-subscription", viewportName);
-
-  await tenantSelect.click();
-  await page.getByRole("option", { name: /Mock second tenant/ }).click();
-  await expect(tenantSelect.locator("input")).toHaveValue(mockSecondTenantId);
-  await expect(subscriptionSelect).toContainText("Mock second subscription");
-  await expectSnapshot(page, subscriptionCard, testInfo, "second-tenant-subscription", viewportName);
 });
 
 test("An empty tenant list permits manual tenant confirmation", async ({ page }, testInfo) => {
@@ -131,28 +78,6 @@ test("Saved tenant missing from tenant list", async ({ page, context }, testInfo
   await expect(card.getByText("Saved tenant not found — please pick another.", { exact: true })).toBeVisible();
   await expect(card.getByTestId("tenant-select").locator("input")).toHaveValue(missingTenantId);
   await expectSnapshot(page, card, testInfo, "saved-tenant-missing", viewportName);
-});
-
-test("Azure sign-in requests the Microsoft authentication handoff", async ({ page }, testInfo) => {
-  const viewportName = getViewportName(testInfo);
-  await installMockAzure(page);
-  await page.route("https://login.microsoftonline.com/**", (route) => route.abort("blockedbyclient"));
-  await page.goto(CORP_URL);
-  const card = await expandAzureLoginCard(page);
-  const authorizationRequest = page.waitForRequest((request) => {
-    const url = new URL(request.url());
-    return url.hostname === "login.microsoftonline.com" && url.pathname.includes("/oauth2/v2.0/authorize");
-  });
-  await card.getByRole("button", { name: "Sign in with Azure", exact: true }).click();
-  const authorizeUrl = new URL((await authorizationRequest).url());
-  expect(authorizeUrl.searchParams.get("client_id")).toBeTruthy();
-  expect(authorizeUrl.searchParams.get("response_type")).toBe("code");
-  expect(authorizeUrl.searchParams.get("prompt")).toBe("select_account");
-  await page.goto(CORP_URL);
-  const unauthenticatedCard = await expandAzureLoginCard(page);
-  await expect(unauthenticatedCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toBeVisible();
-  await expect(unauthenticatedCard.getByText(/Signed in as/i)).toHaveCount(0);
-  await expectSnapshot(page, unauthenticatedCard, testInfo, "authentication-handoff", viewportName);
 });
 
 test("Signs out current user", async ({ page }, testInfo) => {

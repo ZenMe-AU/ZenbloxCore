@@ -12,8 +12,10 @@ import { logEvent } from "../../monitor/telemetry";
 import Card from "../../components/Card";
 import CopyRow from "../../components/CopyRow";
 import ViewLink from "../../components/ViewLink";
+import ExternalLink from "../../components/ExternalLink";
+import ErrorText from "../../components/ErrorText";
+import StatusText from "../../components/StatusText";
 import { getEntraUsersUrl } from "../../logic/consoleUrls";
-import { MONO as mono } from "../../config/styles";
 
 const COMPLETED_USERS_KEY = "zeninstaller_corp_access_pass_completed_users";
 const DELIVERY_CONFIRMED_USERS_KEY = "zeninstaller_corp_access_pass_delivery_confirmed_users";
@@ -50,7 +52,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
       Create a Temporary Access Pass for a user managed by your signed-in account. This removes their existing sign-in methods, randomizes their password, and
       issues a one-hour access pass.
     </Typography>
@@ -188,9 +190,10 @@ export default function AccessPassCard({ card, accessPass }: Props) {
         {/* Entra user selector */}
         <Box
           sx={{
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0",
-            borderRadius: "8px",
+            backgroundColor: "background.default",
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 1,
             px: 2,
             py: 1.5,
             display: "flex",
@@ -198,21 +201,22 @@ export default function AccessPassCard({ card, accessPass }: Props) {
             gap: 1.25,
           }}
         >
-          <Typography sx={{ fontSize: "0.78rem", color: "#0f172a", ...mono, fontWeight: 600 }}>Select Entra user</Typography>
+          <Typography variant="sectionLabel">Select Entra user</Typography>
           <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexDirection: "column", width: "100%" }}>
             {managerUsersLoading && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <CircularProgress size={14} sx={{ color: "#2563eb" }} />
-                <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>Loading users...</Typography>
+              <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CircularProgress aria-label="Loading managed users" size={14} />
+                <StatusText>Loading users...</StatusText>
               </Box>
             )}
 
             {!managerUsersLoading && managerUsers.length > 0 && (
               <TableContainer
                 sx={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  background: "#ffffff",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  backgroundColor: "background.paper",
                   width: "100%",
                   overflowX: "auto",
                 }}
@@ -220,9 +224,9 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                 <Table size="small" sx={{ minWidth: 640 }}>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>Name</TableCell>
-                      <TableCell sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>UPN</TableCell>
-                      <TableCell align="right" sx={{ ...mono, fontSize: "0.68rem", color: "#334155", fontWeight: 700 }}>
+                      <TableCell sx={{ color: "text.primary", fontWeight: 700 }}>Name</TableCell>
+                      <TableCell sx={{ color: "text.primary", fontWeight: 700 }}>UPN</TableCell>
+                      <TableCell align="right" sx={{ color: "text.primary", fontWeight: 700 }}>
                         {" "}
                         Action{" "}
                       </TableCell>
@@ -235,7 +239,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                       const savedPass = passValuesByUserId[user.id];
                       const isCompletedUser = !!completedByUserId[user.id];
                       const isDeliveryConfirmed = !!deliveryConfirmedByUserId[user.id];
-                      const rowHighlightSx = isCompletedUser ? { background: "#dbeafe" } : isCurrentResult ? { background: "#f0fdf4" } : undefined;
+                      const rowHighlightSx = isCompletedUser ? { backgroundColor: "info.light" } : isCurrentResult ? { backgroundColor: "success.light" } : undefined;
                       const showingConfirmationForUser = confirmationUserId === user.id && !running;
                       const showingInlineStepsForUser = showingSelectedUserSteps && statusUserId === user.id;
                       return (
@@ -243,9 +247,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                           <TableRow sx={rowHighlightSx}>
                             <TableCell
                               sx={{
-                                ...mono,
-                                fontSize: "0.76rem",
-                                color: "#334155",
+                                color: "text.primary",
                                 ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : {}),
                               }}
                             >
@@ -254,9 +256,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                             <TableCell
                               data-sensitive="true"
                               sx={{
-                                ...mono,
-                                fontSize: "0.72rem",
-                                color: "#64748b",
+                                color: "text.secondary",
                                 ...(savedPass || showingInlineStepsForUser || showingConfirmationForUser ? { borderBottom: "none" } : {}),
                               }}
                             >
@@ -282,14 +282,10 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     }}
                                     disabled={disabled || running || (showingConfirmationForUser && !photoIdConfirmed)}
                                     sx={{
-                                      textTransform: "none",
-                                      ...mono,
-                                      fontSize: "0.72rem",
                                       py: 0.35,
                                       px: 1.2,
-                                      background: isCurrentResult ? "#16a34a" : "#2563eb",
-                                      "&:hover": { background: isCurrentResult ? "#15803d" : "#1d4ed8" },
-                                      "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
+                                      backgroundColor: isCurrentResult ? "success.main" : "primary.main",
+                                      "&:hover": { backgroundColor: isCurrentResult ? "success.dark" : "primary.dark" },
                                     }}
                                   >
                                     {isCreatingThisUser ? "Creating..." : savedPass ? "Create Again" : "Create Access Pass"}
@@ -306,15 +302,17 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     display: "flex",
                                     flexDirection: "column",
                                     gap: 0.75,
-                                    borderLeft: "2px solid #fbbf24",
+                                    borderLeft: "2px solid",
+                                    borderColor: "warning.main",
                                     pl: 1.25,
                                   }}
                                 >
-                                  <Typography sx={{ fontSize: "0.72rem", color: "#92400e", ...mono }}>
-                                    If you continue, all existing access for this user will be deleted and a 1 hour temporary access pass will be created.
+                                  <Typography color="warning.dark">
+                                    This removes the user's existing sign-in methods, resets their password, and creates a Temporary Access Pass that expires after one hour. They may be unable to sign in until they use the pass.
                                   </Typography>
                                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                                     <input
+                                      id={`access-pass-photo-id-${user.id}`}
                                       type="checkbox"
                                       checked={photoIdConfirmed}
                                       onChange={(e) => {
@@ -327,8 +325,8 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                       }}
                                       style={{ margin: 0, width: 14, height: 14 }}
                                     />
-                                    <Typography sx={{ fontSize: "0.7rem", color: "#92400e", ...mono }}>
-                                      Confirm that you have viewed the photo ID and confirm it to be the person selected
+                                    <Typography component="label" htmlFor={`access-pass-photo-id-${user.id}`} color="warning.dark">
+                                      I verified the selected user's identity against their photo ID.
                                     </Typography>
                                   </Box>
                                   <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 0.35 }}>
@@ -346,14 +344,10 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                       }}
                                       disabled={disabled || running || !photoIdConfirmed}
                                       sx={{
-                                        textTransform: "none",
-                                        ...mono,
-                                        fontSize: "0.72rem",
                                         py: 0.35,
                                         px: 1.2,
-                                        background: isCurrentResult ? "#16a34a" : "#2563eb",
-                                        "&:hover": { background: isCurrentResult ? "#15803d" : "#1d4ed8" },
-                                        "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
+                                        backgroundColor: isCurrentResult ? "success.main" : "primary.main",
+                                        "&:hover": { backgroundColor: isCurrentResult ? "success.dark" : "primary.dark" },
                                       }}
                                     >
                                       {isCreatingThisUser ? "Creating..." : savedPass ? "Create Again" : "Create Access Pass"}
@@ -371,14 +365,15 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     display: "flex",
                                     flexDirection: "column",
                                     gap: 0.25,
-                                    borderLeft: "2px solid #e2e8f0",
+                                    borderLeft: "2px solid",
+                                    borderColor: "divider",
                                     pl: 1.25,
                                   }}
                                 >
                                   {hydratedSelectedUserSteps.map((s) => (
                                     <StepRow key={`${user.id}-${s.id}`} step={s} />
                                   ))}
-                                  {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, mt: 0.25 }}>Running...</Typography>}
+                                  {running && <StatusText>Creating access pass...</StatusText>}
                                   {!running && (
                                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.25 }}>
                                       {consentRequired && (
@@ -387,9 +382,6 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                           variant="outlined"
                                           onClick={() => void requestAccessPassConsent()}
                                           sx={{
-                                            textTransform: "none",
-                                            ...mono,
-                                            fontSize: "0.7rem",
                                             minWidth: 0,
                                             px: 1,
                                           }}
@@ -403,13 +395,10 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                           onClick={reset}
                                           sx={{
                                             alignSelf: "flex-start",
-                                            textTransform: "none",
-                                            ...mono,
-                                            fontSize: "0.72rem",
-                                            color: "#64748b",
+                                            color: "text.secondary",
                                             px: 0.5,
                                             minWidth: 0,
-                                            "&:hover": { color: "#2563eb" },
+                                            "&:hover": { color: "primary.main" },
                                           }}
                                         >
                                           ↩ Try again
@@ -436,12 +425,14 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     display: "flex",
                                     flexDirection: "column",
                                     gap: 0.7,
-                                    borderLeft: "2px solid #bfdbfe",
+                                    borderLeft: "2px solid",
+                                    borderColor: "primary.light",
                                     pl: 1.25,
                                   }}
                                 >
                                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                                     <input
+                                      id={`access-pass-delivery-${user.id}`}
                                       type="checkbox"
                                       data-id="chkDeliveryConfirm"
                                       data-upn={user.userPrincipalName}
@@ -459,20 +450,20 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                       }}
                                       style={{ margin: 0, width: 14, height: 14 }}
                                     />
-                                    <Typography sx={{ fontSize: "0.7rem", color: "#1e3a8a", ...mono }}>
-                                      Confirm that the person has successfully logged in and created their long term access pass on{" "}
-                                      <a href="https://mysignins.microsoft.com/" target="_blank" rel="noopener noreferrer">
+                                    <Box>
+                                      <Typography component="label" htmlFor={`access-pass-delivery-${user.id}`} color="primary.dark">
+                                        Confirm that the person has signed in and set up their own sign-in method at:
+                                      </Typography>{" "}
+                                      <ExternalLink href="https://mysignins.microsoft.com/" label="Microsoft My Sign-ins">
                                         https://mysignins.microsoft.com/
-                                      </a>
-                                    </Typography>
+                                      </ExternalLink>
+                                    </Box>
                                   </Box>
                                   <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                                     {isCompletedUser ? (
                                       <Typography
                                         sx={{
-                                          ...mono,
-                                          fontSize: "0.72rem",
-                                          color: "#1d4ed8",
+                                          color: "primary.dark",
                                           fontWeight: 600,
                                           px: 1.2,
                                           py: 0.35,
@@ -490,14 +481,8 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                         }}
                                         disabled={!isDeliveryConfirmed}
                                         sx={{
-                                          textTransform: "none",
-                                          ...mono,
-                                          fontSize: "0.72rem",
                                           py: 0.35,
                                           px: 1.2,
-                                          background: "#2563eb",
-                                          "&:hover": { background: "#1d4ed8" },
-                                          "&.Mui-disabled": { background: "#e2e8f0", color: "#94a3b8" },
                                         }}
                                       >
                                         Mark Complete
@@ -533,7 +518,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                     variant="outlined"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    sx={{ textTransform: "none", ...mono, minWidth: 0, px: 1 }}
+                    sx={{ minWidth: 0, px: 1 }}
                   >
                     Prev
                   </Button>
@@ -543,7 +528,8 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                       size="small"
                       variant={page === currentPage ? "contained" : "outlined"}
                       onClick={() => setCurrentPage(page)}
-                      sx={{ textTransform: "none", ...mono, minWidth: 32, px: 0.75 }}
+                      aria-current={page === currentPage ? "page" : undefined}
+                      sx={{ minWidth: 32, px: 0.75 }}
                     >
                       {page}
                     </Button>
@@ -553,14 +539,14 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                     variant="outlined"
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    sx={{ textTransform: "none", ...mono, minWidth: 0, px: 1 }}
+                    sx={{ minWidth: 0, px: 1 }}
                   >
                     Next
                   </Button>
                 </Box>
 
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <Typography sx={{ fontSize: "0.7rem", color: "#475569", ...mono }}>
+                  <Typography color="text.secondary">
                     Page {currentPage} of {totalPages}
                   </Typography>
                   <TextField
@@ -569,9 +555,9 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                     onChange={(e) => setPageInput(e.target.value.replace(/[^0-9]/g, ""))}
                     onKeyDown={(e) => e.key === "Enter" && goToPage()}
                     placeholder="Page"
-                    inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.75rem", width: 48 } }}
+                    inputProps={{ "aria-label": "Go to user page", inputMode: "numeric", style: { width: 48 } }}
                   />
-                  <Button size="small" variant="outlined" onClick={goToPage} sx={{ textTransform: "none", ...mono }}>
+                  <Button size="small" variant="outlined" onClick={goToPage}>
                     Go
                   </Button>
                 </Box>
@@ -579,18 +565,20 @@ export default function AccessPassCard({ card, accessPass }: Props) {
             )}
 
             {!managerUsersLoading && managerUsers.length === 0 && !managerUsersError && (
-              <Typography sx={{ fontSize: "0.72rem", color: "#475569", ...mono }}>No users found that are managed by your signed-in account.</Typography>
+              <Typography color="text.secondary" role="status">
+                No users managed by your signed-in account were found. Check that you signed in to the correct Entra tenant and have permission to view these users.
+              </Typography>
             )}
 
             {managerUsersError && (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{managerUsersError}</Typography>
+                <ErrorText>{managerUsersError}</ErrorText>
                 {consentRequired && (
                   <Button
                     size="small"
                     variant="outlined"
                     onClick={() => void requestAccessPassConsent()}
-                    sx={{ textTransform: "none", ...mono, fontSize: "0.7rem", minWidth: 0, px: 1 }}
+                    sx={{ minWidth: 0, px: 1 }}
                   >
                     Grant consent
                   </Button>
@@ -599,7 +587,6 @@ export default function AccessPassCard({ card, accessPass }: Props) {
             )}
           </Box>
         </Box>
-        {managerUsersError && <Typography sx={{ fontSize: "0.72rem", color: "#ef4444", ...mono }}>{managerUsersError}</Typography>}
       </Box>
     </Card>
   );

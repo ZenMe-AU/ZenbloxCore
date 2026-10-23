@@ -4,12 +4,13 @@
  */
 
 import { useEffect, useState } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Button, LinearProgress, Link, Typography } from "@mui/material";
 import { PIPELINE } from "./logic/pipeline";
 import { type CardChrome, type CardHook, type CardId } from "./types";
-import { groupSx, EXPANDED_W } from "./config/cardLayout";
+import { groupSx } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./cards/GithubLogin/useGithubLoginCard";
+import { useGithubSignupCard } from "./cards/GithubSignup/useGithubSignupCard";
 import { useRepoCard } from "./cards/Repo/useRepoCard";
 import { useGithubVariables } from "./hooks/useGithubVariables";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
@@ -29,8 +30,12 @@ import { useWebDeployCard } from "./cards/WebDeploy/useWebDeployCard";
 import { useAwsSetupCard } from "./cards/AwsSetup/useAwsSetupCard";
 
 import Header from "./components/Header";
+import Footer from "./components/Footer";
 import RestoreToast from "./components/RestoreToast";
+import CardIntro from "./components/CardIntro";
+import ExternalLink from "./components/ExternalLink";
 import GithubLoginCard from "./cards/GithubLogin/GithubLoginCard";
+import GithubSignupCard from "./cards/GithubSignup/GithubSignupCard";
 import RepoCard from "./cards/Repo/RepoCard";
 import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
@@ -49,8 +54,6 @@ import StageCard from "./cards/Stage/StageCard";
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
 
-// TODO: Remove fontSize and fontFamily from all Typography components and rely on theme defaults instead.
-
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 const EXPANDED_CARDS_KEY = "zeninstaller_corp_expanded_cards";
@@ -65,6 +68,7 @@ function AppDashboard() {
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const githubLogin = addCard(useGithubLoginCard());
+  const githubSignup = addCard(useGithubSignupCard(githubLogin.done));
 
   const githubRepoEnv = addCard(
     useRepoCard({
@@ -162,6 +166,7 @@ function AppDashboard() {
       githubAccount: githubRepoEnv.repo.selectedAccount,
       repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
       selectedEnv: githubRepoEnv.env.selectedEnv,
+      variableValues: githubVariableValues,
     })
   );
   const privateFrontendInfra = addCard(
@@ -298,162 +303,249 @@ function AppDashboard() {
     onToggle: toggle,
     onRequirementClick: openCard,
   });
+
+  const progressCards = [
+    ...([
+      ["github_login", "GitHub login"],
+      ["repo", "Repository & environment"],
+      ["azure_login", "Azure login"],
+      ["azure_subscription", "Choose Azure subscription"],
+      ["azure_app_registration", "Create an app registration in Azure"],
+      ["core_infra", "Terraform state backend"],
+      ["create_domain", "Core domain"],
+      ["remote_terminal_infra", "Private Zeninstaller Backend Environment"],
+      ["backend_deploy", "Private Zeninstaller Backend"],
+      ["private_frontend_infra", "Frontend hosting environment"],
+      ["web_deploy", "Private Zeninstaller Frontend"],
+      ["aws_login", "AWS login"],
+      ["aws_setup", "AWS setup"],
+    ] as const).map(([id, title]) => ({
+      id,
+      title,
+      done: allCards[id].done,
+      chrome: cardProps(id),
+    })),
+    ...stageCards.map(({ card, stageDef }) => ({
+      id: card.cardId,
+      title: stageDef.label,
+      done: card.status === "complete" || card.status === "skipped",
+      chrome: card,
+    })),
+    {
+      id: "access_pass" as const,
+      title: "Access pass",
+      done: allCards.access_pass.done,
+      chrome: cardProps("access_pass"),
+    },
+  ];
+  const completedCount = progressCards.filter((item) => item.done).length;
+  const nextStep = progressCards.find((item) => !item.done && !item.chrome.locked && !item.chrome.unavailable && item.chrome.status !== "loading");
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      <Box sx={{ minHeight: "100vh", background: "#f8fafc", color: "#0f172a", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+      <Box sx={{ minHeight: "100vh" }}>
+        <Link className="visually-hidden skip-link" href="#main-content">
+          Skip to main content
+        </Link>
         <Header />
 
-        <Box sx={{ maxWidth: EXPANDED_W, mx: "auto", px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 5 } }}>
+        <Box
+          component="main"
+          id="main-content"
+          tabIndex={-1}
+          sx={{ maxWidth: "var(--card-w-expanded)", mx: "auto", px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 5 } }}
+        >
           {/* Intro */}
           <Box
+            id="installer-intro"
             sx={{
-              background: "#ffffff",
-              borderRadius: "12px",
-              border: "1px solid #e2e8f0",
+              bgcolor: "background.paper",
+              borderRadius: (theme) => theme.palette.card.radius,
+              border: "1px solid",
+              borderColor: "divider",
               px: { xs: 2, sm: 3 },
               py: 2.5,
-              boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+              boxShadow: (theme) => theme.palette.card.shadow,
             }}
           >
-            <Typography sx={{ color: "#475569", lineHeight: 1.7 }}>
-              ZenInstaller is used to create your organisation configuration on a number of cloud hosting providers of your choosing. Before starting, you will
-              need the following: <br />
-              1. A personal email address, using Google, or any other email hosting provider. <br />
-              2. An organisation name and domain name. We recommend that you register the domain name with Godaddy https://www.godaddy.com/ because we will have
-              automations in place with them. <br />
+            <CardIntro variant="body1" sx={{ lineHeight: 1.7, mb: 1 }}>
+              ZenInstaller helps you set up cloud resources for your organisation. Before you start, prepare:
+            </CardIntro>
+            <Box component="ol" sx={{ m: 0, pl: 3, color: "text.secondary" }}>
+              <Typography component="li" variant="body2" sx={{ lineHeight: 1.7 }}>
+                A personal email address.
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ lineHeight: 1.7 }}>
+                A GitHub account with permission to create a repository in the account or organisation that will own it.
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ lineHeight: 1.7 }}>
+                An organisation name and domain. You can register the domain with{" "}
+                <ExternalLink href="https://www.godaddy.com/" label="GoDaddy">
+                  GoDaddy
+                </ExternalLink>
+                {" "}or another provider.
+              </Typography>
+            </Box>
+            <CardIntro variant="body1" sx={{ lineHeight: 1.7, mt: 1, mb: 0 }}>
               Complete the cards below in any order — each shows what it needs before it can run.
-            </Typography>
+            </CardIntro>
           </Box>
 
           <Box sx={groupSx}>
-            <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
+            <Box component="section" aria-label="Deployment setup progress" sx={{ ...groupSx, mt: 3 }}>
+              <Box sx={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr", alignItems: "center", gap: 0.5, mb: 1 }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                  <Typography component="h2" variant="sectionLabel">Deployment setup progress</Typography>
+                  <Button
+                    size="small"
+                    variant="text"
+                    disabled={!nextStep}
+                    onClick={() => nextStep && openCard(nextStep.id)}
+                    sx={{ flexShrink: 0 }}
+                  >
+                    {nextStep ? `Next step: ${nextStep.title}` : "All setup tasks complete"}
+                  </Button>
+                </Box>
+                <LinearProgress
+                  aria-label="Deployment setup progress"
+                  variant="determinate"
+                  value={(completedCount / progressCards.length) * 100}
+                  sx={{ gridColumn: "1 / -1", height: 6, borderRadius: 3 }}
+                />
+              </Box>
 
-            <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
+              <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
 
-            <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
+              <GithubSignupCard card={cardProps("github_signup")} signup={githubSignup} onOpenLogin={() => openCard("github_login")} />
 
-            <AzureSubscriptionCard
-              card={cardProps("azure_subscription")}
-              azure={azureLogin}
-              subscription={azureSubscription}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-              onOpenAzureLogin={() => openCard("azure_login")}
-              onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
-            />
+              <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
 
-            <AzureAppRegistrationCard
-              card={cardProps("azure_app_registration")}
-              appReg={azureAppSetup}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              subscriptionId={azureSubscription.selectedSubscriptionId}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
+              <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
 
-            <CoreInfraCard
-              card={cardProps("core_infra")}
-              infra={infra}
-              azureAccount={azureLogin.account}
-              corpName={corpName}
-              subscriptionId={azureSubscription.selectedSubscriptionId}
-              spClientId={azureAppSetup.spClientId}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
+              <AzureSubscriptionCard
+                card={cardProps("azure_subscription")}
+                azure={azureLogin}
+                subscription={azureSubscription}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+                onOpenAzureLogin={() => openCard("azure_login")}
+                onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
+              />
 
-            <CreateDomainCard
-              card={cardProps("create_domain")}
-              createDomain={createDomain}
-              azureAccount={azureLogin.account}
-              corpName={corpName}
-              dnsName={dnsName}
-              subscriptionId={azureSubscription.selectedSubscriptionId}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
+              <AzureAppRegistrationCard
+                card={cardProps("azure_app_registration")}
+                appReg={azureAppSetup}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                subscriptionId={azureSubscription.selectedSubscriptionId}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+              />
 
-            <RemoteTerminalInfraCard
-              card={cardProps("remote_terminal_infra")}
-              infra={remoteTerminalInfra}
-              subscriptionId={azureSubscription.selectedSubscriptionId}
-              tenantId={githubVariableValues.AZURE_TENANT_ID}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
+              <CoreInfraCard
+                card={cardProps("core_infra")}
+                infra={infra}
+                azureAccount={azureLogin.account}
+                corpName={corpName}
+                subscriptionId={azureSubscription.selectedSubscriptionId}
+                spClientId={azureAppSetup.spClientId}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+              />
 
-            <BackendDeployCard
-              card={cardProps("backend_deploy")}
-              backend={backendDeploy}
-              repoFullName={
-                githubRepoEnv.repo.selectedAccount && githubRepoEnv.repo.selectedRepo
-                  ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
-                  : null
-              }
-            />
+              <CreateDomainCard
+                card={cardProps("create_domain")}
+                createDomain={createDomain}
+                azureAccount={azureLogin.account}
+                corpName={corpName}
+                dnsName={dnsName}
+                subscriptionId={azureSubscription.selectedSubscriptionId}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+              />
 
-            <PrivateFrontendInfraCard
-              card={cardProps("private_frontend_infra")}
-              infra={privateFrontendInfra}
-              subscriptionId={azureSubscription.selectedSubscriptionId}
-              tenantId={githubVariableValues.AZURE_TENANT_ID ?? ""}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
+              <RemoteTerminalInfraCard
+                card={cardProps("remote_terminal_infra")}
+                infra={remoteTerminalInfra}
+                subscriptionId={azureSubscription.selectedSubscriptionId}
+                tenantId={githubVariableValues.AZURE_TENANT_ID}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+              />
 
-            <WebDeployCard
-              card={cardProps("web_deploy")}
-              web={webDeploy}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-              repoFullName={
-                githubRepoEnv.repo.selectedAccount && githubRepoEnv.repo.selectedRepo
-                  ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
-                  : null
-              }
-            />
-            
-            <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
+              <BackendDeployCard
+                card={cardProps("backend_deploy")}
+                backend={backendDeploy}
+                repoFullName={
+                  githubRepoEnv.repo.selectedAccount && githubRepoEnv.repo.selectedRepo
+                    ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
+                    : null
+                }
+              />
 
-            <AwsSetupCard
-              card={cardProps("aws_setup")}
-              awsSetup={awsSetup}
-              account={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              repoFullName={githubRepoEnv.repo.repoFullName}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-            />
+              <PrivateFrontendInfraCard
+                card={cardProps("private_frontend_infra")}
+                infra={privateFrontendInfra}
+                subscriptionId={azureSubscription.selectedSubscriptionId}
+                tenantId={githubVariableValues.AZURE_TENANT_ID ?? ""}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+              />
 
-            {stageCards.map(({ key, ...stageCard }) => (
-              <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
-            ))}
+              <WebDeployCard
+                card={cardProps("web_deploy")}
+                web={webDeploy}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+                repoFullName={
+                  githubRepoEnv.repo.selectedAccount && githubRepoEnv.repo.selectedRepo
+                    ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
+                    : null
+                }
+              />
 
-            <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
+              <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
+
+              <AwsSetupCard
+                card={cardProps("aws_setup")}
+                awsSetup={awsSetup}
+                account={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                repoFullName={githubRepoEnv.repo.repoFullName}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+              />
+
+              {stageCards.map(({ key, ...stageCard }) => (
+                <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
+              ))}
+
+              <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
+            </Box>
           </Box>
-        </Box>
-      </Box>
+        </Box >
+        <Footer />
+      </Box >
 
       <RestoreToast loading={urlRestore.restoring} warnings={urlRestore.warnings} onDismiss={urlRestore.dismissWarnings} />
     </>
