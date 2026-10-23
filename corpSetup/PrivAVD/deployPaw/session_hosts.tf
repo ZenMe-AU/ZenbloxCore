@@ -45,7 +45,6 @@ resource "azurerm_windows_virtual_machine" "session_host" {
   admin_password        = random_password.local_administrator.result
   network_interface_ids = [azurerm_network_interface.session_host[count.index].id]
   license_type          = "Windows_Client"
-  security_type         = "TrustedLaunch"
   secure_boot_enabled   = true
   vtpm_enabled          = true
   tags                  = var.TAGS
