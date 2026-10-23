@@ -6,6 +6,8 @@
 import { useEffect, useState } from "react";
 import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Link, Typography } from "@mui/material";
 
+const DOCS_BASE = import.meta.env.VITE_DOCS_URL ?? "";
+
 export default function Footer() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
@@ -59,7 +61,7 @@ export default function Footer() {
             <Typography component="h3" sx={{ fontWeight: 600, mb: 1 }}>
               Policies
             </Typography>
-            <Link href="/docs/Privacy_Policy">Privacy policy</Link>
+            <Link href={`${DOCS_BASE}/Privacy_Policy`}>Privacy policy</Link>
             <Typography variant="body2" color="text.secondary">
               Terms of use coming soon.
             </Typography>
@@ -68,7 +70,7 @@ export default function Footer() {
             <Typography component="h3" sx={{ fontWeight: 600, mb: 1 }}>
               Support
             </Typography>
-            <Link href="/docs/">Support documentation</Link>
+            <Link href={`${DOCS_BASE}/`}>Support documentation</Link>
           </Box>
         </Box>
       </Box>

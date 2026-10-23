@@ -11,7 +11,18 @@ export default defineConfig({
   title: "ZenInstaller Docs",
   description: "ZenInstaller documentation and guides",
   base: "/",
+  outDir: "../dist",
   ignoreDeadLinks: NOT_DOCS,
+  vite: {
+    server: {
+      port: 5173,
+      strictPort: true,
+      // The app pins itself to this port in vite.config.ts (strictPort).
+      proxy: {
+        "/core": { target: "http://localhost:5174", changeOrigin: false },
+      },
+    },
+  },
   markdown: {
     config: (md) => {
       const open = md.renderer.rules.link_open;
