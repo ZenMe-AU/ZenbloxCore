@@ -34,6 +34,8 @@ const { apiMocks } = vi.hoisted(() => ({
     registerProvider: vi.fn(),
     ensureDnsZone: vi.fn(),
     ensureDnsTxtRecord: vi.fn(),
+    ensureResourceGroup: vi.fn(),
+    ensureLogAnalyticsWorkspace: vi.fn(),
     getEntraDomain: vi.fn(),
     createEntraDomain: vi.fn(),
     getDomainVerificationTxt: vi.fn(),
@@ -42,6 +44,7 @@ const { apiMocks } = vi.hoisted(() => ({
     listVerifiedDomains: vi.fn().mockResolvedValue([]),
     getExistingSP: vi.fn(),
     grantAdminConsent: vi.fn(),
+    listAppRoleAssignments: vi.fn(),
     isConsentError: vi.fn(),
   },
 }));
@@ -62,6 +65,8 @@ vi.mock("../api/azureArm", () => ({
   registerProvider: apiMocks.registerProvider,
   ensureDnsZone: apiMocks.ensureDnsZone,
   ensureDnsTxtRecord: apiMocks.ensureDnsTxtRecord,
+  ensureResourceGroup: apiMocks.ensureResourceGroup,
+  ensureLogAnalyticsWorkspace: apiMocks.ensureLogAnalyticsWorkspace,
 }));
 
 vi.mock("../api/azureGraph", () => ({
@@ -73,6 +78,7 @@ vi.mock("../api/azureGraph", () => ({
   listVerifiedDomains: apiMocks.listVerifiedDomains,
   getExistingSP: apiMocks.getExistingSP,
   grantAdminConsent: apiMocks.grantAdminConsent,
+  listAppRoleAssignments: apiMocks.listAppRoleAssignments,
 }));
 
 vi.mock("../logic/consent", () => ({
@@ -131,6 +137,8 @@ describe("useCreateDomainCard", () => {
     apiMocks.getProviderRegistrationState.mockResolvedValue("Registered");
     apiMocks.ensureDnsZone.mockResolvedValue({ result: "created", nameServers: ["ns1", "ns2"] });
     apiMocks.ensureDnsTxtRecord.mockResolvedValue("created");
+    apiMocks.ensureResourceGroup.mockResolvedValue("created");
+    apiMocks.ensureLogAnalyticsWorkspace.mockResolvedValue({ result: "created", id: "law-id" });
     apiMocks.getEntraDomain.mockResolvedValue(null);
     apiMocks.createEntraDomain.mockResolvedValue({ isVerified: false, isDefault: false });
     apiMocks.getDomainVerificationTxt.mockResolvedValue("txt-token");
@@ -138,6 +146,7 @@ describe("useCreateDomainCard", () => {
     apiMocks.setPrimaryEntraDomain.mockResolvedValue(undefined);
     apiMocks.getExistingSP.mockResolvedValue({ id: "sp-1" });
     apiMocks.grantAdminConsent.mockResolvedValue(undefined);
+    apiMocks.listAppRoleAssignments.mockResolvedValue([]);
     apiMocks.isConsentError.mockReturnValue(false);
   });
 

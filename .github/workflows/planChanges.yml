@@ -85,7 +85,7 @@ jobs:
         uses: pnpm/setup@v1
         with:
           version: 11.22.0
-          runtime: node@22
+          runtime: node@^24.22.1
           cache: true
 
       - name: Install Terraform

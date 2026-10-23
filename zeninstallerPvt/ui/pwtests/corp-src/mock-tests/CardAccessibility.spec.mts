@@ -60,7 +60,7 @@ test.describe("Installer accessibility", () => {
     const footer = page.locator("footer > div");
     await expect(intro).toHaveCSS("background-color", "rgb(27, 38, 41)");
     await expect(footer).toHaveCSS("background-color", "rgb(27, 38, 41)");
-    await expect(page.locator("#card-remote_terminal_infra h3 button")).toHaveAccessibleName(/Remote terminal environment/);
+    await expect(page.locator("#card-remote_terminal_infra h3 button")).toHaveAccessibleName(/Private Zeninstaller Backend Environment/);
     await expect(page.locator("#card-private_frontend_infra h3 button")).toHaveAccessibleName(/Frontend hosting environment/);
 
     const nextStep = page.getByRole("button", { name: "Next step: GitHub login" });

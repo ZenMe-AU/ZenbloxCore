@@ -19,13 +19,22 @@ export default function ConfigErrorNotice() {
         gap: 1,
         px: 1.5,
         py: 1.25,
-        background: (theme) => `color-mix(in srgb, ${theme.palette.error.main} 6%, white)`,
-        border: (theme) => `1px solid color-mix(in srgb, ${theme.palette.error.main} 24%, white)`,
+        background: (theme) => `color-mix(in srgb, ${theme.palette.error.main} 8%, ${theme.palette.background.paper})`,
+        // Border keeps >= 3:1 against the surface in both schemes.
+        border: (theme) => `1px solid color-mix(in srgb, ${theme.palette.error.main} 70%, ${theme.palette.background.paper})`,
         borderRadius: "8px",
       }}
     >
-      <ErrorOutlineIcon sx={{ typography: "caption", color: "error.light", flexShrink: 0, mt: "1px" }} />
-      <Typography sx={{ typography: "body1", color: "error.dark", lineHeight: 1.6 }}>
+      <ErrorOutlineIcon sx={{ typography: "caption", color: "error.main", flexShrink: 0, mt: "1px" }} />
+      <Typography
+        sx={(theme) => ({
+          typography: "body1",
+          color: "error.dark",
+          lineHeight: 1.6,
+          // Dark scheme's error.dark is too dark for text on a dark surface.
+          ...theme.applyStyles("dark", { color: theme.palette.error.light }),
+        })}
+      >
         This card is unavailable because a required setting is missing or invalid. Ask your ZenInstaller administrator to check the installer configuration.
       </Typography>
     </Box>

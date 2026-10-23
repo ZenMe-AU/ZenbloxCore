@@ -24,6 +24,17 @@ import type { CardChrome } from "../../types";
 
 const when = (unixSeconds: number) => new Date(unixSeconds * 1000).toLocaleString();
 
+function SiteLink({ label, color, href }: { label: string; color: string; href: string }) {
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+      <Typography color={color}>{label}</Typography>
+      <ExternalLink href={href} label="Zeninstaller Private site">
+        <Box component="span" sx={{ wordBreak: "break-all" }}>{href}</Box>
+      </ExternalLink>
+    </Box>
+  );
+}
+
 type Props = {
   card: CardChrome;
   web: UseWebDeployCard;
@@ -90,14 +101,17 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           variables={variables}
           title="Build settings"
           githubUrl={githubUrl}
+          keyHints={{
+            VITE_GITHUB_CLIENT_ID: (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <Typography color="text.muted">Where does this come from?</Typography>
+                <ExternalLink href={GITHUB_OAUTH_DOC} label="Creating the GitHub OAuth app">
+                  Creating the GitHub OAuth app
+                </ExternalLink>
+              </Box>
+            ),
+          }}
         />
-
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: -1 }}>
-          <Typography color="text.muted">Where does this come from?</Typography>
-          <ExternalLink href={GITHUB_OAUTH_DOC} label="Creating the GitHub OAuth app">
-            Creating the GitHub OAuth app
-          </ExternalLink>
-        </Box>
 
         {staleVariables.length > 0 && (
           <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -138,16 +152,6 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             </Typography>
           </Box>
         </Box>
-
-        {/* Until something is deployed the endpoint is a 404, so the link waits for it. */}
-        {siteLink && deployed && (
-          <Box>
-            <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Continue in Zeninstaller Private</Typography>
-            <ExternalLink href={siteLink} label="Zeninstaller Private site">
-              <Box component="span" sx={{ wordBreak: "break-all" }}>{siteLink}</Box>
-            </ExternalLink>
-          </Box>
-        )}
 
         {error && (
           <Box sx={{ backgroundColor: "background.default", border: "1px solid", borderColor: "error.light", borderRadius: 1, px: 2, py: 1.25 }}>
@@ -194,14 +198,6 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             )}
           </Button>
 
-          {/* Mutually exclusive with the prompt below, so both share the slot by the button. */}
-          {!loadingLatest && latest && !updateAvailable && (
-            <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2", color: "success.main" }} />
-              <Typography color="success.dark">The site is serving the latest build.</Typography>
-            </Box>
-          )}
-
           {!loadingLatest && updateAvailable && deployed && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
@@ -209,6 +205,24 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             </Box>
           )}
         </Box>
+
+        {/* All clear: the box carries the link, since that is where the reader goes next. Otherwise the
+            endpoint still exists as soon as the storage account does, so the link shows on its own. */}
+        {!loadingLatest && latest && !updateAvailable ? (
+          <Box sx={{ backgroundColor: "background.default", border: "1px solid", borderColor: "success.light", borderRadius: 1, px: 2, py: 1.25 }}>
+            <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2", color: "success.main" }} />
+              <Typography color="success.dark">The site is serving the latest build.</Typography>
+            </Box>
+            {siteLink && (
+              <Box sx={{ mt: 0.75 }}>
+                <SiteLink label="Click the link below to continue in your own private Zeninstaller:" color="success.dark" href={siteLink} />
+              </Box>
+            )}
+          </Box>
+        ) : (
+          siteLink && <SiteLink label="The private Zeninstaller endpoint is available at:" color="text.muted" href={siteLink} />
+        )}
 
         {steps.length > 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid", borderColor: "divider", pl: 1.5 }}>

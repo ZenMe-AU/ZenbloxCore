@@ -71,7 +71,7 @@ export function useVariableEditor({ keys, savedValues, account, repo, envName, o
   };
 
   const onSave = async (overrideValues?: Record<string, string>): Promise<SaveResult> => {
-    const vals = overrideValues ?? localValues;
+    const vals = overrideValues ? { ...savedValues, ...overrideValues } : localValues;
     const newlySaved = { ...savedValues };
     if (!isDependenciesReady) return { result: "error", savedKeys: [], newlySaved };
     const dirty = keys.filter((k) => (vals[k] ?? "") !== (savedValues[k] ?? ""));

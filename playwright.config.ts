@@ -9,7 +9,6 @@ import { defineConfig, devices } from "@playwright/test";
 import * as dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { viewports } from "./zeninstallerPvt/ui/pwtests/testInit.js";
 
 process.env.NODE_ENV = process.env.NODE_ENV || "dev";
 // Enable Playwright API logs for normal and coverage runs, preserving other namespaces.
@@ -23,8 +22,8 @@ dotenv.config({
 });
 
 export default defineConfig({
-  testDir: ".",
-  outputDir: "./pwtest-results",
+  testDir: currentDirectory,
+  outputDir: path.resolve(currentDirectory, "pwtest-results"),
   updateSnapshots: process.env.CI ? "none" : "missing",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -33,7 +32,7 @@ export default defineConfig({
   reporter: [
     // A terminal reporter is what streams worker stdout/stderr (incl. pw:api) to the console.
     ["line"], 
-    ["./zeninstallerPvt/ui/pwtests/coverage/coverage-reporter.ts"],
+    [path.resolve(currentDirectory, "zeninstallerPvt/ui/pwtests/coverage/coverage-reporter.ts")],
   ],
   timeout: 60_000,
   expect: {
@@ -49,44 +48,21 @@ export default defineConfig({
   },
 
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:5174/core",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     testIdAttribute: "data-id",
   },
 
   projects: [
-    // {
-    //   name: "Desktop",
-    //   testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
-    //   fullyParallel: false,
-    //   workers: 1,
-    //   retries: 1,
-    //   use: {
-    //     ...devices["Desktop Chrome"],
-    //     viewport: viewports.Desktop,
-    //   },
-    // },
-    // {
-    //   name: "Mobile",
-    //   testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
-    //   fullyParallel: false,
-    //   workers: 1,
-    //   retries: 1,
-    //   use: {
-    //     ...devices["Desktop Chrome"],
-    //     viewport: viewports.Mobile,
-    //   },
-    // },
     {
-      name: "Desktop and Mobile",
+      name: "Playwright Project",
       testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
       fullyParallel: true,
       workers: 2,
       retries: 1,
       use: {
-        ...devices["Desktop Chrome"],
-        viewport: viewports.Desktop,
+        ...devices["Desktop Chrome"]
       },
     },
   ],
@@ -95,8 +71,9 @@ export default defineConfig({
    * Start the server automatically
    */
   webServer: {
-    command: "pnpm --dir ./zeninstallerPvt/ui run dev",
+    command: "pnpm run dev",
     url: process.env.BASE_URL,
+    cwd: path.resolve(currentDirectory, "zeninstallerPvt/ui"),
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

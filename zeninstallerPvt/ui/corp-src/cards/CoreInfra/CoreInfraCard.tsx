@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box, Button, CircularProgress, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
@@ -11,17 +11,20 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseCoreInfraCard } from "./useCoreInfraCard";
 import StepRow from "../StepRow";
+import EditableNameRow from "../RemoteTerminalInfra/EditableNameRow";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_RESOURCE_GROUPS_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
-import { getVariableDisplayName, CORP_NAME_KEYS } from "../../logic/variables";
+import { getVariableDisplayName, CORP_NAME_KEYS, TFSTATE_BACKEND_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import FieldLabel from "../../components/FieldLabel";
 import StatusText from "../../components/StatusText";
 import ErrorText from "../../components/ErrorText";
 import type { Account, CardChrome, AzureAccount, GhEnv } from "../../types";
+
+const CORE_INFRA_KEYS = [...CORP_NAME_KEYS, ...TFSTATE_BACKEND_KEYS];
 
 type Props = {
   card: CardChrome;
@@ -82,11 +85,36 @@ export default function CoreInfraCard({
     resourceGroupName,
     lawName,
     storageAccountName,
-    appInsightsName,
+    setStorageAccount,
+    storageChecking,
+    storageError,
+    checkStorageAccount,
     containerName,
+    result,
+    runNonce,
   } = infra;
   const disabled = card.locked;
   const [editingLocation, setEditingLocation] = useState(false);
+  const [editingStorage, setEditingStorage] = useState(false);
+  const [autoSaveCounter, setAutoSaveCounter] = useState(0);
+  const prevRunNonceRef = useRef(runNonce);
+
+  // A finished run saves the backend names straight away: stages read them from corp.env, not from here.
+  useEffect(() => {
+    if (runNonce === prevRunNonceRef.current) return;
+    prevRunNonceRef.current = runNonce;
+    const t = setTimeout(() => setAutoSaveCounter((c) => c + 1), 0);
+    return () => clearTimeout(t);
+  }, [runNonce]);
+
+  const populate =
+    result && resultMatches
+      ? {
+          TF_STATE_RESOURCE_GROUP: result.stateResourceGroup,
+          TF_STATE_STORAGE_ACCOUNT: result.storageAccountName,
+          TF_STATE_CONTAINER: containerName,
+        }
+      : undefined;
 
   const missing: string[] = [];
   if (!corpName) missing.push(getVariableDisplayName("NAME"));
@@ -130,10 +158,13 @@ export default function CoreInfraCard({
           account={githubAccount}
           repo={repoName}
           envName={selectedEnv?.name ?? null}
-          keys={CORP_NAME_KEYS}
+          keys={CORE_INFRA_KEYS}
+          hiddenKeys={TFSTATE_BACKEND_KEYS}
           variables={variables}
+          populate={populate}
           title="Company short code"
           githubUrl={githubUrl}
+          autoSaveCounter={autoSaveCounter}
         />
 
         {rgNotFound && (
@@ -187,9 +218,6 @@ export default function CoreInfraCard({
                 {[
                   ["Resource group", resourceGroupName],
                   ["Log Analytics", lawName],
-                  ["App Insights", appInsightsName],
-                  ["Storage account", storageAccountName],
-                  ["State container", containerName],
                 ].map(([label, value]) => (
                   <Typography key={label} color="text.muted">
                     {label}:{" "}
@@ -198,6 +226,26 @@ export default function CoreInfraCard({
                     </Box>
                   </Typography>
                 ))}
+
+                {/* Global to Azure, so it has to be changeable when another tenant already holds it. */}
+                <EditableNameRow
+                  label="Storage account"
+                  value={storageAccountName}
+                  onChange={setStorageAccount}
+                  error={storageError}
+                  checking={storageChecking}
+                  check={checkStorageAccount}
+                  editing={editingStorage}
+                  setEditing={setEditingStorage}
+                  width={200}
+                />
+
+                <Typography color="text.muted">
+                  State container:{" "}
+                  <Box component="span" sx={{ color: "text.primary" }}>
+                    {containerName}
+                  </Box>
+                </Typography>
 
                 {/* Location — inline editable */}
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
@@ -262,7 +310,7 @@ export default function CoreInfraCard({
             <Button
               variant="contained"
               onClick={run}
-              disabled={disabled || running || !location.trim()}
+              disabled={disabled || running || !location.trim() || editingStorage}
               sx={{
                 alignSelf: "flex-start",
                 py: 0.85,

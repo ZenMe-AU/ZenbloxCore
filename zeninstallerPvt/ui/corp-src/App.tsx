@@ -142,18 +142,20 @@ function AppDashboard() {
       corpName,
       spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
+      variableValues: githubVariableValues,
     })
   );
   const remoteTerminalInfra = addCard(
     useRemoteTerminalInfraCard({
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
-      corpName,
+      variableValues: githubVariableValues,
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
       allowedOrigins: [window.location.origin, ...(dnsName ? [`https://www.${dnsName}`, `https://${dnsName}`] : [])],
       githubAccount: githubRepoEnv.repo.selectedAccount,
       githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
       githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,
+      githubEnvName: githubRepoEnv.env.selectedEnv?.name ?? null,
     })
   );
   const backendDeploy = addCard(
@@ -161,10 +163,10 @@ function AppDashboard() {
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-      corpName,
       githubAccount: githubRepoEnv.repo.selectedAccount,
       repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
       selectedEnv: githubRepoEnv.env.selectedEnv,
+      variableValues: githubVariableValues,
     })
   );
   const privateFrontendInfra = addCard(
@@ -311,7 +313,7 @@ function AppDashboard() {
       ["azure_app_registration", "Create an app registration in Azure"],
       ["core_infra", "Terraform state backend"],
       ["create_domain", "Core domain"],
-      ["remote_terminal_infra", "Remote terminal environment"],
+      ["remote_terminal_infra", "Private Zeninstaller Backend Environment"],
       ["backend_deploy", "Private Zeninstaller Backend"],
       ["private_frontend_infra", "Frontend hosting environment"],
       ["web_deploy", "Private Zeninstaller Frontend"],

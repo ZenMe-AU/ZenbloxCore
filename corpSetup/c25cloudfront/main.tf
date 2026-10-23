@@ -167,7 +167,7 @@ resource "aws_lambda_function" "viewer_request" {
   function_name = var.lambda_edge_auth_guard_name
   role          = aws_iam_role.lambda_edge_auth_guard.arn
   handler       = "index.handler"
-  runtime       = "nodejs22.x"
+  runtime       = "nodejs24.x"
 
   filename         = data.archive_file.edge_zip.output_path
   source_code_hash = data.archive_file.edge_zip.output_base64sha256
@@ -206,7 +206,7 @@ resource "aws_lambda_function" "viewer_response" {
   function_name = var.lambda_edge_rewrite_header_name
   role          = aws_iam_role.lambda_edge_rewrite_header.arn
   handler       = "index.handler"
-  runtime       = "nodejs22.x"
+  runtime       = "nodejs24.x"
 
   filename         = data.archive_file.rewrite_header_zip.output_path
   source_code_hash = data.archive_file.rewrite_header_zip.output_base64sha256
