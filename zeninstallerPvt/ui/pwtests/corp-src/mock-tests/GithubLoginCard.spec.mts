@@ -28,7 +28,7 @@ test("Backend Github Log In", async ({ page, context }, testInfo) => {
   const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
   const { exchanges, authorizations } = await installGithubOAuthCallback(page);
   const card = await expandGithubLoginCard(page);
-  await card.getByRole("button", { name: "Login with GitHub", exact: true }).click();
+  await card.getByRole("button", { name: "Sign in with GitHub", exact: true }).click();
   await expect(card.getByText(/Authenticated as mock-user/)).toBeVisible();
   await expect(card.getByText(/PAT mode/)).toHaveCount(0);
   expect(exchanges).toHaveLength(1);
@@ -38,7 +38,7 @@ test("Backend Github Log In", async ({ page, context }, testInfo) => {
   await expect(card.getByText(/Authenticated as mock-user/)).toBeVisible();
   await card.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.reload();
-  await expect(card.getByRole("button", { name: "Login with GitHub", exact: true })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Sign in with GitHub", exact: true })).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem("github_access_token"))).toBeNull();
   expect(unexpectedRequests).toEqual([]);
   await expectSnapshot(page, card, testInfo, "oauth-signed-out", viewportName);
@@ -107,7 +107,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     expect(await page.evaluate(() => sessionStorage.getItem("zeninstaller_github_auth"))).toBeNull();
     await page.reload();
     await expect(card.getByText(/Authenticated as/i)).toHaveCount(0);
-    await expect(card.getByRole("button", { name: "Login with GitHub", exact: true })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Sign in with GitHub", exact: true })).toBeVisible();
     await expectSnapshot(page, card, testInfo, "signed-out", viewportName);
   });
   expect(unexpectedRequests).toEqual([]);

@@ -6,15 +6,17 @@
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { UseWebDeployCard } from "./useWebDeployCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
+import ExternalLink from "../../components/ExternalLink";
+import ErrorText from "../../components/ErrorText";
+import StatusText from "../../components/StatusText";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
-import { MONO as mono, labelSx } from "../../config/styles";
 import CloudVariableDetail from "../CloudVariableDetail";
 import { FRONTEND_VARIABLE_KEYS } from "../../logic/variables";
+import { warningMessageIconSx } from "../../config/styles";
 import { GITHUB_OAUTH_DOC } from "./config";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import type { Account, GhEnv } from "../../types";
@@ -25,23 +27,10 @@ const when = (unixSeconds: number) => new Date(unixSeconds * 1000).toLocaleStrin
 function SiteLink({ label, color, href }: { label: string; color: string; href: string }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-      <Typography sx={{ fontSize: "0.75rem", color, ...mono }}>{label}</Typography>
-      <Typography
-        component="a"
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        sx={{
-          fontSize: "0.75rem",
-          ...mono,
-          color: "#1d4ed8",
-          wordBreak: "break-all",
-          textDecoration: "none",
-          "&:hover": { textDecoration: "underline" },
-        }}
-      >
-        {href}
-      </Typography>
+      <Typography color={color}>{label}</Typography>
+      <ExternalLink href={href} label="Zeninstaller Private site">
+        <Box component="span" sx={{ wordBreak: "break-all" }}>{href}</Box>
+      </ExternalLink>
     </Box>
   );
 }
@@ -92,13 +81,13 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
       {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.6 }}>
+        <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
           Builds the Zeninstaller frontend in GitHub Actions, then writes the files straight from this browser into the{" "}
-          <Box component="span" sx={mono}>
+          <Box component="code" sx={{ typography: "technicalBody" }}>
             $web
           </Box>{" "}
           container of{" "}
-          <Box component="span" sx={mono}>
+          <Box component="code" sx={{ typography: "technicalBody" }}>
             {storageAccountName || "the site's storage account"}
           </Box>
           .
@@ -115,61 +104,45 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           keyHints={{
             VITE_GITHUB_CLIENT_ID: (
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <Typography sx={{ fontSize: "0.7rem", color: "#94a3b8" }}>Where does this come from?</Typography>
-                <Box
-                  component="a"
-                  href={GITHUB_OAUTH_DOC}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.25,
-                    color: "#1d4ed8",
-                    textDecoration: "none",
-                    "&:hover": { textDecoration: "underline" },
-                  }}
-                >
-                  <Typography component="span" sx={{ fontSize: "0.7rem", color: "inherit" }}>
-                    Creating the GitHub OAuth app
-                  </Typography>
-                  <OpenInNewIcon sx={{ fontSize: 11 }} />
-                </Box>
+                <Typography color="text.muted">Where does this come from?</Typography>
+                <ExternalLink href={GITHUB_OAUTH_DOC} label="Creating the GitHub OAuth app">
+                  Creating the GitHub OAuth app
+                </ExternalLink>
               </Box>
             ),
           }}
         />
 
         {staleVariables.length > 0 && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>
+          <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+            <Typography color="warning.dark">
               Changed since the last build: {staleVariables.join(", ")} — build again to pick them up.
             </Typography>
           </Box>
         )}
 
         {missingGithubClientId && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-            <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>
+          <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+            <Typography color="warning.dark">
               Set VITE_GITHUB_CLIENT_ID on this environment first — the build bakes it in.
             </Typography>
           </Box>
         )}
 
         <Box>
-          <Typography sx={{ ...labelSx, mb: 0.75 }}>Versions</Typography>
-          <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
-            <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+          <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Versions</Typography>
+          <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
+            <Typography color="text.muted">
               Latest build:{" "}
-              <Box component="span" sx={{ color: "#0f172a" }}>
+              <Box component="span" sx={{ color: "text.primary", typography: "technicalBody" }}>
                 {loadingLatest ? "checking..." : latest ? `${latest.sha.slice(0, 7)} (v${latest.version}) · ${when(latest.builtAt)}` : "none yet"}
               </Box>
             </Typography>
-            <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+            <Typography color="text.muted">
               Live on the site:{" "}
-              <Box component="span" sx={{ color: "#0f172a" }}>
+              <Box component="span" sx={{ color: "text.primary", typography: "technicalBody" }}>
                 {loadingDeployed
                   ? "checking..."
                   : deployed
@@ -181,8 +154,8 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
         </Box>
 
         {error && (
-          <Box sx={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", px: 2, py: 1.25 }}>
-            <Typography sx={{ fontSize: "0.75rem", color: "#991b1b" }}>{error}</Typography>
+          <Box sx={{ backgroundColor: "background.default", border: "1px solid", borderColor: "error.light", borderRadius: 1, px: 2, py: 1.25 }}>
+            <ErrorText>{error}</ErrorText>
           </Box>
         )}
 
@@ -192,18 +165,16 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             disabled={building || running || missingGithubClientId}
             variant="outlined"
             size="small"
+            aria-busy={building}
             sx={{
-              textTransform: "none",
-              ...mono,
-              fontSize: "0.75rem",
-              borderColor: "#bfdbfe",
-              color: "#1d4ed8",
-              "&:hover": { borderColor: "#93c5fd", background: "#eff6ff" },
+              borderColor: "primary.light",
+              color: "primary.dark",
+              "&:hover": { borderColor: "primary.main", backgroundColor: "action.hover" },
             }}
           >
             {building ? (
               <>
-                <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
+                <CircularProgress aria-label="Building frontend" size={12} sx={{ mr: 1 }} />
                 Building...
               </>
             ) : (
@@ -215,18 +186,11 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             disabled={!updateAvailable || running || building || missingGithubClientId}
             variant="contained"
             size="small"
-            sx={{
-              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-              ...mono,
-              fontSize: "0.75rem",
-              textTransform: "none",
-              "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-              "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-            }}
+            aria-busy={running}
           >
             {running ? (
               <>
-                <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
+                <CircularProgress aria-label="Deploying frontend" size={12} sx={{ mr: 1 }} />
                 Deploying...
               </>
             ) : (
@@ -235,9 +199,9 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           </Button>
 
           {!loadingLatest && updateAvailable && deployed && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#92400e", ...mono }}>Ready to deploy the new build</Typography>
+            <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+              <Typography color="warning.dark">Ready to deploy the new build</Typography>
             </Box>
           )}
         </Box>
@@ -245,27 +209,27 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
         {/* All clear: the box carries the link, since that is where the reader goes next. Otherwise the
             endpoint still exists as soon as the storage account does, so the link shows on its own. */}
         {!loadingLatest && latest && !updateAvailable ? (
-          <Box sx={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", px: 2, py: 1.25 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <CheckCircleIcon sx={{ fontSize: 14, color: "#22c55e" }} />
-              <Typography sx={{ fontSize: "0.75rem", color: "#15803d", ...mono }}>The site is serving the latest build.</Typography>
+          <Box sx={{ backgroundColor: "background.default", border: "1px solid", borderColor: "success.light", borderRadius: 1, px: 2, py: 1.25 }}>
+            <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2", color: "success.main" }} />
+              <Typography color="success.dark">The site is serving the latest build.</Typography>
             </Box>
             {siteLink && (
               <Box sx={{ mt: 0.75 }}>
-                <SiteLink label="Click the link below to continue in your own private Zeninstaller:" color="#15803d" href={siteLink} />
+                <SiteLink label="Click the link below to continue in your own private Zeninstaller:" color="success.dark" href={siteLink} />
               </Box>
             )}
           </Box>
         ) : (
-          siteLink && <SiteLink label="The private Zeninstaller endpoint is available at:" color="#64748b" href={siteLink} />
+          siteLink && <SiteLink label="The private Zeninstaller endpoint is available at:" color="text.muted" href={siteLink} />
         )}
 
         {steps.length > 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid #e2e8f0", pl: 1.5 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid", borderColor: "divider", pl: 1.5 }}>
             {steps.map((s) => (
               <StepRow key={s.id} step={s} />
             ))}
-            {running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
+            {running && <StatusText>Deploying frontend...</StatusText>}
           </Box>
         )}
       </Box>

@@ -217,7 +217,7 @@ async function prepareExistingAzureSubscription(
     const appNameInput = appRegistrationCard.locator("input:visible").first();
     await expectVisibleWithin(appNameInput, "App registration name input", 50_000);
     await appNameInput.fill(safePathSegment(`zeninstaller-${repoName}-${Date.now().toString(36)}`));
-    await appRegistrationCard.getByRole("button", { name: /^(?:Create app registration|Grant access on this subscription)$/ }).click();
+    await appRegistrationCard.getByRole("button", { name: /^(?:Create app registration|Grant Reader access on this subscription)$/ }).click();
     await expectVisibleWithin(appRegistrationCard.getByRole("button", { name: "Try again" }), "App registration completion", 300_000);
     await expectVisibleWithin(
       appRegistrationCard.getByText(/Connection details saved(?: — no changes needed)?\./i),

@@ -41,7 +41,7 @@ test("Modifying existing variables", async ({ page, context }, testInfo) => {
   await result.subscriptionVariableInput.fill(`${savedSubscriptionId}-modified`);
   await expect(result.azureSubscriptionCard.getByRole("button", { name: "Save 1 variable" })).toBeEnabled();
   await expect(result.azureSubscriptionCard.getByText("overwrites", { exact: true })).toBeVisible();
-  await result.azureSubscriptionCard.getByRole("button", { name: "Revert to saved value" }).click();
+  await result.azureSubscriptionCard.getByRole("button", { name: /^Revert .+ to saved value$/ }).click();
   await expect(result.subscriptionVariableInput).toHaveValue(savedSubscriptionId);
   await expect(result.saveButton).toBeDisabled();
   await expectSnapshot(page, result.azureSubscriptionCard, testInfo, "edge-case-variable-modified", viewportName);
@@ -54,7 +54,7 @@ test("Modifying existing variables", async ({ page, context }, testInfo) => {
       .getByText(key, { exact: true })
       .locator("..")
       .locator("..")
-      .getByRole("button", { name: "Revert to saved value" })
+      .getByRole("button", { name: /^Revert .+ to saved value$/ })
       .click();
   }
   await expect(result.tenantVariableInput).toHaveValue(savedTenantId);

@@ -9,6 +9,7 @@ import { registerTestSourceFile } from "../../util/testHelper";
 import { viewports } from "../../testInit";
 
 type ViewportName = keyof typeof viewports;
+type Theme = "dark" | "light";
 const viewportNames = Object.keys(viewports) as ViewportName[];
 
 function getSourceTestFile(): string | undefined {
@@ -32,26 +33,33 @@ export const test = new Proxy(playwrightTest, {
     }
 
     const sourceFile = getSourceTestFile();
-    for (const viewportName of viewportNames) {
-      const viewport = viewports[viewportName];
-      const variantArgs = [...args];
-      variantArgs[0] = `${String(title)} [${viewportName}]`;
-      variantArgs[callbackIndex] = async ({ page, context }: { page: Page; context: BrowserContext }, testInfo: TestInfo) => {
-        if (sourceFile) {
-          registerTestSourceFile(testInfo, sourceFile);
-        }
-        await page.setViewportSize(viewport);
-        return callback({ page, context }, testInfo);
-      };
-      Reflect.apply(target, target, variantArgs);
+    const isMock = /[\\/]mock-tests[\\/]/.test(sourceFile ?? "");
+    const themes: Theme[] = isMock && /^happy path/i.test(String(title)) ? ["dark", "light"] : ["dark"];
+    for (const theme of themes) {
+      for (const viewportName of viewportNames) {
+        const viewport = viewports[viewportName];
+        const variantArgs = [...args];
+        variantArgs[0] = `${String(title)} [${viewportName}${theme === "light" ? "-light" : ""}]`;
+        variantArgs[callbackIndex] = async ({ page, context }: { page: Page; context: BrowserContext }, testInfo: TestInfo) => {
+          if (sourceFile) {
+            registerTestSourceFile(testInfo, sourceFile);
+          }
+          await page.addInitScript((mode) => localStorage.setItem("zeninstaller-corp-mode", mode), theme);
+          await page.setViewportSize(viewport);
+          return callback({ page, context }, testInfo);
+        };
+        Reflect.apply(target, target, variantArgs);
+      }
     }
   },
 });
 
-export function getViewportName(testInfo: TestInfo): ViewportName {
+// Light-mode variants return e.g. "Desktop-light" so their snapshots live in a separate directory.
+export function getViewportName(testInfo: TestInfo): string {
   const titleSuffix = testInfo.title.match(/\[([^\]]+)\]$/)?.[1];
-  if (titleSuffix && viewportNames.includes(titleSuffix as ViewportName)) {
-    return titleSuffix as ViewportName;
+  const baseName = titleSuffix?.replace(/-light$/, "");
+  if (titleSuffix && baseName && viewportNames.includes(baseName as ViewportName)) {
+    return titleSuffix;
   }
   throw new Error(`Test title does not include a known viewport suffix: ${testInfo.title}`);
 }

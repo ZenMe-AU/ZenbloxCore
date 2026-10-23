@@ -61,7 +61,7 @@ export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
         onRefresh={repo.onRefresh}
       />
       {!repo.selectedRepo?.isNew && (
-        <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid #f1f5f9" }}>
+        <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid", borderColor: "divider" }}>
           <EnvDetail
             envList={env.envList}
             validEnvs={VALID_ENVS}

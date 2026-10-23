@@ -15,7 +15,12 @@ process.env.NODE_ENV = process.env.NODE_ENV || "dev";
 // Enable Playwright API logs for normal and coverage runs, preserving other namespaces.
 process.env.DEBUG = [process.env.DEBUG, "pw:api"].filter(Boolean).join(",");
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(currentDirectory, ".env") });
+dotenv.config({
+  path: [
+    path.resolve(currentDirectory, ".env"),
+    path.resolve(currentDirectory, "zeninstallerPvt/ui/pwtests/.env"),
+  ],
+});
 
 export default defineConfig({
   testDir: ".",

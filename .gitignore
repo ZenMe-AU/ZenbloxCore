@@ -56,3 +56,4 @@ __blobstorage__/
 AzuriteConfig
 
 corpSetup/c25cloudfront/source/loginApp/config.js
+**/.vitepress/cache/

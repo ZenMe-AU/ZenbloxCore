@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Button, CircularProgress, Collapse, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
+import { Box, Button, ButtonBase, CircularProgress, Collapse, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import EditIcon from "@mui/icons-material/Edit";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -15,7 +15,6 @@ import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
-import { MONO as mono, labelSx } from "../../config/styles";
 import CloudVariableDetail from "../CloudVariableDetail";
 import { DEPLOYMENT_TERMINAL_KEYS } from "../../logic/variables";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
@@ -23,9 +22,9 @@ import type { Account, CardChrome, GhEnv } from "../../types";
 
 function PlainRow({ label, value }: { label: string; value: string }) {
   return (
-    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+    <Typography color="text.muted">
       {label}:{" "}
-      <Box component="span" sx={{ color: "#0f172a" }}>
+      <Box component="span" sx={{ color: "text.primary" }}>
         {value}
       </Box>
     </Typography>
@@ -80,15 +79,15 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
   return (
     <Card title="Private Zeninstaller Backend Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.6 }}>
+        <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
           The relay behind the stage-card terminal: Web PubSub, the session table, and the Function App that issues group-scoped tokens. Everything connects by
           managed identity — no access key is stored.
         </Typography>
 
         {infra.steps.length === 0 && (
           <Box>
-            <Typography sx={{ ...labelSx, mb: 0.75 }}>Resources</Typography>
-            <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
+            <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
+            <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
               <PlainRow label="Resource group" value={infra.resourceGroupName} />
               <PlainRow label="Log Analytics" value={infra.lawName} />
               <PlainRow label="Application Insights" value={infra.appInsightsName} />
@@ -130,21 +129,22 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
               />
               <PlainRow label="Web PubSub app registration" value={infra.pipelineAppName} />
               {/* Every resource above lands in this region, so it is chosen before the first run. */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
                 {editingLocation ? (
                   <>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>Location:</Typography>
+                    <Typography color="text.muted">Location:</Typography>
                     {infra.locations.length > 0 ? (
                       <Select
                         size="small"
                         value={infra.location}
                         onChange={(e) => infra.setLocation(e.target.value)}
-                        sx={{ fontSize: "0.75rem", ...mono, minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
+                        inputProps={{ "aria-label": "Location" }}
+                        sx={{ minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
                       >
                         {infra.locations.map((l) => (
-                          <MenuItem key={l.name} value={l.name} sx={{ fontSize: "0.78rem", ...mono }}>
+                          <MenuItem key={l.name} value={l.name}>
                             {l.displayName}{" "}
-                            <Box component="span" sx={{ color: "#94a3b8", ml: 0.5 }}>
+                            <Box component="span" sx={{ color: "text.muted", ml: 0.5 }}>
                               ({l.name})
                             </Box>
                           </MenuItem>
@@ -157,24 +157,25 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
                         onChange={(e) => infra.setLocation(e.target.value)}
                         placeholder={infra.locationsLoading ? "Loading regions..." : "e.g. australiaeast"}
                         sx={{ minWidth: 220 }}
-                        inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                        className="corpTechnicalInput"
+                        inputProps={{ "aria-label": "Location" }}
                       />
                     )}
-                    {infra.locationsLoading && <CircularProgress size={12} />}
-                    <IconButton size="small" onClick={() => setEditingLocation(false)} sx={{ color: "#22c55e", p: 0.25 }}>
-                      <CheckIcon sx={{ fontSize: 14 }} />
+                    {infra.locationsLoading && <CircularProgress aria-label="Loading Azure regions" size={12} />}
+                    <IconButton aria-label="Confirm Azure region" size="small" onClick={() => setEditingLocation(false)} sx={{ color: "success.main", p: 0.25 }}>
+                      <CheckIcon sx={{ typography: "caption" }} />
                     </IconButton>
                   </>
                 ) : (
                   <>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+                    <Typography color="text.muted">
                       Location:{" "}
-                      <Box component="span" sx={{ color: "#0f172a" }}>
+                      <Box component="span" sx={{ color: "text.primary" }}>
                         {infra.locations.find((l) => l.name === infra.location)?.displayName ?? infra.location}
                       </Box>
                     </Typography>
-                    <IconButton size="small" onClick={() => setEditingLocation(true)} sx={{ color: "#cbd5e1", p: 0.25, "&:hover": { color: "#2563eb" } }}>
-                      <EditIcon sx={{ fontSize: 13 }} />
+                    <IconButton aria-label="Edit Azure region" size="small" onClick={() => setEditingLocation(true)} sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}>
+                      <EditIcon sx={{ typography: "caption" }} />
                     </IconButton>
                   </>
                 )}
@@ -189,22 +190,14 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
             disabled={infra.running || editingStorage || editingWebPubSub || editingFunctionApp || !infra.location.trim()}
             variant="contained"
             size="small"
-            sx={{
-              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-              ...mono,
-              fontSize: "0.75rem",
-              textTransform: "none",
-              py: 0.6,
-              px: 2,
-              "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-              "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
-            }}
+            aria-busy={infra.running}
+            sx={{ py: 0.6, px: 2 }}
           >
             {infra.running ? (
-              <>
-                <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
+              <Box component="span" role="status" aria-live="polite" sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
+                <CircularProgress aria-label="Creating backend environment" size={12} />
                 Creating...
-              </>
+              </Box>
             ) : infra.done ? (
               "Re-run"
             ) : (
@@ -222,27 +215,31 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
         )}
 
         {/* ── Divider (clickable toggle) ── */}
-        <Box
-          onClick={() => setVarExpanded((e) => !e)}
-          sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
+        <ButtonBase
+          disableRipple
+          onClick={() => setVarExpanded((expanded) => !expanded)}
+          aria-expanded={varExpanded}
+          aria-controls="remote-terminal-connection-details"
+          sx={{ width: "100%", display: "flex", alignItems: "center", gap: 1.5, userSelect: "none", py: 0.25 }}
         >
-          <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, whiteSpace: "nowrap" }}>
+          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+          <Typography color="text.muted" sx={{ whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
             sx={{
-              fontSize: 14,
-              color: "#94a3b8",
+              typography: "body2",
+              color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
               transition: "transform 0.2s",
             }}
+            aria-hidden="true"
           />
-          <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-        </Box>
+          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+        </ButtonBase>
 
         {/* unmountOnExit=false keeps draft edits alive while collapsed */}
-        <Collapse in={varExpanded} timeout={300} unmountOnExit={false}>
+        <Collapse id="remote-terminal-connection-details" role="region" aria-label="Connection details" in={varExpanded} timeout={300} unmountOnExit={false}>
           <CloudVariableDetail
             account={githubAccount}
             repo={repoName}

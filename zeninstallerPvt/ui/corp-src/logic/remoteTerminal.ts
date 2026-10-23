@@ -43,8 +43,30 @@ function asRunnerMessage(payload: unknown): RunnerMessage | null {
   if (typeof payload !== "object" || payload === null) return null;
   const type = (payload as { type?: unknown }).type;
   switch (type) {
+    case "deviceCode": {
+      const message = payload as { cloud?: unknown; url?: unknown; code?: unknown };
+      if (
+        (message.cloud !== "azure" && message.cloud !== "aws") ||
+        typeof message.url !== "string" ||
+        (message.code !== undefined && typeof message.code !== "string")
+      ) {
+        return null;
+      }
+      let url: URL;
+      try {
+        url = new URL(message.url);
+      } catch {
+        return null;
+      }
+      if (url.protocol !== "https:" || url.username || url.password) return null;
+      return {
+        type: "deviceCode",
+        cloud: message.cloud,
+        url: message.url,
+        ...(typeof message.code === "string" ? { code: message.code } : {}),
+      };
+    }
     case "terminal":
-    case "deviceCode":
     case "loginCompleted":
     case "loginFailed":
     case "stage":
@@ -55,6 +77,26 @@ function asRunnerMessage(payload: unknown): RunnerMessage | null {
     default:
       return null;
   }
+}
+
+export function parseWebPubSubUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (
+    url.protocol !== "wss:" ||
+    !url.hostname.endsWith(".webpubsub.azure.com") ||
+    (url.port !== "" && url.port !== "443") ||
+    url.username ||
+    url.password
+  ) {
+    return null;
+  }
+  return url.href;
 }
 
 // Unwraps a Web PubSub JSON-protocol frame; null means it is not something this session acts on.
