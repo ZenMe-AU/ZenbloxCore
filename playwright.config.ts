@@ -48,37 +48,15 @@ export default defineConfig({
   },
 
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:5174/core",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     testIdAttribute: "data-id",
   },
 
   projects: [
-    // {
-    //   name: "Desktop",
-    //   testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
-    //   fullyParallel: false,
-    //   workers: 1,
-    //   retries: 1,
-    //   use: {
-    //     ...devices["Desktop Chrome"],
-    //     viewport: viewports.Desktop,
-    //   },
-    // },
-    // {
-    //   name: "Mobile",
-    //   testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
-    //   fullyParallel: false,
-    //   workers: 1,
-    //   retries: 1,
-    //   use: {
-    //     ...devices["Desktop Chrome"],
-    //     viewport: viewports.Mobile,
-    //   },
-    // },
     {
-      name: "Desktop and Mobile",
+      name: "Playwright Project",
       testMatch: "**/pwtests/**/*.{spec,setup}.{ts,mts}",
       fullyParallel: true,
       workers: 2,

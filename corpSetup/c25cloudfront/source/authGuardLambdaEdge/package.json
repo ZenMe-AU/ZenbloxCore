@@ -13,8 +13,5 @@
   "dependencies": {
     "jsonwebtoken": "^9.0.3",
     "jwks-rsa": "^3.2.2"
-  },
-  "engines": {
-    "node": "^24.22.1"
   }
 }

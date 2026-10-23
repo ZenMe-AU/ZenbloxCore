@@ -4,9 +4,6 @@
   "description": "",
   "main": "src/functions/**/*.js",
   "type": "module",
-  "engines": {
-    "node": "^24.22.1"
-  },
   "files": [
     "src",
     "host.json"
