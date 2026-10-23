@@ -20,7 +20,7 @@ setup("Automatic GitHub PAT login for corp auth tests", async ({ page, context }
   }
 
   if (!pat) {
-    throw new Error("GITHUB_TOKEN is missing or empty in web/pwtests/.env file.");
+    throw new Error("Set GITHUB_TOKEN in the environment, the repository-root .env, or zeninstallerPvt/ui/pwtests/.env.");
   }
 
   await page.goto(CORP_URL);

@@ -208,7 +208,7 @@ async function runHappyPath(page: Page, testInfo: TestInfo, { viewportName, repo
       "Confirm Microsoft permissions",
       "Create app registration",
       "Create service principal",
-      "Switch GitHub OIDC to immutable subject",
+      "Link Azure sign-in to this GitHub repository",
       "Add federated credentials",
       "Assign RBAC roles",
     ]) {
@@ -237,7 +237,7 @@ async function runHappyPath(page: Page, testInfo: TestInfo, { viewportName, repo
       "Confirm Microsoft permissions",
       "Create app registration",
       "Create service principal",
-      "Switch GitHub OIDC to immutable subject",
+      "Link Azure sign-in to this GitHub repository",
       "Add federated credentials",
       "Assign RBAC roles",
     ]) {

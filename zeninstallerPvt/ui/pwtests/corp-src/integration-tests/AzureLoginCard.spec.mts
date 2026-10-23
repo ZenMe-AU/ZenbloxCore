@@ -66,7 +66,7 @@ async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestI
     await page.getByRole("option").filter({ hasText: tenantId }).click();
     await expect(tenantSelect.locator("input")).toHaveValue(tenantId);
     const subscriptionCard = page.locator("#card-azure_subscription");
-    const requirements = subscriptionCard.getByText("Complete these first");
+    const requirements = subscriptionCard.getByText("Complete these setup steps first. Select a step to open its card.");
     if (!(await requirements.isVisible())) {
       await subscriptionCard.getByText("Choose Azure subscription").click();
     }

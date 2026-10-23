@@ -172,7 +172,7 @@ export async function prepareExistingRelayRepository(
   { timeout: 60_000 }).toBe(true);
   if (await requirement.isVisible()) {
     await appCard.locator("input:visible").first().fill(`zeninstaller-${repoName}`);
-    await appCard.getByRole("button", { name: /^(?:Create app registration|Grant access on this subscription)$/ }).click();
+    await appCard.getByRole("button", { name: /^(?:Create app registration|Grant Reader access on this subscription)$/ }).click();
     await expect(appCard.getByRole("button", { name: "Try again" })).toBeVisible({ timeout: 300_000 });
     await expect(requirement).toBeHidden({ timeout: 60_000 });
   }

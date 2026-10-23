@@ -3,12 +3,19 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Box, Typography } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
+import { useColorScheme } from "@mui/material/styles";
 
 // The tab title is the same sentence, so it is read from there rather than repeated here.
 export default function Header() {
+  const { mode, setMode } = useColorScheme();
+  const actionLabel = mode === "dark" ? "Switch to light mode" : "Switch to dark mode";
+
   return (
     <Box
+      component="header"
       sx={{
         display: "flex",
         alignItems: "center",
@@ -22,19 +29,33 @@ export default function Header() {
           width: 28,
           height: 28,
           borderRadius: "7px",
-          background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+          background: (theme) => `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "0.7rem",
           fontWeight: 800,
-          color: "#fff",
-          fontFamily: "'IBM Plex Mono', monospace",
+          color: "primary.contrastText",
         }}
       >
         ZB
       </Box>
-      <Typography sx={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", letterSpacing: "-0.01em" }}>{document.title}</Typography>
+      <Typography component="h1" variant="h1">
+        {document.title}
+      </Typography>
+      <Box sx={{ ml: "auto", flexShrink: 0 }}>
+        <Tooltip title={actionLabel}>
+          <span>
+            <IconButton
+              aria-label={actionLabel}
+              disabled={!mode}
+              onClick={() => setMode(mode === "dark" ? "light" : "dark")}
+              size="small"
+            >
+              {mode === "dark" ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Box>
     </Box>
   );
 }

@@ -40,7 +40,7 @@ test("Modifying one existing variable", async ({ page, context }, testInfo) => {
   const saveOneVariableButton = azureSubscriptionCard.getByRole("button", { name: "Save 1 variable" });
   await expect(saveOneVariableButton).toBeEnabled();
   await expectVisibleWithin(azureSubscriptionCard.getByText("overwrites", { exact: true }), "Variable overwrite warning", 50_000);
-  await azureSubscriptionCard.getByRole("button", { name: "Revert to saved value" }).click();
+  await azureSubscriptionCard.getByRole("button", { name: /^Revert .+ to saved value$/ }).click();
   await expect(subscriptionVariableInput).toHaveValue(savedSubscriptionId);
   await expect(azureSubscriptionCard.getByText("overwrites", { exact: true })).toHaveCount(0);
   await expect(saveButton).toBeDisabled();
@@ -60,8 +60,8 @@ test("Modifying all existing variables", async ({ page, context }, testInfo) => 
   const saveTwoVariablesButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables" });
   await expect(saveTwoVariablesButton).toBeEnabled();
   await expect(azureSubscriptionCard.getByText("overwrites", { exact: true })).toHaveCount(2);
-  await tenantVariableRow.getByRole("button", { name: "Revert to saved value" }).click();
-  await subscriptionVariableRow.getByRole("button", { name: "Revert to saved value" }).click();
+  await tenantVariableRow.getByRole("button", { name: /^Revert .+ to saved value$/ }).click();
+  await subscriptionVariableRow.getByRole("button", { name: /^Revert .+ to saved value$/ }).click();
   await expect(tenantVariableInput).toHaveValue(savedTenantId);
   await expect(subscriptionVariableInput).toHaveValue(savedSubscriptionId);
   await expect(azureSubscriptionCard.getByText("overwrites", { exact: true })).toHaveCount(0);

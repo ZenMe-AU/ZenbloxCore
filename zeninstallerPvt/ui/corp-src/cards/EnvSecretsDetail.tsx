@@ -14,19 +14,6 @@ import SecretsCard from "../components/SecretsCard";
 import RefreshButton from "../components/RefreshButton";
 import SaveButton from "../components/SaveButton";
 import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
-import { sectionLabelSx as sectionLabelBase } from "../config/styles";
-
-// Muted variant of the shared section label (whose default is the darker #0f172a).
-const sectionLabelSx = { ...sectionLabelBase, color: "#94a3b8" };
-
-const subLabelSx = {
-  fontSize: "0.67rem",
-  fontWeight: 600,
-  color: "#cbd5e1",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
-  fontFamily: "'IBM Plex Mono', monospace",
-};
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -121,8 +108,8 @@ export default function EnvSecretsDetail({
       {/* Header */}
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", mb: 1 }}>
         <Box>
-          <Typography sx={{ ...sectionLabelSx, mb: 0.75 }}>Secrets</Typography>
-          <Typography sx={{ fontSize: "0.78rem", color: "#64748b" }}>The following GitHub Actions secrets must be configured.</Typography>
+          <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Secrets</Typography>
+          <Typography color="text.secondary">The following GitHub Actions secrets must be configured.</Typography>
         </Box>
         <RefreshButton
           busy={rechecking}
@@ -138,13 +125,13 @@ export default function EnvSecretsDetail({
       {/* Azure sub-section */}
       <Box sx={{ mt: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-          <Typography sx={subLabelSx}>Azure</Typography>
+          <Typography variant="body1" component="h3" sx={{ fontWeight: 600 }}>Azure</Typography>
           {(() => {
             const n = AZURE_SECRET_KEYS.filter((k) => !presentKeys.includes(k)).length;
             return n > 0 && azureSecretsStatus.configured !== null ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
+              <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.light" }} />
+                <Typography color="warning.light">{n} not configured</Typography>
               </Box>
             ) : null;
           })()}
@@ -163,13 +150,13 @@ export default function EnvSecretsDetail({
       {/* AWS sub-section */}
       <Box sx={{ mt: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-          <Typography sx={subLabelSx}>AWS</Typography>
+          <Typography variant="body1" component="h3" sx={{ fontWeight: 600 }}>AWS</Typography>
           {(() => {
             const n = AWS_SECRET_KEYS.filter((k) => !presentKeys.includes(k)).length;
             return n > 0 && awsSecretsStatus.configured !== null ? (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-                <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{n} not configured</Typography>
+              <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.light" }} />
+                <Typography color="warning.light">{n} not configured</Typography>
               </Box>
             ) : null;
           })()}

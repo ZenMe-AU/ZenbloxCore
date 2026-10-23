@@ -291,6 +291,25 @@ function safeAuthFileName(value: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+// ACCESS_PASS_AUTH_USER selects a configured account; otherwise the first user is used.
+export function getAzureJourneyUser(users: AccessPassUser[]): AccessPassUser {
+  const requestedUserId = process.env.ACCESS_PASS_AUTH_USER;
+
+  if (requestedUserId) {
+    const requestedUser = users.find((user) => user.id === requestedUserId);
+    if (!requestedUser) {
+      throw new Error(`ACCESS_PASS_AUTH_USER="${requestedUserId}" was not found in access-pass-users.local.json`);
+    }
+    return requestedUser;
+  }
+
+  const firstUser = users[0];
+  if (!firstUser) {
+    throw new Error("No Access Pass users found. Add at least one user to pwtests/auth/data/access-pass-users.local.json");
+  }
+  return firstUser;
+}
+
 export function getAccessPassUserAuth(user: AccessPassUser) {
   const safeId = safeAuthFileName(user.id);
   const storageStateFile = path.join(authDir, `${safeId}.storage.json`);

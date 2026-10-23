@@ -6,7 +6,6 @@
 import { Box, CircularProgress, IconButton, TextField, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import EditIcon from "@mui/icons-material/Edit";
-import { MONO as mono } from "../../config/styles";
 
 type EditableNameRowProps = {
   label: string;
@@ -22,8 +21,8 @@ type EditableNameRowProps = {
 
 export default function EditableNameRow({ label, value, onChange, error, checking, check, editing, setEditing, width }: EditableNameRowProps) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-      <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>{label}:</Typography>
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
+      <Typography color="text.muted">{label}:</Typography>
       {editing ? (
         <>
           <TextField
@@ -33,18 +32,25 @@ export default function EditableNameRow({ label, value, onChange, error, checkin
             error={!!error}
             helperText={error ?? undefined}
             sx={{ width }}
-            inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.75rem" } }}
+            className="corpTechnicalInput"
+            inputProps={{ "aria-label": label }}
           />
           {/* Stays open until the name is one this installation can actually create or reuse. */}
-          <IconButton size="small" disabled={checking} onClick={() => void check().then((ok) => ok && setEditing(false))} sx={{ color: "#22c55e", p: 0.25 }}>
-            {checking ? <CircularProgress size={12} /> : <CheckIcon sx={{ fontSize: 14 }} />}
+          <IconButton
+            aria-label={`Confirm ${label}`}
+            size="small"
+            disabled={checking}
+            onClick={() => void check().then((ok) => ok && setEditing(false))}
+            sx={{ color: "success.main", p: 0.25 }}
+          >
+            {checking ? <CircularProgress aria-label={`Checking ${label}`} size={12} /> : <CheckIcon sx={{ typography: "caption" }} />}
           </IconButton>
         </>
       ) : (
         <>
-          <Typography sx={{ fontSize: "0.75rem", color: "#0f172a", ...mono }}>{value}</Typography>
-          <IconButton size="small" onClick={() => setEditing(true)} sx={{ color: "#cbd5e1", p: 0.25, "&:hover": { color: "#2563eb" } }}>
-            <EditIcon sx={{ fontSize: 13 }} />
+          <Typography color="text.primary">{value}</Typography>
+          <IconButton aria-label={`Edit ${label}`} size="small" onClick={() => setEditing(true)} sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}>
+            <EditIcon sx={{ typography: "caption" }} />
           </IconButton>
         </>
       )}

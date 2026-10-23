@@ -5,11 +5,34 @@
 
 import { defineConfig } from "vitepress";
 
+const NOT_DOCS = [/^\/core\//, /^\/scripts\//];
+
 export default defineConfig({
   title: "ZenInstaller Docs",
   description: "ZenInstaller documentation and guides",
-  base: "/docs/",
-  ignoreDeadLinks: [/^\/scripts\//],
+  base: "/",
+  outDir: "../dist",
+  ignoreDeadLinks: NOT_DOCS,
+  vite: {
+    server: {
+      port: 5173,
+      strictPort: true,
+      // The app pins itself to this port in vite.config.ts (strictPort).
+      proxy: {
+        "/core": { target: "http://localhost:5174", changeOrigin: false },
+      },
+    },
+  },
+  markdown: {
+    config: (md) => {
+      const open = md.renderer.rules.link_open;
+      md.renderer.rules.link_open = (tokens, i, opts, env, self) => {
+        const href = tokens[i].attrGet("href") ?? "";
+        if (NOT_DOCS.some((re) => re.test(href))) tokens[i].attrSet("target", "_self");
+        return open ? open(tokens, i, opts, env, self) : self.renderToken(tokens, i, opts);
+      };
+    },
+  },
   themeConfig: {
     sidebar: [
       {

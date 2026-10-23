@@ -7,17 +7,16 @@ import { expect, type BrowserContext, type Page } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import { AZURE_MANAGEMENT_URL, CORP_URL } from "../../testInit";
 import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
-import { expandAzureAppRegistrationCard, expandAzureSubscriptionCard } from "../util/cardHelper.mts";
 import {
   coreInfraStepLabels,
   expectSuccessfulSteps,
   installCoreInfraAzureMock,
+  installMockAzure,
   installMockGitHub,
   mockSubscriptionId,
   mockSecondSubscriptionId,
   mockServicePrincipalId,
   mockTenantId,
-  prepareMockAzureSubscription,
 } from "../util/mockTestHelper.mts";
 
 type CoreInfraMockOptions = {
@@ -25,7 +24,6 @@ type CoreInfraMockOptions = {
   failRegionLookup?: boolean;
   failFirstResourceGroupPut?: boolean;
 };
-
 
 test.beforeEach(async ({ page }) => {
   await page.coverage.startJSCoverage({ resetOnNavigation: false });
@@ -47,12 +45,10 @@ test("Allows manual region entry when Azure region lookup fails", async ({ page,
   });
   await saveCoreCompanyCode(card);
   await expect(card.getByText("Couldn't load Azure region list — type the region name manually.", { exact: true })).toBeVisible();
-  const locationRow = card.getByText(/Location:/).locator("..");
-  await locationRow.getByRole("button").click();
-  const regionInput = locationRow.getByRole("textbox");
-  await regionInput.fill("westus2");
-  await locationRow.getByRole("button").click();
-  await expect(locationRow).toContainText("westus2");
+  await card.getByRole("button", { name: "Edit Azure region" }).click();
+  await card.locator("#core-infra-location").fill("westus2");
+  await card.getByRole("button", { name: "Confirm Azure region" }).click();
+  await expect(card.getByText(/Location:/)).toContainText("westus2");
   await card.getByRole("button", { name: "Create core infrastructure" }).click();
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
   await expectSuccessfulSteps(card, coreInfraStepLabels("pwtests"));
@@ -121,13 +117,7 @@ test("Does not reuse infrastructure status after the subscription target drifts"
     }
     return route.fallback();
   });
-  const subscriptionCard = await expandAzureSubscriptionCard(page);
-  await subscriptionCard.getByRole("combobox").click();
-  await page.getByRole("option", { name: /^Mock second subscription\b/ }).click();
-  const saveTargetButton = subscriptionCard.getByRole("button", { name: /^Save \d+ variables?$/ });
-  await expect(saveTargetButton).toBeEnabled();
-  await saveTargetButton.click();
-  await expect.poll(() => prepared.github.variables.AZURE_SUBSCRIPTION_ID).toBe(mockSecondSubscriptionId);
+  prepared.github.variables.AZURE_SUBSCRIPTION_ID = mockSecondSubscriptionId;
   await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.toLowerCase();
@@ -140,8 +130,9 @@ test("Does not reuse infrastructure status after the subscription target drifts"
     }
     return route.fallback();
   });
-  await page.reload();
-  await prepareMockAppRegistration(page, viewportName);
+  const driftedUrl = new URL(page.url());
+  driftedUrl.searchParams.set("subscription", mockSecondSubscriptionId);
+  await page.goto(driftedUrl.toString());
   const driftedCard = page.locator("#card-core_infra");
   await openCoreInfraCard(driftedCard);
   await expect(prepared.github.variables.AZURE_SUBSCRIPTION_ID).toBe(mockSecondSubscriptionId);
@@ -162,7 +153,6 @@ test("Recreates missing infrastructure and repairs revoked resource-group access
   azureMock.roleAssignments.get(groupScope)?.delete("acdd72a7-3385-48ef-bd42-f606fba81ae7");
 
   await page.reload();
-  await prepareMockAppRegistration(page, viewportName);
   const recoveredCard = page.locator("#card-core_infra");
   await openCoreInfraCard(recoveredCard);
   await expect(recoveredCard.getByText("The resource group doesn't exist in the selected subscription anymore — re-run to recreate it.", { exact: true })).toBeVisible();
@@ -182,7 +172,7 @@ test("Shows prerequisites before infrastructure setup", async ({ page, context }
   const card = page.locator("#card-core_infra");
   await card.getByText("Terraform state backend", { exact: true }).click();
 
-  await expect(card.getByText("Complete these first", { exact: true })).toBeVisible();
+  await expect(card.getByText("Complete these setup steps first. Select a step to open its card.", { exact: true })).toBeVisible();
   for (const prerequisite of ["Sign in to Azure", "Select a repository & environment", "Select a subscription", "Complete the Azure app registration"]) {
     await expect(card.getByText(prerequisite, { exact: true })).toBeVisible();
   }
@@ -222,7 +212,6 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
   await test.step("Verify the completed card state", async () => {
     await card.getByRole("button", { name: "Start over" }).click();
     await page.reload();
-    await prepareMockAppRegistration(page, viewportName);
     const reloadedCard = page.locator("#card-core_infra");
     await openCoreInfraCard(reloadedCard);
     await expect(reloadedCard.getByText("Resources", { exact: true })).toBeVisible();
@@ -264,17 +253,6 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
   expect(prepared.github.variables.NAME).toBe("pwtests");
 }
 
-async function prepareMockAppRegistration(page: Page, viewportName: string) {
-  const appRegistrationCard = await expandAzureAppRegistrationCard(page);
-  const createButton = appRegistrationCard.getByRole("button", { name: "Create app registration", exact: true });
-  await expect(createButton).toBeVisible();
-  await appRegistrationCard.locator("input:visible").first().fill(`mock-core-infra-${viewportName.toLowerCase()}`);
-  await createButton.click();
-  await expect(appRegistrationCard.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
-  await expect(appRegistrationCard.getByRole("button", { name: "Try again" })).toBeVisible();
-  await expect(appRegistrationCard.getByText(/Connection details saved(?: — no changes needed)?\./i)).toBeVisible();
-}
-
 async function prepareCoreInfraCard(
   page: Page,
   context: BrowserContext,
@@ -297,42 +275,60 @@ async function prepareCoreInfraCard(
   );
 
   const companyShortCode = "pwtests";
-  const prepared = await prepareMockAzureSubscription(
-    page,
-    context,
-    `mock-core-infra-${viewportName.toLowerCase()}`,
-    {
-      initialAzureState: {
-        appDisplayName: `mock-core-infra-${viewportName.toLowerCase()}`,
-        servicePrincipalCreated: true,
-        rbacAssigned: true,
-        ...(options.includeSecondSubscription
-          ? {
-              subscriptions: [
-                { subscriptionId: mockSubscriptionId, displayName: "Mock subscription", tenantId: mockTenantId, state: "Enabled" },
-                { subscriptionId: mockSecondSubscriptionId, displayName: "Mock second subscription", tenantId: mockTenantId, state: "Enabled" },
-              ],
-            }
-          : {}),
-      },
+  const repoName = `mock-core-infra-${viewportName.toLowerCase()}`;
+  const clientId = "00000000-0000-0000-0000-000000000002";
+  const github = await installMockGitHub(page, context, {
+    repositoryName: repoName,
+    branches: ["main", "PROD"],
+    initialVariables: {
+      AZURE_TENANT_ID: mockTenantId,
+      AZURE_SUBSCRIPTION_ID: mockSubscriptionId,
+      VITE_AZURE_TENANT_ID: mockTenantId,
+      AZURE_CLIENT_ID: clientId,
+      AZURE_PLAN_CLIENT_ID: clientId,
     },
-  );
-  if (options.includeSecondSubscription) {
-    await prepared.azureSubscriptionCard.getByRole("combobox").click();
-    await page.getByRole("option", { name: /^Mock subscription\b/ }).click();
-  }
-  const saveSubscriptionButton = prepared.azureSubscriptionCard.getByRole("button", {
-    name: "Save 3 variables",
-    exact: true,
   });
-  await expect(saveSubscriptionButton).toBeEnabled();
-  await saveSubscriptionButton.click();
-  await expect(prepared.azureSubscriptionCard.getByRole("button", { name: /^Save variables$/ })).toBeDisabled();
-  expect(prepared.github.variables).toMatchObject({
-    AZURE_TENANT_ID: expect.any(String),
-    AZURE_SUBSCRIPTION_ID: mockSubscriptionId,
-    VITE_AZURE_TENANT_ID: expect.any(String),
+  const azure = await installMockAzure(page, {
+    appDisplayName: repoName,
+    servicePrincipalCreated: true,
+    rbacAssigned: true,
+    ...(options.includeSecondSubscription
+      ? {
+          subscriptions: [
+            { subscriptionId: mockSubscriptionId, displayName: "Mock subscription", tenantId: mockTenantId, state: "Enabled" },
+            { subscriptionId: mockSecondSubscriptionId, displayName: "Mock second subscription", tenantId: mockTenantId, state: "Enabled" },
+          ],
+        }
+      : {}),
   });
+  const prepared = { github, azure };
+  await context.addInitScript(({ clientId, tenantId, subscriptionId }) => {
+    localStorage.setItem("zeninstaller_azure_result", JSON.stringify({
+      clientId, tenantId, subscriptionIds: [subscriptionId],
+    }));
+    sessionStorage.setItem("zeninstaller_arm_tenant", tenantId);
+  }, { clientId, tenantId: mockTenantId, subscriptionId: mockSubscriptionId });
+  await page.route(/\/corp-src\/auth\/msal\.ts(?:\?.*)?$/, (route) => route.fulfill({
+    contentType: "application/javascript",
+    body: `
+      export const MSA_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad";
+      export const PINNED_TENANT_ID = "${mockTenantId}";
+      export const LOGIN_AUTHORITY = "https://login.microsoftonline.com/${mockTenantId}";
+      export const cleanTenantId = tenant => tenant?.trim().toLowerCase();
+      const account = { homeAccountId: "mock-home", environment: "login.microsoftonline.com",
+        tenantId: "${mockTenantId}", localAccountId: "mock-user", username: "mock-user@example.com",
+        name: "Mock Azure User", tenantProfiles: new Map([["${mockTenantId}", {}]]) };
+      const reject = async () => { throw new Error("Unexpected authentication redirect in core-infrastructure mock"); };
+      export const getMsal = async () => ({ handleRedirectPromise: async () => null,
+        getAllAccounts: () => [account], acquireTokenSilent: async () => ({ account, accessToken: "mock-token" }),
+        loginRedirect: reject, acquireTokenRedirect: reject, clearCache: async () => {} });
+      export const ensureScopeConsent = async () => false;
+      export const getToken = async () => "mock-token";
+      export const setActiveAzureIdentity = () => {};
+      export const getMsToken = async () => "mock-token";
+      export const requireMsToken = async () => "mock-token";
+    `,
+  }));
 
   const azureMock = await installCoreInfraAzureMock(page);
   const resourceWrites: Array<{ path: string; body: unknown }> = [];
@@ -366,22 +362,27 @@ async function prepareCoreInfraCard(
     return route.fallback();
   });
 
-  await page.reload();
-  await prepareMockAppRegistration(page, viewportName);
+  const url = new URL(CORP_URL);
+  url.search = new URLSearchParams({
+    account: "mock-user", repo: repoName, env: "PROD",
+    tenant: mockTenantId, subscription: mockSubscriptionId,
+  }).toString();
+  await page.goto(url.toString());
   expect(prepared.github.variables.AZURE_CLIENT_ID).toBeTruthy();
   expect(prepared.github.variables.AZURE_PLAN_CLIENT_ID).toBe(prepared.github.variables.AZURE_CLIENT_ID);
   const card = page.locator("#card-core_infra");
-  await card.getByText("Terraform state backend", { exact: true }).click();
-  await expect(card.getByText("Company short code", { exact: true })).toBeVisible();
+  await openCoreInfraCard(card);
   return { card, prepared, azureMock, resourceWrites, unexpectedRequests, getResourceGroupPutAttempts: () => resourceGroupPutAttempts };
 }
 
 async function openCoreInfraCard(card: import("@playwright/test").Locator) {
-  const companyHeading = card.getByText("Company short code", { exact: true });
-  if (!(await companyHeading.isVisible().catch(() => false))) {
-    await card.getByText("Terraform state backend", { exact: true }).click();
+  const header = card.getByRole("button", { name: /^Terraform state backend/ });
+  await expect(header).toBeVisible();
+  if ((await header.getAttribute("aria-expanded")) !== "true") {
+    await header.click();
   }
-  await expect(companyHeading).toBeVisible();
+  await expect(header).toHaveAttribute("aria-expanded", "true");
+  await expect(card.getByText("Company short code", { exact: true })).toBeVisible();
 }
 
 async function saveCoreCompanyCode(card: import("@playwright/test").Locator) {
@@ -396,12 +397,11 @@ async function saveCoreCompanyCode(card: import("@playwright/test").Locator) {
 }
 
 async function chooseAustraliaEast(card: import("@playwright/test").Locator, page: Page) {
-  const locationRow = card.getByText(/Location:/).locator("..");
-  await locationRow.getByRole("button").click();
-  await locationRow.getByRole("combobox").click();
+  await card.getByRole("button", { name: "Edit Azure region" }).click();
+  await card.locator("#core-infra-location").click();
   await page.getByRole("option", { name: /Australia East.*australiaeast/i }).click();
-  await locationRow.getByRole("button").click();
-  await expect(locationRow).toContainText("Australia East");
+  await card.getByRole("button", { name: "Confirm Azure region" }).click();
+  await expect(card.getByText(/Location:/)).toContainText("Australia East");
 }
 
 async function runCoreInfrastructure(card: import("@playwright/test").Locator) {
