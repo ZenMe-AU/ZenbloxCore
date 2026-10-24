@@ -1,0 +1,618 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>PTR Review Report</title>
+<section id="ptr-report" data-generated="2026-10-24T11:45:13.015Z" data-source="agents/PTR/reviewManifest.jsonl" data-count="16">
+<h1>PTR Review Report</h1>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/AzureAppRegistration/AzureAppRegistrationCard.tsx" data-name="AzureAppRegistrationCard" data-group="cards" data-git-hash="09cf2c0c9ef2682d62930028bbe8d81c590c7b36" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="high" data-critical="0" data-high="2" data-medium="1" data-low="0" data-gap="0" data-info="0">
+<h2>AzureAppRegistrationCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/AzureAppRegistration/AzureAppRegistrationCard.tsx</dd>
+<dt>Git hash</dt><dd>09cf2c0c9ef2682d62930028bbe8d81c590c7b36</dd>
+<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/AzureAppRegistrationCard.spec.mts" data-git-hash="e829024a33475115b63aafd0833efcb0b43f2ced">
+<h3>Integration tests</h3>
+<ul>
+<li data-severity="high">prepareAppRegistrationCard accepts only zero or two dirty subscription variables; the third hidden VITE_AZURE_TENANT_ID key makes fresh setup skip the required save.</li>
+<li data-severity="high">Live integration tests create Azure app registrations, service principals, federated credentials, and role assignments without an explicit opt-in guard or cleanup.</li>
+<li data-severity="medium">The live flow waits a fixed one second and checks step labels rather than successful step status; this can miss partial provisioning failures.</li>
+</ul>
+</section>
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/AzureAppRegistrationCard.spec.mts" data-git-hash="d97379fdd0a7158a694ef67cd94a3767b3b7900b">
+<h3>Mock tests</h3>
+<ul>
+</ul>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/AzureSubscription/AzureSubscriptionCard.tsx" data-name="AzureSubscriptionCard" data-group="cards" data-git-hash="293c0c5e0686b21e538ee66e7d06f24469932211" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="high" data-critical="0" data-high="1" data-medium="1" data-low="0" data-gap="0" data-info="0">
+<h2>AzureSubscriptionCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/AzureSubscription/AzureSubscriptionCard.tsx</dd>
+<dt>Git hash</dt><dd>293c0c5e0686b21e538ee66e7d06f24469932211</dd>
+<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/AzureSubscriptionCard.spec.mts" data-git-hash="6b4d56fc2050c0d4f66e59da0e7885207c0c3725">
+<h3>Integration tests</h3>
+<ul>
+<li data-severity="high">Fresh setup can have three dirty Azure target variables, but the save selector /^Save(?: 2)? variables$/ excludes “Save 3 variables”; the happy path also allows the no-subscription-access branch to skip saving without proving values persisted.</li>
+<li data-severity="medium">openExistingAzureSubscription reselects and re-saves the expected subscription before the already-saved assertions, masking whether saved variables restore correctly on their own.</li>
+</ul>
+</section>
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/AzureSubscriptionCard.spec.mts" data-git-hash="26363b1b648ca617ef1a95387295499a0dd1105c">
+<h3>Mock tests</h3>
+<ul>
+</ul>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/GithubLogin/GithubLoginCard.tsx" data-name="GithubLoginCard" data-group="cards" data-git-hash="33bb3d4b5e3133d7764fe0a57a3d347ccb706409" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="high" data-critical="0" data-high="1" data-medium="1" data-low="0" data-gap="0" data-info="0">
+<h2>GithubLoginCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/GithubLogin/GithubLoginCard.tsx</dd>
+<dt>Git hash</dt><dd>33bb3d4b5e3133d7764fe0a57a3d347ccb706409</dd>
+<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/GithubLoginCard.spec.mts" data-git-hash="704ce68635adec8a6f0fb6092001caa6a9391106">
+<h3>Integration tests</h3>
+<ul>
+<li data-severity="medium">The valid-PAT integration case dereferences process.env.GITHUB_TOKEN with a non-null assertion and has no preflight/skip, so missing credentials fail opaquely.</li>
+</ul>
+</section>
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/GithubLoginCard.spec.mts" data-git-hash="6d237290b3dd5c19ea94e8bd638e37f8220b675e">
+<h3>Mock tests</h3>
+<ul>
+<li data-severity="high">Rejected-PAT route compares the Authorization header with a literal malformed template string (`****** ? ...`), so the assertion cannot match the intended test token and the scenario fails before validating the UI response.</li>
+</ul>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/CoreInfra/CoreInfraCard.tsx" data-name="CoreInfraCard" data-group="cards" data-git-hash="dc17dd8333133bb39da85ab6cffca4b50688f0dd" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="medium" data-critical="0" data-high="0" data-medium="1" data-low="0" data-gap="0" data-info="0">
+<h2>CoreInfraCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/CoreInfra/CoreInfraCard.tsx</dd>
+<dt>Git hash</dt><dd>dc17dd8333133bb39da85ab6cffca4b50688f0dd</dd>
+<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/CoreInfraCard.spec.mts" data-git-hash="9b1bf7b45f10184f22001d0572044ab2b5c8d404">
+<h3>Integration tests</h3>
+<ul>
+<li data-severity="medium">Rerun checks “Already exists” for selected resources but does not assert that no resource writes occurred or that existing resource identities stayed unchanged.</li>
+</ul>
+</section>
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/CoreInfraCard.spec.mts" data-git-hash="71b3a769a7e8562f7c10261e5a96f4a64496d85e">
+<h3>Mock tests</h3>
+<ul>
+</ul>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/CreateDomain/CreateDomainCard.tsx" data-name="CreateDomainCard" data-group="cards" data-git-hash="fe4cd890195fbbd06ef22248f47d7a011de7f3bc" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="medium" data-critical="0" data-high="0" data-medium="1" data-low="0" data-gap="1" data-info="0">
+<h2>CreateDomainCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/CreateDomain/CreateDomainCard.tsx</dd>
+<dt>Git hash</dt><dd>fe4cd890195fbbd06ef22248f47d7a011de7f3bc</dd>
+<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/CreateDomainCard.spec.mts" data-git-hash="f77a2b168f41f84e64765ff17ab3dc16f30525d7">
+<h3>Integration tests</h3>
+<ul>
+</ul>
+</section>
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/CreateDomainCard.spec.mts" data-git-hash="cf2552c4db2afd8217bf5482fe2bb57281ee16c0">
+<h3>Mock tests</h3>
+<ul>
+<li data-severity="medium">Setup can be clicked while the initial Entra domain-status request is still pending; add a delayed-status scenario and verify the action remains disabled until the check settles.</li>
+<li data-severity="gap">verification rejection and primary-promotion failure are not exercised; current retry coverage only simulates a successful request returning isVerified=false.</li>
+</ul>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/Repo/RepoDetail.tsx" data-name="RepoDetail" data-group="cards" data-git-hash="80b6f61f40ff3baa85f5bf5d5684dd5bf6a36d28" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="medium" data-critical="0" data-high="0" data-medium="1" data-low="0" data-gap="0" data-info="0">
+<h2>RepoDetail</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/Repo/RepoDetail.tsx</dd>
+<dt>Git hash</dt><dd>80b6f61f40ff3baa85f5bf5d5684dd5bf6a36d28</dd>
+<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/RepoDetail.spec.mts" data-git-hash="192311af69855c136ee8af359e29833496a1f84d">
+<h3>Integration tests</h3>
+<ul>
+<li data-severity="medium">Creates PROD then TEST from PROD uses a fixed repository name, fails immediately if it already exists, and has no cleanup; a successful or partial run can block subsequent runs.</li>
+</ul>
+</section>
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/RepoDetail.spec.mts" data-git-hash="d94533e0952cb743b1dd84bad4f2655f7b7cf45b">
+<h3>Mock tests</h3>
+<ul>
+</ul>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/AzureLogin/AzureLoginCard.tsx" data-name="AzureLoginCard" data-group="cards" data-git-hash="8134a63ce73973d21104342433269a0b72e36c2d" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="gap" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="1" data-info="0">
+<h2>AzureLoginCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/AzureLogin/AzureLoginCard.tsx</dd>
+<dt>Git hash</dt><dd>8134a63ce73973d21104342433269a0b72e36c2d</dd>
+<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/AzureLoginCard.spec.mts" data-git-hash="e23704a3f6d91ef8d5cabc7e19bfa11a1296ad32">
+<h3>Integration tests</h3>
+<ul>
+</ul>
+</section>
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/AzureLoginCard.spec.mts" data-git-hash="54f0aabfd3dc06ed0c4060fc93f26c2c813a0862">
+<h3>Mock tests</h3>
+<ul>
+<li data-severity="gap">the successful-login happy path seeds a mocked session, while the authorization-handoff test aborts at Microsoft; no mock scenario drives the callback through to an authenticated account.</li>
+</ul>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/AccessPass/AccessPassCard.tsx" data-name="AccessPassCard" data-group="cards" data-git-hash="06c68d8d99fbb437790da934c6c82c98407daae0" data-reviewed="2026-10-08T01:26:48.622Z" data-max-severity="info" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="2">
+<h2>AccessPassCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/AccessPass/AccessPassCard.tsx</dd>
+<dt>Git hash</dt><dd>06c68d8d99fbb437790da934c6c82c98407daae0</dd>
+<dt>Reviewed</dt><dd>2026-10-08T01:26:48.622Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="" data-git-hash="">
+<h3>Integration tests</h3>
+<ul>
+<li data-severity="info">No dedicated corp Playwright integration suite exists for this mounted card. Existing access-pass-src specs exercise the standalone application, not this Azure-login-dependent dashboard card.</li>
+</ul>
+</section>
+<section data-suite="mock" data-path="" data-git-hash="">
+<h3>Mock tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright mock suite exists for the corp Access Pass card.</li>
+</ul>
+</section>
+<section data-role="coverage">
+<h3>Coverage</h3>
+<p data-field="comparison">Previous record contains no numerical coverage baseline; no percentage change can be established.</p>
+<p data-field="limitations">Existing raw V8 captures may include failed tests and retries. Zero-count ranges are diagnostic only, not source-level coverage percentages. Capture files do not certify correspondence to current source hashes.</p>
+<ul data-field="recommendations">
+<li>Cover Azure prerequisites/consent, managed-user loading/error/empty states, 200-user pagination, photo-ID confirmation/cancel, per-user creation failure/retry and delivery/completion persistence.</li>
+<li>Cover sensitive pass masking/copy and per-user result isolation. Live tests must use explicitly approved disposable users because issuance removes existing sign-in methods and randomizes passwords.</li>
+</ul>
+<table data-field="evidence">
+<tr><th>Path</th><th>Captured</th><th>Entries</th><th>Zero-count ranges</th></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-3d0c3-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:12:37.714Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-40f7b-sabled-for-a-blank-app-name-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:12:57.121Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-b0987-g-app-registration-on-retry-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:16.387Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-787a5-app-registration-is-missing-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:27.719Z</td><td>1</td><td>39</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-07489-on-has-no-subscription-role-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:43.190Z</td><td>1</td><td>39</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-195fe-n-details-fail-to-auto-save-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:14:01.900Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-b5a6c-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:02.901Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-99adb-sabled-for-a-blank-app-name-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:21.918Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-ee9b5-g-app-registration-on-retry-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:40.819Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-e4a1f-app-registration-is-missing-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:51.661Z</td><td>1</td><td>39</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-1c5cf-on-has-no-subscription-role-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:06.187Z</td><td>1</td><td>39</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-89c9a-n-details-fail-to-auto-save-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:24.629Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-a792a-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:32.977Z</td><td>1</td><td>39</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-9b50f-utton-logs-out-current-user-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:38.416Z</td><td>1</td><td>39</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-b1c93-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:46.093Z</td><td>1</td><td>39</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-d23f8-utton-logs-out-current-user-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:51.362Z</td><td>1</td><td>39</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-2897d-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:17:51.932Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-659a1-ent-variables-already-saved-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:12.754Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-b30cd-existing-prefilled-variable-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:32.863Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-4cc52-xisting-prefilled-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:53.429Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-461d1-s-are-removed-before-saving-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:19:14.243Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-f3f07-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:15.210Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-36d39-ent-variables-already-saved-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:35.212Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-201ad-existing-prefilled-variable-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:55.108Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-904ae-xisting-prefilled-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:21:15.370Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-6b572-s-are-removed-before-saving-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:21:34.893Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-5dbab-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:22:37.955Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-195bd-g-package-without-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:23:38.898Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-58ded--a-build-permission-failure-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:24:39.850Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-f8396-anging-connection-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:25:44.525Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-8d5fa-efore-building-or-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:25:52.133Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-402be-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:26:56.602Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-a4bd4-g-package-without-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:27:57.589Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-78424--a-build-permission-failure-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:28:58.646Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-e7101-anging-connection-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:29:59.698Z</td><td>1</td><td>38</td></tr>
+</table>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/AwsLogin/AwsLoginCard.tsx" data-name="AwsLoginCard" data-group="cards" data-git-hash="973c72fd337dcbff25ecd3994e2648f285ce5a59" data-reviewed="2026-10-08T01:25:51.693Z" data-max-severity="info" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="2">
+<h2>AwsLoginCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/AwsLogin/AwsLoginCard.tsx</dd>
+<dt>Git hash</dt><dd>973c72fd337dcbff25ecd3994e2648f285ce5a59</dd>
+<dt>Reviewed</dt><dd>2026-10-08T01:25:51.693Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="" data-git-hash="">
+<h3>Integration tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright integration suite exists for the mounted AWS login card.</li>
+</ul>
+</section>
+<section data-suite="mock" data-path="" data-git-hash="">
+<h3>Mock tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright mock suite exists for the mounted AWS login card.</li>
+</ul>
+</section>
+<section data-role="coverage">
+<h3>Coverage</h3>
+<p data-field="comparison">Previous record contains no numerical coverage baseline; no percentage change can be established.</p>
+<p data-field="limitations">Existing raw V8 captures may include failed tests and retries. Zero-count ranges are diagnostic only, not source-level coverage percentages. Capture files do not certify correspondence to current source hashes.</p>
+<ul data-field="recommendations">
+<li>Cover credential validation, show/hide secret, form submission, MFA device selection/code, FIDO-only warning, sign-in errors/retry and logout.</li>
+<li>Verify tab-session restoration/expiry without persisting long-term keys; use approved credentials and keep them out of snapshots/artifacts.</li>
+</ul>
+<table data-field="evidence">
+<tr><th>Path</th><th>Captured</th><th>Entries</th><th>Zero-count ranges</th></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-3d0c3-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:12:37.714Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-40f7b-sabled-for-a-blank-app-name-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:12:57.121Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-b0987-g-app-registration-on-retry-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:16.387Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-787a5-app-registration-is-missing-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:27.719Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-07489-on-has-no-subscription-role-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:43.190Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-195fe-n-details-fail-to-auto-save-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:14:01.900Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-b5a6c-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:02.901Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-99adb-sabled-for-a-blank-app-name-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:21.918Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-ee9b5-g-app-registration-on-retry-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:40.819Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-e4a1f-app-registration-is-missing-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:51.661Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-1c5cf-on-has-no-subscription-role-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:06.187Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-89c9a-n-details-fail-to-auto-save-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:24.629Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-a792a-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:32.977Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-9b50f-utton-logs-out-current-user-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:38.416Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-b1c93-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:46.093Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-d23f8-utton-logs-out-current-user-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:51.362Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-2897d-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:17:51.932Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-659a1-ent-variables-already-saved-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:12.754Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-b30cd-existing-prefilled-variable-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:32.863Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-4cc52-xisting-prefilled-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:53.429Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-461d1-s-are-removed-before-saving-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:19:14.243Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-f3f07-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:15.210Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-36d39-ent-variables-already-saved-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:35.212Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-201ad-existing-prefilled-variable-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:55.108Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-904ae-xisting-prefilled-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:21:15.370Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-6b572-s-are-removed-before-saving-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:21:34.893Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-5dbab-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:22:37.955Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-195bd-g-package-without-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:23:38.898Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-58ded--a-build-permission-failure-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:24:39.850Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-f8396-anging-connection-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:25:44.525Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-8d5fa-efore-building-or-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:25:52.133Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-402be-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:26:56.602Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-a4bd4-g-package-without-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:27:57.589Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-78424--a-build-permission-failure-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:28:58.646Z</td><td>1</td><td>23</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-e7101-anging-connection-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:29:59.698Z</td><td>1</td><td>23</td></tr>
+</table>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/AwsSetup/AwsSetupCard.tsx" data-name="AwsSetupCard" data-group="cards" data-git-hash="7a781d3c13a496ad37b4b0707e722a109099d1c5" data-reviewed="2026-10-08T01:26:07.725Z" data-max-severity="info" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="2">
+<h2>AwsSetupCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/AwsSetup/AwsSetupCard.tsx</dd>
+<dt>Git hash</dt><dd>7a781d3c13a496ad37b4b0707e722a109099d1c5</dd>
+<dt>Reviewed</dt><dd>2026-10-08T01:26:07.725Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="" data-git-hash="">
+<h3>Integration tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright integration suite exists for the mounted AWS IAM/OIDC setup card.</li>
+</ul>
+</section>
+<section data-suite="mock" data-path="" data-git-hash="">
+<h3>Mock tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright mock suite exists for the mounted AWS IAM/OIDC setup card.</li>
+</ul>
+</section>
+<section data-role="coverage">
+<h3>Coverage</h3>
+<p data-field="comparison">Previous record contains no numerical coverage baseline; no percentage change can be established.</p>
+<p data-field="limitations">Existing raw V8 captures may include failed tests and retries. Zero-count ranges are diagnostic only, not source-level coverage percentages. Capture files do not certify correspondence to current source hashes.</p>
+<ul data-field="recommendations">
+<li>Cover prerequisites, role-name validation, IAM/OIDC trust request contracts, step failures and retry.</li>
+<li>Verify AWS_ROLE_ARN autosave/readback, partial-save banners, restored role name, no-change setup and environment switching; isolate and opt in to live IAM writes.</li>
+</ul>
+<table data-field="evidence">
+<tr><th>Path</th><th>Captured</th><th>Entries</th><th>Zero-count ranges</th></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-3d0c3-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:12:37.714Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-40f7b-sabled-for-a-blank-app-name-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:12:57.121Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-b0987-g-app-registration-on-retry-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:16.387Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-787a5-app-registration-is-missing-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:27.719Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-07489-on-has-no-subscription-role-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:43.190Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-195fe-n-details-fail-to-auto-save-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:14:01.900Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-b5a6c-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:02.901Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-99adb-sabled-for-a-blank-app-name-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:21.918Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-ee9b5-g-app-registration-on-retry-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:40.819Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-e4a1f-app-registration-is-missing-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:51.661Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-1c5cf-on-has-no-subscription-role-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:06.187Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-89c9a-n-details-fail-to-auto-save-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:24.629Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-a792a-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:32.977Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-9b50f-utton-logs-out-current-user-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:38.416Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-b1c93-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:46.093Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-d23f8-utton-logs-out-current-user-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:51.362Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-2897d-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:17:51.932Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-659a1-ent-variables-already-saved-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:12.754Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-b30cd-existing-prefilled-variable-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:32.863Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-4cc52-xisting-prefilled-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:53.429Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-461d1-s-are-removed-before-saving-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:19:14.243Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-f3f07-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:15.210Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-36d39-ent-variables-already-saved-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:35.212Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-201ad-existing-prefilled-variable-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:55.108Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-904ae-xisting-prefilled-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:21:15.370Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-6b572-s-are-removed-before-saving-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:21:34.893Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-5dbab-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:22:37.955Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-195bd-g-package-without-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:23:38.898Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-58ded--a-build-permission-failure-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:24:39.850Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-f8396-anging-connection-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:25:44.525Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-8d5fa-efore-building-or-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:25:52.133Z</td><td>1</td><td>38</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-402be-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:26:56.602Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-a4bd4-g-package-without-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:27:57.589Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-78424--a-build-permission-failure-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:28:58.646Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-e7101-anging-connection-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:29:59.698Z</td><td>1</td><td>31</td></tr>
+</table>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/GlobalGroups/GlobalGroupsCard.tsx" data-name="GlobalGroupsCard" data-group="cards" data-git-hash="a01b5d1f6fb22199cf52f2d6d1e872d7f871c004" data-reviewed="2026-10-12T06:22:06.150Z" data-max-severity="info" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="2">
+<h2>GlobalGroupsCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/GlobalGroups/GlobalGroupsCard.tsx</dd>
+<dt>Git hash</dt><dd>a01b5d1f6fb22199cf52f2d6d1e872d7f871c004</dd>
+<dt>Reviewed</dt><dd>2026-10-12T06:22:06.150Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="" data-git-hash="">
+<h3>Integration tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright integration suite exists for the mounted Global Groups card.</li>
+</ul>
+</section>
+<section data-suite="mock" data-path="" data-git-hash="">
+<h3>Mock tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright mock suite exists for the mounted Global Groups card.</li>
+</ul>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/PrivateFrontendInfra/PrivateFrontendInfraCard.tsx" data-name="PrivateFrontendInfraCard" data-group="cards" data-git-hash="c9921b0d77bd5b518c7fc454139fc41e986b24f1" data-reviewed="2026-10-08T01:25:14.424Z" data-max-severity="info" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="2">
+<h2>PrivateFrontendInfraCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/PrivateFrontendInfra/PrivateFrontendInfraCard.tsx</dd>
+<dt>Git hash</dt><dd>c9921b0d77bd5b518c7fc454139fc41e986b24f1</dd>
+<dt>Reviewed</dt><dd>2026-10-08T01:25:14.424Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="" data-git-hash="">
+<h3>Integration tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright integration suite exists for this mounted card.</li>
+</ul>
+</section>
+<section data-suite="mock" data-path="" data-git-hash="">
+<h3>Mock tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright mock suite exists for this mounted card.</li>
+</ul>
+</section>
+<section data-role="coverage">
+<h3>Coverage</h3>
+<p data-field="comparison">Previous record contains no numerical coverage baseline; no percentage change can be established.</p>
+<p data-field="limitations">Existing raw V8 captures may include failed tests and retries. Zero-count ranges are diagnostic only, not source-level coverage percentages. Capture files do not certify correspondence to current source hashes.</p>
+<ul data-field="recommendations">
+<li>Cover prerequisites, storage-name validation/availability, region selection, provisioning failure/retry and rerun.</li>
+<li>Verify VITE_AZURE_CLIENT_ID and SITE_STORAGE_ACCOUNT autosave and reload persistence; use isolated opt-in infrastructure for live provisioning.</li>
+</ul>
+<table data-field="evidence">
+<tr><th>Path</th><th>Captured</th><th>Entries</th><th>Zero-count ranges</th></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-3d0c3-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:12:37.714Z</td><td>1</td><td>29</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-40f7b-sabled-for-a-blank-app-name-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:12:57.121Z</td><td>1</td><td>29</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-b0987-g-app-registration-on-retry-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:16.387Z</td><td>1</td><td>29</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-787a5-app-registration-is-missing-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:27.719Z</td><td>1</td><td>28</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-07489-on-has-no-subscription-role-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:43.190Z</td><td>1</td><td>28</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-195fe-n-details-fail-to-auto-save-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:14:01.900Z</td><td>1</td><td>29</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-b5a6c-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:02.901Z</td><td>1</td><td>29</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-99adb-sabled-for-a-blank-app-name-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:21.918Z</td><td>1</td><td>29</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-ee9b5-g-app-registration-on-retry-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:40.819Z</td><td>1</td><td>29</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-e4a1f-app-registration-is-missing-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:51.661Z</td><td>1</td><td>28</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-1c5cf-on-has-no-subscription-role-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:06.187Z</td><td>1</td><td>28</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-89c9a-n-details-fail-to-auto-save-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:24.629Z</td><td>1</td><td>29</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-a792a-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:32.977Z</td><td>1</td><td>30</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-9b50f-utton-logs-out-current-user-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:38.416Z</td><td>1</td><td>32</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-b1c93-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:46.093Z</td><td>1</td><td>30</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-d23f8-utton-logs-out-current-user-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:51.362Z</td><td>1</td><td>32</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-2897d-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:17:51.932Z</td><td>1</td><td>29</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-659a1-ent-variables-already-saved-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:12.754Z</td><td>1</td><td>28</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-b30cd-existing-prefilled-variable-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:32.863Z</td><td>1</td><td>28</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-4cc52-xisting-prefilled-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:53.429Z</td><td>1</td><td>28</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-461d1-s-are-removed-before-saving-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:19:14.243Z</td><td>1</td><td>28</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-f3f07-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:15.210Z</td><td>1</td><td>29</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-36d39-ent-variables-already-saved-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:35.212Z</td><td>1</td><td>28</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-201ad-existing-prefilled-variable-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:55.108Z</td><td>1</td><td>28</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-904ae-xisting-prefilled-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:21:15.370Z</td><td>1</td><td>28</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-6b572-s-are-removed-before-saving-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:21:34.893Z</td><td>1</td><td>28</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-5dbab-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:22:37.955Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-195bd-g-package-without-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:23:38.898Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-58ded--a-build-permission-failure-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:24:39.850Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-f8396-anging-connection-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:25:44.525Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-8d5fa-efore-building-or-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:25:52.133Z</td><td>1</td><td>32</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-402be-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:26:56.602Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-a4bd4-g-package-without-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:27:57.589Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-78424--a-build-permission-failure-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:28:58.646Z</td><td>1</td><td>31</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-e7101-anging-connection-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:29:59.698Z</td><td>1</td><td>31</td></tr>
+</table>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/Stage/StageCard.tsx" data-name="StageCard" data-group="cards" data-git-hash="240997eabe3b8c47263e8487da83e6ebf90d34d9" data-reviewed="2026-10-08T01:26:25.906Z" data-max-severity="info" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="2">
+<h2>StageCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/Stage/StageCard.tsx</dd>
+<dt>Git hash</dt><dd>240997eabe3b8c47263e8487da83e6ebf90d34d9</dd>
+<dt>Reviewed</dt><dd>2026-10-08T01:26:25.906Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="" data-git-hash="">
+<h3>Integration tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright integration suite exists for the dynamically mounted deployment stage cards.</li>
+</ul>
+</section>
+<section data-suite="mock" data-path="" data-git-hash="">
+<h3>Mock tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright mock suite exists for the deployment stage cards or their StagePlanDetail/RemoteTerminal UI flows.</li>
+</ul>
+</section>
+<section data-role="coverage">
+<h3>Coverage</h3>
+<p data-field="comparison">Previous record contains no numerical coverage baseline; no percentage change can be established.</p>
+<p data-field="limitations">Existing raw V8 captures may include failed tests and retries. Zero-count ranges are diagnostic only, not source-level coverage percentages. Capture files do not certify correspondence to current source hashes.</p>
+<ul data-field="recommendations">
+<li>Cover prerequisite locking, stage variable save/revert/partial failure, plan summaries, stale plans and deploy/rerun status transitions across representative pipeline stages.</li>
+<li>Cover terminal connection, command/output, disconnect/reconnect and failures; infrastructure provisioning tests do not exercise the terminal UI. Gate actual live deployment.</li>
+</ul>
+<table data-field="evidence">
+<tr><th>Path</th><th>Captured</th><th>Entries</th><th>Zero-count ranges</th></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-3d0c3-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:12:37.714Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-40f7b-sabled-for-a-blank-app-name-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:12:57.121Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-b0987-g-app-registration-on-retry-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:16.387Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-787a5-app-registration-is-missing-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:27.719Z</td><td>1</td><td>53</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-07489-on-has-no-subscription-role-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:43.190Z</td><td>1</td><td>53</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-195fe-n-details-fail-to-auto-save-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:14:01.900Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-b5a6c-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:02.901Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-99adb-sabled-for-a-blank-app-name-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:21.918Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-ee9b5-g-app-registration-on-retry-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:40.819Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-e4a1f-app-registration-is-missing-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:51.661Z</td><td>1</td><td>53</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-1c5cf-on-has-no-subscription-role-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:06.187Z</td><td>1</td><td>53</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-89c9a-n-details-fail-to-auto-save-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:24.629Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-a792a-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:32.977Z</td><td>1</td><td>58</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-9b50f-utton-logs-out-current-user-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:38.416Z</td><td>1</td><td>58</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-b1c93-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:46.093Z</td><td>1</td><td>58</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-d23f8-utton-logs-out-current-user-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:51.362Z</td><td>1</td><td>58</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-2897d-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:17:51.932Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-659a1-ent-variables-already-saved-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:12.754Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-b30cd-existing-prefilled-variable-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:32.863Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-4cc52-xisting-prefilled-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:53.429Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-461d1-s-are-removed-before-saving-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:19:14.243Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-f3f07-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:15.210Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-36d39-ent-variables-already-saved-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:35.212Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-201ad-existing-prefilled-variable-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:55.108Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-904ae-xisting-prefilled-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:21:15.370Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-6b572-s-are-removed-before-saving-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:21:34.893Z</td><td>1</td><td>57</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-5dbab-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:22:37.955Z</td><td>1</td><td>50</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-195bd-g-package-without-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:23:38.898Z</td><td>1</td><td>50</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-58ded--a-build-permission-failure-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:24:39.850Z</td><td>1</td><td>50</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-f8396-anging-connection-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:25:44.525Z</td><td>1</td><td>50</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-8d5fa-efore-building-or-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:25:52.133Z</td><td>1</td><td>58</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-402be-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:26:56.602Z</td><td>1</td><td>50</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-a4bd4-g-package-without-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:27:57.589Z</td><td>1</td><td>50</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-78424--a-build-permission-failure-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:28:58.646Z</td><td>1</td><td>50</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-e7101-anging-connection-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:29:59.698Z</td><td>1</td><td>50</td></tr>
+</table>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/WebDeploy/WebDeployCard.tsx" data-name="WebDeployCard" data-group="cards" data-git-hash="d3506e1f2f5a426db4251340149482b0f86ece41" data-reviewed="2026-10-08T01:25:32.384Z" data-max-severity="info" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="2">
+<h2>WebDeployCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/WebDeploy/WebDeployCard.tsx</dd>
+<dt>Git hash</dt><dd>d3506e1f2f5a426db4251340149482b0f86ece41</dd>
+<dt>Reviewed</dt><dd>2026-10-08T01:25:32.384Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="" data-git-hash="">
+<h3>Integration tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright integration suite exists for this mounted frontend build/deploy card; BackendDeployCard tests a different deployment target.</li>
+</ul>
+</section>
+<section data-suite="mock" data-path="" data-git-hash="">
+<h3>Mock tests</h3>
+<ul>
+<li data-severity="info">No dedicated Playwright mock suite exists for this mounted frontend build/deploy card.</li>
+</ul>
+</section>
+<section data-role="coverage">
+<h3>Coverage</h3>
+<p data-field="comparison">Previous record contains no numerical coverage baseline; no percentage change can be established.</p>
+<p data-field="limitations">Existing raw V8 captures may include failed tests and retries. Zero-count ranges are diagnostic only, not source-level coverage percentages. Capture files do not certify correspondence to current source hashes.</p>
+<ul data-field="recommendations">
+<li>Cover missing OAuth client ID, stale build variables, workflow dispatch/polling, artifact download and blob upload failures/retry.</li>
+<li>Verify latest/live version transitions, already-current state, saved build settings, and continuation URL retaining repository/environment query; gate live writes explicitly.</li>
+</ul>
+<table data-field="evidence">
+<tr><th>Path</th><th>Captured</th><th>Entries</th><th>Zero-count ranges</th></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-3d0c3-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:12:37.714Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-40f7b-sabled-for-a-blank-app-name-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:12:57.121Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-b0987-g-app-registration-on-retry-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:16.387Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-787a5-app-registration-is-missing-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:27.719Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-07489-on-has-no-subscription-role-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:13:43.190Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-195fe-n-details-fail-to-auto-save-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:14:01.900Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-b5a6c-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:02.901Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-99adb-sabled-for-a-blank-app-name-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:21.918Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-ee9b5-g-app-registration-on-retry-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:40.819Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-e4a1f-app-registration-is-missing-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:15:51.661Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-1c5cf-on-has-no-subscription-role-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:06.187Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureA-89c9a-n-details-fail-to-auto-save-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:24.629Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-a792a-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:32.977Z</td><td>1</td><td>29</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-9b50f-utton-logs-out-current-user-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:38.416Z</td><td>1</td><td>30</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-b1c93-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:46.093Z</td><td>1</td><td>29</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureL-d23f8-utton-logs-out-current-user-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:16:51.362Z</td><td>1</td><td>30</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-2897d-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:17:51.932Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-659a1-ent-variables-already-saved-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:12.754Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-b30cd-existing-prefilled-variable-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:32.863Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-4cc52-xisting-prefilled-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:18:53.429Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-461d1-s-are-removed-before-saving-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:19:14.243Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-f3f07-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:15.210Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-36d39-ent-variables-already-saved-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:35.212Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-201ad-existing-prefilled-variable-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:20:55.108Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-904ae-xisting-prefilled-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:21:15.370Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-AzureS-6b572-s-are-removed-before-saving-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:21:34.893Z</td><td>1</td><td>26</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-5dbab-d-Mock---Desktop-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:22:37.955Z</td><td>1</td><td>27</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-195bd-g-package-without-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:23:38.898Z</td><td>1</td><td>27</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-58ded--a-build-permission-failure-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:24:39.850Z</td><td>1</td><td>27</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-f8396-anging-connection-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:25:44.525Z</td><td>1</td><td>27</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-8d5fa-efore-building-or-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:25:52.133Z</td><td>1</td><td>30</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-402be-rd-Mock---Mobile-Happy-path-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:26:56.602Z</td><td>1</td><td>27</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-a4bd4-g-package-without-deploying-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:27:57.589Z</td><td>1</td><td>27</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-78424--a-build-permission-failure-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:28:58.646Z</td><td>1</td><td>27</td></tr>
+<tr><td>zeninstallerPvt/ui/pwtests/test-results/corp-src-mock-tests-Backen-e7101-anging-connection-variables-Test-Corp/v8-coverage.json</td><td>2026-10-08T00:29:59.698Z</td><td>1</td><td>27</td></tr>
+</table>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/BackendDeploy/BackendDeployCard.tsx" data-name="BackendDeployCard" data-group="cards" data-git-hash="ee2d7bc6fa995e5f964551d90c0f5ee4781c7758" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="none" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="0">
+<h2>BackendDeployCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/BackendDeploy/BackendDeployCard.tsx</dd>
+<dt>Git hash</dt><dd>ee2d7bc6fa995e5f964551d90c0f5ee4781c7758</dd>
+<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/BackendDeployCard.spec.mts" data-git-hash="da348c0690e1202711d02b762b66fb92a18ef9c7">
+<h3>Integration tests</h3>
+<ul>
+</ul>
+</section>
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/BackendDeployCard.spec.mts" data-git-hash="f9e857b24718db84375e8c5e8fdce019e7463963">
+<h3>Mock tests</h3>
+<ul>
+</ul>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/RemoteTerminalInfra/RemoteTerminalInfraCard.tsx" data-name="RemoteTerminalInfraCard" data-group="cards" data-git-hash="23fc2fc5fca68e02f93ca8cead6db4bba5b16283" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="none" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="0">
+<h2>RemoteTerminalInfraCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/RemoteTerminalInfra/RemoteTerminalInfraCard.tsx</dd>
+<dt>Git hash</dt><dd>23fc2fc5fca68e02f93ca8cead6db4bba5b16283</dd>
+<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
+<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+</dl>
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/RemoteTerminalInfraCard.spec.mts" data-git-hash="1e05aea2da32bc5a9b5658826a7e173f37bfcf42">
+<h3>Integration tests</h3>
+<ul>
+</ul>
+</section>
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/RemoteTerminalInfraCard.spec.mts" data-git-hash="f264f4c79af92ff35b61074a38e5e497ec3401f9">
+<h3>Mock tests</h3>
+<ul>
+</ul>
+</section>
+</article>
+</section>

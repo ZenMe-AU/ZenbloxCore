@@ -38,6 +38,13 @@ Every UI component will have exactly one Mock test which can be found within the
 1. Code coverage is recorded in v8 format in the coverage folder glob: zeninstallerPvt/ui/pwtests/test-results/**/v8-coverage.json 
 2. When reviewing the test files, make recommendations on how the code coverage of the reviewed test can be improved and then record this in the reviewsManifest.jsonl.
 
+## Code quality
+1. Run eslint to check for formatting issues.
+2. Check for build errors.
+3. Check vscode editor-reported errors through get_errors.
+4. Check that knip is correctly identifying the entry points for tests and list errors found.
+5. Run ponytail-review to find unnecesarry complexity.
+
 ## Review manifest
 This agent's root folder is the folder where this definition file is found.
 This agent outputs review results into a subfolder from this file where the subfolder is named: PTR.

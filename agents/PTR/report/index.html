@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PTR Review Dashboard</title>
+<link rel="icon" href="assets/logo.svg">
+<style>
+:root {
+  --bg: #f4f6f8; --panel: #ffffff; --panel-alt: #fafbfc; --border: #e0e0e0; --text: #1f2933; --muted: #66727f;
+  --accent: #1565c0; --accent-soft: #e3effc; --shadow: 0 2px 8px rgba(0,0,0,.08);
+  --critical: #7a0019; --high: #c62828; --medium: #ef6c00; --low: #f9a825; --gap: #6a1b9a; --info: #546e7a; --ok: #2e7d32;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15191e; --panel: #1e242b; --panel-alt: #232a32; --border: #333c46; --text: #e3e8ee; --muted: #94a1ae;
+    --accent: #64a8f0; --accent-soft: #1d3550; --shadow: 0 2px 8px rgba(0,0,0,.4);
+    --critical: #ff5c7a; --high: #ef5350; --medium: #ffa040; --low: #ffd54f; --gap: #ba68c8; --info: #90a4ae; --ok: #66bb6a;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--text); background: var(--bg); display: flex; flex-direction: column; }
+button, input, select { font: inherit; color: inherit; }
+
+.topbar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.topbar img { width: 28px; height: 28px; }
+.topbar h1 { font-size: 17px; margin: 0; font-weight: 600; }
+.topbar .spacer { flex: 1; }
+.topbar .totals { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.topbar .generated { color: var(--muted); font-size: 12px; width: 100%; text-align: right; margin-top: -4px; }
+
+.app { flex: 1; display: flex; min-height: 0; }
+.nav { width: 300px; flex: none; display: flex; flex-direction: column; background: var(--panel); border-right: 1px solid var(--border); min-height: 0; }
+.nav-tools { padding: 10px; border-bottom: 1px solid var(--border); display: grid; gap: 8px; }
+.nav-tools input[type=search] { width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel-alt); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { border: 1px solid var(--sev, var(--border)); color: var(--sev); background: transparent; border-radius: 999px; padding: 1px 9px; font-size: 12px; cursor: pointer; opacity: .45; }
+.chip[aria-pressed=true] { opacity: 1; background: color-mix(in srgb, var(--sev) 14%, transparent); font-weight: 600; }
+.nav-tools label { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.nav-list { list-style: none; margin: 0; padding: 0 0 12px; overflow: auto; flex: 1; outline: none; }
+.nav-group { padding: 12px 14px 4px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.nav-item { display: grid; grid-template-columns: 1fr auto; gap: 0 8px; padding: 7px 12px 7px 14px; cursor: pointer; border-left: 3px solid transparent; }
+.nav-item:hover { background: var(--panel-alt); }
+.nav-item[aria-selected=true] { background: var(--accent-soft); border-left-color: var(--accent); }
+.nav-item .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-item .sub { grid-column: 1; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.nav-item .pills { grid-row: 1 / span 2; grid-column: 2; display: flex; gap: 3px; align-items: center; }
+.nav-empty { padding: 16px; color: var(--muted); }
+.mobile-select { display: none; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--border); }
+.mobile-select select { width: 100%; padding: 6px; }
+
+.pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 999px; color: #fff; background: var(--sev); line-height: 18px; white-space: nowrap; }
+.pill.outline { background: transparent; color: var(--sev); border: 1px solid var(--sev); line-height: 16px; }
+.sev-critical { --sev: var(--critical); } .sev-high { --sev: var(--high); } .sev-medium { --sev: var(--medium); }
+.sev-low { --sev: var(--low); } .sev-gap { --sev: var(--gap); } .sev-info { --sev: var(--info); } .sev-ok { --sev: var(--ok); }
+.sev-low.pill:not(.outline) { color: #3a2a00; }
+
+.detail { flex: 1; overflow: auto; min-width: 0; background: var(--bg) url(assets/bg-pattern.svg); }
+.detail-header { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--border); padding: 14px 22px 12px; box-shadow: var(--shadow); }
+.title-row { display: flex; align-items: center; gap: 10px; }
+.title-row h2 { margin: 0; font-size: 20px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.title-row .pills { display: flex; gap: 4px; flex-wrap: wrap; }
+.path { color: var(--muted); font-family: ui-monospace, Consolas, monospace; font-size: 12px; margin: 2px 0 10px 34px; word-break: break-all; }
+.meta { display: grid; grid-template-columns: max-content 1fr max-content 1fr; gap: 4px 14px; font-size: 13px; margin: 0; }
+.meta dt { color: var(--muted); }
+.meta dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.meta .wide { grid-column: 2 / -1; }
+.copy { cursor: pointer; border-bottom: 1px dotted var(--muted); font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.copy:hover { color: var(--accent); border-color: var(--accent); }
+
+.content { padding: 18px 22px 40px; display: grid; gap: 22px; }
+.group h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(800px, 1fr)); gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; transition: box-shadow .15s; }
+.card:hover { box-shadow: var(--shadow); }
+.finding { border-left: 4px solid var(--sev); }
+.finding .text { padding: 12px 14px; font-size: 15px; flex: 1; overflow-wrap: anywhere; }
+.card-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 14px; border-top: 1px solid var(--border); background: var(--panel-alt); font-size: 12px; color: var(--muted); }
+.card-footer .item { display: inline-flex; align-items: center; gap: 4px; }
+.notice { display: flex; align-items: center; gap: 10px; padding: 12px 14px; color: var(--muted); background: var(--panel); border: 1px dashed var(--border); border-radius: 8px; }
+.banner { font-size: 12px; color: var(--muted); margin: -4px 0 8px; display: flex; align-items: center; gap: 6px; }
+
+.coverage { grid-column: 1 / -1; }
+.coverage summary { display: flex; align-items: center; gap: 8px; padding: 10px 14px; cursor: pointer; font-weight: 600; list-style: none; }
+.coverage summary::-webkit-details-marker { display: none; }
+.coverage summary::before { content: "\25B8"; transition: transform .15s; color: var(--muted); }
+.coverage[open] summary::before { transform: rotate(90deg); }
+.coverage summary .stats { margin-left: auto; font-weight: 400; color: var(--muted); font-size: 12px; }
+.coverage .body { padding: 4px 14px 14px; border-top: 1px solid var(--border); display: grid; gap: 10px; }
+.coverage .kv { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; margin: 8px 0 0; }
+.coverage .kv dt { color: var(--muted); font-weight: 600; }
+.coverage .kv dd { margin: 0; }
+.coverage h4 { margin: 4px 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.coverage ul { margin: 0; padding-left: 20px; }
+.coverage .table-wrap { overflow-x: auto; }
+.coverage table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.coverage th, .coverage td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.coverage td.num, .coverage th.num { text-align: right; }
+.coverage td.ev { max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
+
+.ico { display: inline-block; width: 16px; height: 16px; flex: none; background: currentColor; -webkit-mask: var(--src) center / contain no-repeat; mask: var(--src) center / contain no-repeat; }
+.ico.lg { width: 24px; height: 24px; }
+.ico-component { --src: url(assets/icon-component.svg); } .ico-integration { --src: url(assets/icon-integration.svg); }
+.ico-mock { --src: url(assets/icon-mock.svg); } .ico-coverage { --src: url(assets/icon-coverage.svg); } .ico-empty { --src: url(assets/icon-empty.svg); }
+
+.placeholder { margin: 60px auto; max-width: 560px; text-align: center; color: var(--muted); }
+.placeholder code { background: var(--panel); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border); }
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--panel); padding: 6px 14px; border-radius: 6px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.toast.show { opacity: .92; }
+
+@media (max-width: 800px) {
+  .nav { display: none; }
+  .mobile-select { display: block; }
+  .meta { grid-template-columns: max-content 1fr; }
+  .meta .wide { grid-column: 2; }
+  .cards { grid-template-columns: minmax(0, 1fr); }
+  .cards > .card { min-width: 0; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <img src="assets/logo.svg" alt="">
+  <h1>PTR Review Dashboard</h1>
+  <span class="spacer"></span>
+  <div class="totals" id="totals"></div>
+  <div class="generated" id="generated"></div>
+</header>
+<div class="mobile-select"><select id="mobileSelect" aria-label="Component"></select></div>
+<div class="app">
+  <nav class="nav" aria-label="Components">
+    <div class="nav-tools">
+      <input type="search" id="search" placeholder="Search components..." aria-label="Search components">
+      <div class="chips" id="chips"></div>
+      <label><input type="checkbox" id="hideClean"> Hide components with no findings</label>
+    </div>
+    <ul class="nav-list" id="navList" role="listbox" tabindex="0" aria-label="Component list"></ul>
+  </nav>
+  <main class="detail" id="detail"></main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  const SEVERITIES = ['critical', 'high', 'medium', 'low', 'gap', 'info'];
+  const LABEL = { critical: 'Critical', high: 'High', medium: 'Medium', low: 'Low', gap: 'Coverage gap', info: 'Info' };
+  const SHORT = { critical: 'C', high: 'H', medium: 'M', low: 'L', gap: 'G', info: 'I' };
+  const SUITE = { integration: 'Integration tests', mock: 'Mock tests' };
+  const SUITE_SHORT = { integration: 'Integration', mock: 'Mock' };
+
+  const $ = (id) => document.getElementById(id);
+  const state = { items: [], selected: null, query: '', active: new Set(SEVERITIES), hideClean: false };
+
+  function el(tag, props, ...children) {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(props || {})) {
+      if (v == null || v === false) continue;
+      if (k === 'class') n.className = v;
+      else if (k === 'text') n.textContent = v;
+      else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v === true ? '' : v);
+    }
+    for (const c of children.flat(Infinity)) if (c != null) n.append(c);
+    return n;
+  }
+  const icon = (name, lg) => el('span', { class: `ico ico-${name}${lg ? ' lg' : ''}`, 'aria-hidden': 'true' });
+  const pill = (sev, text, outline) => el('span', { class: `pill sev-${sev}${outline ? ' outline' : ''}`, text, title: LABEL[sev] || '' });
+  const short = (h) => (h || '').slice(0, 7);
+  const fileName = (p) => (p || '').split('/').pop();
+  const fmtDate = (iso) => { const d = new Date(iso); return isNaN(d) ? (iso || '') : d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }); };
+  const copyable = (display, value, title) => el('span', { class: 'copy', text: display, title: title || `Copy ${value}`, 'data-copy': value });
+
+  function parse(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const root = doc.getElementById('ptr-report');
+    if (!root) throw new Error('report.html does not contain #ptr-report');
+    const items = [...root.querySelectorAll(':scope > article')].map((a) => {
+      const meta = {};
+      const dts = a.querySelectorAll('dl[data-role=meta] > dt');
+      dts.forEach((dt) => { meta[dt.textContent.trim()] = dt.nextElementSibling?.textContent ?? ''; });
+      const suites = [...a.querySelectorAll(':scope > section[data-suite]')].map((s) => ({
+        kind: s.dataset.suite, path: s.dataset.path || '', gitHash: s.dataset.gitHash || '',
+        findings: [...s.querySelectorAll('li')].map((li) => ({ severity: li.dataset.severity || 'info', text: li.textContent })),
+      }));
+      const cs = a.querySelector(':scope > section[data-role=coverage]');
+      const coverage = cs && {
+        comparison: cs.querySelector('[data-field=comparison]')?.textContent || '',
+        limitations: cs.querySelector('[data-field=limitations]')?.textContent || '',
+        recommendations: [...cs.querySelectorAll('[data-field=recommendations] li')].map((li) => li.textContent),
+        evidence: [...cs.querySelectorAll('[data-field=evidence] tr')].slice(1).map((tr) => {
+          const td = [...tr.cells].map((c) => c.textContent);
+          return { path: td[0], capturedAt: td[1], entries: td[2], zero: Number(td[3]) };
+        }),
+      };
+      const counts = Object.fromEntries(SEVERITIES.map((s) => [s, Number(a.dataset[s] || 0)]));
+      return {
+        path: a.dataset.component, name: a.dataset.name, group: a.dataset.group || 'other',
+        gitHash: a.dataset.gitHash, reviewed: a.dataset.reviewed, max: a.dataset.maxSeverity,
+        method: meta.Method || '', counts, total: SEVERITIES.reduce((n, s) => n + counts[s], 0), suites, coverage,
+      };
+    });
+    return { items, generated: root.dataset.generated, source: root.dataset.source };
+  }
+
+  const allActive = () => state.active.size === SEVERITIES.length;
+  function visibleItems() {
+    const q = state.query.toLowerCase();
+    return state.items.filter((it) => {
+      if (q && !it.name.toLowerCase().includes(q) && !it.path.toLowerCase().includes(q)) return false;
+      if (state.hideClean && it.total === 0) return false;
+      if (!allActive() && !SEVERITIES.some((s) => state.active.has(s) && it.counts[s] > 0)) return false;
+      return true;
+    });
+  }
+
+  function severityPills(it, outline) {
+    const pills = SEVERITIES.filter((s) => it.counts[s] > 0).map((s) => pill(s, outline ? `${it.counts[s]} ${LABEL[s].toUpperCase()}` : `${SHORT[s]}${it.counts[s]}`, outline));
+    return pills.length ? pills : [pill('ok', outline ? 'NO FINDINGS' : 'ok', outline)];
+  }
+
+  function renderTotals(items, generated, source) {
+    const totals = Object.fromEntries(SEVERITIES.map((s) => [s, items.reduce((n, it) => n + it.counts[s], 0)]));
+    $('totals').replaceChildren(
+      el('span', { text: `${items.length} components` }),
+      ...SEVERITIES.filter((s) => totals[s]).map((s) => pill(s, `${totals[s]} ${LABEL[s]}`)),
+    );
+    $('generated').textContent = `Generated ${fmtDate(generated)} from ${source || 'reviewManifest.jsonl'}`;
+  }
+
+  function renderChips() {
+    $('chips').replaceChildren(...SEVERITIES.map((s) => el('button', {
+      class: `chip sev-${s}`, type: 'button', text: LABEL[s], 'aria-pressed': String(state.active.has(s)),
+      onclick: () => { state.active.has(s) ? state.active.delete(s) : state.active.add(s); renderChips(); renderNav(); renderDetail(); },
+    })));
+  }
+
+  function renderNav() {
+    const items = visibleItems();
+    const list = $('navList');
+    const nodes = [];
+    let group = null;
+    for (const it of items) {
+      if (it.group !== group) { group = it.group; nodes.push(el('li', { class: 'nav-group', role: 'presentation', text: group })); }
+      nodes.push(el('li', {
+        class: 'nav-item', role: 'option', 'aria-selected': String(it === state.selected), 'data-path': it.path, title: it.path,
+        onclick: () => select(it),
+      },
+        el('span', { class: 'name', text: it.name }),
+        el('span', { class: 'pills' }, severityPills(it)),
+        el('span', { class: 'sub', text: it.path }),
+      ));
+    }
+    if (!items.length) nodes.push(el('li', { class: 'nav-empty', text: 'No components match the current filters.' }));
+    list.replaceChildren(...nodes);
+    list.querySelector('[aria-selected=true]')?.scrollIntoView({ block: 'nearest' });
+
+    $('mobileSelect').replaceChildren(...items.map((it) => el('option', { value: it.path, text: `${it.name} (${it.total})`, selected: it === state.selected })));
+  }
+
+  function findingCard(f, suite, it) {
+    return el('div', { class: `card finding sev-${f.severity}` },
+      el('div', { class: 'text', text: f.text }),
+      el('div', { class: 'card-footer' },
+        pill(f.severity, LABEL[f.severity].toUpperCase()),
+        el('span', { class: 'item' }, icon(suite.kind), SUITE_SHORT[suite.kind]),
+        el('span', { class: 'item' }, suite.path ? copyable(fileName(suite.path), suite.path, suite.path) : el('em', { text: 'no suite' })),
+        suite.gitHash ? el('span', { class: 'item' }, '@', copyable(short(suite.gitHash), suite.gitHash)) : null,
+        el('span', { class: 'item', text: `reviewed ${fmtDate(it.reviewed)}` }),
+      ));
+  }
+
+  function suiteGroup(suite, it) {
+    const shown = suite.findings.filter((f) => state.active.has(f.severity));
+    const hidden = suite.findings.length - shown.length;
+    const body = [];
+    if (!suite.path && suite.findings.length) body.push(el('div', { class: 'banner' }, icon('empty'), 'No suite exists'));
+    if (shown.length) body.push(el('div', { class: 'cards' }, shown.map((f) => findingCard(f, suite, it))));
+    else if (hidden) body.push(el('div', { class: 'notice' }, icon('empty', true), `${hidden} finding(s) hidden by severity filter`));
+    else if (!suite.path) body.push(el('div', { class: 'notice' }, icon('empty', true), `No ${SUITE_SHORT[suite.kind].toLowerCase()} suite found for this component`));
+    else body.push(el('div', { class: 'notice' }, icon('empty', true), 'No findings \u2014 suite reviewed clean'));
+    return el('section', { class: 'group' }, el('h3', {}, icon(suite.kind), `${SUITE[suite.kind]} (${shown.length})`), body);
+  }
+
+  function coverageGroup(it) {
+    const cov = it.coverage;
+    let card;
+    if (!cov) {
+      card = el('div', { class: 'notice coverage' }, icon('empty', true), 'No coverage data recorded');
+    } else {
+      const maxZero = cov.evidence.reduce((m, e) => Math.max(m, e.zero || 0), 0);
+      card = el('details', { class: 'card coverage', open: true },
+        el('summary', {}, icon('coverage'), 'Coverage',
+          el('span', { class: 'stats', text: cov.evidence.length ? `${cov.evidence.length} captures | max ${maxZero} zero-count ranges` : 'no captures' })),
+        el('div', { class: 'body' },
+          (cov.comparison || cov.limitations) ? el('dl', { class: 'kv' },
+            cov.comparison ? [el('dt', { text: 'Comparison' }), el('dd', { text: cov.comparison })] : null,
+            cov.limitations ? [el('dt', { text: 'Limitations' }), el('dd', { text: cov.limitations })] : null) : null,
+          cov.recommendations.length ? [el('h4', { text: 'Recommendations' }), el('ul', {}, cov.recommendations.map((r) => el('li', { text: r })))] : null,
+          cov.evidence.length ? [el('h4', { text: 'Evidence' }), el('div', { class: 'table-wrap' }, el('table', {},
+            el('tr', {}, el('th', { text: 'Capture' }), el('th', { text: 'Captured' }), el('th', { class: 'num', text: 'Entries' }), el('th', { class: 'num', text: 'Zero-count ranges' })),
+            cov.evidence.map((e) => el('tr', {},
+              el('td', { class: 'ev' }, copyable(e.path.split('/').slice(-2, -1)[0] || e.path, e.path, e.path)),
+              el('td', { text: fmtDate(e.capturedAt) }),
+              el('td', { class: 'num', text: e.entries }),
+              el('td', { class: 'num', text: String(e.zero) }))))),
+          ] : null),
+        el('div', { class: 'card-footer' },
+          el('span', { class: 'item' }, icon('coverage'), 'Coverage'),
+          el('span', { class: 'item', text: `${cov.evidence.length} evidence files` }),
+          el('span', { class: 'item', text: `reviewed ${fmtDate(it.reviewed)}` })));
+    }
+    return el('section', { class: 'group' }, el('h3', {}, icon('coverage'), 'Coverage'), el('div', { class: 'cards' }, card));
+  }
+
+  function renderDetail() {
+    const it = state.selected;
+    const detail = $('detail');
+    if (!it) { detail.replaceChildren(el('div', { class: 'placeholder', text: 'Select a component.' })); return; }
+    const suiteRow = (s) => s.path
+      ? el('dd', { class: 'wide' }, copyable(fileName(s.path), s.path, s.path), s.gitHash ? [' @ ', copyable(short(s.gitHash), s.gitHash)] : null)
+      : el('dd', { class: 'wide' }, el('em', { text: 'No suite' }));
+    const header = el('header', { class: 'detail-header' },
+      el('div', { class: 'title-row' }, icon('component', true), el('h2', { text: it.name, title: it.name }), el('div', { class: 'pills' }, severityPills(it, true))),
+      el('div', { class: 'path' }, copyable(it.path, it.path)),
+      el('dl', { class: 'meta' },
+        el('dt', { text: 'Git hash' }), el('dd', {}, copyable(short(it.gitHash), it.gitHash)),
+        el('dt', { text: 'Reviewed' }), el('dd', { text: fmtDate(it.reviewed) }),
+        el('dt', { text: 'Method' }), el('dd', { class: 'wide', text: it.method }),
+        it.suites.map((s) => [el('dt', { text: SUITE_SHORT[s.kind] }), suiteRow(s)])));
+    const content = el('div', { class: 'content' }, it.suites.map((s) => suiteGroup(s, it)), coverageGroup(it));
+    detail.replaceChildren(header, content);
+    detail.scrollTop = 0;
+  }
+
+  function select(it) {
+    if (!it) return;
+    state.selected = it;
+    history.replaceState(null, '', `#c=${encodeURIComponent(it.path)}`);
+    renderNav();
+    renderDetail();
+  }
+
+  function fromHash() {
+    const m = /^#c=(.+)$/.exec(location.hash);
+    const path = m && decodeURIComponent(m[1]);
+    return state.items.find((it) => it.path === path);
+  }
+
+  let toastTimer;
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-copy]');
+    if (!t) return;
+    e.stopPropagation();
+    navigator.clipboard?.writeText(t.dataset.copy).then(() => {
+      $('toast').textContent = 'Copied';
+      $('toast').classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => $('toast').classList.remove('show'), 1200);
+    }, () => {});
+  });
+
+  $('navList').addEventListener('keydown', (e) => {
+    if (!['ArrowDown', 'ArrowUp', 'Enter', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
+    const items = visibleItems();
+    if (!items.length) return;
+    let i = items.indexOf(state.selected);
+    if (e.key === 'ArrowDown') i = Math.min(items.length - 1, i + 1);
+    else if (e.key === 'ArrowUp') i = Math.max(0, i - 1);
+    else if (e.key === 'Home') i = 0;
+    else if (e.key === 'End') i = items.length - 1;
+    select(items[Math.max(0, i)]);
+  });
+  $('search').addEventListener('input', (e) => { state.query = e.target.value.trim(); renderNav(); });
+  $('hideClean').addEventListener('change', (e) => { state.hideClean = e.target.checked; renderNav(); });
+  $('mobileSelect').addEventListener('change', (e) => select(state.items.find((it) => it.path === e.target.value)));
+  window.addEventListener('hashchange', () => { const it = fromHash(); if (it && it !== state.selected) select(it); });
+
+  function showError(err) {
+    const isFile = location.protocol === 'file:';
+    $('detail').replaceChildren(el('div', { class: 'placeholder' },
+      el('h2', { text: 'report.html could not be loaded' }),
+      el('p', {}, 'Run ', el('code', { text: 'npx tsx agents/PTR/report/generateReport.ts' }), ' from the repo root.'),
+      isFile ? el('p', {}, 'Browsers block loading files over file://. Serve the folder instead: ',
+        el('code', { text: 'npx --yes http-server agents/PTR/report -p 8765 -c-1 -o /index.html' })) : null,
+      el('p', { text: String(err && err.message || err) })));
+  }
+
+  fetch('report.html', { cache: 'no-store' })
+    .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+    .then((html) => {
+      const { items, generated, source } = parse(html);
+      state.items = items;
+      renderTotals(items, generated, source);
+      renderChips();
+      select(fromHash() || items[0]);
+      if (!items.length) renderDetail();
+    })
+    .catch(showError);
+})();
+</script>
+</body>
+</html>
