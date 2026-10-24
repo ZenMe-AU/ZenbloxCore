@@ -32,6 +32,14 @@ function PlainRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function Intro() {
+  return (
+    <Typography sx={{ typography: "body2", color: "text.secondary", lineHeight: 1.6 }}>
+      Creates the Azure Storage and Microsoft Entra resources used to host and protect the private ZenInstaller site.
+    </Typography>
+  );
+}
+
 type Props = {
   card: CardChrome;
   infra: UsePrivateFrontendInfraCard;
@@ -82,11 +90,9 @@ export default function PrivateFrontendInfraCard({
       : undefined;
 
   return (
-    <Card title="Frontend hosting environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} {...card}>
+    <Card title="Frontend hosting environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography sx={{ typography: "body2", color: "text.secondary", lineHeight: 1.6 }}>
-          Creates the Azure Storage and Microsoft Entra resources used to host and protect the private ZenInstaller site.
-        </Typography>
+        <Intro />
 
         {infra.steps.length === 0 && (
           <Box>

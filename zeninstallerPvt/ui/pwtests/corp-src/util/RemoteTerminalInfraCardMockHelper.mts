@@ -97,7 +97,7 @@ export async function prepareMockRelay(
 	});
 	const core = await installCoreInfraAzureMock(page);
 	core.createdResources.add("resource-group");
-	core.roleAssignments.set(`/subscriptions/${mockSubscriptionId}/resourcegroups/root-pwtests`,
+	core.roleAssignments.set(`/subscriptions/${mockSubscriptionId}/resourcegroups/zbcore-pwtests-rg`,
 		new Set(["acdd72a7-3385-48ef-bd42-f606fba81ae7"]));
 	const resources = new Map<string, Record<string, unknown>>();
 	const writes: { path: string; body: Record<string, unknown> }[] = [];
@@ -119,7 +119,7 @@ export async function prepareMockRelay(
 		}
 		const roleMarker = "/providers/microsoft.authorization/roleassignments";
 		const roleIndex = path.indexOf(roleMarker);
-		if (roleIndex >= 0 && !path.slice(0, roleIndex).endsWith("/resourcegroups/root-pwtests") &&
+		if (roleIndex >= 0 && !path.slice(0, roleIndex).endsWith("/resourcegroups/zbcore-pwtests-rg") &&
 			!path.slice(0, roleIndex).endsWith(`/subscriptions/${mockSubscriptionId}`)) {
 			const scope = path.slice(0, roleIndex);
 			if (request.method() === "GET") {

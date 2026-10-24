@@ -52,7 +52,7 @@ test("Allows manual region entry when Azure region lookup fails", async ({ page,
   await card.getByRole("button", { name: "Create core infrastructure" }).click();
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
   await expectSuccessfulSteps(card, coreInfraStepLabels("pwtests"));
-  const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/root-pwtests"));
+  const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/zbcore-pwtests-rg"));
   expect(resourceGroupWrite?.body).toMatchObject({ location: "westus2" });
   await expectSnapshot(page, card, testInfo, "manual-region-fallback", viewportName);
 });
@@ -69,7 +69,7 @@ test("Retries a transient resource-group provisioning failure", async ({ page, c
   await saveCoreCompanyCode(card);
   await card.getByRole("button", { name: "Create core infrastructure" }).click();
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
-  const resourceGroupRow = card.getByText("Create resource group root-pwtests", { exact: true }).locator("../..");
+  const resourceGroupRow = card.getByText("Create resource group zbcore-pwtests-rg", { exact: true }).locator("../..");
   await expect(resourceGroupRow.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(1);
   await expect(azureMock.createdResources).not.toContain("resource-group");
   await card.getByRole("button", { name: "Start over" }).click();
@@ -107,7 +107,7 @@ test("Does not reuse infrastructure status after the subscription target drifts"
       }),
     });
   });
-  await page.route(`${AZURE_MANAGEMENT_URL}${secondSubscriptionId}/resourcegroups/root-pwtests`, async (route) => {
+  await page.route(`${AZURE_MANAGEMENT_URL}${secondSubscriptionId}/resourcegroups/zbcore-pwtests-rg`, async (route) => {
     if (route.request().method() === "GET") {
       return route.fulfill({
         status: 404,
@@ -121,7 +121,7 @@ test("Does not reuse infrastructure status after the subscription target drifts"
   await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.toLowerCase();
-    if (request.method() === "GET" && path.endsWith(`/resourcegroups/root-pwtests`)) {
+    if (request.method() === "GET" && path.endsWith(`/resourcegroups/zbcore-pwtests-rg`)) {
       return route.fulfill({
         status: 404,
         contentType: "application/json",
@@ -147,7 +147,7 @@ test("Recreates missing infrastructure and repairs revoked resource-group access
   const { card, azureMock, unexpectedRequests } = await prepareCoreInfraCard(page, context, viewportName);
   await saveCoreCompanyCode(card);
   await runCoreInfrastructure(card);
-  const groupScope = `/subscriptions/${mockSubscriptionId}/resourcegroups/root-pwtests`;
+  const groupScope = `/subscriptions/${mockSubscriptionId}/resourcegroups/zbcore-pwtests-rg`;
   azureMock.createdResources.delete("resource-group");
   azureMock.createdResources.delete("storage-container");
   azureMock.roleAssignments.get(groupScope)?.delete("acdd72a7-3385-48ef-bd42-f606fba81ae7");
@@ -202,9 +202,9 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await runCoreInfrastructure(card);
     await expect(card.getByRole("button", { name: "Start over" })).toBeVisible();
     await expect([...azureMock.createdResources]).toEqual(
-      expect.arrayContaining(["resource-group", "log-analytics", "diagnostics", "app-insights", "storage-account", "storage-container"])
+      expect.arrayContaining(["resource-group", "log-analytics", "diagnostics", "blob-diagnostics", "storage-account", "storage-container", "storage-lock"])
     );
-    const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/root-pwtests"));
+    const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/zbcore-pwtests-rg"));
     expect(resourceGroupWrite?.body).toMatchObject({ location: "australiaeast" });
     await expectSnapshot(page, card, testInfo, "provisioned", viewportName);
   });
@@ -215,7 +215,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     const reloadedCard = page.locator("#card-core_infra");
     await openCoreInfraCard(reloadedCard);
     await expect(reloadedCard.getByText("Resources", { exact: true })).toBeVisible();
-    await expect(reloadedCard.getByText("Resource group: root-pwtests", { exact: true })).toBeVisible();
+    await expect(reloadedCard.getByText("Resource group: zbcore-pwtests-rg", { exact: true })).toBeVisible();
     await expect(reloadedCard.getByText("State container: terraformstate", { exact: true })).toBeVisible();
     await expectSnapshot(page, reloadedCard, testInfo, "end", viewportName);
   });
@@ -244,10 +244,10 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 
   const readerRoleId = "acdd72a7-3385-48ef-bd42-f606fba81ae7";
   const storageReaderRoleId = "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1";
-  expect(azureMock.roleAssignments.get(`/subscriptions/${mockSubscriptionId}/resourcegroups/root-${companyShortCode}`)).toContain(readerRoleId);
+  expect(azureMock.roleAssignments.get(`/subscriptions/${mockSubscriptionId}/resourcegroups/zbcore-${companyShortCode}-rg`)).toContain(readerRoleId);
   expect(
     azureMock.roleAssignments.get(
-      `/subscriptions/${mockSubscriptionId}/resourcegroups/root-${companyShortCode}/providers/microsoft.storage/storageaccounts/${companyShortCode}pvt`
+      `/subscriptions/${mockSubscriptionId}/resourcegroups/zbcore-${companyShortCode}-rg/providers/microsoft.storage/storageaccounts/zbcore${companyShortCode}stor`
     )
   ).toContain(storageReaderRoleId);
   expect(prepared.github.variables.NAME).toBe("pwtests");
@@ -333,7 +333,7 @@ async function prepareCoreInfraCard(
   const azureMock = await installCoreInfraAzureMock(page);
   const resourceWrites: Array<{ path: string; body: unknown }> = [];
   let resourceGroupPutAttempts = 0;
-  const rootGroupSuffix = `/resourcegroups/root-${companyShortCode}`.toLowerCase();
+  const rootGroupSuffix = `/resourcegroups/zbcore-${companyShortCode}-rg`.toLowerCase();
   await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.toLowerCase();

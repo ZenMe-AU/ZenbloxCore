@@ -82,16 +82,19 @@ async function json(route: Route, body: unknown, status = 200) {
 }
 
 export function coreInfraStepLabels(companyShortCode: string) {
+  const slug = companyShortCode.toLowerCase().replace(/[^a-z0-9]/g, "-");
+  const storage = `zbcore${companyShortCode.toLowerCase().replace(/[^a-z0-9]/g, "")}stor`;
   return [
     "Confirm Microsoft permissions",
     "Register required Azure resource providers",
-    `Create resource group root-${companyShortCode}`,
+    `Create resource group zbcore-${slug}-rg`,
     "Grant GitHub Actions access to the resource group",
-    `Create Log Analytics workspace ${companyShortCode}-law`,
+    `Create Log Analytics workspace zbcore-${slug}-law`,
     "Configure subscription activity-log diagnostics",
-    `Create Application Insights ${companyShortCode}-appinsights`,
-    `Create storage account ${companyShortCode}pvt`,
+    `Create storage account ${storage}`,
     "Create terraformstate container",
+    "Lock the storage account against deletion",
+    "Send state writes and deletes to the workspace",
     "Grant GitHub Actions access to Terraform state",
   ];
 }
@@ -117,11 +120,12 @@ export async function installCoreInfraAzureMock(page: Page): Promise<CoreInfraAz
   };
 
   const resourceKey = (path: string) => {
-    if (/^\/subscriptions\/[^/]+\/resourcegroups\/root-pwtests$/i.test(path)) return "resource-group";
-    if (/\/workspaces\/pwtests-law$/i.test(path)) return "log-analytics";
+    if (/^\/subscriptions\/[^/]+\/resourcegroups\/zbcore-pwtests-rg$/i.test(path)) return "resource-group";
+    if (/\/workspaces\/zbcore-pwtests-law$/i.test(path)) return "log-analytics";
+    if (/\/blobservices\/default\/providers\/microsoft\.insights\/diagnosticsettings\/standard-diagnostics-setting$/i.test(path)) return "blob-diagnostics";
     if (/\/diagnosticsettings\/standard-diagnostics-setting$/i.test(path)) return "diagnostics";
-    if (/\/components\/pwtests-appinsights$/i.test(path)) return "app-insights";
-    if (/\/storageaccounts\/pwtestspvt$/i.test(path)) return "storage-account";
+    if (/\/storageaccounts\/zbcorepwtestsstor$/i.test(path)) return "storage-account";
+    if (/\/storageaccounts\/zbcorepwtestsstor\/providers\/microsoft\.authorization\/locks\/tfstate-cannot-delete$/i.test(path)) return "storage-lock";
     if (/\/containers\/terraformstate$/i.test(path)) return "storage-container";
     return null;
   };
@@ -151,7 +155,7 @@ export async function installCoreInfraAzureMock(page: Page): Promise<CoreInfraAz
 		if (roleAssignmentsIndex >= 0) {
 			const scope = normalizedPath.slice(0, roleAssignmentsIndex);
 			const isCoreInfraScope =
-				/\/resourcegroups\/root-pwtests$/i.test(scope) || /\/storageaccounts\/pwtestspvt$/i.test(scope);
+				/\/resourcegroups\/zbcore-pwtests-rg$/i.test(scope) || /\/storageaccounts\/zbcorepwtestsstor$/i.test(scope);
 			if (!isCoreInfraScope) return route.fallback();
 
 			if (method === "GET") {
@@ -173,6 +177,15 @@ export async function installCoreInfraAzureMock(page: Page): Promise<CoreInfraAz
 				return json(route, {});
 			}
 		}
+
+    if (/^\/subscriptions\/[^/]+\/providers\/microsoft\.storage\/storageaccounts$/i.test(path) && method === "GET") {
+      const subscription = path.split("/")[2];
+      return json(route, {
+        value: state.createdResources.has("storage-account")
+          ? [{ name: "zbcorepwtestsstor", id: `/subscriptions/${subscription}/resourceGroups/zbcore-pwtests-rg/providers/Microsoft.Storage/storageAccounts/zbcorepwtestsstor` }]
+          : [],
+      });
+    }
 
     const key = resourceKey(normalizedPath);
     if (key) {

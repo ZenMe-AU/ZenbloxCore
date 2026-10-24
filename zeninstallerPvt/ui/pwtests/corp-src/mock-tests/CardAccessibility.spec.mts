@@ -15,9 +15,7 @@ async function expectAxeClean(page: Page, state: string) {
 
 test.describe("Installer accessibility", () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      if (!localStorage.getItem("zeninstaller-corp-mode")) localStorage.setItem("zeninstaller-corp-mode", "dark");
-    });
+    await page.emulateMedia({ colorScheme: "dark" });
   });
 
   test("collapsed page has no axe violations", async ({ page }) => {
@@ -69,29 +67,70 @@ test.describe("Installer accessibility", () => {
     await expect(page.locator("#card-github_login h3 button")).toHaveAttribute("aria-expanded", "true");
   });
 
-  test("night and day modes toggle and persist after reload", async ({ page }) => {
+  test("system color scheme follows browser preference and explicit modes persist", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light" });
     await page.goto(CORP_URL);
 
-    const nightToggle = page.getByRole("button", { name: "Switch to light mode" });
-    await expect(nightToggle).toBeVisible();
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(15, 23, 26)");
-    await expect(page.locator("#card-github_login")).toHaveCSS("background-color", "rgb(27, 38, 41)");
-    await page.mouse.move(0, 0);
-    await expect(page.getByRole("tooltip")).toBeHidden();
-    await expectAxeClean(page, "night mode page");
-
-    await nightToggle.click();
-    await expect(page.getByRole("button", { name: "Switch to dark mode" })).toBeVisible();
+    const systemToggle = page.getByRole("button", { name: "Color scheme: System. Switch to light mode." });
+    await expect(systemToggle).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("data-mui-color-scheme", "light");
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(248, 250, 252)");
     await expect(page.locator("#card-github_login")).toHaveCSS("background-color", "rgb(255, 255, 255)");
-    await page.mouse.move(0, 0);
-    await expect(page.getByRole("tooltip")).toBeHidden();
-    await expectAxeClean(page, "day mode page");
 
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expect(page.locator("html")).toHaveAttribute("data-mui-color-scheme", "dark");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(8, 13, 15)");
+
+    await systemToggle.click();
+    const lightToggle = page.getByRole("button", { name: "Color scheme: Light. Switch to dark mode." });
+    await expect(lightToggle).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(248, 250, 252)");
+
+    await lightToggle.click();
+    const darkToggle = page.getByRole("button", { name: "Color scheme: Dark. Switch to system mode." });
+    await expect(darkToggle).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(8, 13, 15)");
+
+    await darkToggle.click();
+    await expect(systemToggle).toHaveAccessibleName("Color scheme: System. Switch to light mode.");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(8, 13, 15)");
+
+    await systemToggle.click();
     await page.reload();
-    await expect(page.getByRole("button", { name: "Switch to dark mode" })).toBeVisible();
+    await expect(lightToggle).toBeVisible();
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(248, 250, 252)");
-    await expect(page.locator("#card-github_login")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.reload();
+    await expect(lightToggle).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(248, 250, 252)");
+
+    await lightToggle.click();
+    await page.reload();
+    await expect(darkToggle).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(8, 13, 15)");
+
+    await page.mouse.move(0, 0);
+    await expect(page.getByRole("tooltip")).toBeHidden();
+    await expectAxeClean(page, "dark mode page");
+  });
+
+  test("system color scheme falls back to dark when browser preference is unavailable", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window, "matchMedia", { configurable: true, value: undefined });
+    });
+    await page.goto(CORP_URL);
+
+    await expect(page.getByRole("button", { name: "Color scheme: System. Switch to light mode." })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("data-mui-color-scheme", "dark");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(8, 13, 15)");
+
+    await page.getByRole("button", { name: "Color scheme: System. Switch to light mode." }).click();
+    await page.getByRole("button", { name: "Color scheme: Light. Switch to dark mode." }).click();
+    await page.getByRole("button", { name: "Color scheme: Dark. Switch to system mode." }).click();
+    await expect(page.getByRole("button", { name: "Color scheme: System. Switch to light mode." })).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("data-mui-color-scheme", "dark");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(8, 13, 15)");
   });
 
   test("footer shortcuts dialog lists keys, closes with Escape, and restores focus", async ({ page }) => {
@@ -158,25 +197,60 @@ test.describe("Installer accessibility", () => {
     await page.setViewportSize({ width: 320, height: 720 });
     await page.emulateMedia({ reducedMotion: "reduce", forcedColors: "active" });
     await page.goto(CORP_URL);
-    await expect(page.getByRole("button", { name: "Switch to light mode" })).toBeVisible();
+    const modeToggle = page.getByRole("button", { name: "Color scheme: System. Switch to light mode." });
+    await expect(modeToggle).toBeVisible();
+
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Tab");
+    await expect(modeToggle).toBeFocused();
+
+    const githubCard = page.locator("#card-github_login");
+    const cardToggle = githubCard.locator("h3 button");
+    let cardToggleFocused = false;
+    for (let attempt = 0; attempt < 100 && !cardToggleFocused; attempt += 1) {
+      await page.keyboard.press("Tab");
+      cardToggleFocused = await cardToggle.evaluate((element) => element === document.activeElement);
+    }
+    expect(cardToggleFocused).toBe(true);
+    await expect(cardToggle).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(cardToggle).toHaveAttribute("aria-expanded", "true");
 
     const layout = await page.evaluate(() => {
       const card = document.getElementById("card-github_login");
       if (!card) throw new Error("GitHub Login card is missing");
       const transitionDuration = getComputedStyle(card).transitionDuration.split(",")[0].trim();
       const durationInSeconds = Number.parseFloat(transitionDuration) * (transitionDuration.endsWith("ms") ? 0.001 : 1);
+      const title = card.querySelector("h3 button");
+      const input = card.querySelector("input[placeholder]");
+      if (!title) throw new Error("GitHub Login title is missing");
+      const activeElement = document.activeElement;
       return {
         viewportWidth: document.documentElement.clientWidth,
         pageWidth: document.documentElement.scrollWidth,
         cardBorderStyle: getComputedStyle(card).borderTopStyle,
-        cardBorderRadius: getComputedStyle(card).borderTopLeftRadius,
+        cardBorderWidth: getComputedStyle(card).borderTopWidth,
+        cardForcedColorAdjust: getComputedStyle(card).forcedColorAdjust,
+        cardRight: card.getBoundingClientRect().right,
+        titleColor: getComputedStyle(title).color,
+        focusOutlineStyle: activeElement ? getComputedStyle(activeElement).outlineStyle : "none",
+        focusOutlineWidth: activeElement ? getComputedStyle(activeElement).outlineWidth : "0px",
+        inputLeft: input?.getBoundingClientRect().left ?? null,
+        inputRight: input?.getBoundingClientRect().right ?? null,
         durationInSeconds,
       };
     });
 
     expect(layout.pageWidth).toBeLessThanOrEqual(layout.viewportWidth);
     expect(layout.cardBorderStyle).not.toBe("none");
-    expect(layout.cardBorderRadius).toBe("10px");
+    expect(Number.parseFloat(layout.cardBorderWidth)).toBeGreaterThan(0);
+    expect(layout.cardForcedColorAdjust).toBe("auto");
+    expect(layout.cardRight).toBeLessThanOrEqual(layout.viewportWidth);
+    expect(layout.titleColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(layout.focusOutlineStyle).toBe("solid");
+    expect(Number.parseFloat(layout.focusOutlineWidth)).toBeGreaterThanOrEqual(2);
+    if (layout.inputLeft !== null) expect(layout.inputLeft).toBeGreaterThanOrEqual(0);
+    if (layout.inputRight !== null) expect(layout.inputRight).toBeLessThanOrEqual(layout.viewportWidth);
     expect(layout.durationInSeconds).toBeLessThanOrEqual(0.001);
   });
 

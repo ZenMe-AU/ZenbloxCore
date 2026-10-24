@@ -35,6 +35,22 @@ function SiteLink({ label, color, href }: { label: string; color: string; href: 
   );
 }
 
+function Intro({ storageAccountName }: { storageAccountName: string }) {
+  return (
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+      Builds the Zeninstaller frontend in GitHub Actions, then writes the files straight from this browser into the{" "}
+      <Box component="code" sx={{ typography: "technicalBody" }}>
+        $web
+      </Box>{" "}
+      container of{" "}
+      <Box component="code" sx={{ typography: "technicalBody" }}>
+        {storageAccountName || "the site's storage account"}
+      </Box>
+      .
+    </Typography>
+  );
+}
+
 type Props = {
   card: CardChrome;
   web: UseWebDeployCard;
@@ -78,20 +94,11 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} />
         ) : undefined
       }
+      lockedIntro={<Intro storageAccountName={storageAccountName} />}
       {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-          Builds the Zeninstaller frontend in GitHub Actions, then writes the files straight from this browser into the{" "}
-          <Box component="code" sx={{ typography: "technicalBody" }}>
-            $web
-          </Box>{" "}
-          container of{" "}
-          <Box component="code" sx={{ typography: "technicalBody" }}>
-            {storageAccountName || "the site's storage account"}
-          </Box>
-          .
-        </Typography>
+        <Intro storageAccountName={storageAccountName} />
 
         <CloudVariableDetail
           account={githubAccount}
