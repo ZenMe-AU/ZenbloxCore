@@ -4,6 +4,7 @@
  */
 
 import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import BrightnessAutoOutlinedIcon from "@mui/icons-material/BrightnessAutoOutlined";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import { useColorScheme } from "@mui/material/styles";
@@ -11,7 +12,18 @@ import { useColorScheme } from "@mui/material/styles";
 // The tab title is the same sentence, so it is read from there rather than repeated here.
 export default function Header() {
   const { mode, setMode } = useColorScheme();
-  const actionLabel = mode === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  const nextMode = mode === "system" ? "light" : mode === "light" ? "dark" : mode === "dark" ? "system" : null;
+  const modeLabel = mode === "system" ? "System" : mode === "light" ? "Light" : mode === "dark" ? "Dark" : null;
+  const actionLabel = modeLabel && nextMode
+    ? `Color scheme: ${modeLabel}. Switch to ${nextMode} mode.`
+    : "Loading color scheme";
+  const cycleMode = () => {
+    if (!nextMode) return;
+    setMode(nextMode);
+    if (nextMode === "system" && typeof window.matchMedia !== "function") {
+      document.documentElement.setAttribute("data-mui-color-scheme", "dark");
+    }
+  };
 
   return (
     <Box
@@ -48,10 +60,16 @@ export default function Header() {
             <IconButton
               aria-label={actionLabel}
               disabled={!mode}
-              onClick={() => setMode(mode === "dark" ? "light" : "dark")}
+              onClick={cycleMode}
               size="small"
             >
-              {mode === "dark" ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
+              {mode === "system" ? (
+                <BrightnessAutoOutlinedIcon />
+              ) : mode === "light" ? (
+                <LightModeOutlinedIcon />
+              ) : (
+                <DarkModeOutlinedIcon />
+              )}
             </IconButton>
           </span>
         </Tooltip>

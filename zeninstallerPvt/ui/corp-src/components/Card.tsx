@@ -14,7 +14,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { CardStatus, CardChrome } from "../types";
-import { borderHoverTint } from "../config/styles";
+import { borderHoverTint, borderTint } from "../config/styles";
 
 const STATUS_LABEL: Record<CardStatus, string> = {
   idle: "Not started",
@@ -127,6 +127,7 @@ export default function Card({
        * consistent base height so cards align whether or not they have a summary.
        */}
       <Box
+        onClick={onToggle}
         sx={{
           display: "flex",
           alignItems: "center",
@@ -135,8 +136,13 @@ export default function Card({
           py: 1.5,
           minHeight: 80,
           boxSizing: "border-box",
+          cursor: "pointer",
+          background: muted ? undefined : borderTint(colors.border[status], theme.vars.palette.background.paper, 30),
+          transition: "background 0.2s",
           "&:hover": {
-            background: borderHoverTint(muted ? theme.palette.divider : colors.border[status], theme.vars.palette.background.paper),
+            background: muted
+              ? borderHoverTint(theme.palette.divider, theme.vars.palette.background.paper)
+              : borderTint(colors.border[status], theme.vars.palette.background.paper, 45),
           },
         }}
       >
@@ -150,7 +156,6 @@ export default function Card({
             disableRipple
             aria-expanded={expanded}
             aria-controls={contentId}
-            onClick={onToggle}
             sx={{
               display: "flex",
               width: "100%",
@@ -209,14 +214,17 @@ export default function Card({
           </ButtonBase>
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
-          {expanded && !muted && action}
+          {expanded && !muted && (
+            <Box onClick={(e) => e.stopPropagation()} sx={{ display: "flex", alignItems: "center" }}>
+              {action}
+            </Box>
+          )}
           <IconButton
             disableRipple
             size="small"
             aria-label={`${expanded ? "Collapse" : "Expand"} ${title}`}
             aria-expanded={expanded}
             aria-controls={contentId}
-            onClick={onToggle}
             sx={{
               color: colors.mutedIcon,
               "&:hover": { color: colors.mutedIconHover },

@@ -15,13 +15,21 @@ type Props = {
   onOpenLogin: () => void;
 };
 
+function Intro() {
+  return (
+    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+      Need a GitHub account? Enter your email to open GitHub signup in a new tab with your email prefilled.
+      Complete the remaining signup steps yourself on GitHub, then return here to sign in.
+    </Typography>
+  );
+}
+
 export default function GithubSignupCard({ card, signup, onOpenLogin }: Props) {
   return (
-    <Card title="GitHub Sign Up" {...card}>
-      <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7, mb: 2 }}>
-        Need a GitHub account? Enter your email to open GitHub signup in a new tab with your email prefilled.
-        Complete the remaining signup steps yourself on GitHub, then return here to sign in.
-      </Typography>
+    <Card title="GitHub Sign Up" lockedIntro={<Intro />} {...card}>
+      <Box sx={{ mb: 2 }}>
+        <Intro />
+      </Box>
       <Box
         component="form"
         action={GITHUB_SIGNUP_URL}

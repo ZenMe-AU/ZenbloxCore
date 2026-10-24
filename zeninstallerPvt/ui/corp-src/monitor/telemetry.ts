@@ -4,6 +4,7 @@
  */
 
 import { getAppInsights } from "./applicationInsights";
+import { createRandomUuid } from "../logic/randomUuid";
 import _ from "lodash";
 
 export const logPageView = (name: string, properties?: Record<string, unknown>) => {
@@ -61,7 +62,7 @@ export const clearUserContext = () => {
 
 export function setOperationId(operationId?: string): string {
   const appInsights = getAppInsights();
-  const traceId = operationId || crypto.randomUUID().replace(/-/g, "");
+  const traceId = operationId || createRandomUuid().replace(/-/g, "");
   appInsights.context.telemetryTrace.traceID = traceId;
   appInsights.addTelemetryInitializer((envelope) => {
     envelope.tags = envelope.tags || {};

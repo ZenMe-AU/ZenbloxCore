@@ -19,9 +19,12 @@ export default function ConfigErrorNotice() {
         gap: 1,
         px: 1.5,
         py: 1.25,
-        background: (theme) => `color-mix(in srgb, ${theme.palette.error.main} 8%, ${theme.palette.background.paper})`,
-        // Border keeps >= 3:1 against the surface in both schemes.
-        border: (theme) => `1px solid color-mix(in srgb, ${theme.palette.error.main} 70%, ${theme.palette.background.paper})`,
+        backgroundColor: (theme) => theme.palette.background.paper,
+        border: (theme) => `1px solid ${theme.palette.mode === "dark" ? theme.palette.error.light : theme.palette.error.dark}`,
+        "@supports (color: color-mix(in srgb, red, white))": {
+          backgroundColor: (theme) => `color-mix(in srgb, ${theme.palette.error.main} 8%, ${theme.palette.background.paper})`,
+          borderColor: (theme) => `color-mix(in srgb, ${theme.palette.error.main} 70%, ${theme.palette.background.paper})`,
+        },
         borderRadius: "8px",
       }}
     >

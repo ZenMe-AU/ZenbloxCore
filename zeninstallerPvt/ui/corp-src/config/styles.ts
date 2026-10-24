@@ -10,8 +10,10 @@
 
 export const MONO_FONT = { fontFamily: "monospace" } as const;
 
-export const borderHoverTint = (borderColor: string, surfaceColor: string) =>
-  `color-mix(in srgb, ${borderColor} 20%, ${surfaceColor})`;
+export const borderTint = (borderColor: string, surfaceColor: string, percent: number) =>
+  `color-mix(in srgb, ${borderColor} ${percent}%, ${surfaceColor})`;
+
+export const borderHoverTint = (borderColor: string, surfaceColor: string) => borderTint(borderColor, surfaceColor, 20);
 
 export const warningMessageIconSx = {
   fontSize: 16,

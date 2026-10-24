@@ -600,7 +600,7 @@ export async function prepareMockRelay(
 
 	const core = await installCoreInfraAzureMock(page);
 	core.createdResources.add("resource-group");
-	core.roleAssignments.set(`/subscriptions/${mockSubscriptionId}/resourcegroups/root-pwtests`,
+	core.roleAssignments.set(`/subscriptions/${mockSubscriptionId}/resourcegroups/zbcore-pwtests-rg`,
 		new Set(["acdd72a7-3385-48ef-bd42-f606fba81ae7"]));
 	const resources = new Map<string, Record<string, unknown>>();
 	const writes: { path: string; body: Record<string, unknown> }[] = [];
