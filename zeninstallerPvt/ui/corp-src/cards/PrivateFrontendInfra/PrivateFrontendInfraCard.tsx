@@ -22,7 +22,7 @@ import type { Account, CardChrome, GhEnv } from "../../types";
 
 function Intro() {
   return (
-    <Typography sx={{ typography: "body2", color: "text.secondary", lineHeight: 1.6 }}>
+    <Typography variant="body1" color="text.secondary">
       Creates the Azure Storage and Microsoft Entra resources used to host and protect the private ZenInstaller site.
     </Typography>
   );

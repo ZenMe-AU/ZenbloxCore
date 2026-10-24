@@ -25,12 +25,9 @@ type Props = {
 
 function Intro({ appName }: { appName: string }) {
   return (
-    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+    <Typography variant="body1" color="text.secondary">
       Builds the Zeninstaller backend in GitHub Actions, then pushes the package straight from this browser to{" "}
-      <Box component="code" sx={{ typography: "technical" }}>
-        {appName || "the Function App"}
-      </Box>
-      .
+      {appName || "the Function App"}.
     </Typography>
   );
 }

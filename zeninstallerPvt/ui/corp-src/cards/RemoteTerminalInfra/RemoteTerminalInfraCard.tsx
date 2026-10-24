@@ -21,7 +21,7 @@ import type { Account, CardChrome, GhEnv } from "../../types";
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+    <Typography variant="body1" color="text.secondary">
       The relay behind the stage-card terminal: Web PubSub, the session table, and the Function App that issues group-scoped tokens. Everything connects by
       managed identity — no access key is stored.
     </Typography>

@@ -23,7 +23,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary">
       Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox.
     </Typography>
   );

@@ -17,7 +17,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary">
       Need a GitHub account? Enter your email to open GitHub signup in a new tab with your email prefilled.
       Complete the remaining signup steps yourself on GitHub, then return here to sign in.
     </Typography>
