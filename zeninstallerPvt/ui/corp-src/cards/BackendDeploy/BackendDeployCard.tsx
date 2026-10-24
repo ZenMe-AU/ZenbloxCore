@@ -58,13 +58,13 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
             <Typography color="text.muted">
               Latest build:{" "}
-              <Box component="span" sx={{ color: "text.primary", typography: "technical" }}>
+              <Box component="span" sx={{ color: "text.primary", typography: "technicalBody" }}>
                 {loadingLatest ? "checking..." : latest ? `${latest.sha.slice(0, 7)} · ${when(latest.builtAt)}` : "none yet"}
               </Box>
             </Typography>
             <Typography color="text.muted">
               Live on the app:{" "}
-              <Box component="span" sx={{ color: "text.primary", typography: "technical" }}>
+              <Box component="span" sx={{ color: "text.primary", typography: "technicalBody" }}>
                 {loadingDeployed
                   ? "checking..."
                   : deployed
@@ -123,7 +123,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           {/* Mutually exclusive with the prompt below, so both share the slot by the button. */}
           {!loadingLatest && latest && !updateAvailable && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main" }} />
+              <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2", color: "success.main" }} />
               <Typography color="success.dark">The Function App is running the latest build.</Typography>
             </Box>
           )}
@@ -137,7 +137,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
         </Box>
 
         {steps.length > 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid", borderColor: "divider", pl: 1.5 }}>
             {steps.map((s) => (
               <StepRow key={s.id} step={s} />
             ))}
