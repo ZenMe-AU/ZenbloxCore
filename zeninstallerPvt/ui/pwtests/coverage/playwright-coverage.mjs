@@ -10,6 +10,7 @@ import MCR from "monocart-coverage-reports";
 
 const webDir = resolve(".");
 
+// recursively searches all folders for v8-coverage.json
 async function* findCoverageFiles(dir) {
   let items;
   try {
@@ -18,7 +19,6 @@ async function* findCoverageFiles(dir) {
     if (error.code === "ENOENT") return;
     throw error;
   }
-
   for (const item of items) {
     const file = join(dir, item.name);
     if (item.isDirectory()) {
@@ -41,6 +41,7 @@ function sourcePathFromUrl(url, sourceRoot) {
   return sourcePath;
 }
 
+// process every coverage record and removes irrelevant ones
 function getApplicationCoverage(entries, sourceRoot) {
   const coverage = [];
   for (const entry of entries) {
@@ -51,7 +52,7 @@ function getApplicationCoverage(entries, sourceRoot) {
     } catch {
       continue;
     }
-    if (url.origin !== "http://localhost:5173") continue;
+    // if (url.origin !== "http://localhost:5173") continue;
     if (!/\.[cm]?[jt]sx?$/.test(url.pathname) && !url.pathname.startsWith("/@fs/")) continue;
     const sourcePath = sourcePathFromUrl(url, sourceRoot);
     if (!sourcePath) continue;
@@ -75,7 +76,6 @@ export async function generateCoverageReports(resultsDirectory, sourceRoot = web
     console.log("No application coverage was collected in this run.");
     return;
   }
-
   const aggregateReportDirectory = resolve(resultsDir, "coverage-report");
   const workspaceRoot = resolve(sourceRoot, "../..");
   const report = MCR({
@@ -93,7 +93,6 @@ export async function generateCoverageReports(resultsDirectory, sourceRoot = web
   await report.generate();
   console.log(`Coverage report: ${join(aggregateReportDirectory, "coverage-report.json")}`);
 }
-
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const resultsDirectory = process.argv[2] ?? resolve(webDir, "../../pwtest-results");
   await generateCoverageReports(resultsDirectory);
