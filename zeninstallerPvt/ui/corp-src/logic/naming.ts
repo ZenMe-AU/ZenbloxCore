@@ -33,6 +33,9 @@ export function getTerminalStorageAccountName(corpName: string): string {
 // One private installer environment per tenant, so these are fixed rather than derived from the corp.
 export const PRIVATE_RESOURCE_GROUP = "zeninstaller-private-rg";
 export const PRIVATE_LOG_ANALYTICS = "zeninstaller-private-law";
+export const PRIVATE_APP_INSIGHTS = "zeninstaller-private-ai";
+// The identity GitHub Actions mints Web PubSub tokens with, kept apart from the plan pipeline's.
+export const PRIVATE_PIPELINE_APP = "zeninstaller-private-pipeline";
 /*
  * Storage account names are globally unique across all of Azure, so a fixed one would be claimed by
  * whoever installs first. The subscription's own id is random, per-customer and stable, which keeps
@@ -40,6 +43,23 @@ export const PRIVATE_LOG_ANALYTICS = "zeninstaller-private-law";
  */
 export function getWebStorageAccountName(subscriptionId: string): string {
   return `zeninstallerpvtweb${subscriptionId.replace(/-/g, "").slice(0, 6)}`.toLowerCase();
+}
+
+export function getFunctionAppName(subscriptionId: string): string {
+  return `zeninstaller-private-app-${subscriptionId.replace(/-/g, "").slice(0, 6)}`.toLowerCase();
+}
+
+export function functionAppFromApiUrl(apiUrl: string | undefined): string | undefined {
+  return apiUrl?.match(/^https:\/\/([^.]+)\.azurewebsites\.net/i)?.[1];
+}
+
+export function getWebPubSubName(subscriptionId: string): string {
+  return `zeninstaller-private-wpubsub-${subscriptionId.replace(/-/g, "").slice(0, 6)}`.toLowerCase();
+}
+
+// The backend's own account (session table, deployment package), on the same scheme as the site's.
+export function getApiStorageAccountName(subscriptionId: string): string {
+  return `zeninstallerpvtapi${subscriptionId.replace(/-/g, "").slice(0, 6)}`.toLowerCase();
 }
 
 // The private installer's own sign-in app, so consent happens in the customer's tenant.
@@ -73,6 +93,20 @@ export const TERMINAL_SESSION_TABLE = "sessions";
 export const TERMINAL_DEPLOY_CONTAINER = "deployment";
 
 export const TFSTATE_CONTAINER = "terraformstate";
+
+export function getCoreResourceGroupName(corpName: string): string {
+  return `zbcore-${slug(corpName)}-rg`;
+}
+
+export function getCoreLogAnalyticsName(corpName: string): string {
+  return `zbcore-${slug(corpName)}-law`;
+}
+
+// An account name holds only lowercase letters and digits, so the rest of the code is dropped, not swapped.
+export function getCoreStorageAccountName(corpName: string): string {
+  return `zbcore${corpName.toLowerCase().replace(/[^a-z0-9]/g, "")}stor`;
+}
+export const TFSTATE_LOCK_NAME = "tfstate-cannot-delete";
 export const DIAGNOSTIC_SETTING_NAME = "standard-diagnostics-setting";
 export const DEFAULT_AZURE_LOCATION = "australiaeast";
 

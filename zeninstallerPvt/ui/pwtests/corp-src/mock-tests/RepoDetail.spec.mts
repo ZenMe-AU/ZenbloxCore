@@ -52,7 +52,7 @@ test("Clones a fresh repository without creating environments", async ({ page },
   await card.getByRole("switch", { name: "Create environments", exact: true }).uncheck();
   await clone.click();
   await expect(card.getByText("Valid", { exact: true })).toBeVisible();
-  await expect(card.getByText(/^No environment found/)).toBeVisible();
+  await expect(card.getByText(/^No PROD or TEST environment was found/)).toBeVisible();
   expect(cloned).toBe(true);
   expect(environmentWrites).toEqual([]);
   await expectSnapshot(page, card, testInfo, "fresh-clone-no-env", viewportName);
@@ -289,8 +289,8 @@ test("Selecting repo not a clone of source repo", async ({ page }, testInfo) => 
   await expect(repoInput).toHaveAttribute("aria-expanded", "false");
   await expect(repoCard.getByText("Not a clone", { exact: true })).toBeVisible();
   await expect(repoCard.getByText("This repo is not a clone of the template. Only repos cloned from ZenMe-AU/ZenbloxCore can be used.")).toBeVisible();
-  await expectVisibleWithin(repoCard.getByText("No environment found"), "Text: No environment found.", 500000);
-  await expect(repoCard.getByText("No environment found")).toBeVisible();
+  await expectVisibleWithin(repoCard.getByText(/^No PROD or TEST environment was found/), "Text: No environment found.", 500000);
+  await expect(repoCard.getByText(/^No PROD or TEST environment was found/)).toBeVisible();
   await expectSnapshot(page, repoCard, testInfo, "invalid-repo-mock", viewportName);
 });
 

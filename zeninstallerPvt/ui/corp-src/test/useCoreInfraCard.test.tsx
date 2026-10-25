@@ -37,6 +37,10 @@ const { apiMocks } = vi.hoisted(() => ({
     ensureAppInsights: vi.fn(),
     ensureStorageAccount: vi.fn(),
     ensureStorageContainer: vi.fn(),
+    ensureDeleteLock: vi.fn(),
+    ensureBlobDiagnostics: vi.fn(),
+    findStorageAccountGroup: vi.fn(),
+    storageAccountNameAvailable: vi.fn(),
     ensureRbacRoleAtScope: vi.fn(),
     hasRbacRoleAtScope: vi.fn(),
     listLocations: vi.fn(),
@@ -65,6 +69,10 @@ vi.mock("../api/azureArm", () => ({
   ensureAppInsights: apiMocks.ensureAppInsights,
   ensureStorageAccount: apiMocks.ensureStorageAccount,
   ensureStorageContainer: apiMocks.ensureStorageContainer,
+  ensureDeleteLock: apiMocks.ensureDeleteLock,
+  ensureBlobDiagnostics: apiMocks.ensureBlobDiagnostics,
+  findStorageAccountGroup: apiMocks.findStorageAccountGroup,
+  storageAccountNameAvailable: apiMocks.storageAccountNameAvailable,
   ensureRbacRoleAtScope: apiMocks.ensureRbacRoleAtScope,
   hasRbacRoleAtScope: apiMocks.hasRbacRoleAtScope,
   listLocations: apiMocks.listLocations,
@@ -108,6 +116,7 @@ function baseProps(overrides: Partial<Parameters<typeof useCoreInfraCard>[0]> = 
     corpName: "Zenblox",
     spClientId: "client-a",
     tenantId: "tenant-1",
+    variableValues: {},
     ...overrides,
   };
 }
@@ -133,6 +142,10 @@ describe("useCoreInfraCard", () => {
     apiMocks.ensureAppInsights.mockResolvedValue("created");
     apiMocks.ensureStorageAccount.mockResolvedValue("created");
     apiMocks.ensureStorageContainer.mockResolvedValue("created");
+    apiMocks.ensureDeleteLock.mockResolvedValue("created");
+    apiMocks.ensureBlobDiagnostics.mockResolvedValue("created");
+    apiMocks.findStorageAccountGroup.mockResolvedValue(null);
+    apiMocks.storageAccountNameAvailable.mockResolvedValue(true);
   });
 
   it("computes resultMatches and resets steps when persisted result no longer matches props", async () => {
@@ -629,7 +642,7 @@ describe("useCoreInfraCard", () => {
     await act(async () => {
       root.render(
         <HookHarness
-          {...baseProps({ tenantId: "tenant-2" })}
+          {...baseProps({ tenantId: "tenant-2", variableValues: { TF_STATE_STORAGE_ACCOUNT: "zeninstallerterraform" } })}
           onUpdate={(value) => {
             latest = value;
           }}

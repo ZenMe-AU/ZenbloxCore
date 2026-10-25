@@ -165,7 +165,7 @@ export function useAzureAppRegistrationCard({
       { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
       { id: "app", label: "Create app registration", status: "pending" },
       { id: "sp", label: "Create service principal", status: "pending" },
-      { id: "oidc", label: "Switch GitHub OIDC to immutable subject", status: "pending" },
+      { id: "oidc", label: "Link Azure sign-in to this GitHub repository", status: "pending" },
       { id: "creds", label: "Add federated credentials", status: "pending" },
       { id: "rbac", label: "Assign RBAC roles", status: "pending" },
     ];

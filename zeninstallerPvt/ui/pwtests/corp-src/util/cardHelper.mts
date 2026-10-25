@@ -49,7 +49,7 @@ export async function expandAzureSubscriptionCard(page: Page) {
 
 export async function expandAzureAppRegistrationCard(page: Page) {
   const appRegistrationCard = page.locator("#card-azure_app_registration");
-  const introText = appRegistrationCard.getByText(/Create an app registration for GitHub Actions/i);
+  const introText = appRegistrationCard.getByText(/Create a Microsoft Entra app registration for GitHub Actions/i);
   if (!(await introText.isVisible())) {
     await appRegistrationCard.getByText(/^Create an app registration in Azure$/i).click();
   }
