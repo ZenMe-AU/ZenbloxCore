@@ -4,9 +4,6 @@
  */
 
 // Has browser viewport and URL configuration
-
-export const HOME_URL = "http://localhost:5173/";
-export const ACCESS_PASS_URL = "http://localhost:5173/accessPass.html";
 export const CORP_URL = "http://localhost:5174/core/";
 export const BACKEND_URL = "http://localhost:7071";
 
