@@ -39,6 +39,7 @@ Every UI component will have exactly one Mock test which can be found within the
 2. When reviewing the test files, make recommendations on how the code coverage of the reviewed test can be improved and then record this in the reviewsManifest.jsonl.
 
 ## Code quality
+All reviews should include reviews of the code quality of the tests themselves, any code quality findings for a test is included with the other findings for that test.
 1. Run eslint to check for formatting issues.
 2. Check for build errors.
 3. Check vscode editor-reported errors through get_errors.

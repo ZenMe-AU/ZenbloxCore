@@ -18,7 +18,7 @@ const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(currentDirectory, ".env") });
 
 export default defineConfig({
-  testDir: ".",
+  testDir: currentDirectory,
   outputDir: "./pwtest-results",
   updateSnapshots: process.env.CI ? "none" : "missing",
   fullyParallel: true,
@@ -90,6 +90,7 @@ export default defineConfig({
    */
   webServer: {
     command: "pnpm run dev",
+    cwd: path.resolve(currentDirectory, "zeninstallerPvt", "ui"),
     url: process.env.BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

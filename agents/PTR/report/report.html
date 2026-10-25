@@ -1,150 +1,152 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>PTR Review Report</title>
-<section id="ptr-report" data-generated="2026-10-24T11:45:13.015Z" data-source="agents/PTR/reviewManifest.jsonl" data-count="16">
+<section id="ptr-report" data-generated="2026-10-25T05:44:53.676Z" data-source="agents/PTR/reviewManifest.jsonl" data-count="16">
 <h1>PTR Review Report</h1>
-<article data-component="zeninstallerPvt/ui/corp-src/cards/AzureAppRegistration/AzureAppRegistrationCard.tsx" data-name="AzureAppRegistrationCard" data-group="cards" data-git-hash="09cf2c0c9ef2682d62930028bbe8d81c590c7b36" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="high" data-critical="0" data-high="2" data-medium="1" data-low="0" data-gap="0" data-info="0">
+<article data-component="zeninstallerPvt/ui/corp-src/cards/AzureAppRegistration/AzureAppRegistrationCard.tsx" data-name="AzureAppRegistrationCard" data-group="cards" data-git-hash="09cf2c0c9ef2682d62930028bbe8d81c590c7b36" data-reviewed="2026-10-24T23:55:00+10:00" data-max-severity="high" data-critical="0" data-high="2" data-medium="1" data-low="0" data-gap="0" data-info="0">
 <h2>AzureAppRegistrationCard</h2>
 <dl data-role="meta">
 <dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/AzureAppRegistration/AzureAppRegistrationCard.tsx</dd>
 <dt>Git hash</dt><dd>09cf2c0c9ef2682d62930028bbe8d81c590c7b36</dd>
-<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
-<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+<dt>Reviewed</dt><dd>2026-10-24T23:55:00+10:00</dd>
+<dt>Method</dt><dd></dd>
 </dl>
-<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/AzureAppRegistrationCard.spec.mts" data-git-hash="e829024a33475115b63aafd0833efcb0b43f2ced">
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/AzureAppRegistrationCard.spec.mts" data-git-hash="ea324b011751efae8acce5d8dea9925ecf95bb2d">
 <h3>Integration tests</h3>
 <ul>
-<li data-severity="high">prepareAppRegistrationCard accepts only zero or two dirty subscription variables; the third hidden VITE_AZURE_TENANT_ID key makes fresh setup skip the required save.</li>
-<li data-severity="high">Live integration tests create Azure app registrations, service principals, federated credentials, and role assignments without an explicit opt-in guard or cleanup.</li>
-<li data-severity="medium">The live flow waits a fixed one second and checks step labels rather than successful step status; this can miss partial provisioning failures.</li>
+<li data-severity="high">Both setup save selectors accept only “Save variables” or “Save 2 variables”, but the UI can show “Save 3 variables”; the setup can skip saving target variables.</li>
+<li data-severity="high">Live integration creates Azure app registrations, service principals, federated credentials, and role assignments without an explicit opt-in guard or cleanup.</li>
+<li data-severity="medium">The live flow waits a fixed one second and asserts step labels rather than successful step status, so partial provisioning may be reported as success.</li>
 </ul>
 </section>
-<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/AzureAppRegistrationCard.spec.mts" data-git-hash="d97379fdd0a7158a694ef67cd94a3767b3b7900b">
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/AzureAppRegistrationCard.spec.mts" data-git-hash="e22e1a4809936b9eb3c976e874effe51b09938eb">
 <h3>Mock tests</h3>
 <ul>
 </ul>
 </section>
 </article>
-<article data-component="zeninstallerPvt/ui/corp-src/cards/AzureSubscription/AzureSubscriptionCard.tsx" data-name="AzureSubscriptionCard" data-group="cards" data-git-hash="293c0c5e0686b21e538ee66e7d06f24469932211" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="high" data-critical="0" data-high="1" data-medium="1" data-low="0" data-gap="0" data-info="0">
+<article data-component="zeninstallerPvt/ui/corp-src/cards/AzureSubscription/AzureSubscriptionCard.tsx" data-name="AzureSubscriptionCard" data-group="cards" data-git-hash="293c0c5e0686b21e538ee66e7d06f24469932211" data-reviewed="2026-10-24T23:55:00+10:00" data-max-severity="high" data-critical="0" data-high="2" data-medium="1" data-low="0" data-gap="0" data-info="0">
 <h2>AzureSubscriptionCard</h2>
 <dl data-role="meta">
 <dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/AzureSubscription/AzureSubscriptionCard.tsx</dd>
 <dt>Git hash</dt><dd>293c0c5e0686b21e538ee66e7d06f24469932211</dd>
-<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
-<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+<dt>Reviewed</dt><dd>2026-10-24T23:55:00+10:00</dd>
+<dt>Method</dt><dd></dd>
 </dl>
-<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/AzureSubscriptionCard.spec.mts" data-git-hash="6b4d56fc2050c0d4f66e59da0e7885207c0c3725">
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/AzureSubscriptionCard.spec.mts" data-git-hash="a2dc207af4e11913bc88a6421985296c92dd5cdd">
 <h3>Integration tests</h3>
 <ul>
-<li data-severity="high">Fresh setup can have three dirty Azure target variables, but the save selector /^Save(?: 2)? variables$/ excludes “Save 3 variables”; the happy path also allows the no-subscription-access branch to skip saving without proving values persisted.</li>
-<li data-severity="medium">openExistingAzureSubscription reselects and re-saves the expected subscription before the already-saved assertions, masking whether saved variables restore correctly on their own.</li>
+<li data-severity="high">The fresh-setup save matcher accepts only “Save variables” or “Save 2 variables”, but the UI can present “Save 3 variables”; this silently skips persisting target variables.</li>
+<li data-severity="high">Live integration writes GitHub environment variables and can create a repository without an explicit opt-in guard or cleanup.</li>
+<li data-severity="medium">The existing-saved-values helper reselects the subscription and saves drift before assertions, masking whether saved values restore correctly without user intervention.</li>
 </ul>
 </section>
-<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/AzureSubscriptionCard.spec.mts" data-git-hash="26363b1b648ca617ef1a95387295499a0dd1105c">
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/AzureSubscriptionCard.spec.mts" data-git-hash="1270291e96b58f8aa789c40bf85f62ce554fc51f">
 <h3>Mock tests</h3>
 <ul>
 </ul>
 </section>
 </article>
-<article data-component="zeninstallerPvt/ui/corp-src/cards/GithubLogin/GithubLoginCard.tsx" data-name="GithubLoginCard" data-group="cards" data-git-hash="33bb3d4b5e3133d7764fe0a57a3d347ccb706409" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="high" data-critical="0" data-high="1" data-medium="1" data-low="0" data-gap="0" data-info="0">
+<article data-component="zeninstallerPvt/ui/corp-src/cards/GithubLogin/GithubLoginCard.tsx" data-name="GithubLoginCard" data-group="cards" data-git-hash="33bb3d4b5e3133d7764fe0a57a3d347ccb706409" data-reviewed="2026-10-24T23:55:00+10:00" data-max-severity="high" data-critical="0" data-high="1" data-medium="1" data-low="0" data-gap="0" data-info="0">
 <h2>GithubLoginCard</h2>
 <dl data-role="meta">
 <dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/GithubLogin/GithubLoginCard.tsx</dd>
 <dt>Git hash</dt><dd>33bb3d4b5e3133d7764fe0a57a3d347ccb706409</dd>
-<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
-<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+<dt>Reviewed</dt><dd>2026-10-24T23:55:00+10:00</dd>
+<dt>Method</dt><dd></dd>
 </dl>
-<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/GithubLoginCard.spec.mts" data-git-hash="704ce68635adec8a6f0fb6092001caa6a9391106">
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/GithubLoginCard.spec.mts" data-git-hash="9c955f0774265380570f1bb9c78c504e58467e3d">
 <h3>Integration tests</h3>
 <ul>
-<li data-severity="medium">The valid-PAT integration case dereferences process.env.GITHUB_TOKEN with a non-null assertion and has no preflight/skip, so missing credentials fail opaquely.</li>
+<li data-severity="medium">The valid-PAT test passes process.env.GITHUB_TOKEN with a non-null assertion and no preflight/skip, so missing credentials fail opaquely.</li>
 </ul>
 </section>
-<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/GithubLoginCard.spec.mts" data-git-hash="6d237290b3dd5c19ea94e8bd638e37f8220b675e">
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/GithubLoginCard.spec.mts" data-git-hash="949c927c0adfaabe6aac31bdc060e15ea2ec087f">
 <h3>Mock tests</h3>
 <ul>
-<li data-severity="high">Rejected-PAT route compares the Authorization header with a literal malformed template string (`****** ? ...`), so the assertion cannot match the intended test token and the scenario fails before validating the UI response.</li>
+<li data-severity="high">Rejected-PAT route compares Authorization with a malformed literal template string, so the route assertion fails before the UI rejection/retry behavior is tested.</li>
 </ul>
 </section>
 </article>
-<article data-component="zeninstallerPvt/ui/corp-src/cards/CoreInfra/CoreInfraCard.tsx" data-name="CoreInfraCard" data-group="cards" data-git-hash="dc17dd8333133bb39da85ab6cffca4b50688f0dd" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="medium" data-critical="0" data-high="0" data-medium="1" data-low="0" data-gap="0" data-info="0">
-<h2>CoreInfraCard</h2>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/RemoteTerminalInfra/RemoteTerminalInfraCard.tsx" data-name="RemoteTerminalInfraCard" data-group="cards" data-git-hash="23fc2fc5fca68e02f93ca8cead6db4bba5b16283" data-reviewed="2026-10-24T23:55:00+10:00" data-max-severity="high" data-critical="0" data-high="1" data-medium="0" data-low="0" data-gap="0" data-info="0">
+<h2>RemoteTerminalInfraCard</h2>
 <dl data-role="meta">
-<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/CoreInfra/CoreInfraCard.tsx</dd>
-<dt>Git hash</dt><dd>dc17dd8333133bb39da85ab6cffca4b50688f0dd</dd>
-<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
-<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/RemoteTerminalInfra/RemoteTerminalInfraCard.tsx</dd>
+<dt>Git hash</dt><dd>23fc2fc5fca68e02f93ca8cead6db4bba5b16283</dd>
+<dt>Reviewed</dt><dd>2026-10-24T23:55:00+10:00</dd>
+<dt>Method</dt><dd></dd>
 </dl>
-<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/CoreInfraCard.spec.mts" data-git-hash="9b1bf7b45f10184f22001d0572044ab2b5c8d404">
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/RemoteTerminalInfraCard.spec.mts" data-git-hash="db091b2583e6da85edfee304fc18de699d71df8f">
 <h3>Integration tests</h3>
 <ul>
-<li data-severity="medium">Rerun checks “Already exists” for selected resources but does not assert that no resource writes occurred or that existing resource identities stayed unchanged.</li>
+<li data-severity="high">The live suite provisions relay resources and writes GitHub environment variables without an explicit opt-in guard or cleanup; it runs across both configured viewports.</li>
 </ul>
 </section>
-<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/CoreInfraCard.spec.mts" data-git-hash="71b3a769a7e8562f7c10261e5a96f4a64496d85e">
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/RemoteTerminalInfraCard.spec.mts" data-git-hash="a871bdb399271f42611b0eb307c0868b0adcc5d4">
 <h3>Mock tests</h3>
 <ul>
 </ul>
 </section>
 </article>
-<article data-component="zeninstallerPvt/ui/corp-src/cards/CreateDomain/CreateDomainCard.tsx" data-name="CreateDomainCard" data-group="cards" data-git-hash="fe4cd890195fbbd06ef22248f47d7a011de7f3bc" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="medium" data-critical="0" data-high="0" data-medium="1" data-low="0" data-gap="1" data-info="0">
-<h2>CreateDomainCard</h2>
-<dl data-role="meta">
-<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/CreateDomain/CreateDomainCard.tsx</dd>
-<dt>Git hash</dt><dd>fe4cd890195fbbd06ef22248f47d7a011de7f3bc</dd>
-<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
-<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
-</dl>
-<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/CreateDomainCard.spec.mts" data-git-hash="f77a2b168f41f84e64765ff17ab3dc16f30525d7">
-<h3>Integration tests</h3>
-<ul>
-</ul>
-</section>
-<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/CreateDomainCard.spec.mts" data-git-hash="cf2552c4db2afd8217bf5482fe2bb57281ee16c0">
-<h3>Mock tests</h3>
-<ul>
-<li data-severity="medium">Setup can be clicked while the initial Entra domain-status request is still pending; add a delayed-status scenario and verify the action remains disabled until the check settles.</li>
-<li data-severity="gap">verification rejection and primary-promotion failure are not exercised; current retry coverage only simulates a successful request returning isVerified=false.</li>
-</ul>
-</section>
-</article>
-<article data-component="zeninstallerPvt/ui/corp-src/cards/Repo/RepoDetail.tsx" data-name="RepoDetail" data-group="cards" data-git-hash="80b6f61f40ff3baa85f5bf5d5684dd5bf6a36d28" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="medium" data-critical="0" data-high="0" data-medium="1" data-low="0" data-gap="0" data-info="0">
+<article data-component="zeninstallerPvt/ui/corp-src/cards/Repo/RepoDetail.tsx" data-name="RepoDetail" data-group="cards" data-git-hash="80b6f61f40ff3baa85f5bf5d5684dd5bf6a36d28" data-reviewed="2026-10-24T23:55:00+10:00" data-max-severity="medium" data-critical="0" data-high="0" data-medium="1" data-low="0" data-gap="0" data-info="1">
 <h2>RepoDetail</h2>
 <dl data-role="meta">
 <dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/Repo/RepoDetail.tsx</dd>
 <dt>Git hash</dt><dd>80b6f61f40ff3baa85f5bf5d5684dd5bf6a36d28</dd>
-<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
-<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+<dt>Reviewed</dt><dd>2026-10-24T23:55:00+10:00</dd>
+<dt>Method</dt><dd></dd>
 </dl>
-<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/RepoDetail.spec.mts" data-git-hash="192311af69855c136ee8af359e29833496a1f84d">
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/RepoDetail.spec.mts" data-git-hash="ca9f9cdb5e5acb31e35023ab6c7e1f7901b031c1">
 <h3>Integration tests</h3>
 <ul>
-<li data-severity="medium">Creates PROD then TEST from PROD uses a fixed repository name, fails immediately if it already exists, and has no cleanup; a successful or partial run can block subsequent runs.</li>
+<li data-severity="medium">Integration cases create persistent repositories/branches under fixed names, fail when those names already exist, and do not clean up; successful or partial runs can block future runs.</li>
+<li data-severity="info">ESLint: two errors at line 45 for unnecessary escaped quote characters.</li>
 </ul>
 </section>
-<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/RepoDetail.spec.mts" data-git-hash="d94533e0952cb743b1dd84bad4f2655f7b7cf45b">
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/RepoDetail.spec.mts" data-git-hash="49d75e92bcc27466136b5f3ac8243c2509e80262">
 <h3>Mock tests</h3>
 <ul>
 </ul>
 </section>
 </article>
-<article data-component="zeninstallerPvt/ui/corp-src/cards/AzureLogin/AzureLoginCard.tsx" data-name="AzureLoginCard" data-group="cards" data-git-hash="8134a63ce73973d21104342433269a0b72e36c2d" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="gap" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="1" data-info="0">
+<article data-component="zeninstallerPvt/ui/corp-src/cards/AzureLogin/AzureLoginCard.tsx" data-name="AzureLoginCard" data-group="cards" data-git-hash="8134a63ce73973d21104342433269a0b72e36c2d" data-reviewed="2026-10-24T23:55:00+10:00" data-max-severity="gap" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="1" data-info="0">
 <h2>AzureLoginCard</h2>
 <dl data-role="meta">
 <dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/AzureLogin/AzureLoginCard.tsx</dd>
 <dt>Git hash</dt><dd>8134a63ce73973d21104342433269a0b72e36c2d</dd>
-<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
-<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+<dt>Reviewed</dt><dd>2026-10-24T23:55:00+10:00</dd>
+<dt>Method</dt><dd></dd>
 </dl>
-<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/AzureLoginCard.spec.mts" data-git-hash="e23704a3f6d91ef8d5cabc7e19bfa11a1296ad32">
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/AzureLoginCard.spec.mts" data-git-hash="7fabf530de2b5fb6afe32719b921b2d1486d67f7">
 <h3>Integration tests</h3>
 <ul>
 </ul>
 </section>
-<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/AzureLoginCard.spec.mts" data-git-hash="54f0aabfd3dc06ed0c4060fc93f26c2c813a0862">
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/AzureLoginCard.spec.mts" data-git-hash="5f0fc02cb7235254c1d96a9fca52b35cb34eba77">
 <h3>Mock tests</h3>
 <ul>
-<li data-severity="gap">the successful-login happy path seeds a mocked session, while the authorization-handoff test aborts at Microsoft; no mock scenario drives the callback through to an authenticated account.</li>
+<li data-severity="gap">the sign-in handoff test aborts at Microsoft; no mock drives the authorization callback through to an authenticated account or covers loginError.</li>
+</ul>
+</section>
+</article>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/CreateDomain/CreateDomainCard.tsx" data-name="CreateDomainCard" data-group="cards" data-git-hash="fe4cd890195fbbd06ef22248f47d7a011de7f3bc" data-reviewed="2026-10-24T23:55:00+10:00" data-max-severity="gap" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="2" data-info="0">
+<h2>CreateDomainCard</h2>
+<dl data-role="meta">
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/CreateDomain/CreateDomainCard.tsx</dd>
+<dt>Git hash</dt><dd>fe4cd890195fbbd06ef22248f47d7a011de7f3bc</dd>
+<dt>Reviewed</dt><dd>2026-10-24T23:55:00+10:00</dd>
+<dt>Method</dt><dd></dd>
+</dl>
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/CreateDomainCard.spec.mts" data-git-hash="8be68b57665bd60a104ca03cce3af3b2e01accf4">
+<h3>Integration tests</h3>
+<ul>
+</ul>
+</section>
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/CreateDomainCard.spec.mts" data-git-hash="ef3c8e176fccf8ed5f7a088256726461db13c2ff">
+<h3>Mock tests</h3>
+<ul>
+<li data-severity="gap">no delayed initial domain-status response verifies setup remains blocked until status settles; the component currently enables setup while checkingStatus is true.</li>
+<li data-severity="gap">Graph verification rejection and primary-domain promotion failure are not exercised.</li>
 </ul>
 </section>
 </article>
@@ -577,39 +579,39 @@
 </table>
 </section>
 </article>
-<article data-component="zeninstallerPvt/ui/corp-src/cards/BackendDeploy/BackendDeployCard.tsx" data-name="BackendDeployCard" data-group="cards" data-git-hash="ee2d7bc6fa995e5f964551d90c0f5ee4781c7758" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="none" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="0">
+<article data-component="zeninstallerPvt/ui/corp-src/cards/BackendDeploy/BackendDeployCard.tsx" data-name="BackendDeployCard" data-group="cards" data-git-hash="ee2d7bc6fa995e5f964551d90c0f5ee4781c7758" data-reviewed="2026-10-24T23:55:00+10:00" data-max-severity="none" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="0">
 <h2>BackendDeployCard</h2>
 <dl data-role="meta">
 <dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/BackendDeploy/BackendDeployCard.tsx</dd>
 <dt>Git hash</dt><dd>ee2d7bc6fa995e5f964551d90c0f5ee4781c7758</dd>
-<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
-<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+<dt>Reviewed</dt><dd>2026-10-24T23:55:00+10:00</dd>
+<dt>Method</dt><dd></dd>
 </dl>
-<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/BackendDeployCard.spec.mts" data-git-hash="da348c0690e1202711d02b762b66fb92a18ef9c7">
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/BackendDeployCard.spec.mts" data-git-hash="fd07e2aace10a246ba0cf8155920fd56e988bef7">
 <h3>Integration tests</h3>
 <ul>
 </ul>
 </section>
-<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/BackendDeployCard.spec.mts" data-git-hash="f9e857b24718db84375e8c5e8fdce019e7463963">
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/BackendDeployCard.spec.mts" data-git-hash="8e9526dcef57e8c9cc9b3dffff515eece1aec29c">
 <h3>Mock tests</h3>
 <ul>
 </ul>
 </section>
 </article>
-<article data-component="zeninstallerPvt/ui/corp-src/cards/RemoteTerminalInfra/RemoteTerminalInfraCard.tsx" data-name="RemoteTerminalInfraCard" data-group="cards" data-git-hash="23fc2fc5fca68e02f93ca8cead6db4bba5b16283" data-reviewed="2026-10-12T06:21:32.306Z" data-max-severity="none" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="0">
-<h2>RemoteTerminalInfraCard</h2>
+<article data-component="zeninstallerPvt/ui/corp-src/cards/CoreInfra/CoreInfraCard.tsx" data-name="CoreInfraCard" data-group="cards" data-git-hash="dc17dd8333133bb39da85ab6cffca4b50688f0dd" data-reviewed="2026-10-24T23:55:00+10:00" data-max-severity="none" data-critical="0" data-high="0" data-medium="0" data-low="0" data-gap="0" data-info="0">
+<h2>CoreInfraCard</h2>
 <dl data-role="meta">
-<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/RemoteTerminalInfra/RemoteTerminalInfraCard.tsx</dd>
-<dt>Git hash</dt><dd>23fc2fc5fca68e02f93ca8cead6db4bba5b16283</dd>
-<dt>Reviewed</dt><dd>2026-10-12T06:21:32.306Z</dd>
-<dt>Method</dt><dd>Static source review; no live tests executed.</dd>
+<dt>Path</dt><dd>zeninstallerPvt/ui/corp-src/cards/CoreInfra/CoreInfraCard.tsx</dd>
+<dt>Git hash</dt><dd>dc17dd8333133bb39da85ab6cffca4b50688f0dd</dd>
+<dt>Reviewed</dt><dd>2026-10-24T23:55:00+10:00</dd>
+<dt>Method</dt><dd></dd>
 </dl>
-<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/RemoteTerminalInfraCard.spec.mts" data-git-hash="1e05aea2da32bc5a9b5658826a7e173f37bfcf42">
+<section data-suite="integration" data-path="zeninstallerPvt/ui/pwtests/corp-src/integration-tests/CoreInfraCard.spec.mts" data-git-hash="db315ec440416209e5d751dfd4697ff9b6a5d5ef">
 <h3>Integration tests</h3>
 <ul>
 </ul>
 </section>
-<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/RemoteTerminalInfraCard.spec.mts" data-git-hash="f264f4c79af92ff35b61074a38e5e497ec3401f9">
+<section data-suite="mock" data-path="zeninstallerPvt/ui/pwtests/corp-src/mock-tests/CoreInfraCard.spec.mts" data-git-hash="467a81647bd831f87e252bd806803477de15ec03">
 <h3>Mock tests</h3>
 <ul>
 </ul>
