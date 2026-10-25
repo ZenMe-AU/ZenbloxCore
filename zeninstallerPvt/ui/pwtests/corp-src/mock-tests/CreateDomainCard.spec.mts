@@ -65,6 +65,8 @@ export async function requireMsToken() {
 const initialSetupStepLabels = [
 	"Confirm Microsoft permissions",
 	"Register required Azure resource providers",
+	`Create resource group zbcore-${companyShortCode}-rg`,
+	`Create Log Analytics workspace zbcore-${companyShortCode}-law`,
 	`Create DNS zone ${domainName}`,
 	"Add custom domain to Entra ID",
 	"Create domain-verification TXT record",
@@ -72,14 +74,7 @@ const initialSetupStepLabels = [
 	"Grant domain permission to the pipeline",
 ];
 
-const rerunStepLabels = [
-	"Confirm Microsoft permissions",
-	"Register required Azure resource providers",
-	"Add custom domain to Entra ID",
-	"Create domain-verification TXT record",
-	"Set as primary domain",
-	"Grant domain permission to the pipeline",
-];
+const rerunStepLabels = initialSetupStepLabels;
 
 type DomainMockOptions = {
 	initialAzureState?: Partial<CreateDomainAzureMockState>;
@@ -88,6 +83,7 @@ type DomainMockOptions = {
 	delayDomainVerificationAttempts?: number;
 	failDomainStatusCheck?: boolean;
 	rejectConsent?: boolean;
+	savedDomain?: boolean;
 };
 
 test.beforeEach(async ({ page }) => {
@@ -100,6 +96,44 @@ test.afterEach(async ({ page }, testInfo) => {
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);
+});
+
+test("Restores an unverified DNS zone and verifies without making it primary", async ({ page, context }, testInfo) => {
+	const viewportName = getViewportName(testInfo);
+	test.setTimeout(180_000);
+	const { card, prepared, azure, resourceWrites, dnsZoneQueries } = await prepareDomainCard(page, context, viewportName, {
+		savedDomain: true,
+		initialAzureState: { domainExists: true, dnsZoneExists: true, dnsTxtExists: true },
+	});
+	await expect(card.getByText("Checking whether this domain is already set up...", { exact: true })).toBeHidden();
+	await expect(card.getByRole("button", { name: "Verify domain now", exact: true })).toBeEnabled();
+	await expect(card.getByText("Point your domain at Azure DNS", { exact: true })).toBeVisible();
+	await expect(card.getByText("ns1.mock.azure-dns.com.", { exact: true })).toBeVisible();
+	expect(dnsZoneQueries.length).toBeGreaterThan(0);
+	expect(resourceWrites).toEqual([]);
+	const primaryChoice = card.getByRole("checkbox", { name: /as the tenant's primary domain/ });
+	await expect(primaryChoice).toHaveCount(2);
+	await expect(primaryChoice.first()).toBeChecked();
+	await primaryChoice.first().uncheck();
+	await expect(primaryChoice.last()).not.toBeChecked();
+	await page.reload();
+	await openDomainCard(card);
+	await expect(primaryChoice.first()).not.toBeChecked();
+	await expect(card.getByRole("button", { name: "Verify domain now", exact: true })).toBeEnabled();
+	await card.getByRole("button", { name: "Verify domain now", exact: true }).click();
+	await expect(card.getByText(`Domain ${domainName} is verified.`, { exact: true })).toBeVisible();
+	await expect(card.getByRole("button", { name: "Verify domain now", exact: true })).toHaveCount(0);
+	expect(azure.domainVerified).toBe(true);
+	expect(azure.domainPrimary).toBe(false);
+	expect(prepared.github.variables.CORE_RESOURCE_GROUP).toBe("zbcore-pwtests-rg");
+	await page.reload();
+	await openDomainCard(card);
+	await expect(card.getByText(`Domain ${domainName} is verified.`, { exact: true })).toBeVisible();
+	await expect(primaryChoice).not.toBeChecked();
+	await expect(card.getByText("CORE_RESOURCE_GROUP", { exact: true })).toHaveCount(0);
+	await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
+	expect(resourceWrites).toEqual([]);
+	await expectSnapshot(page, card, testInfo, "restored-verified-not-primary", viewportName);
 });
 
 test("Retries setup after a temporary DNS-zone failure", async ({ page, context }, testInfo) => {
@@ -158,6 +192,9 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		azure,
 		unexpectedRequests,
 		txtRecordWrites,
+		infrastructure,
+		dnsZoneQueries,
+		adminConsentWrites,
 		getDomainVerificationAttempts,
 	} = await prepareDomainCard(page, context, viewportName, { delayDomainVerificationAttempts: 1 });
 	await expectSnapshot(page, card, testInfo, "start", viewportName);
@@ -171,6 +208,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		await card.getByRole("button", { name: "Save 1 variable" }).click();
 		await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
 		await expect(domainInput).toHaveValue(domainName);
+		await expect(card.getByRole("checkbox", { name: /as the tenant's primary domain/ })).toBeChecked();
 
 		const setupButton = card.getByRole("button", { name: "Set up core DNS domain" });
 		await expect(setupButton).toBeEnabled();
@@ -181,6 +219,16 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 
 		await expect(card.getByText("Running...", { exact: true })).toBeHidden();
 		await expectSuccessfulSteps(card, initialSetupStepLabels);
+		expect(infrastructure.createdResources).toContain("log-analytics");
+		await expect(card.getByText(`Create resource group zbcore-${companyShortCode}-rg`, { exact: true }).locator("../..")).toContainText("Already exists");
+		await expect.poll(() => prepared.github.variables).toMatchObject({
+			DNS: domainName,
+			NAME: companyShortCode,
+			CORE_RESOURCE_GROUP: "zbcore-pwtests-rg",
+			AZURE_SUBSCRIPTION_ID: mockSubscriptionId,
+		});
+		await expect(card.getByText("CORE_RESOURCE_GROUP", { exact: true })).toHaveCount(0);
+		await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
 		await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
 		await expect(card.getByRole("button", { name: "Start over" })).toBeVisible();
 		await expectSnapshot(page, card, testInfo, "new-setup", viewportName);
@@ -196,6 +244,8 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		await rerunButton.click();
 		await expect(card.getByText("Running...", { exact: true })).toBeHidden();
 		await expectSuccessfulSteps(card, rerunStepLabels);
+		await expect(card.getByText("Grant domain permission to the pipeline", { exact: true }).locator("../..")).toContainText("Already granted");
+		expect(adminConsentWrites).toHaveLength(1);
 		await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
 		await expect(card.getByRole("button", { name: "Start over" })).toBeVisible();
 		await expectSnapshot(page, card, testInfo, "existing-setup", viewportName);
@@ -214,6 +264,9 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		expect(azure.dnsTxtExists).toBe(true);
 		expect(azure.adminConsentGranted).toBe(true);
 		expect(prepared.github.variables.DNS).toBe(domainName);
+		expect(prepared.github.variables.CORE_RESOURCE_GROUP).toBe("zbcore-pwtests-rg");
+		expect(dnsZoneQueries.length).toBeGreaterThan(0);
+		await expect(card.getByText("CORE_RESOURCE_GROUP", { exact: true })).toHaveCount(0);
 		await expectSnapshot(page, card, testInfo, "end", viewportName);
 	});
 
@@ -246,10 +299,12 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 }
 
 async function openDomainCard(card: import("@playwright/test").Locator) {
-	await expect(card.getByText("Core domain", { exact: true }).first()).toBeVisible();
-	if (await card.locator('svg[data-testid="ExpandMoreIcon"]').count()) {
-		await card.getByText("Core domain", { exact: true }).first().click();
+	const header = card.getByRole("button", { name: /^Core domain/ });
+	await expect(header).toBeVisible();
+	if ((await header.getAttribute("aria-expanded")) !== "true") {
+		await header.click();
 	}
+	await expect(header).toHaveAttribute("aria-expanded", "true");
 	await expect(card.getByText(/Creates the DNS zone for/i)).toBeVisible();
 }
 
@@ -285,6 +340,10 @@ async function prepareDomainCard(
 			VITE_AZURE_TENANT_ID: mockTenantId,
 			AZURE_CLIENT_ID: mockClientId,
 			AZURE_PLAN_CLIENT_ID: mockClientId,
+			TF_STATE_RESOURCE_GROUP: "zbcore-pwtests-rg",
+			TF_STATE_STORAGE_ACCOUNT: "zbcorepwtestsstor",
+			TF_STATE_CONTAINER: "terraformstate",
+			...(options.savedDomain ? { DNS: domainName, CORE_RESOURCE_GROUP: "zbcore-pwtests-rg" } : {}),
 		},
 	});
 	await installMockAzure(page, {
@@ -296,14 +355,21 @@ async function prepareDomainCard(
 	const azure = await installCreateDomainAzureMock(page, domainName, options.initialAzureState);
 	const infrastructure = await installCoreInfraAzureMock(page);
 	infrastructure.createdResources.add("resource-group");
-	infrastructure.roleAssignments.set(`/subscriptions/${mockSubscriptionId}/resourcegroups/root-${companyShortCode}`,
+	infrastructure.roleAssignments.set(`/subscriptions/${mockSubscriptionId}/resourcegroups/zbcore-${companyShortCode}-rg`,
 		new Set(["acdd72a7-3385-48ef-bd42-f606fba81ae7"]));
 	let dnsZoneCreateAttempts = 0;
 	let domainVerificationAttempts = 0;
 	const txtRecordWrites: unknown[] = [];
+	const resourceWrites: Array<{ path: string; body: unknown }> = [];
+	const dnsZoneQueries: string[] = [];
+	const adminConsentWrites: unknown[] = [];
 	await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
 		const request = route.request();
 		const path = new URL(request.url()).pathname.toLowerCase();
+		if (request.method() === "GET" && path === `/subscriptions/${mockSubscriptionId}/providers/microsoft.network/dnszones`) {
+			dnsZoneQueries.push(request.url());
+		}
+		if (request.method() === "PUT") resourceWrites.push({ path, body: request.postDataJSON() });
 		if (request.method() === "PUT" && path.endsWith(`/dnszones/${domainName.toLowerCase()}`)) {
 			dnsZoneCreateAttempts += 1;
 			if (dnsZoneCreateAttempts <= (options.failDnsZoneCreates ?? 0)) {
@@ -322,6 +388,9 @@ async function prepareDomainCard(
 	await page.route(`${MICROSOFT_GRAPH_URL}/**`, async (route) => {
 		const request = route.request();
 		const path = new URL(request.url()).pathname;
+		if (request.method() === "POST" && path.endsWith("/appRoleAssignments")) {
+			adminConsentWrites.push(request.postDataJSON());
+		}
 		if (options.failDomainStatusCheck && request.method() === "GET" && path === `/v1.0/domains/${domainName}`) {
 			return route.fulfill({
 				status: 503,
@@ -351,7 +420,12 @@ async function prepareDomainCard(
 			tenantId,
 			subscriptionIds: [subscriptionId],
 		}));
-		localStorage.setItem("zeninstaller_infra_result", JSON.stringify({ corpName, subscriptionId }));
+		localStorage.setItem("zeninstaller_infra_result", JSON.stringify({
+			corpName,
+			subscriptionId,
+			storageAccountName: "zbcorepwtestsstor",
+			stateResourceGroup: "zbcore-pwtests-rg",
+		}));
 		if (domainStatus && !localStorage.getItem("zeninstaller_create_domain_result")) {
 			localStorage.setItem("zeninstaller_create_domain_result", JSON.stringify({
 				corpName,
@@ -387,8 +461,12 @@ async function prepareDomainCard(
 		card,
 		prepared: { github },
 		azure,
+		infrastructure,
 		unexpectedRequests,
 		txtRecordWrites,
+		resourceWrites,
+		dnsZoneQueries,
+		adminConsentWrites,
 		getDnsZoneCreateAttempts: () => dnsZoneCreateAttempts,
 		getDomainVerificationAttempts: () => domainVerificationAttempts,
 	};

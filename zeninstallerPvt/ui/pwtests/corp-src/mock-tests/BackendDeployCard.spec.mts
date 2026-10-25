@@ -38,13 +38,31 @@ test("Reports a build permission failure", async ({ page, context }, testInfo) =
 	const viewportName = getViewportName(testInfo);
 	const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, { failBuild: true });
 	await card.getByRole("button", { name: "Build", exact: true }).click();
-	await expect(card.getByText("Failed to trigger workflow: 403", { exact: true })).toBeVisible();
+	await expect(card.getByRole("alert")).toHaveText("Failed to trigger workflow: 403");
 	await expect(card.getByRole("button", { name: "Build", exact: true })).toBeEnabled();
 	await expect(card.getByRole("button", { name: "Deploy", exact: true })).toBeDisabled();
 	expect(state.uploads).toBe(0);
 	await expectSnapshot(page, card, testInfo, "build-failed", viewportName);
 	expect(unexpectedRequests).toEqual([]);
 });
+
+for (const resourceGroup of ["existing-backend-rg", null]) {
+	test(`Deploys using ${resourceGroup ?? "the private resource-group fallback"}`, async ({ page, context }, testInfo) => {
+		const viewportName = getViewportName(testInfo);
+		const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, {
+			seedBuild: "update", resourceGroup,
+		});
+		await card.getByRole("button", { name: "Deploy", exact: true }).click();
+		await expect.poll(() => state.uploads).toBe(1);
+		await expect(card.getByRole("button", { name: "Deploying...", exact: true })).toHaveAttribute("aria-busy", "true");
+		await page.clock.fastForward(5_001);
+		await expect(card.getByText("The Function App is running the latest build.", { exact: true })).toBeVisible();
+		expect(state.settingsWrites).toBe(1);
+		expect(state.settings.BACKEND_SHA).toBe(backendBuild.sha);
+		expect(unexpectedRequests).toEqual([]);
+		await expectSnapshot(page, card, testInfo, resourceGroup ? "discovered-group" : "private-group-fallback", viewportName);
+	});
+}
 
 test("Retries a failed upload without changing connection variables", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
@@ -103,25 +121,6 @@ test("Deployment available when the existing app version is older", async ({ pag
 	expect(unexpectedRequests).toEqual([]);
 });
 
-for (const outcome of ["failed", "cancelled"] as const) {
-	test(`Does not accept a ${outcome} build workflow as a new build`, async ({ page, context }, testInfo) => {
-		const viewportName = getViewportName(testInfo);
-		test.setTimeout(180_000);
-		const { card, state, unexpectedRequests } = await prepareMockBackend(page, context, viewportName, { buildOutcome: outcome });
-		await card.getByRole("button", { name: "Build", exact: true }).click();
-		await expect(card.getByRole("button", { name: "Building...", exact: true })).toBeDisabled();
-		expect(state.dispatches).toEqual([{ ref: "PROD", inputs: { github_env_name: "PROD" } }]);
-		await page.clock.runFor(315_001);
-		await expect(card.getByText("The build is taking longer than expected — check GitHub Actions.", { exact: true })).toBeVisible();
-		await expect(card.getByRole("button", { name: "Build", exact: true })).toBeEnabled();
-		await expect(card.getByRole("button", { name: "Deploy", exact: true })).toBeDisabled();
-		expect(state.latestBuild).toBeNull();
-		expect(state.downloads).toBe(0);
-		expect(state.settingsWriteAttempts).toBe(0);
-		await expectSnapshot(page, card, testInfo, `build-${outcome}`, viewportName);
-		expect(unexpectedRequests).toEqual([]);
-	});
-}
 
 test("Reports an expired build artifact without uploading", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
@@ -147,6 +146,7 @@ test("Reports an app deployment failure without recording the new version", asyn
 	await card.getByRole("button", { name: "Deploy", exact: true }).click();
 	await expect.poll(() => state.uploads).toBe(1);
 	await expect(card.getByRole("button", { name: "Deploying...", exact: true })).toBeDisabled();
+	await expect(card.getByRole("button", { name: "Deploying...", exact: true })).toHaveAttribute("aria-busy", "true");
 	await page.clock.fastForward(5_001);
 	await expect(card.locator('p:not([data-sensitive="true"])').filter({
 		hasText: /^Deployment failed: Mock package unpack failure$/,

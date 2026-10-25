@@ -19,18 +19,12 @@ import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util
 import { coreInfraStepLabels, expectSuccessfulSteps } from "../util/mockTestHelper.mts";
 
 const liveDnsDomain = process.env.PWTESTS_CREATE_DOMAIN?.trim().toLowerCase() ?? "";
-const domainSetupStepLabels = [
+const domainSetupStepLabels = (companyShortCode: string) => [
 	"Confirm Microsoft permissions",
 	"Register required Azure resource providers",
+	`Create resource group zbcore-${companyShortCode}-rg`,
+	`Create Log Analytics workspace zbcore-${companyShortCode}-law`,
 	`Create DNS zone ${liveDnsDomain}`,
-	"Add custom domain to Entra ID",
-	"Create domain-verification TXT record",
-	"Set as primary domain",
-	"Grant domain permission to the pipeline",
-];
-const domainRerunStepLabels = [
-	"Confirm Microsoft permissions",
-	"Register required Azure resource providers",
 	"Add custom domain to Entra ID",
 	"Create domain-verification TXT record",
 	"Set as primary domain",
@@ -60,24 +54,22 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		"Set PWTESTS_CREATE_DOMAIN to the unique lowercase DNS domain for this disposable live run; no fixed production-domain fallback is used."
 	);
 	test.setTimeout(1_200_000);
+	let companyShortCode = "";
 
 		await test.step("Prepare the selected Azure subscription", async () => {
 			await prepareExistingAzureSubscription(page, context, viewportName);
 		});
 
-		await test.step("Ensure the Terraform state backend is configured", async () => {
+		await test.step("Ensure the Terraform state backend prerequisite is configured", async () => {
 			const terraformCard = page.locator("#card-core_infra");
 			await expectVisibleWithin(terraformCard.getByText("Company short code"), "Company short code field", 50_000);
 			await expect(terraformCard.getByRole("progressbar")).toBeHidden({ timeout: 60_000 });
-			const companyInput = terraformCard
-				.getByText("COMPANY_SHORT_CODE", { exact: true })
-				.locator("../..")
-				.getByRole("textbox");
+			const companyInput = terraformCard.getByRole("textbox", { name: "COMPANY_SHORT_CODE", exact: true });
 			await expectVisibleWithin(companyInput, "Company short code input", 50_000);
 			if (!(await companyInput.inputValue()).trim()) {
 				await companyInput.fill("pwtests");
 			}
-			const companyShortCode = (await companyInput.inputValue()).trim();
+			companyShortCode = (await companyInput.inputValue()).trim();
 			const saveButton = terraformCard.getByRole("button", { name: /^Save\s+(?:\d+\s+)?variables?$/ });
 			await expect(saveButton).toBeVisible();
 			if (await saveButton.isEnabled()) {
@@ -85,7 +77,6 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 			}
 			await expect(terraformCard.getByRole("button", { name: /^Save\s+variables?$/ })).toBeDisabled({ timeout: 60_000 });
 
-			// Re-run even a completed backend: its cached status does not check the state container.
 			const setupButton = terraformCard.getByRole("button", { name: /^(?:Create core infrastructure|Re-run setup)$/ });
 			await expectVisibleWithin(setupButton, "Terraform backend setup button", 50_000);
 			await expect(setupButton).toBeEnabled({ timeout: 60_000 });
@@ -94,6 +85,8 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 			await expectSuccessfulSteps(terraformCard, coreInfraStepLabels(companyShortCode));
 			await expect(terraformCard.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
 			await expect(terraformCard.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(0);
+			await expect(terraformCard.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled({ timeout: 60_000 });
+			await expectSnapshot(page, terraformCard, testInfo, "company-code-saved", viewportName);
 		});
 
 		const card = page.locator("#card-create_domain");
@@ -106,34 +99,38 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		});
 
 		await test.step("Save variables then set up the isolated domain", async () => {
-			const domainInput = card.getByText("DNS Domain").locator("../..").getByRole("textbox");
+			const domainInput = card.getByRole("textbox", { name: "DNS Domain", exact: true });
 			await expectVisibleWithin(domainInput, "Corp domain input", 50_000);
 			await expect(card.getByRole("progressbar")).toBeHidden({ timeout: 60_000 });
 			const rerunButton = card.getByRole("button", { name: "Re-run setup" });
 
 			if ((await domainInput.inputValue()).trim() !== liveDnsDomain) {
-				const verifiedDomainsHeading = card.getByText("Verified domains in this tenant", { exact: true });
-				await expect(verifiedDomainsHeading).toBeVisible();
 				await expectSnapshot(page, card, testInfo, "start", viewportName, {
-					mask: [verifiedDomainsHeading.locator("..")],
+					mask: [card.getByText("Verified domains in this tenant", { exact: true }).locator("..")],
 				});
 				await domainInput.fill(liveDnsDomain);
 				const saveButton = card.getByRole("button", { name: "Save 1 variable" });
 				await saveButton.click();
-				await expect(card.getByRole("button", { name: "Save variable" })).toBeDisabled({ timeout: 60_000 });
+				await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled({ timeout: 60_000 });
 			} else {
 				await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled({ timeout: 60_000 });
+				await expectSnapshot(page, card, testInfo, "start", viewportName);
 			}
 
 			await expect(domainInput).toHaveValue(liveDnsDomain);
+			await expect(card.getByRole("checkbox", { name: /as the tenant's primary domain/ })).toBeChecked();
 			const setupButton = card.getByRole("button", { name: "Set up core DNS domain" });
 			await expect(rerunButton).toBeHidden();
 			await expectVisibleWithin(setupButton, "New domain setup button", 60_000);
 			await setupButton.click();
 			await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Domain setup completion", 500_000);
-			await expectSuccessfulSteps(card, domainSetupStepLabels);
+			await expectSuccessfulSteps(card, domainSetupStepLabels(companyShortCode));
+			await expect(card.getByText("CORE_RESOURCE_GROUP", { exact: true })).toHaveCount(0);
+			await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled({ timeout: 60_000 });
 			await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
 			await expect(card.getByRole("button", { name: "Verify domain now" })).toBeEnabled();
+			await expect(card.getByText(`Resource group: zbcore-${companyShortCode}-rg`, { exact: true })).toBeVisible();
+			await expect(card.getByText(`Log Analytics: zbcore-${companyShortCode}-law`, { exact: true })).toBeVisible();
 			await expectSnapshot(page, card, testInfo, "new-setup", viewportName);
 		});
 
@@ -150,7 +147,8 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 			await expectVisibleWithin(setupButton, "Corp domain setup button", 50_000);
 			await setupButton.click();
 			await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Domain re-run completion", 500_000);
-			await expectSuccessfulSteps(card, domainRerunStepLabels);
+			await expectSuccessfulSteps(card, domainSetupStepLabels(companyShortCode));
+			await expect(card.getByText("Grant domain permission to the pipeline", { exact: true }).locator("../..")).toContainText("Already granted");
 			await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
 			await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Start over button", 50_000);
 			await expectSnapshot(page, card, testInfo, "existing-setup", viewportName);
@@ -165,6 +163,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 			await expectVisibleWithin(card.getByText(`DNS zone: ${liveDnsDomain}`, { exact: true }), "Persisted DNS zone name", 50_000);
 			await expect(card.getByRole("button", { name: "Verify domain now" })).toBeEnabled();
 			await expect(card.getByText(/verified and set as the primary domain/i)).toHaveCount(0);
+			await expect(card.getByText("CORE_RESOURCE_GROUP", { exact: true })).toHaveCount(0);
 			await expectSnapshot(page, card, testInfo, "end", viewportName);
 		});
 }

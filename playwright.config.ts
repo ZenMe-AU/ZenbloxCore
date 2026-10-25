@@ -72,7 +72,7 @@ export default defineConfig({
    */
   webServer: {
     command: "pnpm run dev",
-    url: process.env.BASE_URL,
+    url: process.env.BASE_URL || "http://localhost:5174/core/",
     cwd: path.resolve(currentDirectory, "zeninstallerPvt/ui"),
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

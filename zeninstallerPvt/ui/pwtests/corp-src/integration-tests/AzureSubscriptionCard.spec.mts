@@ -174,7 +174,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await expectVisibleWithin(azureSubscriptionCard.getByRole("button", { name: "Change on Azure login" }), "Button: Change on Azure Login", 5000);
     await expectVisibleWithin(azureSubscriptionCard.getByText(/^Subscription/i,), "Text: Rendering Subscription text", 50000);
     await expect(azureSubscriptionCard.getByText("Loading subscriptions...",),).toBeHidden({ timeout: 60_000, });
-    const subscriptionSelect = azureSubscriptionCard.getByRole("combobox",);
+    const subscriptionSelect = azureSubscriptionCard.getByRole("combobox");
     const noSubscriptionsMessage = azureSubscriptionCard.getByText("This tenant has no subscriptions you can access.", { exact: true, },);
     await expectVisibleWithin(subscriptionSelect.or(noSubscriptionsMessage,), "Subscription selector or empty-state message", 50_000);
 
@@ -270,8 +270,8 @@ export async function openExistingAzureSubscription(page: Page,context: BrowserC
     }
   }
 
-  const tenantVariableInput = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true }).locator("..").locator("..").getByRole("textbox");
-  const subscriptionVariableInput = azureSubscriptionCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true }).locator("..").locator("..").getByRole("textbox");
+  const tenantVariableInput = azureSubscriptionCard.getByRole("textbox", { name: "AZURE_TENANT_ID", exact: true });
+  const subscriptionVariableInput = azureSubscriptionCard.getByRole("textbox", { name: "AZURE_SUBSCRIPTION_ID", exact: true });
   const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save variables" });
   await expect.poll(async () => (await tenantVariableInput.inputValue()).trim(), { timeout: 60_000 }).not.toBe("");
   await expect.poll(async () => (await subscriptionVariableInput.inputValue()).trim(), { timeout: 60_000 }).not.toBe("");

@@ -15,6 +15,7 @@ test.afterEach(async ({ page }, testInfo) => {
 });
 
 test("Happy path", async ({ page, context }, testInfo) => {
+  test.skip(process.env.RUN_BACKEND_DEPLOY_INTEGRATION !== "true", "Live backend deployment requires explicit opt-in.");
   await runHappyPath({ page, context }, testInfo);
 });
 

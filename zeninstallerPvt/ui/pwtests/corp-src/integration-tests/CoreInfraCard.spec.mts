@@ -35,8 +35,8 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
   const companyShortCode = process.env.PWTESTS_CORE_INFRA_COMPANY_CODE?.trim() ?? "";
   expect(
     companyShortCode,
-    "Set PWTESTS_CORE_INFRA_COMPANY_CODE to a unique lowercase 3-21 character code for this disposable live run."
-  ).toMatch(/^[a-z0-9]{3,21}$/);
+    "Set PWTESTS_CORE_INFRA_COMPANY_CODE to a unique lowercase 3-14 character code so the default storage name fits Azure's 24-character limit."
+  ).toMatch(/^[a-z0-9]{3,14}$/);
   test.setTimeout(600_000);
   let setupAlreadyExists = false;
 
@@ -57,7 +57,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
       await expectVisibleWithin(terraformCard.getByRole("button", { name: "Re-run setup" }), "Re-run setup button", 50_000);
       await expectSnapshot(page, terraformCard, testInfo, "already-existing-start", viewportName);
     } else {
-      const companyInput = terraformCard.getByText("COMPANY_SHORT_CODE", { exact: true }).locator("../..").getByRole("textbox");
+      const companyInput = terraformCard.getByRole("textbox", { name: "COMPANY_SHORT_CODE", exact: true });
       await companyInput.fill(companyShortCode);
       const saveVariablesButton = terraformCard.getByRole("button", { name: /^Save\s+(?:\d+\s+)?variables?$/ });
       if (await saveVariablesButton.isEnabled()) {
@@ -65,6 +65,12 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
         await expect(terraformCard.getByRole("button", { name: /^Save\s+variables$/ })).toBeDisabled({ timeout: 60_000 });
       }
       await expect(companyInput).toHaveValue(companyShortCode);
+      await terraformCard.getByRole("button", { name: "Edit Storage account", exact: true }).click();
+      const storageInput = terraformCard.getByRole("textbox", { name: "Storage account", exact: true });
+      await expect(storageInput).toHaveValue(`zbcore${companyShortCode}stor`);
+      await expect(terraformCard.getByRole("button", { name: "Create core infrastructure", exact: true })).toBeDisabled();
+      await terraformCard.getByRole("button", { name: "Confirm Storage account", exact: true }).click();
+      await expect(storageInput).toBeHidden({ timeout: 60_000 });
       await expectVisibleWithin(terraformCard.getByText("Create core infrastructure"), "Create core infrastructure button", 50_000);
       await expectSnapshot(page, terraformCard, testInfo, "not-setup-start", viewportName);
     }
@@ -79,6 +85,10 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 500_000 });
 
     await expectSuccessfulSteps(card, coreInfraStepLabels(companyShortCode));
+    for (const key of ["TF_STATE_RESOURCE_GROUP", "TF_STATE_STORAGE_ACCOUNT", "TF_STATE_CONTAINER"]) {
+      await expect(card.getByText(key, { exact: true })).toHaveCount(0);
+    }
+    await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled({ timeout: 60_000 });
     await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Start over button", 50_000);
     await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
     await expectSnapshot(page, card, testInfo, "provisioned", viewportName);
@@ -101,7 +111,8 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
       }
     }
     await expectVisibleWithin(card.getByText("Terraform state backend"), "Terraform state backend title", 50_000);
-    await expectVisibleWithin(card.getByText(`Resource group: root-${companyShortCode}`, { exact: true }), "Persisted resource-group status", 50_000);
+    await expectVisibleWithin(card.getByText(`Resource group: zbcore-${companyShortCode}-rg`, { exact: true }), "Persisted resource-group status", 50_000);
+    await expectVisibleWithin(card.getByText(`zbcore${companyShortCode}stor`, { exact: true }), "Persisted storage-account name", 50_000);
     await expectVisibleWithin(card.getByText(/^State container: terraformstate$/, { exact: true }), "Persisted state-container name", 50_000);
     await expectVisibleWithin(card.getByRole("button", { name: "Re-run setup" }), "Re-run setup button", 50_000);
     await expectSnapshot(page, card, testInfo, "end", viewportName);
@@ -122,14 +133,15 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 500_000 });
     await expectSuccessfulSteps(card, coreInfraStepLabels(companyShortCode));
     for (const stepLabel of [
-      `Create resource group root-${companyShortCode}`,
-      `Create Log Analytics workspace ${companyShortCode}-law`,
-      `Create Application Insights ${companyShortCode}-appinsights`,
-      `Create storage account ${companyShortCode}pvt`,
+      `Create resource group zbcore-${companyShortCode}-rg`,
+      `Create Log Analytics workspace zbcore-${companyShortCode}-law`,
+      `Create storage account zbcore${companyShortCode}stor`,
     ]) {
       const row = card.getByText(stepLabel, { exact: true }).locator("../..");
       await expect(row).toContainText("Already exists");
     }
+    await expect(card.getByText("Lock the storage account against deletion", { exact: true }).locator("../..")).toContainText("Already locked");
+    await expect(card.getByText("Send state writes and deletes to the workspace", { exact: true }).locator("../..")).toContainText("Already configured");
     await expectVisibleWithin(card.getByText("Already exists", { exact: true }).first(), "Already exists status", 50_000);
     await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Start over button", 50_000);
     await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);

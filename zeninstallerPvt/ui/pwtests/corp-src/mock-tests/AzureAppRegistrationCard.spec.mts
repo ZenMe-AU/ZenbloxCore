@@ -18,7 +18,7 @@ import {
   mockTenantId,
   type MockAzureState,
 } from "../util/mockTestHelper.mts";
-import { expandAzureAppRegistrationCard } from "../util/cardHelper.mts";
+import { expandAzureAppRegistrationCard, expandAzureLoginCard } from "../util/cardHelper.mts";
 
 test.beforeEach(async ({ page }) => {
   await page.coverage.startJSCoverage({ resetOnNavigation: false });
@@ -35,7 +35,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
 test("Keeps creation disabled for blank app name", async ({ page, context }, testInfo) => {
   const viewportName = getViewportName(testInfo);
   const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-blank-${viewportName.toLowerCase()}`);
-  const appNameInput = prepared.appRegistrationCard.locator("input:visible").first();
+  const appNameInput = prepared.appRegistrationCard.getByRole("textbox", { name: "App registration name", exact: true });
   const createButton = prepared.appRegistrationCard.getByRole("button", { name: "Create app registration" });
   await appNameInput.fill("   ");
   await expect(createButton).toBeDisabled();
@@ -63,7 +63,7 @@ test("Recovers from a provisioning failure", async ({ page, context }, testInfo)
   const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-provision-retry-${viewportName.toLowerCase()}`, {
     initialAzureState: { applicationCreationFailuresRemaining: 1 },
   });
-  const appNameInput = prepared.appRegistrationCard.locator("input:visible").first();
+  const appNameInput = prepared.appRegistrationCard.getByRole("textbox", { name: "App registration name", exact: true });
   await appNameInput.fill("mock-app-provision-retry");
   await prepared.appRegistrationCard.getByRole("button", { name: "Create app registration" }).click();
   await expect(prepared.appRegistrationCard.getByText("Running...", { exact: true })).toBeHidden();
@@ -93,7 +93,7 @@ test("Creating app when MS Graph permission denied", async ({ page, context }, t
   const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-consent-rejected-${viewportName.toLowerCase()}`, {
     initialAzureState: { applicationLookupFailureStatus: 403 },
   });
-  const appNameInput = prepared.appRegistrationCard.locator("input:visible").first();
+  const appNameInput = prepared.appRegistrationCard.getByRole("textbox", { name: "App registration name", exact: true });
   await appNameInput.fill("mock-app-consent-rejected");
   await prepared.appRegistrationCard.getByRole("button", { name: "Create app registration" }).click();
   await expect(prepared.appRegistrationCard.getByText("Running...", { exact: true })).toBeHidden();
@@ -107,7 +107,7 @@ test("Creating app when MS Graph permission denied", async ({ page, context }, t
 test("Reuses existing app", async ({ page, context }, testInfo) => {
   const viewportName = getViewportName(testInfo);
   const prepared = await prepareMockAppRegistrationCard(page, context, `mock-app-retry-${viewportName.toLowerCase()}`);
-  const appNameInput = prepared.appRegistrationCard.locator("input:visible").first();
+  const appNameInput = prepared.appRegistrationCard.getByRole("textbox", { name: "App registration name", exact: true });
   await appNameInput.fill("zeninstaller-existing-mock-app");
   await prepared.appRegistrationCard.getByRole("button", { name: "Create app registration" }).click();
   await expect(prepared.appRegistrationCard.getByText("Running...", { exact: true })).toBeHidden();
@@ -201,7 +201,7 @@ test("Reports when connection details fail to auto-save", async ({ page, context
     failedWrites += 1;
     await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ message: "mock failure" }) });
   });
-  const appNameInput = prepared.appRegistrationCard.locator("input:visible").first();
+  const appNameInput = prepared.appRegistrationCard.getByRole("textbox", { name: "App registration name", exact: true });
   await appNameInput.fill(`mock-autosave-${viewportName.toLowerCase()}`);
   await prepared.appRegistrationCard.getByRole("button", { name: "Create app registration" }).click();
   await expect(prepared.appRegistrationCard.getByText("Running...", { exact: true })).toBeHidden();
@@ -237,9 +237,12 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
   const prepared = await prepareMockAppRegistrationCard(page, context, repoName);
   const { github, azure, appRegistrationCard } = prepared;
   await expect(appRegistrationCard.getByRole("button", { name: "Create app registration" })).toBeVisible();
+  const azureLoginCard = await expandAzureLoginCard(page);
+  await expect(azureLoginCard.getByRole("combobox", { name: /^Tenant\b/ })).toBeDisabled();
+  await expect(azureLoginCard.getByRole("link", { name: /Show page to get Tenant ID/ })).toHaveCount(0);
 
   await test.step("Create new app registration and grant access", async () => {
-    const appNameInput = appRegistrationCard.locator("input:visible").first();
+    const appNameInput = appRegistrationCard.getByRole("textbox", { name: "App registration name", exact: true });
     await expect(appNameInput).toBeVisible();
     await appNameInput.fill(appName);
     await expectSnapshot(page, appRegistrationCard, testInfo, "app-prefilled", viewportName);
@@ -296,7 +299,15 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
   });
 
   await test.step("Verify connection details were auto-saved", async () => {
-    await expect(appRegistrationCard.getByText(/Connection details saved(?: — no changes needed)?\./i)).toBeVisible();
+    await expect(appRegistrationCard.getByRole("status").filter({ hasText: /Connection details saved(?: — no changes needed)?\./i })).toBeVisible();
+    const detailsToggle = appRegistrationCard.locator('button[aria-controls="azure-app-registration-connection-details"]');
+    await expect(detailsToggle).toHaveAttribute("aria-expanded", "true");
+    await detailsToggle.press("Enter");
+    await expect(detailsToggle).toHaveAttribute("aria-expanded", "false");
+    await detailsToggle.press("Space");
+    await expect(appRegistrationCard.getByRole("region", { name: "Connection details", exact: true })).toBeVisible();
+    await expect(appRegistrationCard.getByRole("textbox", { name: "AZURE_CLIENT_ID", exact: true })).toHaveValue("00000000-0000-0000-0000-000000000002");
+    await expect(appRegistrationCard.getByRole("textbox", { name: "AZURE_PLAN_CLIENT_ID", exact: true })).toHaveValue("00000000-0000-0000-0000-000000000002");
     const connectionInputs = appRegistrationCard.locator('[data-sensitive="true"] input');
     await expect(connectionInputs).toHaveCount(2);
     const clientIds = await connectionInputs.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value.trim()));

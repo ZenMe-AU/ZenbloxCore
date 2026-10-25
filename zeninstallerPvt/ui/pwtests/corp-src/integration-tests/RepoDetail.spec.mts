@@ -85,8 +85,8 @@ test("Creates PROD branch, then creates TEST from PROD", async ({ page, context 
   await createNewRepo(page, repoCard, repoName);
   await chooseExistingRepo(page, repoCard, repoName);
   await expect(repoInput).toHaveValue(repoName);
-  const PROD = repoCard.getByText("PROD", { exact: true, });
-  const TEST = repoCard.getByText("TEST", { exact: true, });
+  const PROD = repoCard.getByRole("button", { name: "PROD", exact: true });
+  const TEST = repoCard.getByRole("button", { name: "TEST", exact: true });
   await expect(repoCard.getByText("Loading environments...", { exact: true, })).toBeHidden();
   await expectVisibleWithin(PROD, "PROD environment", 50_000);
   await expectVisibleWithin(TEST, "TEST environment", 50_000);
@@ -140,12 +140,14 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
   });
 
   await test.step("Creates new PROD branch from main", async () => {
-    const PROD = repoCard.getByText("PROD", { exact: true });
-    const TEST = repoCard.getByText("TEST", { exact: true });
+    const PROD = repoCard.getByRole("button", { name: "PROD", exact: true });
+    const TEST = repoCard.getByRole("button", { name: "TEST", exact: true });
     await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
     await expectVisibleWithin(PROD, "PROD environment", 50_000);
     await expectVisibleWithin(TEST, "TEST environment", 50_000);
     await PROD.click();
+    await expect(PROD).toHaveAttribute("aria-pressed", "true");
+    await expect(TEST).toHaveAttribute("aria-pressed", "false");
     const missingProdBranch = repoCard.getByText(/^No branch found matching environment "PROD"\.$/);
     if (await missingProdBranch.isVisible()) {
       const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD", });
@@ -160,12 +162,14 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
   });
 
   await test.step("Creates new TEST branch from main", async () => {
-    const PROD = repoCard.getByText("PROD", { exact: true });
-    const TEST = repoCard.getByText("TEST", { exact: true });
+    const PROD = repoCard.getByRole("button", { name: "PROD", exact: true });
+    const TEST = repoCard.getByRole("button", { name: "TEST", exact: true });
     await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
     await expectVisibleWithin(PROD, "PROD environment", 50_000);
     await expectVisibleWithin(TEST, "TEST environment", 50_000);
     await TEST.click();
+    await expect(TEST).toHaveAttribute("aria-pressed", "true");
+    await expect(PROD).toHaveAttribute("aria-pressed", "false");
     const missingTestBranch = repoCard.getByText(/^No branch found matching environment "TEST"\.$/);
     if (await missingTestBranch.isVisible()) {
       const createTestButton = repoCard.getByRole("button", { name: "Create New Branch: TEST", });
@@ -179,5 +183,3 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await expectSnapshot(page, repoCard, testInfo, "end", viewportName);
   });
 }
-
-
