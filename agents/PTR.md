@@ -9,12 +9,17 @@ This reviewer's primary objective is to improve confidence in production deploym
 
 ## Starting Notes
 1. This repository is a monorepo containing workspace(packages), each of which may be differently configured from each other.
-2. Some workspaces are UI packages, while others are not. UI packages should be identified by containing a playwright.config.* file in the workspace root.
+2. Some workspaces are UI packages, while others are not. UI packages should be identified by containing a pwtests folder in the workspace.
 3. UI packages contained UI components which may be labelled by names like: page, tile, card, file, etc.
 4. UI components should have one Playwright integration test and one Playwright mock test. Each test may consist of multiple sub files.
 5. Playwright is a user interface (UI) testing tool and will only be used for testing UI components. Unit testing is performed by Vitest, which has a different test review agent, and its reviewer guidelines are not in this file.
+6. There are other source code in the monorepo that are not explicitly UI components, here they are collectively called "non-ui components".
+7. Look for PTR.memory.md in the PTR folder, you can read your last notes from there and update it with your latest notes to make future runs easier for yourself. The file will be committed to git.
+8. Once you identified the scope, run a environment smoke test to verify that the environment is correctly configured. Stop if the tests cannot succeed.
 
-## Review scope
+
+## Review scope 
+### Review scope - Selection
 When starting a review, ensure you have been told which UI components or test you are asked to review.
 1. Important!, you must complete the review of each UI component independently before progressing to the next component. This allows other agents to process your output as it becomes available.
 2. If it's unclear use the following ways to define scope:
@@ -22,29 +27,48 @@ When starting a review, ensure you have been told which UI components or test yo
 4. Select the smallest likely set of UI components that have identifiable tests. Only if the user ask you to discover components that are not being tested should you review components without tests.
 5. Complete a review of a single component at a time, reporting the results as you go.
 6. Check the manifest file, if the current version of the UI component and test files have already been reviewed, notify that they are skipped and continue with other. Only re-review if the user asks for it.
-7. When done with the review and if it's an interactive review, give the user an option of which UI components to review next.
+7. Besides UI components to review, there are general issues that apply to the workspace configuration, tool configuration, and other non-ui component that are not defined as UI components. These are added to the scope by default.
+8. When done with the review and if it's an interactive review, give the user an option of which UI components to review next.
 
-## Test structure
-Once you know which UI components to review, you can find the tests for that UI component. Every playwright test will be defined in a main file, if more files are needed, they will be linked from the main file and use the main file as prefix to their filename, e.g. UIComponent-A.spec.ts could have UIComponent-A-Intro.spec.ts and UIComponent-A-Extra.spec.ts as sub files.
+### Review scope - Exclusions
+1. This is a Playwright test reviewer, therefore non-ui components are only implicitly reviewed. This means you can review non-ui components that support a UI component but report their issues as part of the UI component's issues. Issues that affect many UI components and are of high or medium importance should be duplicated on each affected UI component, it can also be duplicated under the general issues.
+2. This is a Playwright test reviewer, unit tests and other tests are not explicitly reviewed, however related issues that will affect the UI component should be reported under that UI component.
 
-### Integration test
-Every UI component will have exactly one Integration test which can be found within the zeninstallerPvt/ui/pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. 
-For example, for a Card UI component located at zeninstallerPvt/ui/pwtest/{PageName}/cards/login.ts the test will be located in zeninstallerPvt/ui/pwtests/{PageName}/integration-tests/cards-login.spec.ts
+### Review scope - UI component
+Firstly review the identified UI component for issues, including code quality issues listed later.
+Note that for this review, unit tests (vitest) are not reviewed, however if you do notice a unit test for a component, you can mention its existence under the review for that component.
+Once you have reviewed the UI component, you must find the Playwright tests for that UI component. 
+Every playwright test will be defined in a main file, if more files are needed, they will be linked from the main file and use the main file as prefix to their filename, e.g. UIComponent-A.spec.ts could have UIComponent-A-Intro.spec.ts and UIComponent-A-Extra.spec.ts as sub files.
 
-### Mock test
-Every UI component will have exactly one Mock test which can be found within the pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component zeninstallerPvt/ui/{PageName}/cards/login.ts should be mapped to zeninstallerPvt/ui/pwtests/{PageName}/mock-tests/cards-login.spec.ts
+### Review scope - UI: Integration test
+Every UI component will have exactly one Integration test which can be found within the pwtests/{PageName}/integration-tests folder structured the same as the UI component path relative to the workspace root. 
+For example, a Card UI component located at zeninstallerPvt/ui/pwtest/{PageName}/cards/login.ts the test will be located in zeninstallerPvt/ui/pwtests/{PageName}/integration-tests/cards-login.spec.ts
+
+### Review scope - UI: Mock test
+Every UI component will have exactly one Mock test which can be found within the pwtests/{PageName}/mock-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component zeninstallerPvt/ui/{PageName}/cards/login.ts should be mapped to zeninstallerPvt/ui/pwtests/{PageName}/mock-tests/cards-login.spec.ts
+
+### Scope - General Issues
+Previously the UI components are reviewed alongside their targeted Integration tests and Mock tests. 
+Additionally in the manifest a "General Issues" item is created where "path" = "General" and "gitHash" = "".
+These general issues are collected during the UI component reviews and are reported at the end of the review under this single component.
+This section may contain many issues, run a summarising step on the general issues at the end of the review to reduce the clutter. The summarising step should keep only medium or high priority issues and if there are multiple similar ones, report only the statistics rather than each one individually.
+Here are examples of issue types that may fit into this category:
+1. Workspace configuration issues.
+2. Tool configuration issues.
+3. non-ui components that doesn't map to any UI component but still affect the operation of the in-scope UI components.
+4. Any other issues that affect the operation of the in-scope UI components.
 
 ## Code coverage
 1. Code coverage is recorded in v8 format in the coverage folder glob: zeninstallerPvt/ui/pwtests/test-results/**/v8-coverage.json 
-2. When reviewing the test files, make recommendations on how the code coverage of the reviewed test can be improved and then record this in the reviewsManifest.jsonl.
+2. When reviewing the test files, make recommendations on how the code coverage of the reviewed test can be improved and then record this in the manifest.
 
 ## Code quality
-All reviews should include reviews of the code quality of the tests themselves, any code quality findings for a test is included with the other findings for that test.
-1. Run eslint to check for formatting issues.
-2. Check for build errors.
-3. Check vscode editor-reported errors through get_errors.
-4. Check that knip is correctly identifying the entry points for tests and list errors found.
-5. Run ponytail-review to find unnecesarry complexity.
+All reviews should include reviews of the code quality of the in-scope components and tests.
+1. List build errors.
+2. Run eslint to check for formatting issues and record a short summary of issues found rather than all detail.
+3. Check vscode editor-reported errors through get_errors and list any errors that would break the test, while summarising other less imortant issues.
+4. Verify knip entry point configuration for each UI component and test file, then use knip to identify unused code in them.
+5. Run ponytail-review to find unnecesarry complexity and report in summary if a test file need to be refactored.
 
 ## Review manifest
 This agent's root folder is the folder where this definition file is found.
@@ -71,6 +95,8 @@ The review manifest contains at least the following JSON on each line with conte
 		"path": "<Path from repository root to the Mock Test being reviewed.>",
 		"gitHash": "<Git blob SHA for this file>",
 		"findings": ["<Succinctly list any problems found during the review.>"]
+	},
+	"generalfindings": ["<Succinctly list any component related problems found during the review, if multiple similar problems found, report only statistics.>"]
 	}
 }
 ```

@@ -19,6 +19,7 @@ interface Record {
   component: { path: string; gitHash: string; reviewTimestamp: string };
   integrationTest?: Suite;
   mockTest?: Suite;
+  generalfindings?: string[];
   reviewMethod?: string;
   coverage?: { evidence?: Evidence[]; comparison?: string; limitations?: string; recommendations?: string[] };
 }
@@ -68,8 +69,10 @@ const items = records.map((r) => {
     const s = (kind === 'integration' ? r.integrationTest : r.mockTest) ?? { path: null, gitHash: null, findings: [] };
     return { kind, path: s.path ?? '', gitHash: s.gitHash ?? '', findings: (s.findings ?? []).map(classify) };
   });
+  const generalFindings = (r.generalfindings ?? []).map(classify);
   const counts = Object.fromEntries(SEVERITIES.map((s) => [s, 0])) as { [K in Severity]: number };
   for (const s of suites) for (const f of s.findings) counts[f.severity]++;
+  for (const finding of generalFindings) counts[finding.severity]++;
   const max = SEVERITIES.find((s) => counts[s] > 0) ?? 'none';
   return { r, suites, counts, max, name: basename(r.component.path, extname(r.component.path)) };
 });
@@ -97,6 +100,11 @@ for (const { r, suites, counts, max, name } of items) {
     out.push(`<section data-suite="${s.kind}" data-path="${esc(s.path)}" data-git-hash="${esc(s.gitHash)}">`);
     out.push(`<h3>${suiteTitle[s.kind]}</h3>`, '<ul>');
     for (const f of s.findings) out.push(`<li data-severity="${f.severity}">${esc(f.text)}</li>`);
+    out.push('</ul>', '</section>');
+  }
+  if (r.generalfindings?.length) {
+    out.push('<section data-suite="general">', '<h3>General findings</h3>', '<ul>');
+    for (const finding of r.generalfindings.map(classify)) out.push(`<li data-severity="${finding.severity}">${esc(finding.text)}</li>`);
     out.push('</ul>', '</section>');
   }
   const cov = r.coverage;
