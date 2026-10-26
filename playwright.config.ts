@@ -30,7 +30,6 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   globalSetup: "./zeninstallerPvt/ui/pwtests/coverage/global-setup.mjs",
-  globalTeardown: "./zeninstallerPvt/ui/pwtests/coverage/global-teardown.mjs",
   reporter: [
     // A terminal reporter is what streams worker stdout/stderr (incl. pw:api) to the console.
     ["line"], 
