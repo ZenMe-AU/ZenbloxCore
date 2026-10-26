@@ -24,6 +24,16 @@ export async function expandGithubLoginCard(page: Page) {
   return githubCard;
 }
 
+export async function expandGithubSignupCard(page: Page) {
+  const card = page.locator("#card-github_signup");
+  const email = card.getByRole("textbox", { name: "Email address" });
+  if (!(await email.isVisible())) {
+    await card.getByText("GitHub Sign Up", { exact: true }).click();
+  }
+  await expect(email).toBeVisible();
+  return card;
+}
+
 export async function expandAzureLoginCard(page: Page) {
   const azureCard = page.locator("#card-azure_login");
   const introText = azureCard.getByText(/Sign in with Azure so we can create the app registration and cloud resources for you\./i);
