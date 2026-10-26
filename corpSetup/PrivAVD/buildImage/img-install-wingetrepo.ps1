@@ -1,11 +1,12 @@
 #requires -RunAsAdministrator
 # Installs Winget-Repo into the golden image as a localhost-only service.
 # Runs during the Packer build from a LOCAL package set (no internet):
-# the Packer "file" provisioner in paw-image.pkr.hcl uploads
-#   C:\zenme\dependencies\packages   (build host / Erv-pc)
+# the Packer "file" provisioner in paw-image.pkr.hcl uploads the single
+# archive built by make-packages-zip.ps1:
+#   C:\zenme\dependencies\wingetrepo-packages.zip   (build host / Erv-pc)
 # to
-#   C:\packages                      (build VM)
-# before this script runs.
+#   C:\Windows\Temp\packages.zip                     (build VM)
+# and this script extracts it to C:\packages.
 # Idempotent - safe to re-run on a test VM to validate before a build.
 #
 # After this script runs, every PAW deployed from this image has:
@@ -30,12 +31,14 @@ $pythonExe = 'C:\Program Files\Python312\python.exe'
 $wingetRepoTag = 'V2.9.2'
 
 # Offline package set, uploaded to the build VM by the Packer "file"
-# provisioner. Contents:
+# provisioner as a single archive and extracted to C:\packages below.
+# Archive contents:
 #   python-3.12.10-amd64.exe
 #   V2.9.2.zip                        (Winget-Repo source archive)
 #   requirements.txt                  (reference copy)
 #   *.whl                             (wheelhouse for CPython 3.12 / win_amd64)
 $packageDir = 'C:\packages'
+$packageZip = 'C:\Windows\Temp\packages.zip'
 
 # Fixed client token for the winget REST API (localhost-only, baked into every
 # PAW from this image; usable only by processes already running on the PAW).
@@ -45,9 +48,18 @@ function Write-Step([string]$message) {
     Write-Host ">> $message" -ForegroundColor Cyan
 }
 
+# --- 0. Extract the offline package set (uploaded by the file provisioner) ---
 Write-Step "Offline package source: $packageDir"
 if (-not (Test-Path $packageDir)) {
-    throw "Package directory not found: $packageDir (did the Packer file provisioner run?)"
+    if (-not (Test-Path $packageZip)) {
+        throw "Package archive not found: $packageZip (Packer file provisioner failed?)"
+    }
+    Write-Step "Extracting $packageZip -> $packageDir"
+    Expand-Archive -Path $packageZip -DestinationPath $packageDir -Force
+    if (-not (Test-Path $packageDir)) { throw "Extraction to $packageDir failed" }
+    Write-Host "  Extracted $(@(Get-ChildItem $packageDir -File).Count) files"
+} else {
+    Write-Host '  Package directory already present (idempotent re-run)'
 }
 
 # --- 1. Install Python 3.12 (all users, on PATH) ---

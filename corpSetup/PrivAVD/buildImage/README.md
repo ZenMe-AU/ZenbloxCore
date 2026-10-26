@@ -76,7 +76,16 @@ image definition must already exist.
   - Source on the BUILD HOST (the machine running packer):
     `C:\zenme\dependencies\packages` — absolute path for now; the permanent
     home should be the repo or a network share.
-  - Uploaded by the Packer `file` provisioner to `C:\packages` on the build VM.
+  - `make-packages-zip.ps1` packs that folder into a single archive
+    `C:\zenme\dependencies\wingetrepo-packages.zip` (excludes cp313/cp314
+    wheels - dead weight for a CPython 3.12 image). Rerun it whenever the
+    package folder changes.
+  - The Packer `file` provisioner uploads that ONE zip to
+    `C:\Windows\Temp\packages.zip`; the install provisioner extracts it to
+    `C:\packages`. A single-file WinRM upload is far more reliable than a
+    100+ file directory walk - but the "Uploading ..." line prints no
+    progress and stays silent for several minutes; do not cancel the build
+    during it.
   - Contents: `python-3.12.10-amd64.exe`, `V2.9.2.zip`, `requirements.txt`
     and the CPython 3.12 / win_amd64 wheelhouse (`*.whl`, 55 packages).
 - pip runs with `--no-index --find-links C:\packages`: a missing or

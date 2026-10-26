@@ -126,13 +126,18 @@ build {
   }
 
   # Upload the offline package set from the BUILD HOST (the machine running
-  # packer - Erv-pc) to the build VM. Absolute local source path for now;
-  # the permanent home should be the repo or a network share.
-  # Contents: python-3.12.10-amd64.exe, V2.9.2.zip, requirements.txt and the
-  # CPython 3.12 win_amd64 wheelhouse (~100 MB over WinRM; adds a few minutes).
+  # packer - Erv-pc) to the build VM. SINGLE ARCHIVE, not a directory walk:
+  # WinRM uploads are chunked into hundreds of small commands with no
+  # progress output, so walking 100+ files is slow and fragile; one ~70 MB
+  # zip uploaded to the existing C:/Windows/Temp is one sequential stream.
+  # Regenerate the zip with make-packages-zip.ps1 after changing the package
+  # folder. The "Uploading ..." line is SILENT for several minutes - that
+  # is expected; do not cancel the build during it.
+  # Absolute local source path for now; the permanent home should be the
+  # repo or a network share.
   provisioner "file" {
-    source      = "C:/zenme/dependencies/packages"
-    destination = "C:/packages"
+    source      = "C:/zenme/dependencies/wingetrepo-packages.zip"
+    destination = "C:/Windows/Temp/packages.zip"
   }
 
   # Winget-Repo: installs the private winget repository into the image as a
