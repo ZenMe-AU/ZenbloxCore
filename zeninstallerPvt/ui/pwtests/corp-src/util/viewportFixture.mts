@@ -4,7 +4,7 @@
  */
 
 import type { BrowserContext, Page, TestInfo } from "@playwright/test";
-import { test as playwrightTest } from "../../coverage/coverage-fixture.mts";
+import { test as playwrightTest } from "../../../../../_archive/playwrightcoverage/coverage-fixture.mjs";
 import { fileURLToPath } from "node:url";
 import { registerTestSourceFile } from "../../util/testHelper";
 import { viewports } from "../../testInit";

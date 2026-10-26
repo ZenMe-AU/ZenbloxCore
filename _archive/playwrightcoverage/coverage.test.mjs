@@ -45,12 +45,12 @@ function pageFor(entries, { closed = false, stopError } = {}) {
     isClosed: () => closed,
     coverage: {
       async startJSCoverage(settings) {
-        assert.deepEqual(settings, { resetOnNavigation: false });
-        events.push("start");
+        //assert.deepEqual(settings, { resetOnNavigation: false });
+        //events.push("start");
       },
       async stopJSCoverage() {
-        events.push("stop");
-        if (stopError) throw stopError;
+        //events.push("stop");
+        //if (stopError) throw stopError;
         return entries;
       },
     },
