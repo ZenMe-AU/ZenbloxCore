@@ -49,7 +49,7 @@ import {
   getFederatedCredential,
 } from "../../logic/naming";
 import { REMOTE_TERMINAL_PROVIDERS } from "../../config/azureConfig";
-import { createResultStorage } from "../../logic/resultStorage";
+import { DEPLOYMENT_TERMINAL_KEYS } from "../../logic/variables";
 import type { Account, AzureConfigHook, AzureTarget, CardHook, CardStatus, SetupStep } from "../../types";
 
 export type RemoteTerminalInfraResult = {
@@ -107,10 +107,8 @@ export interface UseRemoteTerminalInfraCard extends CardHook, AzureConfigHook {
   runNonce: number;
 }
 
-const RESULT_KEY = "zeninstaller_remote_terminal_infra_result";
 const WEB_PUBSUB_NAME = /^[a-z][a-z0-9-]{1,61}[a-z0-9]$/;
 const FUNCTION_APP_NAME = /^[a-z0-9][a-z0-9-]{0,58}[a-z0-9]$/;
-const { save: saveResult, load: loadResult } = createResultStorage<RemoteTerminalInfraResult>(RESULT_KEY);
 
 /*
  * The relay the stage-card terminal runs on: Web PubSub, the session table, and the Function App
@@ -133,7 +131,7 @@ export function useRemoteTerminalInfraCard({
   const [locationsFailed, setLocationsFailed] = useState(false);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const { ensureRegistered } = useProviderRegistration({ azureAccount, subscriptionId, tenantId });
-  const [result, setResult] = useState<RemoteTerminalInfraResult | null>(loadResult);
+  const [result, setResult] = useState<RemoteTerminalInfraResult | null>(null);
   const [runNonce, setRunNonce] = useState(0);
   const [storageOverride, setStorageOverride] = useState("");
   const [storageChecking, setStorageChecking] = useState(false);
@@ -157,7 +155,7 @@ export function useRemoteTerminalInfraCard({
   const pipelineAppName = PRIVATE_PIPELINE_APP;
 
   const resultMatches = !!result && result.subscriptionId === subscriptionId;
-  const done = resultMatches;
+  const done = DEPLOYMENT_TERMINAL_KEYS.every((key) => !!variableValues[key]);
   const azureConfigured = !!azureAccount && !!subscriptionId;
 
   // Too long or bad characters are visible as you type; too short or taken is only known on confirm.
@@ -467,7 +465,6 @@ export function useRemoteTerminalInfraCard({
         storageAccountName,
       };
       setResult(finished);
-      saveResult(finished);
       setRunNonce((n) => n + 1);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
