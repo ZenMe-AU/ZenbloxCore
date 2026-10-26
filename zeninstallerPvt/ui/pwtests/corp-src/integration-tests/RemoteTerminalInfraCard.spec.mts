@@ -2,7 +2,7 @@
 // UI component: ../../../corp-src/cards/RemoteTerminalInfra/RemoteTerminalInfraCard.tsx
 import { expect, test } from "@playwright/test";
 import { CORP_URL, viewports } from "../../testInit";
-import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../util/testHelper.ts";
 import { expectSuccessfulSteps } from "../util/mockTestHelper.mts";
 import {
 	connectionInput,
@@ -12,14 +12,6 @@ import {
 	prepareExistingRelayRepository,
 	remoteTerminalStepLabels,
 } from "../util/RemoteTerminalInfraCardHelper.mts";
-
-test.beforeEach(async ({ page }) => {
-	await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-	await attachJSCoverage(page, testInfo);
-});
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
 	test.describe(`Remote Terminal Infrastructure Card - ${viewportName}`, () => {

@@ -2,7 +2,7 @@
 import { expect } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import { AZURE_MANAGEMENT_URL, CORP_URL, MICROSOFT_GRAPH_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot, safePathSegment } from "../../util/testHelper.ts";
+import { expectSnapshot, safePathSegment } from "../../util/testHelper.ts";
 import {
 	expectSuccessfulSteps,
 	installCoreInfraAzureMock,
@@ -85,14 +85,6 @@ type DomainMockOptions = {
 	rejectConsent?: boolean;
 	savedDomain?: boolean;
 };
-
-test.beforeEach(async ({ page }) => {
-	await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-	await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);

@@ -8,21 +8,19 @@ import { expect } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import { CORP_URL, GITHUB_API_URL, GITHUB_API_URL_REGEX } from "../../testInit";
 import { createNewRepo, selectCloneOption } from "../util/testHelper.mts";
-import { attachJSCoverage, expectSnapshot, expectVisibleWithin, logMockAPI } from "../../util/testHelper.ts";
+import { expectSnapshot, expectVisibleWithin, logMockAPI } from "../../util/testHelper.ts";
 import { installMockGitHub, installRelayNetworkGuard } from "../util/mockTestHelper.mts";
 import { expandRepoCard } from "../util/cardHelper.mts";
 
 const unexpectedByPage = new WeakMap<import("@playwright/test").Page, string[]>();
 
 test.beforeEach(async ({ page, context }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
   unexpectedByPage.set(page, await installRelayNetworkGuard(context));
   await installMockGitHub(page, context);
   await page.goto(CORP_URL);
 });
 
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
+test.afterEach(async ({ page }) => {
   expect(unexpectedByPage.get(page), "No unexpected external requests").toEqual([]);
 });
 

@@ -3,7 +3,8 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { test as playwrightTest, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
+import type { BrowserContext, Page, TestInfo } from "@playwright/test";
+import { test as playwrightTest } from "../../coverage/coverage-fixture.mts";
 import { fileURLToPath } from "node:url";
 import { registerTestSourceFile } from "../../util/testHelper";
 import { viewports } from "../../testInit";

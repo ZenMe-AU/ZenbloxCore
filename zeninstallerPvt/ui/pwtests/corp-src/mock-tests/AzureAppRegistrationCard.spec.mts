@@ -7,7 +7,7 @@
 import { expect } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import { CORP_URL, GITHUB_API_URL, MICROSOFT_GRAPH_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot, safePathSegment } from "../../util/testHelper.ts";
+import { expectSnapshot, safePathSegment } from "../../util/testHelper.ts";
 import {
   expectSuccessfulSteps,
   installMockAzure,
@@ -19,14 +19,6 @@ import {
   type MockAzureState,
 } from "../util/mockTestHelper.mts";
 import { expandAzureAppRegistrationCard, expandAzureLoginCard } from "../util/cardHelper.mts";
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);

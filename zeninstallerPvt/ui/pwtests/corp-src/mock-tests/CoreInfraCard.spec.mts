@@ -6,7 +6,7 @@
 import { expect, type BrowserContext, type Page } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import { AZURE_MANAGEMENT_URL, CORP_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../util/testHelper.ts";
 import {
   coreInfraStepLabels,
   expectSuccessfulSteps,
@@ -25,14 +25,6 @@ type CoreInfraMockOptions = {
   failFirstResourceGroupPut?: boolean;
   reusedStorageResourceGroup?: string;
 };
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);

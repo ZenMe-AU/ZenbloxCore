@@ -8,12 +8,9 @@ import { expect, type Page, type TestInfo } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
-import { expectSnapshot, safePathSegment, expectVisibleWithin, attachJSCoverage } from "../../util/testHelper.ts";
+import { expectSnapshot, safePathSegment, expectVisibleWithin } from "../../util/testHelper.ts";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
 import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
-
-test.beforeEach(async ({ page }) => { await page.coverage.startJSCoverage({ resetOnNavigation: false }); });
-test.afterEach(async ({ page }, testInfo) => { await attachJSCoverage(page, testInfo); });
 
 test("Happy path", async ({ page, context }, testInfo) => {
   const { viewportName, repoName, appName } = await prepareTest(page, context, testInfo);

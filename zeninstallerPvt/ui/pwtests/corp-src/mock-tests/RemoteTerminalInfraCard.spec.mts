@@ -3,7 +3,7 @@
 import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import { CORP_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../util/testHelper.ts";
 import { expectSuccessfulSteps } from "../util/mockTestHelper.mts";
 import {
 	backendResourceGroup, connectionInput, openConnectionDetails, openRemoteTerminalCard,
@@ -13,12 +13,6 @@ import {
 	insightsConnectionString, installRelayNetworkGuard, pipelineClientId, prepareMockRelay,
 } from "../util/RemoteTerminalInfraCardMockHelper.mts";
 
-test.beforeEach(async ({ page }) => {
-	await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-test.afterEach(async ({ page }, testInfo) => {
-	await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path provisions only the backend and its pipeline identity", async ({ page, context }, testInfo) => {
 	await runHappyPath({ page, context }, testInfo);

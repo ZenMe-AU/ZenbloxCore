@@ -8,16 +8,10 @@
 import { expect } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import { CORP_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../util/testHelper.ts";
 import { backendBuild, expectSuccessfulSteps, installRelayNetworkGuard, prepareMockBackend, previousBuild } from "../util/mockTestHelper.mts";
 import { backendStepLabels, openBackendCard } from "../util/cardHelper.mjs";
 
-test.beforeEach(async ({ page }) => {
-	await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-test.afterEach(async ({ page }, testInfo) => {
-	await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);

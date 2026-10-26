@@ -6,17 +6,9 @@
 // UI component: ../../../corp-src/cards/GithubSignup/GithubSignupCard.tsx
 import { expect } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
-import { attachJSCoverage, expectSnapshot } from "../../util/testHelper";
+import { expectSnapshot } from "../../util/testHelper";
 import { prepareGithubLoginMock } from "../util/mockTestHelper.mts";
 import { expandGithubSignupCard, runSignupHappyPath, signupEmail } from "../util/GithubSignupCardHelper.mts";
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath(page, context, testInfo);

@@ -15,21 +15,13 @@ import {
   signInMockAzure,
 } from "../util/mockTestHelper.mts";
 import { CORP_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../util/testHelper.ts";
 import { expandAzureLoginCard } from "../util/cardHelper.mts";
 
 const mockTenants = [
   { tenantId: mockTenantId, displayName: "Mock tenant" },
   { tenantId: mockSecondTenantId, displayName: "Mock second tenant" },
 ];
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page }, testInfo) => {
   await runHappyPath({ page }, testInfo);

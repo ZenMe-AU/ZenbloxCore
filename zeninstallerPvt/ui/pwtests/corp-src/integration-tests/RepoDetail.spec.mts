@@ -9,16 +9,8 @@ import { getViewportName, test } from "../util/viewportFixture.mts";
 import { restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, TEST_REPO_FROM_PROD, TEST_REPO_MAIN, TEST_REPO_NO_ENV } from "../../testInit";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
-import { attachJSCoverage, expectSnapshot, safePathSegment, expectVisibleWithin, waitForLocatorContentLoaded } from "../../util/testHelper.ts";
+import { expectSnapshot, safePathSegment, expectVisibleWithin, waitForLocatorContentLoaded } from "../../util/testHelper.ts";
 import { expandRepoCard } from "../util/cardHelper.mts";
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);

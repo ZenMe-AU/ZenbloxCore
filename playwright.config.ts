@@ -29,11 +29,14 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
+  globalSetup: "./zeninstallerPvt/ui/pwtests/coverage/global-setup.mjs",
+  globalTeardown: "./zeninstallerPvt/ui/pwtests/coverage/global-teardown.mjs",
   reporter: [
     // A terminal reporter is what streams worker stdout/stderr (incl. pw:api) to the console.
     ["line"], 
     [path.resolve(currentDirectory, "zeninstallerPvt/ui/pwtests/coverage/coverage-reporter.ts")],
   ],
+  
   timeout: 60_000,
   expect: {
     timeout: 10_000,

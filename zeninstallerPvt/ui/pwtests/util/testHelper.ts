@@ -4,9 +4,7 @@
  */
 
 import { expect, type Locator, type Page, type Route, type TestInfo } from "@playwright/test";
-import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { filterDependencyCoverage } from "../coverage/filter-coverage.ts";
 
 // printing debug and API info when running test
 const isDebugEnabled = process.env.DEBUG?.includes("pw:api") || process.env.NODE_ENV === "development";
@@ -137,15 +135,4 @@ export async function waitForLocatorContentLoaded(locator: Locator, emptyPlaceho
       { timeout: timeoutMs, message: `${label} content did not load` }
     )
     .toBeTruthy();
-}
-
-export async function attachJSCoverage(page: Page, testInfo: TestInfo): Promise<void> {
-  if (page.isClosed()) {
-    return;
-  }
-
-  const entries = filterDependencyCoverage(await page.coverage.stopJSCoverage());
-  const file = testInfo.outputPath("v8-coverage.json");
-  await writeFile(file, JSON.stringify(entries), "utf8");
-  await testInfo.attach("v8-coverage", { path: file, contentType: "application/json" });
 }

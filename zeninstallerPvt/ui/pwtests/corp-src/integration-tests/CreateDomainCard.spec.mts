@@ -7,7 +7,7 @@
 import { expect } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
-import { attachJSCoverage, expectSnapshot, expectVisibleWithin, safePathSegment } from "../../util/testHelper.ts";
+import { expectSnapshot, expectVisibleWithin, safePathSegment } from "../../util/testHelper.ts";
 import {
 	expandAzureAppRegistrationCard,
 	expandAzureLoginCard,
@@ -30,14 +30,6 @@ const domainSetupStepLabels = (companyShortCode: string) => [
 	"Set as primary domain",
 	"Grant domain permission to the pipeline",
 ];
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);

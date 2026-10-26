@@ -8,16 +8,8 @@ import { expect, type BrowserContext, type Page, type TestInfo } from "@playwrig
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import { restoreAzureSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
+import { expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
 import { expandAzureLoginCard } from "../util/cardHelper.mts";
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath(page, context, testInfo);

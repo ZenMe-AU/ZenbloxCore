@@ -7,7 +7,7 @@
 import { expect } from "@playwright/test";
 import { getViewportName, test } from "../util/viewportFixture.mts";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
-import { attachJSCoverage, expectSnapshot, expectVisibleWithin, safePathSegment } from "../../util/testHelper.ts";
+import { expectSnapshot, expectVisibleWithin, safePathSegment } from "../../util/testHelper.ts";
 import {
 	expandAzureAppRegistrationCard,
 	expandAzureLoginCard,
@@ -17,14 +17,6 @@ import {
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { coreInfraStepLabels, expectSuccessfulSteps } from "../util/mockTestHelper.mts";
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);
