@@ -81,7 +81,21 @@ Write-Host ">> Minting read-only SAS URL (valid 1 year, HTTPS only)"
 $expiry = (Get-Date).ToUniversalTime().AddYears(1).ToString("yyyy-MM-dd")
 $sas = az storage blob generate-sas --account-name $accountName --account-key $key --container-name $container --name $blobName --permissions r --expiry $expiry --https-only --output tsv
 if ($LASTEXITCODE -ne 0) { throw "az storage blob generate-sas failed" }
-$url = "https://$accountName.blob.core.windows.net/$container/$blobName?$sas"
+# NB: ${blobName} must be braced - in PowerShell "$blobName?" parses as the
+# variable name "blobName?" (question mark is a valid variable-name
+# character), which is undefined, silently deleting the blob name AND the
+# "?" separator from the URL. This exact bug shipped a broken .env line
+# (HTTP 409 on the build VM) on 2026-10-27.
+$url = "https://$accountName.blob.core.windows.net/$container/${blobName}?$sas"
+
+Write-Host ">> Verifying the SAS URL (HTTP HEAD)"
+try {
+    $probe = Invoke-WebRequest -Uri $url -Method Head -UseBasicParsing -TimeoutSec 60
+    $blobBytes = [double]$probe.Headers.'Content-Length'
+    Write-Host ("   HTTP {0} - URL verified, blob is {1:N1} MB" -f $probe.StatusCode, ($blobBytes / 1MB))
+} catch {
+    throw "SAS URL verification FAILED - the URL written to .env would not download: $_"
+}
 
 Write-Host ">> Writing TF_VAR_PACKAGE_URL into the shared .env"
 $envPath = Join-Path $PSScriptRoot "..\.env"
