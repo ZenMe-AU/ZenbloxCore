@@ -1,12 +1,11 @@
 #requires -RunAsAdministrator
 # Installs Winget-Repo into the golden image as a localhost-only service.
-# Runs during the Packer build from a LOCAL package set (no internet):
-# the Packer "file" provisioner in paw-image.pkr.hcl uploads the single
-# archive built by make-packages-zip.ps1:
-#   C:\zenme\dependencies\wingetrepo-packages.zip   (build host / Erv-pc)
-# to
-#   C:\Windows\Temp\packages.zip                     (build VM)
-# and this script extracts it to C:\packages.
+# Runs during the Packer build from a LOCAL package set (no PyPI/GitHub):
+# the PACKAGE_URL environment variable (set in paw-image.pkr.hcl from
+# TF_VAR_PACKAGE_URL in .env, maintained by upload-packages.ps1) points at
+# the package archive in Azure Blob Storage. This script downloads it to
+#   C:\Windows\Temp\packages.zip
+# and extracts it to C:\packages before installing from it.
 # Idempotent - safe to re-run on a test VM to validate before a build.
 #
 # After this script runs, every PAW deployed from this image has:
@@ -30,9 +29,8 @@ $toolsDir = 'C:\Tools'
 $pythonExe = 'C:\Program Files\Python312\python.exe'
 $wingetRepoTag = 'V2.9.2'
 
-# Offline package set, uploaded to the build VM by the Packer "file"
-# provisioner as a single archive and extracted to C:\packages below.
-# Archive contents:
+# Offline package set, downloaded from Azure Blob Storage (PACKAGE_URL)
+# and extracted to C:\packages below. Archive contents:
 #   python-3.12.10-amd64.exe
 #   V2.9.2.zip                        (Winget-Repo source archive)
 #   requirements.txt                  (reference copy)
@@ -48,11 +46,18 @@ function Write-Step([string]$message) {
     Write-Host ">> $message" -ForegroundColor Cyan
 }
 
-# --- 0. Extract the offline package set (uploaded by the file provisioner) ---
+# --- 0. Fetch and extract the offline package set (Azure blob download) ---
 Write-Step "Offline package source: $packageDir"
 if (-not (Test-Path $packageDir)) {
     if (-not (Test-Path $packageZip)) {
-        throw "Package archive not found: $packageZip (Packer file provisioner failed?)"
+        Write-Step 'Downloading package archive (Azure blob, intra-Azure path)'
+        if (-not $env:PACKAGE_URL) {
+            throw 'PACKAGE_URL environment variable not set. Check TF_VAR_PACKAGE_URL in .env and environment_vars in paw-image.pkr.hcl.'
+        }
+        $downloadStart = Get-Date
+        Invoke-WebRequest -Uri $env:PACKAGE_URL -UseBasicParsing -OutFile $packageZip -TimeoutSec 600
+        $archiveMb = [math]::Round((Get-Item $packageZip).Length / 1MB, 1)
+        Write-Host ("  Downloaded {0} MB in {1}s" -f $archiveMb, [int]((Get-Date) - $downloadStart).TotalSeconds)
     }
     Write-Step "Extracting $packageZip -> $packageDir"
     Expand-Archive -Path $packageZip -DestinationPath $packageDir -Force
@@ -85,7 +90,7 @@ if (-not (Test-Path "$repoDir\main.py")) { throw 'main.py missing after extracti
 
 # --- 3. Python dependencies (offline wheelhouse only) ---
 Write-Step 'pip install requirements (offline wheelhouse)'
-# --no-index + --find-links: install ONLY from the uploaded wheelhouse.
+# --no-index + --find-links: install ONLY from the local wheelhouse.
 # If a wheel is missing or built for the wrong Python version, pip fails
 # loudly here instead of silently reaching the internet.
 & $pythonExe -m pip install --no-index --find-links $packageDir --no-warn-script-location -r "$repoDir\requirements.txt"
@@ -237,7 +242,7 @@ if ($stillListening) {
 
 Write-Host ''
 Write-Host 'WINGET-REPO GOLDEN IMAGE INSTALLATION COMPLETE' -ForegroundColor Green
-Write-Host "  Package source: $packageDir (offline - no internet used)"
+Write-Host "  Package source: $packageDir (offline wheelhouse - no PyPI used)"
 Write-Host "  Service: Task Scheduler 'WingetRepo' (AtStartup, SYSTEM, localhost-only)"
 Write-Host "  Endpoint: https://localhost:5000/ (first dashboard visit = create admin)"
 Write-Host "  winget source: WingetRepo -> https://localhost:5000/api/"

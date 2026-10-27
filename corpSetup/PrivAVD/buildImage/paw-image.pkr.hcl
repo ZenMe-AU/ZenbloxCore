@@ -49,6 +49,11 @@ variable "IMAGE_VERSION" {
   default     = "1.0.0"
 }
 
+variable "PACKAGE_URL" {
+  description = "Read-only SAS URL of the wingetrepo-packages.zip blob in Azure Storage (maintained by upload-packages.ps1, stored as TF_VAR_PACKAGE_URL in the shared .env). The build VM downloads the archive from this URL - bulk WinRM transfer was abandoned after two hangs."
+  type        = string
+}
+
 source "azure-arm" "paw" {
   use_azure_cli_auth = true
   subscription_id    = var.SUBSCRIPTION_ID
@@ -125,31 +130,26 @@ build {
     restart_timeout = "15m"
   }
 
-  # Upload the offline package set from the BUILD HOST (the machine running
-  # packer - Erv-pc) to the build VM. SINGLE ARCHIVE, not a directory walk:
-  # WinRM uploads are chunked into hundreds of small commands with no
-  # progress output, so walking 100+ files is slow and fragile; one ~70 MB
-  # zip uploaded to the existing C:/Windows/Temp is one sequential stream.
-  # Regenerate the zip with make-packages-zip.ps1 after changing the package
-  # folder. The "Uploading ..." line is SILENT for several minutes - that
-  # is expected; do not cancel the build during it.
-  # Absolute local source path for now; the permanent home should be the
-  # repo or a network share.
-  provisioner "file" {
-    source      = "C:/zenme/dependencies/wingetrepo-packages.zip"
-    destination = "C:/Windows/Temp/packages.zip"
-  }
+  # The Winget-Repo provisioner downloads the offline package archive from
+  # Azure Blob Storage (PACKAGE_URL variable, maintained by
+  # upload-packages.ps1 into the shared .env). Bulk WinRM transfer was tried
+  # twice and hung both times - a directory walk AND a single 53 MB zip -
+  # because WinRM chunks every upload into hundreds of tiny PowerShell
+  # commands with no progress output. The blob download runs on the build VM
+  # over Azure's intra-Azure path (seconds, with progress output).
 
   # Winget-Repo: installs the private winget repository into the image as a
   # localhost-only service (Task Scheduler, AtStartup, SYSTEM, ssl=true).
-  # Installs from the uploaded package set in C:\packages - NO internet used
-  # by this provisioner. Every deployed PAW gets Python 3.12 + Winget-Repo
-  # V2.9.2 + a 10-year localhost TLS cert + a winget source pointing at the
-  # local repo. Default winget/msstore sources are removed. The service is
-  # stopped at the end of this provisioner (before sysprep) and re-starts on
-  # first boot.
+  # Installs from the blob-downloaded package set in C:\packages - the
+  # provisioner itself uses no PyPI/internet for the Winget-Repo software
+  # (pip runs with --no-index). Every deployed PAW gets Python 3.12 +
+  # Winget-Repo V2.9.2 + a 10-year localhost TLS cert + a winget source
+  # pointing at the local repo. Default winget/msstore sources are removed.
+  # The service is stopped at the end of this provisioner (before sysprep)
+  # and re-starts on first boot.
   provisioner "powershell" {
     script = "img-install-wingetrepo.ps1"
+    environment_vars = ["PACKAGE_URL=${var.PACKAGE_URL}"]
   }
 
   # Restart after the Winget-Repo install: the Python installer and pip can

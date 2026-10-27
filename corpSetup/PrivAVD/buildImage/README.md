@@ -71,23 +71,30 @@ image definition must already exist.
 
 ### Offline package set (2026-10-22)
 
-- The Winget-Repo provisioner no longer downloads anything at build time.
-  Everything it installs comes from a local package set:
-  - Source on the BUILD HOST (the machine running packer):
-    `C:\zenme\dependencies\packages` — absolute path for now; the permanent
-    home should be the repo or a network share.
-  - `make-packages-zip.ps1` packs that folder into a single archive
+- The Winget-Repo provisioner installs from a local package archive - the
+  build never touches PyPI or GitHub for Winget-Repo software:
+  - Source folder on the build host: `C:\zenme\dependencies\packages`
+    (absolute path for now; the permanent home should be the repo or a
+    share).
+  - `make-packages-zip.ps1` packs that folder into
     `C:\zenme\dependencies\wingetrepo-packages.zip` (excludes cp313/cp314
     wheels - dead weight for a CPython 3.12 image). Rerun it whenever the
     package folder changes.
-  - The Packer `file` provisioner uploads that ONE zip to
-    `C:\Windows\Temp\packages.zip`; the install provisioner extracts it to
-    `C:\packages`. A single-file WinRM upload is far more reliable than a
-    100+ file directory walk - but the "Uploading ..." line prints no
-    progress and stays silent for several minutes; do not cancel the build
-    during it.
-  - Contents: `python-3.12.10-amd64.exe`, `V2.9.2.zip`, `requirements.txt`
-    and the CPython 3.12 / win_amd64 wheelhouse (`*.whl`, 55 packages).
+  - `upload-packages.ps1` uploads the zip to Azure Blob Storage (storage
+    account `zenwingetpackages`, container `wingetrepo`), mints a
+    read-only 1-year SAS URL and writes it into the shared `.env` as
+    `TF_VAR_PACKAGE_URL`. Run once after make-packages-zip.ps1; the blob
+    only needs re-uploading when the zip changes.
+  - The build VM downloads the archive from that URL (PACKAGE_URL variable
+    -> provisioner environment var) over Azure's intra-Azure path -
+    seconds, with progress output - and extracts it to `C:\packages`.
+    Bulk WinRM transfer was abandoned after two hangs: a 68-file directory
+    walk AND a single 53 MB zip both stalled silently (WinRM chunks every
+    upload into hundreds of tiny PowerShell commands with no progress
+    output).
+  - Archive contents: `python-3.12.10-amd64.exe`, `V2.9.2.zip`,
+    `requirements.txt` and the CPython 3.12 / win_amd64 wheelhouse
+    (`*.whl`, 55 packages).
 - pip runs with `--no-index --find-links C:\packages`: a missing or
   wrong-version wheel fails the build loudly instead of silently reaching
   the internet.
@@ -107,10 +114,11 @@ image definition must already exist.
   Python/platform — resolve with uv first, then fetch exact pins with
   `--no-deps`.)
 - The build host needs NO Python for the build itself: only Packer + the az
-  CLI. The wheelhouse is frozen in the package set.
-- Still requires internet during the build: the `windows-update` provisioner
-  and the Microsoft-hosted AVD agent downloads. This change makes ONLY the
-  Winget-Repo step offline-capable.
+  CLI. The wheelhouse is frozen in the package archive.
+- Still requires network during the build: the `windows-update` provisioner,
+  the Microsoft-hosted AVD agent downloads, and the package-archive blob
+  download. The Winget-Repo SOFTWARE install itself is offline (pip
+  --no-index against the local wheelhouse).
 
 ### Existing decisions (pre-Winget-Repo)
 

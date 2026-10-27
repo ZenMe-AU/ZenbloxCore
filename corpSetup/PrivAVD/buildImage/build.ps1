@@ -19,13 +19,18 @@ $imageVersion = "$TF_VAR_IMAGE_VERSION.$([DateTimeOffset]::UtcNow.ToUnixTimeSeco
 
 # Pass the same values Terraform used to create the gallery/RG so Packer
 # publishes into the infra that actually exists, instead of its own defaults.
+if ([string]::IsNullOrWhiteSpace($TF_VAR_PACKAGE_URL)) {
+    throw "TF_VAR_PACKAGE_URL is required in .env. Run upload-packages.ps1 once to create it."
+}
+
 $packerVars = @(
     "-var", "SUBSCRIPTION_ID=$TF_VAR_SUBSCRIPTION_ID",
     "-var", "PAW_LOCATION=$targetLocation",
     "-var", "BUILD_VM_SIZE=$TF_VAR_BUILD_VM_SIZE",
     "-var", "GALLERY_RG=$TF_VAR_GALLERY_RG",
     "-var", "IMAGE_NAME=$TF_VAR_IMAGE_NAME",
-    "-var", "IMAGE_VERSION=$imageVersion"
+    "-var", "IMAGE_VERSION=$imageVersion",
+    "-var", "PACKAGE_URL=$TF_VAR_PACKAGE_URL"
 )
 
 Push-Location $PSScriptRoot
