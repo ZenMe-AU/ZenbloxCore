@@ -43,7 +43,7 @@ try {
 
     packer inspect $packerTemplate
     packer build @packerVars $packerTemplate
-    if ($LASTEXITCODE -ne 0) { throw "packer build FAILED with exit code $LASTEXITCODE. The image was NOT published to the gallery. Check the Packer output above; a common cause on this tenant is an expired az login (run the az login command with --claims-challenge that the error prints, then rerun)." }
+    if ($LASTEXITCODE -ne 0) { throw "packer build FAILED with exit code $LASTEXITCODE. The image was NOT published to the gallery. Check the Packer output above: if the error is a dial/connect timeout (connectex / connection attempt failed), it is a transient network blip between this PC and the Azure build VM - just rerun the build. If the errors are auth-related (token does not exist / claims challenge), run az login again first, then rerun." }
 }
 finally {
     Pop-Location
