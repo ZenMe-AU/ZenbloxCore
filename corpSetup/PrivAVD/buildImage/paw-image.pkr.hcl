@@ -67,13 +67,10 @@ source "azure-arm" "paw" {
   image_sku       = "win11-24h2-avd"
   image_version   = "latest"
 
-  # Trusted Launch: the build VM must be a Gen2 Trusted Launch VM so the
-  # captured image is TL-capable; session hosts then boot with Secure Boot
-  # and vTPM enforced (session_hosts.tf). Secure Boot/vTPM flags are only
-  # accepted when publishing directly to a Shared Image Gallery.
   security_type       = "TrustedLaunch"
   secure_boot_enabled = true
-  vtpm_enabled        = true
+  # Keep vTPM disabled so that bitlocker is not enabled, so that sysprep can run. Otherwise sysprep will freeze.
+  vtpm_enabled        = false 
 
   communicator   = "winrm"
   winrm_use_ssl  = true
@@ -114,17 +111,18 @@ build {
     script = "img-harden-paw.ps1"
   }
 
-  provisioner "windows-update" {
-    search_criteria = "IsInstalled=0"
-    filters = [
-      "exclude:$_.Title -like '*Preview*'",
-      # NB KB5007651 (Windows Security platform) can only be applied while a
-      #    user is logged in, so it never completes in a Packer WinRM session
-      #    and would loop the provisioner forever (documented upstream).
-      "exclude:$_.Title -like '*KB5007651*'",
-      "include:$true"
-    ]
-  }
+  # Enable Windows Update for production usage
+  # provisioner "windows-update" {
+  #   search_criteria = "IsInstalled=0"
+  #   filters = [
+  #     "exclude:$_.Title -like '*Preview*'",
+  #     # NB KB5007651 (Windows Security platform) can only be applied while a
+  #     #    user is logged in, so it never completes in a Packer WinRM session
+  #     #    and would loop the provisioner forever (documented upstream).
+  #     "exclude:$_.Title -like '*KB5007651*'",
+  #     "include:$true"
+  #   ]
+  # }
 
   provisioner "windows-restart" {
     restart_timeout = "15m"

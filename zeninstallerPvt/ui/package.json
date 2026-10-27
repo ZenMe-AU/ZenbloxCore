@@ -13,8 +13,8 @@
     "docs:preview": "vitepress preview docs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:pw": "playwright test",
-    "test:pw:coverage": "playwright test",
+    "test:pw": "playwright test --config ../../playwright.config.ts",
+    "test:pw:coverage": "playwright test --config ../../playwright.config.ts",
     "backend:dev": "pnpm --filter backend start",
     "backend:deploy": "pnpm --filter backend run build"
   },
