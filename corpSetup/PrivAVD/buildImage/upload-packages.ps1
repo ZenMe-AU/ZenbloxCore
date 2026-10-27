@@ -91,8 +91,18 @@ $url = "https://$accountName.blob.core.windows.net/$container/${blobName}?$sas"
 Write-Host ">> Verifying the SAS URL (HTTP HEAD)"
 try {
     $probe = Invoke-WebRequest -Uri $url -Method Head -UseBasicParsing -TimeoutSec 60
-    $blobBytes = [double]$probe.Headers.'Content-Length'
-    Write-Host ("   HTTP {0} - URL verified, blob is {1:N1} MB" -f $probe.StatusCode, ($blobBytes / 1MB))
+    # Content-Length arrives as a string[] array - index out the scalar and
+    # parse defensively. Never cast the header array directly: in pwsh 7
+    # [double]$Headers.'Content-Length' throws "Cannot convert
+    # System.String[]" and would abort the whole upload here (the size
+    # display must never be able to fail the pipeline).
+    $sizeNote = ''
+    $rawLen = @($probe.Headers.'Content-Length')[0]
+    if ($rawLen) {
+        $len = 0.0
+        if ([double]::TryParse("$rawLen", [ref]$len)) { $sizeNote = ", blob is {0:N1} MB" -f ($len / 1MB) }
+    }
+    Write-Host ("   HTTP {0} - URL verified{1}" -f $probe.StatusCode, $sizeNote)
 } catch {
     throw "SAS URL verification FAILED - the URL written to .env would not download: $_"
 }
