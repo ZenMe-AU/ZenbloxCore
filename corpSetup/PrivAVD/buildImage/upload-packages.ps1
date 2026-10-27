@@ -40,7 +40,7 @@ Get-Content (Join-Path $PSScriptRoot "..\.env") | ForEach-Object {
 $accountName    = "zenwingetpackages"   # globally unique, lowercase, no hyphens
 $container      = "wingetrepo"
 $blobName       = "wingetrepo-packages.zip"
-$zipPath        = "C:\zenme\dependencies\wingetrepo-packages.zip"
+$zipPath        = Join-Path $env:TEMP 'wingetrepo-packages.zip'
 $resourceGroup  = $TF_VAR_GALLERY_RG
 $location       = $TF_VAR_PAW_LOCATION
 

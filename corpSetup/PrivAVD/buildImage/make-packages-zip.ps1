@@ -1,8 +1,10 @@
 # Packs the offline package set for the PAW golden-image build into a single
-# archive that the Packer "file" provisioner uploads to the build VM.
+# archive. Source of truth: corpSetup/WingetRepo/dependencies in this repo
+# (on GitHub). The zip is a regenerable build artifact, so it is written to
+# the user TEMP folder, NOT committed to the repo.
 #
 # Run this on the BUILD HOST (the machine that runs packer) whenever the
-# contents of the package folder change:
+# contents of corpSetup/WingetRepo/dependencies change:
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File make-packages-zip.ps1
 #
@@ -12,10 +14,10 @@
 
 $ErrorActionPreference = 'Stop'
 
-$src = 'C:\zenme\dependencies\packages'
-$dst = 'C:\zenme\dependencies\wingetrepo-packages.zip'
-
-if (-not (Test-Path $src)) { throw "Package folder not found: $src" }
+$src = Join-Path $PSScriptRoot '..\..\WingetRepo\dependencies'
+if (-not (Test-Path $src)) { throw "Package folder not found: $src (expected corpSetup/WingetRepo/dependencies in this repo)" }
+$src = (Resolve-Path $src).Path
+$dst = Join-Path $env:TEMP 'wingetrepo-packages.zip'
 
 $total = @(Get-ChildItem $src -File)
 $totalSize = ($total | Measure-Object -Property Length -Sum).Sum / 1MB
@@ -35,5 +37,5 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $z = [System.IO.Compression.ZipFile]::OpenRead($dst)
 try { $entryCount = $z.Entries.Count } finally { $z.Dispose() }
 Write-Host ("Created {0}: {1:N1} MB, {2} entries" -f $dst, $zipSize, $entryCount)
-Write-Host 'Upload expectation: the Packer "Uploading ..." line is SILENT and'
-Write-Host 'takes several minutes for this archive. Do not cancel the build.'
+Write-Host 'Next: upload-packages.ps1 (creates the storage account if missing,'
+Write-Host 'uploads the zip and writes TF_VAR_PACKAGE_URL into the shared .env).'
