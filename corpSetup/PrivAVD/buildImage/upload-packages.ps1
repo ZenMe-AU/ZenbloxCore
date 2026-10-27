@@ -15,8 +15,19 @@
 # a 68-file directory walk AND a single 53 MB zip. The build VM now
 # downloads the archive from Azure Storage over the intra-Azure path
 # (seconds, with progress output in the install provisioner) instead.
+#
+# Auth notes: ALL data-plane calls (container/blob) use the storage ACCOUNT
+# KEY, not --auth-mode login. The storage data-plane OAuth token is a
+# separate credential from the ARM token and its WAM cache entry goes stale
+# constantly on this box (ARM works while --auth-mode login dies with
+# "token that does not exist"). The key is fetched via the ARM plane, which
+# works with the ordinary az login.
 
-$ErrorActionPreference = "Stop"
+# Continue (not Stop): with ErrorActionPreference=Stop, PowerShell 5.1 over
+# SSH wraps native stderr (az error text) into a terminating
+# NativeCommandError before our explicit $LASTEXITCODE checks can run.
+# Every az call below is checked via $LASTEXITCODE with a named error.
+$ErrorActionPreference = "Continue"
 $ProgressPreference = "SilentlyContinue"
 
 # Load KEY=VALUE pairs from the shared PrivAVD .env (same parser as build.ps1).
@@ -44,23 +55,29 @@ Write-Host ">> Ensuring storage account $accountName in $resourceGroup ($locatio
 az storage account create --name $accountName --resource-group $resourceGroup --location $location --sku Standard_LRS --kind StorageV2 --only-show-errors
 if ($LASTEXITCODE -ne 0) { throw "az storage account create failed. Is az logged in with an active PIM role? (az login --tenant 15fb0613-7977-4551-801b-6aadac824241)" }
 
+Write-Host ">> Getting storage account key"
+$key = az storage account keys list --account-name $accountName --resource-group $resourceGroup --query "[0].value" --output tsv
+if ($LASTEXITCODE -ne 0) { throw "az storage account keys list failed" }
+
 Write-Host ">> Ensuring container $container"
-az storage container show --account-name $accountName --name $container --auth-mode login --only-show-errors *> $null
-if ($LASTEXITCODE -ne 0) {
-    az storage container create --account-name $accountName --name $container --auth-mode login --only-show-errors
+$containers = az storage container list --account-name $accountName --account-key $key --query "[].name" --output tsv
+if ($LASTEXITCODE -ne 0) { throw "az storage container list failed" }
+if (@($containers) -notcontains $container) {
+    az storage container create --account-name $accountName --account-key $key --name $container
     if ($LASTEXITCODE -ne 0) { throw "az storage container create failed" }
+    Write-Host "   Container created: $container"
+} else {
+    Write-Host "   Container already exists: $container"
 }
 
 Write-Host ">> Uploading $zipPath"
 $zipMb = [math]::Round((Get-Item $zipPath).Length / 1MB, 1)
 $uploadStart = Get-Date
-az storage blob upload --account-name $accountName --auth-mode login --container-name $container --name $blobName --file $zipPath --overwrite --only-show-errors
+az storage blob upload --account-name $accountName --account-key $key --container-name $container --name $blobName --file $zipPath --overwrite
 if ($LASTEXITCODE -ne 0) { throw "az storage blob upload failed" }
 Write-Host ("   Uploaded {0} MB in {1}s" -f $zipMb, [int]((Get-Date) - $uploadStart).TotalSeconds)
 
 Write-Host ">> Minting read-only SAS URL (valid 1 year, HTTPS only)"
-$key = az storage account keys list --account-name $accountName --resource-group $resourceGroup --query "[0].value" --output tsv
-if ($LASTEXITCODE -ne 0) { throw "az storage account keys list failed" }
 $expiry = (Get-Date).ToUniversalTime().AddYears(1).ToString("yyyy-MM-dd")
 $sas = az storage blob generate-sas --account-name $accountName --account-key $key --container-name $container --name $blobName --permissions r --expiry $expiry --https-only --output tsv
 if ($LASTEXITCODE -ne 0) { throw "az storage blob generate-sas failed" }
