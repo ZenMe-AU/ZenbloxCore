@@ -47,8 +47,19 @@ function Write-Step([string]$message) {
 }
 
 # --- 0. Fetch and extract the offline package set (Azure blob download) ---
+# Content-validated idempotency: the KEY FILE (python installer) must be
+# present, not just the directory. An empty or partial C:\packages - however
+# it appeared - triggers a fresh download+extract instead of skipping
+# provisioning and failing later with a confusing error (observed
+# 2026-10-27: directory existed on a fresh build VM with no installer in it).
 Write-Step "Offline package source: $packageDir"
-if (-not (Test-Path $packageDir)) {
+$packageSetMarker = Join-Path $packageDir 'python-3.12.10-amd64.exe'
+if (-not (Test-Path $packageSetMarker)) {
+    if (Test-Path $packageDir) {
+        $existing = @(Get-ChildItem $packageDir -File -ErrorAction SilentlyContinue)
+        $existingNames = ($existing | Select-Object -First 5 -ExpandProperty Name) -join ', '
+        Write-Host "  Package directory exists but is INCOMPLETE ($($existing.Count) files: $existingNames) - re-provisioning"
+    }
     if (-not (Test-Path $packageZip)) {
         Write-Step 'Downloading package archive (Azure blob, intra-Azure path)'
         if (-not $env:PACKAGE_URL) {
@@ -61,10 +72,10 @@ if (-not (Test-Path $packageDir)) {
     }
     Write-Step "Extracting $packageZip -> $packageDir"
     Expand-Archive -Path $packageZip -DestinationPath $packageDir -Force
-    if (-not (Test-Path $packageDir)) { throw "Extraction to $packageDir failed" }
+    if (-not (Test-Path $packageSetMarker)) { throw "Extraction to $packageDir failed (installer still missing after extract)" }
     Write-Host "  Extracted $(@(Get-ChildItem $packageDir -File).Count) files"
 } else {
-    Write-Host '  Package directory already present (idempotent re-run)'
+    Write-Host '  Package set verified (python installer present - idempotent re-run)'
 }
 
 # --- 1. Install Python 3.12 (all users, on PATH) ---
