@@ -18,7 +18,7 @@ Create a `terraform.tfvars` file locally or pass these values through a secure
 variable mechanism. Do not commit credentials or the registration token.
 
 ```powershell
-terraform init
+terraform init @(& ..\tfBackend.ps1 -Key privavd-paw.tfstate)
 terraform validate
 terraform plan -out avd.tfplan
 terraform apply avd.tfplan

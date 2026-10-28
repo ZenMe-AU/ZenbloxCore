@@ -88,7 +88,8 @@ image definition must already exist.
     wheels - dead weight for a CPython 3.12 image). Rerun it whenever the
     package folder changes.
   - `upload-packages.ps1` uploads the zip to Azure Blob Storage (storage
-    account `zenwingetpackages`, container `wingetrepo`), mints a
+    account `pawpkg<hash>` derived from the subscription + gallery RG,
+    container `wingetrepo`), mints a
     read-only 1-year SAS URL and writes it into the shared `.env` as
     `TF_VAR_PACKAGE_URL`. Run once after make-packages-zip.ps1; the blob
     only needs re-uploading when the zip changes.

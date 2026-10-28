@@ -37,26 +37,28 @@ Get-Content (Join-Path $PSScriptRoot "..\.env") | ForEach-Object {
     }
 }
 
-$accountName    = "zenwingetpackages"   # globally unique, lowercase, no hyphens
+$subscription   = $TF_VAR_SUBSCRIPTION_ID
 $container      = "wingetrepo"
 $blobName       = "wingetrepo-packages.zip"
-$zipPath        = Join-Path $env:TEMP 'wingetrepo-packages.zip'
+$zipPath        = Join-Path ([IO.Path]::GetTempPath()) 'wingetrepo-packages.zip'
 $resourceGroup  = $TF_VAR_GALLERY_RG
 $location       = $TF_VAR_PAW_LOCATION
 
-if ([string]::IsNullOrWhiteSpace($resourceGroup) -or [string]::IsNullOrWhiteSpace($location)) {
-    throw "TF_VAR_GALLERY_RG / TF_VAR_PAW_LOCATION missing in .env"
+if ([string]::IsNullOrWhiteSpace($subscription) -or [string]::IsNullOrWhiteSpace($resourceGroup) -or [string]::IsNullOrWhiteSpace($location)) {
+    throw "TF_VAR_SUBSCRIPTION_ID / TF_VAR_GALLERY_RG / TF_VAR_PAW_LOCATION missing in .env"
 }
+$hashBytes   = [System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes("$subscription/$resourceGroup"))
+$accountName = "pawpkg" + (-join ($hashBytes | ForEach-Object { $_.ToString('x2') })).Substring(0, 18)
 if (-not (Test-Path $zipPath)) {
     throw "Archive not found: $zipPath. Run make-packages-zip.ps1 first."
 }
 
 Write-Host ">> Ensuring storage account $accountName in $resourceGroup ($location)"
-az storage account create --name $accountName --resource-group $resourceGroup --location $location --sku Standard_LRS --kind StorageV2 --only-show-errors
+az storage account create --subscription $subscription --name $accountName --resource-group $resourceGroup --location $location --sku Standard_LRS --kind StorageV2 --only-show-errors
 if ($LASTEXITCODE -ne 0) { throw "az storage account create failed. Is az logged in with an active PIM role? (az login --tenant 15fb0613-7977-4551-801b-6aadac824241)" }
 
 Write-Host ">> Getting storage account key"
-$key = az storage account keys list --account-name $accountName --resource-group $resourceGroup --query "[0].value" --output tsv
+$key = az storage account keys list --subscription $subscription --account-name $accountName --resource-group $resourceGroup --query "[0].value" --output tsv
 if ($LASTEXITCODE -ne 0) { throw "az storage account keys list failed" }
 
 Write-Host ">> Ensuring container $container"

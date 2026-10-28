@@ -17,7 +17,7 @@ $ErrorActionPreference = 'Stop'
 $src = Join-Path $PSScriptRoot '..\..\WingetRepo\dependencies'
 if (-not (Test-Path $src)) { throw "Package folder not found: $src (expected corpSetup/WingetRepo/dependencies in this repo)" }
 $src = (Resolve-Path $src).Path
-$dst = Join-Path $env:TEMP 'wingetrepo-packages.zip'
+$dst = Join-Path ([IO.Path]::GetTempPath()) 'wingetrepo-packages.zip'
 
 $total = @(Get-ChildItem $src -File)
 $totalSize = ($total | Measure-Object -Property Length -Sum).Sum / 1MB

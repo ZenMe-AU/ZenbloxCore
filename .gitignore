@@ -39,7 +39,7 @@ zeninstallerPvt/ui/pwtests/test-results/
 
 # Terraform files
 *.tfstate
-terraform.tfstate.backup
+*.tfstate.*
 .terraform.*
 .terraform/
 *.tfplan

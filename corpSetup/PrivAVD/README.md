@@ -10,7 +10,8 @@ identity, networking, image, persistence, or recovery design.
 
 - Sign in with Azure CLI using `az login`.
 - Install Terraform and Packer.
-- Copy `.env.example` to `.env` and review every value.
+- Copy `.env.example` to `.env` and review every value, including the
+  `TF_STATE_*` remote state settings.
 - Ensure the signed-in identity can manage the subscription and required Entra groups.
 
 ## Deploy
@@ -72,18 +73,45 @@ The importer can resume partial state and ignores discovered resources that are
 not declared by the current Terraform configuration. Ambiguous Entra groups are
 not imported automatically.
 
-## Delete local Terraform state
+## Terraform state
+
+State is remote, in the storage account from `TF_STATE_*` (see
+`tfBackend.ps1`), so runs from different machines and GitHub runners share it:
+
+- Gallery: blob `privavd-gallery-<TF_VAR_GALLERY_RG>.tfstate`
+- PAW: blob `privavd-paw.tfstate`, one Terraform workspace per PAW resource
+  group (stored as `privavd-paw.tfstateenv:<resource group>`)
+
+### One-time migration of existing local state
+
+If you deployed before state was remote, copy your local state up once. Run
+each command from its folder and answer `yes` when Terraform asks to copy:
+
+```powershell
+cd initImageGallery
+terraform init -migrate-state @(& ..\tfBackend.ps1 -Key "privavd-gallery-<TF_VAR_GALLERY_RG>.tfstate")
+cd ..\deployPaw
+terraform init -migrate-state @(& ..\tfBackend.ps1 -Key privavd-paw.tfstate)
+```
+
+`deployPAW.ps1` runs with `-input=false`, so it fails with "Can't ask approval
+for state migration" until this is done; do not remove that flag.
+
+Then delete the leftover local files, which still contain secrets such as the
+generated local administrator password:
 
 ```powershell
 .\deleteLocalTfState.ps1
 ```
 
-This deletes local `terraform.tfstate` and backup files beneath this folder. It
-does not delete Azure or Entra resources. It affects both gallery and PAW local
-state when those files exist.
+It does not delete Azure or Entra resources, and it does not touch the remote
+state.
 
-After deleting state, do not apply immediately against resources that still
-exist online. Choose one recovery path first:
+### Resetting state
+
+Deleting remote state does not delete online resources either. Before
+applying against resources that still exist online with empty state, choose
+one recovery path:
 
 1. Import the small set of clearly matched existing resources into empty state.
 2. Back up and verify all PAW user data, delete the affected online resource
@@ -145,7 +173,7 @@ PAW network policy.
 - Image initialization, image building, and PAW deployment are separate stages.
 - Gallery and PAW deployment state are kept separate.
 - Configuration is shared through uppercase `TF_VAR_*` values in `.env`.
-- Local state deletion never deletes online resources.
+- State is remote (`TF_STATE_*`); deleting state never deletes online resources.
 - Imports are deliberately limited and require empty state.
 - Importing too little is preferred to managing an unrelated online resource.
 - Broken online environments are removed as complete resource groups, not patched piecemeal.
