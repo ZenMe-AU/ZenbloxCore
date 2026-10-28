@@ -35,9 +35,15 @@ image definition must already exist.
 - A 10-year self-signed localhost TLS certificate is generated at build time
   and trusted in the machine Root store. Every PAW gets the same cert —
   acceptable because the service is localhost-only (no network exposure).
-- The winget client is configured with a source "WingetRepo" pointing at
-  https://localhost:5000/api/ with a baked client token for authentication.
-- Default winget sources (community "winget" and "msstore") are removed.
+- The winget client is configured for EVERY user by a logon task
+  ("WingetRepo-ClientConfig"): winget's execution alias and source settings
+  are PER-USER and do not survive sysprep (the AVD image ships App Installer
+  but the winget.exe alias is missing for new users - observed 2026-10-28),
+  so the task runs at every logon as the logging-in user: materialize the
+  execution alias, add the source "WingetRepo" -> https://localhost:5000/api/,
+  and remove the default sources (community "winget" and "msstore").
+  The client token is read from the repo database at runtime, so token
+  rotations self-heal at the next logon.
   On a born-locked PAW they are unreachable anyway; removing them avoids
   confusing error messages and enforces the approved-software-only principle.
 - The repo starts EMPTY. The PAW admin creates the first dashboard account on
@@ -45,8 +51,9 @@ image definition must already exist.
   credentials are baked into the image. Seeding the package list at build
   time is a TODO (requires the Package Store feature or direct SQLite
   writes at build time).
-- A fixed client token is baked into the database so winget can authenticate
-  immediately on first boot. The token is only usable by processes already
+- A random client token is generated per build (fdde5fb) and baked into the
+  database so winget can authenticate immediately on first boot - the value
+  never exists in the repo. The token is only usable by processes already
   running on the PAW (localhost-only service), so sharing it across PAWs is
   acceptable — an attacker on the PAW can already do anything.
 

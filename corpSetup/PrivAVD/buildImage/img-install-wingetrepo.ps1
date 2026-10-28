@@ -12,9 +12,11 @@
 #   - Python 3.12 + Winget-Repo V2.9.2 + all dependencies
 #   - A 10-year localhost TLS certificate (trusted in the machine Root store)
 #   - A Task Scheduler service (AtStartup, SYSTEM) serving https://localhost:5000
-#   - A winget source "WingetRepo" pointing at the local repo
-#   - Default winget sources (community/msstore) removed
-#   - A client token in the database so winget can authenticate
+#   - A random client token in the database (per build, never in the repo)
+#   - A per-user logon task that configures winget for EVERY user at logon:
+#     execution alias, WingetRepo source (token read from the DB), default
+#     sources removed. winget's config is PER-USER and does not survive
+#     sysprep, so it cannot be done once at build time for future users.
 #
 # The repo starts EMPTY - the PAW admin creates their account on first
 # dashboard visit (https://localhost:5000) and manages packages there.
@@ -38,8 +40,11 @@ $wingetRepoTag = 'V2.9.2'
 $packageDir = 'C:\packages'
 $packageZip = 'C:\Windows\Temp\packages.zip'
 
-# Fixed client token for the winget REST API (localhost-only, baked into every
-# PAW from this image; usable only by processes already running on the PAW).
+# Random client token for the winget REST API, generated per build (localhost-
+# only; usable only by processes already running on the PAW). The value exists
+# only in the image's Database.db - never in the repo. Client configuration
+# (configure-client.ps1, logon task) reads it from the DB at runtime, so token
+# rotations self-heal at the next logon.
 $clientToken = [guid]::NewGuid().ToString()
 
 function Write-Step([string]$message) {
@@ -238,31 +243,63 @@ if ($statusCode -notin @('200','302','303')) {
     Write-Warning "  Unexpected status $statusCode (expected 200/302/303)"
 }
 
-# --- 9. Configure winget client (add local source, remove defaults) ---
-Write-Step 'Configure winget client'
-try {
-    # Add the localhost source with the client token
-    $headerArg = "{'Token': '$clientToken'}"
-    $existing = & winget source list 2>$null | Select-String -Pattern 'WingetRepo'
-    if (-not $existing) {
-        & winget source add -n WingetRepo -t Microsoft.Rest -a https://localhost:5000/api/ --header $headerArg --accept-source-agreements 2>$null
-        Write-Host '  winget source added: WingetRepo -> https://localhost:5000/api/'
-    } else {
-        Write-Host '  winget source already exists'
-    }
+# --- 9. Per-user winget client configuration (logon task) ---
+# winget's execution alias AND source configuration are PER-USER and do not
+# survive sysprep: the AVD marketplace image ships App Installer but the
+# winget.exe execution alias is missing for new users (observed 2026-10-28),
+# and per-user source settings made at build time are wiped by generalize.
+# So instead of configuring here (as the build user), stage a script and
+# register a task that runs it at EVERY user logon AS THAT USER.
+Write-Step 'Configure per-user winget client (logon task)'
+New-Item -ItemType Directory -Force -Path 'C:\ProgramData\PAW\WingetRepo' | Out-Null
+$clientConfig = @'
+# Runs at every user logon as that user (Task: WingetRepo-ClientConfig,
+# staged by img-install-wingetrepo.ps1). Idempotent - safe on every logon:
+#   1. materialize the winget.exe execution alias (missing on sysprepped
+#      AVD images for new users - re-register App Installer for this user)
+#   2. read the client token from the repo database (baked at image build)
+#   3. point winget at the localhost repo with that token and remove the
+#      unreachable default sources
+$ErrorActionPreference = 'Continue'
+$repoDir = 'C:\Winget-Repo'
+$pythonExe = 'C:\Program Files\Python312\python.exe'
+$dbPath = Join-Path $repoDir 'Modules\Database\Database.db'
 
-    # Remove default sources (born-locked PAW cannot reach them anyway)
-    foreach ($srcName in @('winget', 'msstore')) {
-        $has = & winget source list 2>$null | Select-String -Pattern $srcName
-        if ($has) {
-            & winget source remove --name $srcName 2>$null
-            Write-Host "  removed default source: $srcName"
-        }
+# 1. execution alias
+if (-not (Test-Path "$env:LOCALAPPDATA\Microsoft\WindowsApps\winget.exe")) {
+    $pkg = Get-AppxPackage -Name Microsoft.DesktopAppInstaller -ErrorAction SilentlyContinue
+    if ($pkg) {
+        try { Add-AppxPackage -DisableDevelopmentMode -Register "$($pkg.InstallLocation)\AppxManifest.xml" -ErrorAction Stop } catch { }
     }
-} catch {
-    Write-Warning "winget CLI configuration skipped: $_"
-    Write-Warning 'The PAW admin can configure the source manually after first boot.'
 }
+
+# 2. token from the database (python is baked into the image)
+# SQL is deliberately quote-free (numeric WHERE + rowid ordering) so no
+# nested-quote escaping is needed across python/PowerShell layers. rowid
+# ordering makes the build-baked WingetClient row win even if the admin
+# adds more client rows via the dashboard later.
+$token = ''
+if ((Test-Path $pythonExe) -and (Test-Path $dbPath)) {
+    $token = & $pythonExe -c "import sqlite3; print(sqlite3.connect(r'$dbPath').execute('SELECT TOKEN FROM tbl_CLIENTS WHERE ENABLED=1 ORDER BY rowid LIMIT 1').fetchone()[0])"
+}
+
+# 3. sources: remove + re-add (idempotent AND always carries the current token)
+foreach ($srcName in @('WingetRepo', 'winget', 'msstore')) {
+    $has = & winget source list 2>$null | Select-String -SimpleMatch $srcName
+    if ($has) { & winget source remove --name $srcName 2>$null }
+}
+if ($token) {
+    & winget source add -n WingetRepo -t Microsoft.Rest -a https://localhost:5000/api/ --header "{'Token': '$token'}" --accept-source-agreements 2>$null
+}
+'@
+$clientConfig | Set-Content -Path 'C:\ProgramData\PAW\WingetRepo\configure-client.ps1' -Encoding ASCII
+$ccAction = New-ScheduledTaskAction -Execute 'powershell.exe' `
+    -Argument '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\ProgramData\PAW\WingetRepo\configure-client.ps1'
+$ccTrigger = New-ScheduledTaskTrigger -AtLogOn
+$ccPrincipal = New-ScheduledTaskPrincipal -GroupId 'BUILTIN\Users' -RunLevel Limited
+Register-ScheduledTask -TaskName 'WingetRepo-ClientConfig' `
+    -Action $ccAction -Trigger $ccTrigger -Principal $ccPrincipal -Force | Out-Null
+Write-Host '  task registered: WingetRepo-ClientConfig (runs at every user logon)'
 
 # --- 10. Stop service (before sysprep) ---
 Write-Step 'Stop service for sysprep'
@@ -280,7 +317,6 @@ Write-Host 'WINGET-REPO GOLDEN IMAGE INSTALLATION COMPLETE' -ForegroundColor Gre
 Write-Host "  Package source: $packageDir (offline wheelhouse - no PyPI used)"
 Write-Host "  Service: Task Scheduler 'WingetRepo' (AtStartup, SYSTEM, localhost-only)"
 Write-Host "  Endpoint: https://localhost:5000/ (first dashboard visit = create admin)"
-Write-Host "  winget source: WingetRepo -> https://localhost:5000/api/"
-Write-Host "  Client token: baked (winget can authenticate immediately)"
-Write-Host "  Default sources: removed (winget + msstore)"
+Write-Host "  winget client: per-user task 'WingetRepo-ClientConfig' (alias + source at every logon)"
+Write-Host "  Client token: random per build, in DB only (clients read it at runtime)"
 Write-Host "  Cert: 10-year localhost, trusted in Root store"

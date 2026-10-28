@@ -7,7 +7,7 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File upload-packages.ps1
 #
 # Requires: az CLI logged in
-#   az login --tenant "15fb0613-7977-4551-801b-6aadac824241"
+#   az login --tenant "x5fb0613-7977-455x-80xb-6aadac82424x"
 # and an active PIM role with Contributor/Owner on the gallery resource
 # group (same activation needed for builds).
 #
