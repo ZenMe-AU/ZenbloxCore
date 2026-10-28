@@ -40,7 +40,7 @@ $packageZip = 'C:\Windows\Temp\packages.zip'
 
 # Fixed client token for the winget REST API (localhost-only, baked into every
 # PAW from this image; usable only by processes already running on the PAW).
-$clientToken = '9f8e7d6c-5b4a-3c2d-1e0f-9a8b7c6d5e4f'
+$clientToken = [guid]::NewGuid().ToString()
 
 function Write-Step([string]$message) {
     Write-Host ">> $message" -ForegroundColor Cyan
@@ -109,8 +109,8 @@ if ($LASTEXITCODE -ne 0) {
     throw "pip install failed from offline wheelhouse ($packageDir). Check that the wheels match CPython 3.12 / win_amd64 (cp312 or abi3 tags, not cp313/cp314)."
 }
 
-# --- 4. Generate localhost TLS certificate (10-year) ---
-Write-Step 'Generate TLS certificate'
+# --- 4. Generate self-signed localhost TLS certificate (10-year) ---
+Write-Step 'Generate self-signed TLS certificate'
 $sslDir = "$repoDir\Config\SSL"
 if (-not (Test-Path "$sslDir\cert.pem")) {
     New-Item -ItemType Directory -Force -Path $sslDir | Out-Null
