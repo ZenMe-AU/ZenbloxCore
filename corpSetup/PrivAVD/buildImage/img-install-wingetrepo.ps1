@@ -202,12 +202,36 @@ conn.close()
 }
 
 # --- 8. Start service for smoke test ---
+# The AtStartup task is for production (every boot of every deployed PAW).
+# For the smoke test we launch main.py DIRECTLY with stdout/stderr redirected
+# so a startup crash leaves a traceback in the build log instead of failing
+# silently. Cold start can take 20-60s+ on a throttled B4ms (heavy imports:
+# flask, fastapi, pydantic, cryptography) - poll instead of a fixed sleep.
 Write-Step 'Smoke test'
-Start-ScheduledTask -TaskName 'WingetRepo'
-Start-Sleep -Seconds 15
-$listen = ($null -ne (Get-NetTCPConnection -LocalPort 5000 -State Listen -ErrorAction SilentlyContinue))
-Write-Host "  Listening on port 5000: $listen"
-if (-not $listen) { throw 'WingetRepo service did not start listening on port 5000' }
+$smokeErr = "$env:TEMP\wingetrepo-smoke.err.log"
+$smokeOut = "$env:TEMP\wingetrepo-smoke.out.log"
+Start-Process -FilePath $pythonExe -ArgumentList "$repoDir\main.py", '/ssl=true' `
+    -WorkingDirectory $repoDir -WindowStyle Hidden `
+    -RedirectStandardError $smokeErr -RedirectStandardOutput $smokeOut
+$listen = $false
+foreach ($i in 1..24) {                # poll up to 120 seconds
+    Start-Sleep -Seconds 5
+    if ($null -ne (Get-NetTCPConnection -LocalPort 5000 -State Listen -ErrorAction SilentlyContinue)) {
+        $listen = $true
+        Write-Host ("  Listening on port 5000 (after {0}s)" -f ($i * 5))
+        break
+    }
+}
+if (-not $listen) {
+    Write-Host '  --- smoke test diagnostics ---'
+    Write-Host ("  python processes running: {0}" -f @(Get-Process python* -ErrorAction SilentlyContinue).Count)
+    Write-Host ("  Task Scheduler task state: {0}" -f (Get-ScheduledTask -TaskName 'WingetRepo' -ErrorAction SilentlyContinue).State)
+    if (Test-Path $smokeErr) {
+        Write-Host '  --- main.py stderr (tail) ---'
+        Get-Content $smokeErr -Tail 30 | ForEach-Object { Write-Host "    $_" }
+    }
+    throw 'WingetRepo did not start listening on port 5000 within 120s - see diagnostics above.'
+}
 $statusCode = & curl.exe -k -s -o NUL -w '%{http_code}' 'https://localhost:5000/'
 Write-Host "  HTTPS localhost:5000 status: $statusCode"
 if ($statusCode -notin @('200','302','303')) {
