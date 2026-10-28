@@ -15,9 +15,8 @@ packer {
 }
 
 variable "SUBSCRIPTION_ID" {
-  description = "Azure subscription used for the image build"
+  description = "Azure subscription used for the image build (TF_VAR_SUBSCRIPTION_ID in the shared .env; build.ps1 passes it)"
   type        = string
-  default     = "51d0ca21-eaa5-4d34-aeb3-fa9f7d454b5d"
 }
 
 variable "PAW_LOCATION" {

@@ -39,7 +39,9 @@ zeninstallerPvt/ui/pwtests/test-results/
 
 # Terraform files
 *.tfstate
+*.tfstate.*
 terraform.tfstate.backup
+terraform.tfstate.d/
 .terraform.*
 .terraform/
 *.tfplan

@@ -241,6 +241,32 @@ try {
         if ($LASTEXITCODE -ne 0) {
             throw "terraform apply failed with exit code $LASTEXITCODE."
         }
+
+        # --- Credentials tail: write the local-admin password to a local
+        # file, never stdout (deploy logs get pasted into chats and CI
+        # pipelines). Terraform keeps the value in this workspace's state;
+        # the file is the human-readable copy. Print only the path.
+        try {
+            $rawState = terraform state pull | Out-String
+            $state = $rawState | ConvertFrom-Json
+            $pwAttrs = ($state.resources | Where-Object { $_.type -eq 'random_password' -and $_.name -like 'local_administrator*' }).instances[0].attributes
+            $vmAttrs = ($state.resources | Where-Object { $_.type -eq 'azurerm_windows_virtual_machine' }).instances[0].attributes
+            $credsDir = Join-Path $env:USERPROFILE 'hermes_scratch'
+            New-Item -ItemType Directory -Force -Path $credsDir | Out-Null
+            $credsPath = Join-Path $credsDir "$hostPoolName-admin-creds.txt"
+            @(
+                "PAW session host local administrator (workspace $targetResourceGroup):",
+                "username: $($vmAttrs.admin_username)",
+                "password: $($pwAttrs.result)"
+            ) | Set-Content -Path $credsPath -Encoding ASCII
+            Write-Host ""
+            Write-Host "DEPLOY COMPLETE" -ForegroundColor Green
+            Write-Host "  Local admin credentials: $credsPath"
+            Write-Host "  username: $($vmAttrs.admin_username) (password is in the file, not printed here)"
+        } catch {
+            Write-Host "WARNING: deploy applied, but the credentials tail failed - $($_.Exception.Message)"
+            Write-Host "The password is in the workspace terraform state (terraform state pull)."
+        }
     }
 }
 finally {

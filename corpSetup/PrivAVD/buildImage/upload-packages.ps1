@@ -7,7 +7,7 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File upload-packages.ps1
 #
 # Requires: az CLI logged in
-#   az login --tenant "x5fb0613-7977-455x-80xb-6aadac82424x"
+#   az login --tenant "<TF_VAR_TENANT_ID from the shared .env>"
 # and an active PIM role with Contributor/Owner on the gallery resource
 # group (same activation needed for builds).
 #
@@ -47,13 +47,26 @@ $location       = $TF_VAR_PAW_LOCATION
 if ([string]::IsNullOrWhiteSpace($resourceGroup) -or [string]::IsNullOrWhiteSpace($location)) {
     throw "TF_VAR_GALLERY_RG / TF_VAR_PAW_LOCATION missing in .env"
 }
+
+# Guard: the az CLI on this box drifts between tenants across sessions;
+# an operation against the wrong tenant reads as "resources missing" or
+# fails with confusing auth errors. Fail loudly and name the tenant here.
+if (-not [string]::IsNullOrWhiteSpace($TF_VAR_TENANT_ID)) {
+    $activeTenant = az account show --query tenantId --output tsv
+    if ($LASTEXITCODE -ne 0) {
+        throw "az CLI is not logged in. Run: az login --tenant $TF_VAR_TENANT_ID"
+    }
+    if ("$activeTenant".Trim() -ne "$TF_VAR_TENANT_ID") {
+        throw "az CLI is logged into tenant $activeTenant but .env expects $TF_VAR_TENANT_ID. Run: az login --tenant $TF_VAR_TENANT_ID"
+    }
+}
 if (-not (Test-Path $zipPath)) {
     throw "Archive not found: $zipPath. Run make-packages-zip.ps1 first."
 }
 
 Write-Host ">> Ensuring storage account $accountName in $resourceGroup ($location)"
 az storage account create --name $accountName --resource-group $resourceGroup --location $location --sku Standard_LRS --kind StorageV2 --only-show-errors
-if ($LASTEXITCODE -ne 0) { throw "az storage account create failed. Is az logged in with an active PIM role? (az login --tenant 15fb0613-7977-4551-801b-6aadac824241)" }
+if ($LASTEXITCODE -ne 0) { throw ("az storage account create failed. Is az logged in with an active PIM role? (az login --tenant {0})" -f $TF_VAR_TENANT_ID) }
 
 Write-Host ">> Getting storage account key"
 $key = az storage account keys list --account-name $accountName --resource-group $resourceGroup --query "[0].value" --output tsv
