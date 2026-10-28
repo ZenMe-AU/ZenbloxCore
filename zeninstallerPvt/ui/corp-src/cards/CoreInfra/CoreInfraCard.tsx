@@ -43,11 +43,11 @@ type Props = {
 function Intro({ containerName }: { containerName: string }) {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
-      <Box component="code" sx={{ typography: "technical" }}>
+      Creates the root Azure resources, including the resource group, Log Analytics, Application Insights, and private storage account; Terraform uses the{" "}
+      <Box component="code" sx={{ typography: "body1" }}>
         {containerName}
       </Box>{" "}
-      container Terraform uses for state, granting GitHub Actions access to it.
+      container for state, and GitHub Actions can access it.
     </Typography>
   );
 }

@@ -33,7 +33,9 @@ test("Empty and malformed emails cannot open signup", async ({ page, context }, 
       form.dataset.submissions = String(Number(form.dataset.submissions) + 1);
     });
   });
-  await card.getByRole("button", { name: "Continue to GitHub signup", exact: true }).click();
+  const continueButton = card.getByRole("button", { name: "Continue to GitHub signup", exact: true });
+  await expect(continueButton).toHaveCSS("align-self", "flex-start");
+  await continueButton.click();
   expect(await email.evaluate((input: HTMLInputElement) => input.validity.valueMissing)).toBe(true);
   await email.fill("not-an-email");
   await email.press("Enter");
@@ -48,7 +50,10 @@ test("Existing users can go straight to login without saving an email", async ({
   const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
   const card = await expandGithubSignupCard(page);
   await card.getByRole("textbox", { name: "Email address" }).fill(signupEmail);
-  await card.getByRole("button", { name: "Already have an account? Sign in to GitHub", exact: true }).click();
+  const signInLink = card.getByRole("button", { name: "Already have an account? Sign in to GitHub", exact: true });
+  await expect(signInLink).toHaveCSS("font-size", "16px");
+  await expect(signInLink).toHaveCSS("text-decoration-line", "none");
+  await signInLink.click();
   const login = page.locator("#card-github_login");
   await expect(login.getByText(/Connect your GitHub account so ZenInstaller/)).toBeVisible();
   await page.reload();

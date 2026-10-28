@@ -35,9 +35,10 @@ type Props = {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Create a Microsoft Entra app registration for GitHub Actions. ZenInstaller configures GitHub OIDC trust for the selected environment, so workflows can sign
-      in without a stored client secret, and grants the app Reader access to the selected Azure subscription for Terraform plans. The app ID is saved to that
-      environment. This does not grant deployment permissions; deployments are applied separately through the remote-terminal flow.
+      Create a Microsoft Entra app registration for GitHub Actions. ZenInstaller configures GitHub OIDC trust for the selected environment using an immutable
+      subject (with numeric GitHub organization and repository IDs), so workflows can sign in without a stored client secret. The app receives Reader access to
+      the selected Azure subscription for Terraform plans, and the same app ID is saved to both client ID variables in that GitHub environment. This does not
+      grant deployment permissions; deployments are applied separately through the remote terminal flow.
     </Typography>
   );
 }

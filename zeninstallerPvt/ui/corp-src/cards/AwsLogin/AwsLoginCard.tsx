@@ -26,13 +26,13 @@ type Props = {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Sign in with your AWS access key in this browser. We never send your long-term AWS access key or secret key to our servers; only short-term AWS session
+      Sign in with your AWS access key in this browser. We never send your long lived AWS access key or secret key to our servers; only temporary AWS session
       credentials are kept in this tab until they expire.
       <>
         <br />
         You will need to copy the credentials from AWS after&nbsp;
         <ExternalLink href={CLOUD_DOCS.aws.bootstrapCredentials} label="AWS setup guide">
-          following the AWS set-up guide
+          following the AWS setup guide
           <OpenInNewIcon aria-hidden="true" sx={{ typography: "caption" }} />
         </ExternalLink>
         <br />
@@ -92,7 +92,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
           <>
             <Box>
               <Typography variant="body2" color="text.muted" sx={{ mb: 1.5, lineHeight: 1.6 }}>
-                Use an IAM user allowed to create identity providers and roles. Generate access keys from Security credentials; they are exchanged for short-term
+                Use an IAM user allowed to create identity providers and roles. Generate access keys from Security credentials; they are exchanged for temporary
                 session credentials. After the role is created, deactivate and delete these access keys.
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>

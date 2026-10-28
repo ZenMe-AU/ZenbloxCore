@@ -297,7 +297,6 @@ export default function Card({
                       mx: -0.75,
                       transition: "background 0.15s",
                       "&:hover": { background: colors.requirementHover },
-                      "&:hover .req-label": { textDecoration: "underline" },
                     }}
                   >
                     <ChevronRightIcon

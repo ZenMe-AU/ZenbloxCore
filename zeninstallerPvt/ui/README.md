@@ -13,7 +13,7 @@ Styling and accessibility plan: see [CSS_STANDARDISATION.md](CSS_STANDARDISATION
 7. The card header toggles on click, and its title and chevron are separate labelled keyboard-operable controls; expanded-card actions do not bubble into the header toggle. Disable click ripples and retain a visible keyboard-focus outline.
 8. A card title toggle's accessible name includes its visible title and summary, followed by visually hidden status text; expanded content is a region labelled by the card heading.
 9. The installer shell has a skip link, one page-level `h1`, semantic main and footer landmarks, an accessible-name-labelled deployment-progress section, and an `h2` for footer content. There is no separate “Deployment steps” heading; the landmarks themselves are not explicitly named with `aria-label`/`aria-labelledby`.
-10. Links that open a new tab expose that behavior in their accessible name while keeping the visible label concise; inline text links are underlined for distinction.
+10. Links that open a new tab expose that behavior in their accessible name while keeping the visible label concise; links use theme styling and do not rely on underlines for distinction.
 11. Axe scans retain their default rules; only non-interactive muted card-title spans bearing `data-a11y-contrast-exception` are excluded from analysis for the documented contrast exception.
 12. ESLint applies recommended jsx-a11y rules and blocks raw hex colors, `fontFamily`, and `fontSize` inside JSX `sx` in `corp-src/cards` and `corp-src/components`.
 13. The footer shortcuts dialog opens with `?` when focus is outside editable controls; listed browser/control keys use native behavior.

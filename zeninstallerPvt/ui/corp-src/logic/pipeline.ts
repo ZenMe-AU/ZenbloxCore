@@ -99,7 +99,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c25cloudfront",
         label: "AWS CloudFront distribution",
-        description: "Deploys the CloudFront distribution that serves the corporate login app and guards access behind Entra sign-in.",
+        description: "Deploys the CloudFront distribution that serves the corporate login app and guards access through Entra authentication.",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },

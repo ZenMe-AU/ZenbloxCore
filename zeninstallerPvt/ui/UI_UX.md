@@ -8,7 +8,7 @@ Stack: React + MUI (`createTheme` with CSS variables), Vite, no router (single p
 
 ## 1. Concept
 
-A single-page, card-based **checklist dashboard**. Each card is one setup task (sign in, pick a repo, create Azure resources, run a Terraform stage). Cards:
+A single-page, card-based **checklist dashboard**. It contains 20 tracked setup tasks (sign in, pick a repo, create Azure resources, run a Terraform stage) and an optional GitHub signup helper. Cards:
 
 - can be completed **in any order**; a card whose prerequisites are unmet is **locked** and lists what to do first (each item is a link that jumps to the card that resolves it);
 - report their own state (`status` and `summary`), shown on the collapsed face;
@@ -28,7 +28,7 @@ flowchart TB
     subgraph Main["main#main-content (max-width 1280px)"]
       Intro["Intro panel: prerequisites ol + GoDaddy link"]
       subgraph Section["section aria-label: 'Deployment setup progress'"]
-        Progress["Determinate progress bar for 20 tasks + next available card"]
+        Progress["Determinate progress bar for 20 setup tasks + next available task"]
         Grid["Card grid: auto-fit, min 360px, gap 12px"]
       end
     end
@@ -43,8 +43,8 @@ flowchart TB
 | Skip link | `Link.visually-hidden.skip-link` in [App.tsx](corp-src/App.tsx) | Revealed on `:focus-visible` by [App.css](corp-src/App.css); targets `#main-content` (`tabIndex=-1`). |
 | Header | [Header.tsx](corp-src/components/Header.tsx) | 28px gradient "ZB" mark, the single page `h1` (`document.title`), and a labelled System/Light/Dark scheme cycle. System honors the browser's reported light or dark preference; unavailable preference detection falls back to dark. MUI persists explicit Light/Dark selections. |
 | Intro | inline in `App.tsx` + [CardIntro](corp-src/components/CardIntro.tsx) | Ordered list of prerequisites (personal email, org/domain name) with a secure `ExternalLink` to GoDaddy. |
-| Progress and card grid | inline in `App.tsx` / `groupSx` in [config/cardLayout.ts](corp-src/config/cardLayout.ts) | One section named "Deployment setup progress" contains a determinate bar for the 20 rendered tasks and a next-step button, followed by the auto-fitting card grid. It does not display a numeric completion count or a separate "Deployment steps" heading. Expanded cards span `1 / -1`. |
-| Footer | [Footer.tsx](corp-src/components/Footer.tsx) | Shortcut help dialog (`?` opens outside editable fields), Contact (placeholder), Privacy policy, Terms of use (placeholder), and Support documentation. |
+| Progress and card grid | inline in `App.tsx` / `groupSx` in [config/cardLayout.ts](corp-src/config/cardLayout.ts) | One section named "Deployment setup progress" contains a determinate bar for the 20 setup tasks and a next-step button, followed by the auto-fitting grid. The optional GitHub signup helper is rendered in the grid but excluded from task progress. It does not display a numeric completion count or a separate "Deployment steps" heading. Expanded cards span `1 / -1`. |
+| Footer | [Footer.tsx](corp-src/components/Footer.tsx) | Shortcut help dialog (`?` opens outside editable fields), contact placeholder, Privacy policy, Terms of use placeholder, and Support documentation; the footer content has no subgroup headings. |
 | Restore toast | [RestoreToast.tsx](corp-src/components/RestoreToast.tsx) | Polite `status` while restoring URL state; dismissible warning when a value cannot be restored. |
 
 Responsive behaviour is intrinsic to the grid (3 to 2 to 1 columns as width shrinks) plus `xs`/`sm` MUI breakpoints for padding and for hiding button text labels (`RefreshButton`, `SaveButton`, `ViewLink`; the accessible name is kept).
@@ -211,11 +211,12 @@ flowchart LR
 
 Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRequirements`.
 
-### 4.2 Catalogue (render order)
+### 4.2 Catalogue (20 progress tasks; helper rendered after task 1)
 
 | # | `cardId` | Title | Requires | Purpose | Source |
 |---|---|---|---|---|---|
 | 1 | `github_login` | GitHub login | none | PAT or OAuth sign-in; shows signed-in user; sign-out | [GithubLogin](corp-src/cards/GithubLogin) |
+| — | `github_signup` | GitHub Sign Up | none; optional | Opens GitHub signup in a new tab with the entered email; signup is completed on GitHub. The email is sent only when the user submits; this helper is not included in setup progress. | [GithubSignup](corp-src/cards/GithubSignup) |
 | 2 | `repo` | Repository & environment | `github_login` | Select account, repo (or create from template, optionally all branches / auto-create PROD+TEST envs), pick environment/branch; shows PR state | [Repo](corp-src/cards/Repo) |
 | 3 | `azure_login` | Azure login | none | MSAL sign-in, tenant selection (or manual tenant id), sign-out | [AzureLogin](corp-src/cards/AzureLogin) |
 | 4 | `azure_subscription` | Choose Azure subscription | `azure_login`, `repo` | Pick subscription; saves ids as GitHub variables; drift detection | [AzureSubscription](corp-src/cards/AzureSubscription) |
@@ -431,7 +432,7 @@ ESLint ([eslint.config.js](eslint.config.js)): recommended `jsx-a11y`; `no-restr
 
 | Area | Implementation |
 |---|---|
-| Landmarks / headings | skip link, `header`, `main`, `footer`; one `h1`; `h2` "Deployment setup progress" and "Help & information"; cards are `h3` |
+| Landmarks / headings | skip link, `header`, `main`, `footer`; one `h1`; `h2` "Deployment setup progress" and "Help & information"; cards are `h3`; footer content has no subgroup headings |
 | Keyboard | native `button`/`a`/inputs only; title and chevron are separate tab stops; Enter/Space toggle; requirement rows are buttons |
 | Focus | global `:focus-visible` (2px blue + halo) and explicit card focus styles; skip link focus reveal |
 | Names | toggle name = visible title + summary + hidden status ("Locked" wins); icon-only buttons labelled; new-tab links announce "(opens in new tab)"; inputs tied to `FieldLabel` |

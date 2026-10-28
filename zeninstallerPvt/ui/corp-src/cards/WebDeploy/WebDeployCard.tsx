@@ -39,11 +39,11 @@ function Intro({ storageAccountName }: { storageAccountName: string }) {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
       Builds the Zeninstaller frontend in GitHub Actions, then writes the files straight from this browser into the{" "}
-      <Box component="code" sx={{ typography: "technicalBody" }}>
+      <Box component="code" sx={{ typography: "body1" }}>
         $web
       </Box>{" "}
       container of{" "}
-      <Box component="code" sx={{ typography: "technicalBody" }}>
+      <Box component="code" sx={{ typography: "body1" }}>
         {storageAccountName || "the site's storage account"}
       </Box>
       .

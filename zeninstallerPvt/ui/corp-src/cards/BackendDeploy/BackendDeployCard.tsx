@@ -27,7 +27,7 @@ function Intro({ appName }: { appName: string }) {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
       Builds the Zeninstaller backend in GitHub Actions, then pushes the package straight from this browser to{" "}
-      <Box component="code" sx={{ typography: "technical" }}>
+      <Box component="code" sx={{ typography: "body1" }}>
         {appName || "the Function App"}
       </Box>
       .

@@ -23,7 +23,7 @@ import type { Account, CardChrome, GhEnv } from "../../types";
 
 function PlainRow({ label, value }: { label: string; value: string }) {
   return (
-    <Typography sx={{ typography: "technical", color: "text.muted" }}>
+    <Typography sx={{ typography: "technicalBody", color: "text.muted" }}>
       {label}:{" "}
       <Box component="span" sx={{ color: "text.primary" }}>
         {value}
@@ -34,7 +34,7 @@ function PlainRow({ label, value }: { label: string; value: string }) {
 
 function Intro() {
   return (
-    <Typography sx={{ typography: "body2", color: "text.secondary", lineHeight: 1.6 }}>
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
       Creates the Azure Storage and Microsoft Entra resources used to host and protect the private ZenInstaller site.
     </Typography>
   );
@@ -103,7 +103,7 @@ export default function PrivateFrontendInfraCard({
 
               {/* Global to Azure, so it has to be changeable when another tenant already holds it. */}
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
-                <Typography sx={{ typography: "technical", color: "text.muted" }}>Site storage account:</Typography>
+                <Typography sx={{ typography: "technicalBody", color: "text.muted" }}>Site storage account:</Typography>
                 {editingStorage ? (
                   <>
                     <TextField
@@ -127,7 +127,7 @@ export default function PrivateFrontendInfraCard({
                   </>
                 ) : (
                   <>
-                    <Typography sx={{ typography: "technical", color: "text.primary" }}>{infra.siteStorageAccount}</Typography>
+                    <Typography sx={{ typography: "technicalBody", color: "text.primary" }}>{infra.siteStorageAccount}</Typography>
                     <IconButton
                       size="small"
                       onClick={() => setEditingStorage(true)}
@@ -145,16 +145,16 @@ export default function PrivateFrontendInfraCard({
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
                 {editingLocation ? (
                   <>
-                    <Typography sx={{ typography: "technical", color: "text.muted" }}>Location:</Typography>
+                        <Typography sx={{ typography: "technicalBody", color: "text.muted" }}>Location:</Typography>
                     {infra.locations.length > 0 ? (
                       <Select
                         size="small"
                         value={infra.location}
                         onChange={(e) => infra.setLocation(e.target.value)}
-                        sx={{ typography: "technical", minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
+                        sx={{ typography: "technicalBody", minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
                       >
                         {infra.locations.map((l) => (
-                          <MenuItem key={l.name} value={l.name} sx={{ typography: "technical" }}>
+                          <MenuItem key={l.name} value={l.name} sx={{ typography: "technicalBody" }}>
                             {l.displayName}{" "}
                             <Box component="span" sx={{ color: "text.muted", ml: 0.5 }}>
                               ({l.name})
@@ -179,7 +179,7 @@ export default function PrivateFrontendInfraCard({
                   </>
                 ) : (
                   <>
-                    <Typography sx={{ typography: "technical", color: "text.muted" }}>
+                    <Typography sx={{ typography: "technicalBody", color: "text.muted" }}>
                       Location:{" "}
                         <Box component="span" sx={{ color: "text.primary" }}>
                         {infra.locations.find((l) => l.name === infra.location)?.displayName ?? infra.location}

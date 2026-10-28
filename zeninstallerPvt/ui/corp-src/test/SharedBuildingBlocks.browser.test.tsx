@@ -137,6 +137,8 @@ describe("shared UI building blocks", () => {
       expect(link?.target).toBe("_blank");
       expect(link?.rel).toBe("noopener noreferrer");
       expect(link?.getAttribute("aria-label")).toBe("Documentation (opens in new tab)");
+      expect(getComputedStyle(link!).fontSize).toBe("14px");
+      expect(getComputedStyle(link!).textDecorationLine).toBe("none");
     } finally {
       flushSync(() => root.unmount());
       container.remove();

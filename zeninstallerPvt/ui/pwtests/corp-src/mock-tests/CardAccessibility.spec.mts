@@ -135,8 +135,17 @@ test.describe("Installer accessibility", () => {
 
   test("footer shortcuts dialog lists keys, closes with Escape, and restores focus", async ({ page }) => {
     await page.goto(CORP_URL);
+    const footer = page.getByRole("contentinfo");
+    await expect(footer.getByRole("heading", { name: "Help & information" })).toBeVisible();
+    for (const heading of ["Keyboard shortcuts", "Contact", "Policies", "Support"]) {
+      await expect(footer.getByRole("heading", { name: heading, exact: true })).toHaveCount(0);
+    }
     const opener = page.getByRole("button", { name: "View keyboard shortcuts" });
 
+    await expect(footer.getByText("Contact information coming soon.")).toBeVisible();
+    await expect(footer.getByRole("link", { name: "Privacy policy" })).toBeVisible();
+    await expect(footer.getByText("Terms of use coming soon.")).toBeVisible();
+    await expect(footer.getByRole("link", { name: "Support documentation" })).toBeVisible();
     await opener.click();
     const dialog = page.getByRole("dialog", { name: "Keyboard shortcuts" });
     await expect(dialog).toBeVisible();

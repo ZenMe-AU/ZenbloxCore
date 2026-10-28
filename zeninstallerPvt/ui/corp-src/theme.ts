@@ -387,7 +387,14 @@ const theme = createTheme({
     },
     MuiLink: {
       defaultProps: {
-        underline: "always",
+        underline: "none",
+      },
+      styleOverrides: {
+        root: ({ theme }) => ({
+          ...theme.typography.body1,
+          textDecoration: "none",
+          "&:hover": { textDecoration: "none" },
+        }),
       },
     },
     MuiTypography: {

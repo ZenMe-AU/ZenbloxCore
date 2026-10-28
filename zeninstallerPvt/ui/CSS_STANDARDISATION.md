@@ -2,7 +2,7 @@
 
 Scope: `zeninstallerPvt/ui` only. Paths below are relative to that folder (the old `web/` prefix no longer exists).
 
-Sections 0–6 record the initial audit baseline from 2026-10-07; their counts and source-tree observations are historical, not a current inventory. Progress notes in section 7 supersede baseline findings where work has since been completed. Latest update: 2026-10-24.
+Sections 0–6 record the initial audit baseline from 2026-10-07; their counts and source-tree observations are historical, not a current inventory. Progress notes in section 7 supersede baseline findings where work has since been completed. Latest update: 2026-10-28.
 
 ## 0. Audit summary (2026-10-07)
 
@@ -195,7 +195,7 @@ Measured baseline signals: 95 `onClick` handlers (the card header and requiremen
 | 4 | High | **Colour contrast.** Muted card titles (`#94a3b8`) remain below 4.5:1 on white; the original orange/green summary shades were also low contrast. | Status summaries now use dark palette shades. The accepted exception is limited to intentionally muted card titles; ordinary instructional and status text targets 4.5:1. |
 | 5 | Medium | **Small text.** Sizes are 0.68–0.8rem (about 11–13px). Truncated titles and summaries use ellipsis. | Keep text within 0.75–1rem. Keep `rem` units so browser zoom works. Add a `title` or tooltip for truncated text and expose the full text to screen readers. |
 | 6 | Medium | **Reduced-motion handling was missing (resolved globally).** | `App.css` reduces CSS animation and transition durations, including card transitions, when `prefers-reduced-motion: reduce` is active. |
-| 7 | Medium | **`ViewLink` was a `Button` calling `window.open` (resolved).** Its visible label remains hidden below the `sm` breakpoint but its accessible name remains available. | `ViewLink` renders a secure `<a href target="_blank" rel="noopener noreferrer">`; links expose "(opens in new tab)" in their accessible name, and inline text links are underlined for distinction. |
+| 7 | Medium | **`ViewLink` was a `Button` calling `window.open` (resolved).** Its visible label remains hidden below the `sm` breakpoint but its accessible name remains available. | `ViewLink` renders a secure `<a href target="_blank" rel="noopener noreferrer">`; links expose "(opens in new tab)" in their accessible name and use theme link styling. |
 | 8 | Medium | **Labels aren't tied to controls.** `labelSx` is applied to a `Typography` beside the `Select`/`TextField`. | Use `InputLabel`/the `label` prop, or `aria-labelledby`. |
 | 9 | Low | **Page structure (resolved in the installer shell).** | The shell has semantic header/main/footer landmarks, a skip link, one page `h1`, a named deployment-progress section with an `h2`, and an `h2` for help/information. There is no separate "Deployment steps" heading. |
 | 10 | Low | **Forced colours / high contrast.** | Test with `forced-colors: active` and keep borders on cards and buttons so they stay visible. |
@@ -331,7 +331,7 @@ Step 8 migrations are complete. Follow-ups are to rerun Azure-dependent mock flo
 - Add a lint rule (`no-restricted-syntax`) forbidding hex literals, `fontFamily` and `fontSize` in `sx` under `corp-src/cards` and `components`.
 - Add a Playwright check that Tab reaches every card header and expands it with Enter/Space.
 
-- **Implemented (2026-10-17).** Added the recommended jsx-a11y rules and `@axe-core/playwright`; introduced scoped syntax restrictions for colors, font families and font sizes in JSX `sx`; migrated the remaining card/component violations, including `PrivateFrontendInfraCard`, to theme typography and palette tokens. Removed automatic focus from three fields flagged by jsx-a11y. Added shared axe scans for the collapsed page, expanded Azure Login card and expanded locked card, plus a full card-header Tab/Enter/Space sweep. Card toggle accessible names now derive from visible title/summary text and include the status as visually hidden text. Inline text links are underlined for distinction; only explicitly marked non-interactive muted-card titles and semantic status summaries are excluded from the axe analysis tree, matching the documented contrast exception.
+- **Implemented (2026-10-17).** Added the recommended jsx-a11y rules and `@axe-core/playwright`; introduced scoped syntax restrictions for colors, font families and font sizes in JSX `sx`; migrated the remaining card/component violations, including `PrivateFrontendInfraCard`, to theme typography and palette tokens. Removed automatic focus from three fields flagged by jsx-a11y. Added shared axe scans for the collapsed page, expanded Azure Login card and expanded locked card, plus a full card-header Tab/Enter/Space sweep. Card toggle accessible names now derive from visible title/summary text and include the status as visually hidden text. Links use theme styling rather than relying on underlines; only explicitly marked non-interactive muted-card titles and semantic status summaries are excluded from the axe analysis tree, matching the documented contrast exception.
 - **Verification (2026-10-17).** The new accessibility spec passed (4/4); Azure Login mock tests passed (10/10) with existing snapshots unchanged; `pnpm build` passed. The style and jsx-a11y rules report no findings in `corp-src/cards` or `corp-src/components`. Full `pnpm lint` remains at 34 errors and 5 warnings in the existing React Hooks/App findings. Full UI `pnpm test` had 250 passed and 3 failed in the existing Access Pass telemetry tests (`appInsights` is null).
 
 ### Step 10. UX validation
@@ -385,7 +385,7 @@ Per the repository `README.md` rules, decisions live in the folder where they ap
 7. The card header toggles on click, with separate labelled, keyboard-operable title and chevron controls; expanded-card actions do not bubble into the toggle. Disable click ripples and retain a visible keyboard-focus outline.
 8. Card toggle names include visible title/summary text followed by visually hidden status; expanded content is a region labelled by its heading.
 9. The installer shell has a skip link, one page-level `h1`, semantic main and footer landmarks, a deployment-progress section named with `aria-label` and headed by `h2`, and an `h2` for help/information. There is no separate "Deployment steps" heading; the main and footer landmarks themselves are not explicitly named.
-10. New-tab links expose that behavior in their accessible name and remain underlined for inline distinction.
+10. New-tab links expose that behavior in their accessible name; links use theme styling and do not rely on underlines for distinction.
 11. Axe runs its default rules; only explicitly marked non-interactive muted-title spans are excluded from analysis for the accepted contrast exception.
 12. Recommended jsx-a11y rules and scoped `sx` style restrictions are enforced by ESLint.
 

@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Box, Button, TextField, Typography } from "@mui/material";
+import { Box, Button, Link, TextField, Typography } from "@mui/material";
 import Card from "../../components/Card";
 import { GITHUB_SIGNUP_URL } from "../../logic/github";
 import type { CardChrome } from "../../types";
@@ -17,7 +17,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
       Need a GitHub account? Enter your email to open GitHub signup in a new tab with your email prefilled.
       Complete the remaining signup steps yourself on GitHub, then return here to sign in.
     </Typography>
@@ -50,13 +50,17 @@ export default function GithubSignupCard({ card, signup, onOpenLogin }: Props) {
           onChange={(event) => signup.setEmail(event.target.value)}
           helperText="Your email is sent to GitHub only when you continue. No account is created automatically."
         />
-        <Button type="submit" variant="contained" size="small">
+        <Button
+          type="submit"
+          variant="contained"
+          sx={{ alignSelf: "flex-start", py: 1, px: 2.5 }}
+        >
           Continue to GitHub signup
         </Button>
       </Box>
-      <Button onClick={onOpenLogin} size="small" sx={{ mt: 1 }}>
+      <Link component="button" type="button" onClick={onOpenLogin} sx={{ mt: 1, textAlign: "left" }}>
         Already have an account? Sign in to GitHub
-      </Button>
+      </Link>
     </Card>
   );
 }

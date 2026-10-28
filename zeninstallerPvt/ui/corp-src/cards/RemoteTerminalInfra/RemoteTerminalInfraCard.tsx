@@ -34,8 +34,8 @@ function PlainRow({ label, value }: { label: string; value: string }) {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-      The relay behind the stage-card terminal: Web PubSub, the session table, and the Function App that issues group-scoped tokens. Everything connects by
-      managed identity — no access key is stored.
+      The relay for terminals in stage cards includes Web PubSub, the session table, and the Function App that issues tokens scoped to each group. Everything
+      connects by managed identity; no access key is stored.
     </Typography>
   );
 }
