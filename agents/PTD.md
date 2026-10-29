@@ -64,6 +64,9 @@ For example, for a Card UI component located at zeninstallerPvt/ui/pwtests/{Page
 ### Mock test
 Every UI component will have exactly one Mock test which can be found within the zeninstallerPvt/ui/pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component zeninstallerPvt/ui/pwtests/{PageName}/cards/login.ts should be mapped to zeninstallerPvt/ui/pwtests/{PageName}/mock-tests/cards-login.spec.ts
 
+1. Before navigation, seed the completion states of all previous cards required by the target card. Use existing helpers to seed mock authentication/session state and persisted configuration/results, and install API mocks that confirm the prerequisite resources and state. Match the application's actual completion predicates; do not manipulate the DOM or bypass completion checks.
+2. Do not replay previous cards' full provisioning workflows as mock-test setup. Assert that the target card is unlocked and its relevant controls are visible before performing happy-path actions. Keep missing-prerequisite/locked-state coverage in separate edge-case tests; it does not replace the target card's API-mocked happy path.
+
 ## Notes to AI:
 1. Always ask a human if they can be product owner and guide you through the steps.
 2. Keep testing patterns in alignment, if it's not clear ask a human which pattern should be standard accross the test files.
@@ -75,4 +78,3 @@ Every UI component will have exactly one Mock test which can be found within the
 8. The expected user interaction is the "Happy Path" in the example test file and the other tests separate from the Happy Path are considered edge cases.
 9. When creating the mock tests, follow the same structure as the existing integration tests with the Happy Path created first and then the edge case tests.
 10. For any test being created, add an expectSnapshot() at the start of the Happy Path and at the end of each test.step(). For edge cases, add an expectSnapshot() only at the end of the test.
-
