@@ -61,6 +61,8 @@ Every playwright test will be defined in a main file, if more files are needed, 
 Every UI component will have exactly one Integration test which can be found within the pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. 
 For example, for a Card UI component located at zeninstallerPvt/ui/pwtests/{PageName}/cards/login.ts the test will be located in zeninstallerPvt/ui/pwtests/{PageName}/integration-tests/cards-login.spec.ts
 
+1. Use the existing test repositories defined in `zeninstallerPvt/ui/pwtests/testInit.ts` (e.g. `safePathSegment(\`${TEST_REPO_MAIN}-${viewportName}\`)`) instead of creating or mocking repositories. Select them with the shared helpers (`checkRepoExists`, `chooseExistingRepo`) and fail with a clear message if the expected repository is missing.
+
 ### Mock test
 Every UI component will have exactly one Mock test which can be found within the zeninstallerPvt/ui/pwtests/integration-tests folder structured the same as the UI component path relative to the workspace root. e.g. UI component zeninstallerPvt/ui/pwtests/{PageName}/cards/login.ts should be mapped to zeninstallerPvt/ui/pwtests/{PageName}/mock-tests/cards-login.spec.ts
 
