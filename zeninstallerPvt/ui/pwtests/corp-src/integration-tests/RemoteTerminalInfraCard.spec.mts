@@ -1,8 +1,9 @@
 /// <reference types="node" />
 // UI component: ../../../corp-src/cards/RemoteTerminalInfra/RemoteTerminalInfraCard.tsx
 import { expect, test } from "@playwright/test";
-import { CORP_URL, viewports } from "../../testInit";
-import { expectSnapshot } from "../../util/testHelper.ts";
+import { viewports } from "../../../../../.playwright/viewportFixture.mjs";
+import { CORP_URL } from "../../testInit";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import { expectSuccessfulSteps } from "../util/mockTestHelper.mts";
 import {
 	connectionInput,

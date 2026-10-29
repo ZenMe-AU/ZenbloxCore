@@ -4,9 +4,9 @@
  */
 
 import { expect, type BrowserContext, type Page } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { AZURE_MANAGEMENT_URL, CORP_URL } from "../../testInit";
-import { expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import {
   coreInfraStepLabels,
   expectSuccessfulSteps,

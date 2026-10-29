@@ -1,6 +1,6 @@
 import { expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
-import { safePathSegment } from "../../util/testHelper.ts";
+import { safePathSegment } from "../../../../../.playwright/testHelper.js";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandCard, expandRepoCard } from "./cardHelper.mts";
 import { chooseExistingRepo } from "./testHelper.mts";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "./setupHelper.mts";

@@ -1,9 +1,9 @@
 /// <reference types="node" />
 // UI component: ../../../corp-src/cards/BackendDeployCard.tsx
 import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL } from "../../testInit";
-import { expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import { expectSuccessfulSteps, prepareExistingBackend } from "../util/mockTestHelper.mts";
 import { backendStepLabels, openBackendCard } from "../util/cardHelper.mts";
 

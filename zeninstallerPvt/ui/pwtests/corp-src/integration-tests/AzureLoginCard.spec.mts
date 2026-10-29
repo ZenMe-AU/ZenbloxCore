@@ -5,10 +5,10 @@
 
 // UI component: ../../../corp-src/cards/AzureLogin/AzureLoginCard.tsx
 import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { restoreAzureSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL } from "../../testInit";
-import { expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
+import { expectSnapshot, expectVisibleWithin } from "../../../../../.playwright/testHelper.js";
 import { expandAzureLoginCard } from "../util/cardHelper.mts";
 
 test("Happy path", async ({ page, context }, testInfo) => {

@@ -4,9 +4,9 @@
  */
 
 // UI component: ../../../corp-src/cards/GithubSignup/GithubSignupCard.tsx
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL } from "../../testInit";
-import { expectSnapshot } from "../../util/testHelper";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { expandGithubSignupCard } from "../util/cardHelper.mts";
 

@@ -5,8 +5,8 @@
 
 // UI component: ../../../corp-src/cards/AccessPass/AccessPassCard.tsx
 import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
-import { test, getViewportName } from "../util/viewportFixture.mts";
-import { expectSnapshot } from "../../util/testHelper.ts";
+import { test, getViewportName } from "../../../../../.playwright/viewportFixture.mjs";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import { MICROSOFT_GRAPH_URL } from "../../testInit";
 import { prepareCardMocks, replyJson } from "../util/mockCardSetup.mts";
 

@@ -6,8 +6,8 @@
 // UI component: ../../../corp-src/cards/WebDeploy/WebDeployCard.tsx
 import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
 import JSZip from "jszip";
-import { test, getViewportName } from "../util/viewportFixture.mts";
-import { expectSnapshot } from "../../util/testHelper.ts";
+import { test, getViewportName } from "../../../../../.playwright/viewportFixture.mjs";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import { GITHUB_API_URL } from "../../testInit";
 import { prepareCardMocks, replyJson, siteStorage, siteUrl } from "../util/mockCardSetup.mts";
 

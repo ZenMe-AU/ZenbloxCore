@@ -6,8 +6,12 @@
 import type { BrowserContext, Page, TestInfo } from "@playwright/test";
 import { test as playwrightTest } from "./coverage-fixture.mjs";
 import { fileURLToPath } from "node:url";
-import { registerTestSourceFile } from "../../util/testHelper";
-import { viewports } from "../../testInit";
+import { registerTestSourceFile } from "./testHelper.js";
+
+export const viewports = {
+  Desktop: { width: 1280, height: 720 },
+  Mobile: { width: 414, height: 896 },
+} as const;
 
 type ViewportName = keyof typeof viewports;
 type Theme = "dark" | "light";

@@ -5,10 +5,10 @@
 
 // UI component: ../../../corp-src/cards/AzureSubscriptionCard.tsx
 import { type BrowserContext, expect, type Locator, type Page } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
-import { expectSnapshot, safePathSegment, expectVisibleWithin } from "../../util/testHelper.ts";
+import { expectSnapshot, safePathSegment, expectVisibleWithin } from "../../../../../.playwright/testHelper.js";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
 

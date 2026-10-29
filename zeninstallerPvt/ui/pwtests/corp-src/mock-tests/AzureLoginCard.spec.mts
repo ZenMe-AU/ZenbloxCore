@@ -5,7 +5,7 @@
 
 // UI component: ../../../corp-src/cards/AzureLogin/AzureLoginCard.tsx
 import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import {
   installMockAzure,
   mockMsaTenantId,
@@ -15,7 +15,7 @@ import {
   signInMockAzure,
 } from "../util/mockTestHelper.mts";
 import { CORP_URL } from "../../testInit";
-import { expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import { expandAzureLoginCard } from "../util/cardHelper.mts";
 
 const mockTenants = [

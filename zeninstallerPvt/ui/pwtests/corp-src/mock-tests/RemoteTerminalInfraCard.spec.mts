@@ -1,9 +1,9 @@
 /// <reference types="node" />
 // UI component: ../../../corp-src/cards/RemoteTerminalInfra/RemoteTerminalInfraCard.tsx
 import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL } from "../../testInit";
-import { expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import { expectSuccessfulSteps, installMockAzure, installMockGitHub, mockSubscriptionId, mockTenantId } from "../util/mockTestHelper.mts";
 import {backendInsights, backendLaw, BackendNames, backendResourceGroup, connectionInput, defaultBackendNames, openConnectionDetails, openRemoteTerminalCard, pipelineAppName, remoteTerminalStepLabels, terminalKeys,
 } from "../util/RemoteTerminalInfraCardHelper.mts";

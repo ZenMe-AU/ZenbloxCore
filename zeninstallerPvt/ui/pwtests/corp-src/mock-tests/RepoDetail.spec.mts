@@ -5,10 +5,10 @@
 
 // UI component: ../../../corp-src/cards/Repo/RepoDetail.tsx
 import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL, GITHUB_API_URL, GITHUB_API_URL_REGEX } from "../../testInit";
 import { createNewRepo, selectCloneOption } from "../util/testHelper.mts";
-import { expectSnapshot, expectVisibleWithin, logMockAPI } from "../../util/testHelper.ts";
+import { expectSnapshot, expectVisibleWithin, logMockAPI } from "../../../../../.playwright/testHelper.js";
 import { installMockGitHub, installRelayNetworkGuard } from "../util/mockTestHelper.mts";
 import { expandRepoCard } from "../util/cardHelper.mts";
 

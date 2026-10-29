@@ -5,10 +5,10 @@
 
 // UI component: ../../../corp-src/cards/GithubLogin/GithubLoginCard.tsx
 import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { getCorpGithubAuthMode, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL } from "../../testInit";
-import { expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
+import { expectSnapshot, expectVisibleWithin } from "../../../../../.playwright/testHelper.js";
 import { expandGithubLoginCard } from "../util/cardHelper.mts";
 
 test("Happy path", async ({ page, context }, testInfo) => {

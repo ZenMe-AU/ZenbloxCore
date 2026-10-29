@@ -5,9 +5,9 @@
 
 // UI component: ../../../corp-src/cards/GithubLogin/GithubLoginCard.tsx
 import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { GITHUB_API_URL } from "../../testInit";
-import { expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import { installGithubOAuthCallback, prepareGithubLoginMock } from "../util/mockTestHelper.mts";
 import { expandGithubLoginCard } from "../util/cardHelper.mts";
 

@@ -5,9 +5,9 @@
 
 // UI component: ../../../corp-src/cards/CreateDomain/CreateDomainCard.tsx
 import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
-import { expectSnapshot, expectVisibleWithin, safePathSegment } from "../../util/testHelper.ts";
+import { expectSnapshot, expectVisibleWithin, safePathSegment } from "../../../../../.playwright/testHelper.js";
 import {
 	expandAzureAppRegistrationCard,
 	expandAzureLoginCard,

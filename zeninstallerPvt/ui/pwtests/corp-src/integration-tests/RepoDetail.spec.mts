@@ -5,11 +5,11 @@
 
 // UI component: ../../../corp-src/cards/RepoDetail.tsx
 import { expect, type Page, type Locator } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL, TEST_REPO_FROM_PROD, TEST_REPO_MAIN, TEST_REPO_NO_ENV } from "../../testInit";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
-import { expectSnapshot, safePathSegment, expectVisibleWithin, waitForLocatorContentLoaded } from "../../util/testHelper.ts";
+import { expectSnapshot, safePathSegment, expectVisibleWithin, waitForLocatorContentLoaded } from "../../../../../.playwright/testHelper.js";
 import { expandRepoCard } from "../util/cardHelper.mts";
 
 test("Happy path", async ({ page, context }, testInfo) => {

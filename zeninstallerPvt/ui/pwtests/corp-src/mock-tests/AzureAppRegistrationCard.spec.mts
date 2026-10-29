@@ -5,9 +5,9 @@
 
 // UI component: ../../../corp-src/cards/AzureAppRegistration/AzureAppRegistrationCard.tsx
 import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL, GITHUB_API_URL, MICROSOFT_GRAPH_URL } from "../../testInit";
-import { expectSnapshot, safePathSegment } from "../../util/testHelper.ts";
+import { expectSnapshot, safePathSegment } from "../../../../../.playwright/testHelper.js";
 import {
   expectSuccessfulSteps,
   installMockAzure,

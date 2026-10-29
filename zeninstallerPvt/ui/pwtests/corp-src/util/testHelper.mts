@@ -4,7 +4,7 @@
  */
 
 import { expect, type Locator, type Page } from "@playwright/test";
-import { expectVisibleWithin, waitForLocatorContentLoaded } from "../../util/testHelper";
+import { expectVisibleWithin, waitForLocatorContentLoaded } from "../../../../../.playwright/testHelper.js";
 import { getVariableDisplayName } from "../../../corp-src/logic/variables.ts";
 
 export { getWebStorageAccountName } from "../../../corp-src/logic/naming.ts";
