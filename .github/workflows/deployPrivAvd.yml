@@ -1,0 +1,202 @@
+name: Deploy PrivAVD
+
+on:
+  workflow_dispatch:
+    inputs:
+      session_id:
+        required: true
+        description: "Terminal session id registered by ZenInstaller"
+      dir:
+        required: true
+        type: choice
+        options: [privavd-gallery, privavd-image, privavd-paw]
+        description: "PrivAVD stage to run"
+      github_env_name:
+        required: false
+        description: "GitHub Environment name"
+
+permissions:
+  contents: read
+  id-token: write # Required for federated OIDC to mint the Web PubSub token
+  deployments: write # Recording the result where the card reads it
+
+env:
+  AGENT_DIR: .github/actions/remote-login
+  SESSION_TTL: "1800"
+
+jobs:
+  deploy:
+    name: PrivAVD ${{ inputs.dir }}
+    environment: ${{ inputs.github_env_name }}
+    runs-on: ubuntu-latest
+    # An explicit bash shell runs with -o pipefail, so `pwsh ... | tee` fails when the script does.
+    defaults:
+      run:
+        shell: bash
+    env:
+      TF_IN_AUTOMATION: "true"
+      # Never wait on a prompt; init.ps1 runs a bare `terraform apply`.
+      TF_INPUT: "0"
+      TF_CLI_ARGS_apply: -auto-approve
+      # packer init downloads plugins from GitHub; unauthenticated calls get rate-limited on shared runners.
+      PACKER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # The stage scripts read corpSetup/PrivAVD/.env. Subscription goes last so it always wins:
+      # it is the one the user signs in to and the one holding the TF_STATE_* storage account.
+      - name: Write the PrivAVD .env from the environment variables
+        env:
+          VARS_JSON: ${{ toJSON(vars) }}
+          SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          {
+            echo "$VARS_JSON" | jq -r 'to_entries[] | select(.key | test("^TF_(VAR|STATE)_")) | "\(.key)=\(.value)"'
+            echo "TF_VAR_SUBSCRIPTION_ID=$SUBSCRIPTION_ID"
+          } > corpSetup/PrivAVD/.env
+          cut -d= -f1 corpSetup/PrivAVD/.env
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.6.6
+          terraform_wrapper: false
+
+      - name: Install Packer
+        if: inputs.dir == 'privavd-image'
+        uses: hashicorp/setup-packer@v3
+        with:
+          version: 1.11.2
+
+      # ── Sign in ─────────────────────────────────────────────────────────────
+      # Same sequence as .github/actions/remote-login (whose agent code this reuses) - keep them in step.
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@^24.22.1
+          install: false
+
+      - name: Install the agent's dependencies
+        id: deps
+        working-directory: ${{ env.AGENT_DIR }}
+        run: pnpm install
+
+      - name: Sign in to the tenant that owns the Web PubSub
+        id: az_login
+        uses: azure/login@v3
+        with:
+          client-id: ${{ vars.WEBPUBSUB_CLIENT_ID }}
+          tenant-id: ${{ vars.WEBPUBSUB_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Mint the Web PubSub client URL
+        id: mint
+        working-directory: ${{ env.AGENT_DIR }}
+        run: node mint-webpubsub-token.js
+        env:
+          SESSION_ID: ${{ inputs.session_id }}
+          WEBPUBSUB_ENDPOINT: ${{ vars.WEBPUBSUB_ENDPOINT }}
+          WEBPUBSUB_TENANT_ID: ${{ vars.WEBPUBSUB_TENANT_ID }}
+          HUB_NAME: ${{ vars.WEBPUBSUB_HUB_NAME || 'terminal' }}
+
+      - name: Clear cached Azure credentials
+        run: |
+          az logout 2>/dev/null || true
+          rm -rf ~/.azure 2>/dev/null || true
+
+      - name: Skip the interactive subscription picker
+        run: az config set core.login_experience_v2=off
+
+      - name: Attach the terminal and run the device login
+        id: login
+        working-directory: ${{ env.AGENT_DIR }}
+        run: node agent.js
+        env:
+          SESSION_ID: ${{ inputs.session_id }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          AWS_LOGIN: "false"
+
+      # ── Run ─────────────────────────────────────────────────────────────────
+      - name: Run the stage script as the signed-in user
+        id: script
+        env:
+          SCRIPT: ${{ fromJSON('{"privavd-gallery":"init.ps1","privavd-image":"build.ps1","privavd-paw":"deployPAW.ps1"}')[inputs.dir] }}
+        run: pwsh -NoProfile -File "corpSetup/PrivAVD/$SCRIPT" 2>&1 | tee /tmp/deploy_output.txt
+
+      # ── Record ──────────────────────────────────────────────────────────────
+      - name: Make sure the log explains itself
+        if: ${{ !cancelled() }}
+        env:
+          DEPS: ${{ steps.deps.outcome }}
+          AZ_LOGIN: ${{ steps.az_login.outcome }}
+          MINT: ${{ steps.mint.outcome }}
+          LOGIN: ${{ steps.login.outcome }}
+          SCRIPT: ${{ steps.script.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [ -s /tmp/deploy_output.txt ] && exit 0
+
+          for pair in "DEPS:Installing the agent's dependencies" \
+                      "AZ_LOGIN:Signing in to mint the relay token" \
+                      "MINT:Minting the Web PubSub client URL" \
+                      "LOGIN:The interactive sign-in" \
+                      "SCRIPT:Running the stage script"; do
+            var=${pair%%:*}
+            if [ "${!var}" = "failure" ]; then
+              { echo "${pair#*:} failed."; echo; echo "Full output: $RUN_URL"; } > /tmp/deploy_output.txt
+              exit 0
+            fi
+          done
+
+          { echo "The deploy did not complete."; echo; echo "Full output: $RUN_URL"; } > /tmp/deploy_output.txt
+
+      - name: Upload the run log
+        if: ${{ !cancelled() }}
+        id: log
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.dir }}-deploy-log
+          path: /tmp/deploy_output.txt
+          if-no-files-found: ignore
+
+      - name: Build the deployment payload
+        if: always()
+        id: payload
+        env:
+          DIR: ${{ inputs.dir }}
+          JOB_STATUS: ${{ job.status }}
+          OUTCOME: ${{ steps.script.outcome }}
+          LOG_ID: ${{ steps.log.outputs.artifact-id }}
+          LOG_URL: ${{ steps.log.outputs.artifact-url }}
+        run: |
+          if [ "$JOB_STATUS" = "cancelled" ]; then
+            STATUS=cancelled
+          elif [ "$OUTCOME" = "success" ]; then
+            STATUS=success
+          else
+            STATUS=failed
+          fi
+          PAYLOAD=$(jq -nc \
+            --arg stage "$DIR" --arg status "$STATUS" \
+            --arg deployRunId "${{ github.run_id }}" --arg deployLogUrl "$LOG_URL" \
+            --argjson deployedAt "$(date +%s)" --argjson deployLogId "${LOG_ID:-null}" \
+            '{ stage: $stage, deployStatus: $status, deployRunId: $deployRunId,
+               deployedAt: $deployedAt, deployLogId: $deployLogId, deployLogUrl: $deployLogUrl }')
+          echo "payload=$PAYLOAD" >> $GITHUB_OUTPUT
+          echo "state=$([ "$STATUS" = success ] && echo success || echo failure)" >> $GITHUB_OUTPUT
+          echo "$STATUS"
+          echo "$PAYLOAD"
+
+      # task=deploy:<dir> is exactly what the card queries the Deployments API for.
+      - name: Record the deployment
+        if: always()
+        uses: ./.github/actions/record-deployment
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          environment: ${{ inputs.github_env_name }}
+          ref: ${{ github.ref_name }}
+          kind: deploy
+          dir: ${{ inputs.dir }}
+          state: ${{ steps.payload.outputs.state }}
+          payload: ${{ steps.payload.outputs.payload }}
+          log_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

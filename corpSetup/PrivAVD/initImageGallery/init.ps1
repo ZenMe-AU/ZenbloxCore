@@ -32,6 +32,7 @@ try {
     }
 
     terraform apply
+    if ($LASTEXITCODE -ne 0) { throw "terraform apply failed with exit code $LASTEXITCODE." }
 }
 finally {
     Pop-Location
