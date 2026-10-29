@@ -1,6 +1,6 @@
 # How to Create a Free Azure Account
 
-This guide walks through the steps required to create a Microsoft Entra ID tenant while signing up for an Azure free trial.
+This guide walks through the steps required to create a Microsoft Entra ID tenant (the directory that holds your organization's users, groups, and apps) while signing up for an Azure free trial.
 
 ## Start the Azure Free Trial
 
@@ -69,7 +69,7 @@ These do not affect your ability to proceed.
 
 ## Step 3 of 3 — Payment Verification
 
-Azure requires a valid payment method to prevent fraud and confirm identity. **You will not be charged unless you later upgrade to Pay As You Go.**
+Azure may require a valid payment method to verify your identity and billing account. Signup offers and eligibility vary by region and account. If you select a pay-as-you-go subscription, paid usage can incur charges; review current pricing and terms before deploying resources.
 
 ![Payment verification form](images/azure-account/image4.png)
 
@@ -93,6 +93,6 @@ Once submitted, Microsoft will validate your card and complete the tenant creati
 
 After all three steps are successfully submitted:
 
-- Your **Azure subscription** is created
+- Your **Azure subscription** (the billing and resource-management boundary for Azure services) is created
 - Your **Microsoft Entra ID tenant** is provisioned
 - You can immediately begin configuring users, groups, applications, and security settings

@@ -1,6 +1,6 @@
 # ZenInstaller UI/UX
 
-Analysis of the installer UI in `corp-src/` (the `zeninstallerPvt/ui` workspace folder): structure, interaction model, design system, accessibility and open issues. Companion documents: [README.md](README.md) (design decisions) and [corp-src/CSS_STANDARDISATION.md](corp-src/CSS_STANDARDISATION.md) (styling migration history).
+Analysis of the installer UI in `corp-src/` (the `zeninstallerPvt/ui` workspace folder): structure, interaction model, design system, accessibility and open issues. Companion documents: [README.md](README.md) (design decisions) and [CSS_STANDARDISATION.md](CSS_STANDARDISATION.md) (styling migration history).
 
 Stack: React + MUI (`createTheme` with CSS variables), Vite, no router (single page), xterm.js for the remote terminal.
 
@@ -8,7 +8,7 @@ Stack: React + MUI (`createTheme` with CSS variables), Vite, no router (single p
 
 ## 1. Concept
 
-A single-page, card-based **checklist dashboard**. Each card is one setup task (sign in, pick a repo, create Azure resources, run a Terraform stage). Cards:
+A single-page, card-based **checklist dashboard**. It contains 20 tracked setup tasks (sign in, pick a repo, create Azure resources, run a Terraform stage) and an optional GitHub signup helper. Cards:
 
 - can be completed **in any order**; a card whose prerequisites are unmet is **locked** and lists what to do first (each item is a link that jumps to the card that resolves it);
 - report their own state (`status` and `summary`), shown on the collapsed face;
@@ -22,13 +22,13 @@ There is no wizard or global navigation; a completion summary and next-action cu
 
 ```mermaid
 flowchart TB
-  subgraph Page["Page (min-height 100vh; dark by default, persisted light/dark scheme)"]
+  subgraph Page["Page (min-height 100vh; follows system color scheme, persists explicit light/dark choice)"]
     Skip["Skip link (visible on focus)"]
     Header["header: ZB mark + h1 (document.title) + color-scheme toggle"]
     subgraph Main["main#main-content (max-width 1280px)"]
       Intro["Intro panel: prerequisites ol + GoDaddy link"]
       subgraph Section["section aria-label: 'Deployment setup progress'"]
-        Progress["Determinate progress bar for 20 tasks + next available card"]
+        Progress["Determinate progress bar for 20 setup tasks + next available task"]
         Grid["Card grid: auto-fit, min 360px, gap 12px"]
       end
     end
@@ -41,10 +41,10 @@ flowchart TB
 | Region | Component | Notes |
 |---|---|---|
 | Skip link | `Link.visually-hidden.skip-link` in [App.tsx](corp-src/App.tsx) | Revealed on `:focus-visible` by [App.css](corp-src/App.css); targets `#main-content` (`tabIndex=-1`). |
-| Header | [Header.tsx](corp-src/components/Header.tsx) | 28px gradient "ZB" mark, the single page `h1` (`document.title`), and a labelled dark/light scheme toggle. Dark is the default; MUI persists the selection. |
+| Header | [Header.tsx](corp-src/components/Header.tsx) | 28px gradient "ZB" mark, the single page `h1` (`document.title`), and a labelled System/Light/Dark scheme cycle. System honors the browser's reported light or dark preference; unavailable preference detection falls back to dark. MUI persists explicit Light/Dark selections. |
 | Intro | inline in `App.tsx` + [CardIntro](corp-src/components/CardIntro.tsx) | Ordered list of prerequisites (personal email, org/domain name) with a secure `ExternalLink` to GoDaddy. |
-| Progress and card grid | inline in `App.tsx` / `groupSx` in [config/cardLayout.ts](corp-src/config/cardLayout.ts) | One section named "Deployment setup progress" contains a determinate bar for the 20 rendered tasks and a next-step button, followed by the auto-fitting card grid. It does not display a numeric completion count or a separate "Deployment steps" heading. Expanded cards span `1 / -1`. |
-| Footer | [Footer.tsx](corp-src/components/Footer.tsx) | Shortcut help dialog (`?` opens outside editable fields), Contact (placeholder), Privacy policy, Terms of use (placeholder), and Support documentation. |
+| Progress and card grid | inline in `App.tsx` / `groupSx` in [config/cardLayout.ts](corp-src/config/cardLayout.ts) | One section named "Deployment setup progress" contains a determinate bar for the 20 setup tasks and a next-step button, followed by the auto-fitting grid. The optional GitHub signup helper is rendered in the grid but excluded from task progress. It does not display a numeric completion count or a separate "Deployment steps" heading. Expanded cards span `1 / -1`. |
+| Footer | [Footer.tsx](corp-src/components/Footer.tsx) | Shortcut help dialog (`?` opens outside editable fields), contact placeholder, Privacy policy, Terms of use placeholder, and Support documentation; the footer content has no subgroup headings. |
 | Restore toast | [RestoreToast.tsx](corp-src/components/RestoreToast.tsx) | Polite `status` while restoring URL state; dismissible warning when a value cannot be restored. |
 
 Responsive behaviour is intrinsic to the grid (3 to 2 to 1 columns as width shrinks) plus `xs`/`sm` MUI breakpoints for padding and for hiding button text labels (`RefreshButton`, `SaveButton`, `ViewLink`; the accessible name is kept).
@@ -128,7 +128,7 @@ stateDiagram-v2
 
 ```mermaid
 flowchart LR
-  subgraph Header["Header row (min-height 80px, hover tint = status border colour)"]
+  subgraph Header["Clickable header row (min-height 80px, hover tint = status border colour)"]
     direction LR
     H3["h3 > ButtonBase (title toggle)<br/>status icon · title and summary (one line, ellipsis) · visually-hidden status"]
     Action["optional action (View link / Refresh) - only when expanded and not muted"]
@@ -144,9 +144,10 @@ flowchart LR
 Key behaviours:
 
 - Outer element `id="card-<cardId>"` (test contract and jump-to target).
+- Clicking anywhere in the header toggles the card. The title and chevron are separate labelled, keyboard-operable controls; an expanded-card action stops propagation so it does not collapse the card.
 - Collapsed title and summary each occupy one line and ellipsize, keeping card faces the same height; full text remains in the DOM and accessible name, with a `title` attribute.
 - Both toggles carry `aria-expanded` and `aria-controls`; the chevron has an explicit "Expand/Collapse <title>" label.
-- A locked card still expands, to show what is missing; its live content is not rendered.
+- A locked card still expands, to show its optional read-only introduction and unmet requirements; its live content is not rendered. Pipeline-stage descriptions are shown for both locked and unlocked stages.
 - Ripples are disabled; focus shows a 2px blue outline plus a 3px 12% halo.
 - Width transition 0.25s (suppressed by reduced motion).
 
@@ -210,11 +211,12 @@ flowchart LR
 
 Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRequirements`.
 
-### 4.2 Catalogue (render order)
+### 4.2 Catalogue (20 progress tasks; helper rendered after task 1)
 
 | # | `cardId` | Title | Requires | Purpose | Source |
 |---|---|---|---|---|---|
 | 1 | `github_login` | GitHub login | none | PAT or OAuth sign-in; shows signed-in user; sign-out | [GithubLogin](corp-src/cards/GithubLogin) |
+| — | `github_signup` | GitHub Sign Up | none; optional | Opens GitHub signup in a new tab with the entered email; signup is completed on GitHub. The email is sent only when the user submits; this helper is not included in setup progress. | [GithubSignup](corp-src/cards/GithubSignup) |
 | 2 | `repo` | Repository & environment | `github_login` | Select account, repo (or create from template, optionally all branches / auto-create PROD+TEST envs), pick environment/branch; shows PR state | [Repo](corp-src/cards/Repo) |
 | 3 | `azure_login` | Azure login | none | MSAL sign-in, tenant selection (or manual tenant id), sign-out | [AzureLogin](corp-src/cards/AzureLogin) |
 | 4 | `azure_subscription` | Choose Azure subscription | `azure_login`, `repo` | Pick subscription; saves ids as GitHub variables; drift detection | [AzureSubscription](corp-src/cards/AzureSubscription) |
@@ -227,7 +229,7 @@ Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRe
 | 11 | `web_deploy` | Private Zeninstaller Frontend | `github_login`, `repo`, `azure_login`, `private_frontend_infra` | Build and upload the frontend | [WebDeploy](corp-src/cards/WebDeploy) |
 | 12 | `aws_login` | AWS login | none | Bootstrap access key, MFA code | [AwsLogin](corp-src/cards/AwsLogin) |
 | 13 | `aws_setup` | AWS setup | `aws_login`, `repo` | Creates IAM role for GitHub OIDC; connection details | [AwsSetup](corp-src/cards/AwsSetup) |
-| 14-19 | `stage_<dir>` | Subscription Budget, Global groups, User accounts, AWS Entra SSO, AWS Entra SSO P2, CloudFront | `repo` (+ per-stage prerequisites inside) | Terraform plan, review, deploy through the remote terminal | [Stage](corp-src/cards/Stage) |
+| 14-19 | `stage_<dir>` | Subscription Budget, Global groups, User accounts, AWS Entra SSO, AWS Entra SSO P2, CloudFront | `repo` (+ per-stage prerequisites inside) | Stage-specific introductory description, Terraform plan, review, deploy through the remote terminal | [Stage](corp-src/cards/Stage) |
 | 20 | `access_pass` | Access pass | `azure_login` | Generates user access pass; copy rows, confirmation checkbox | [AccessPass](corp-src/cards/AccessPass) |
 
 Notes:
@@ -352,7 +354,7 @@ Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)):
 | `ViewLink` | Outlined "View" button-link, text hidden at `xs` | same new-tab naming; `title=href` |
 | `RefreshButton` | Refresh, then Done / Failed (transient) | `aria-label` tracks text |
 | `SaveButton` | "Save N variables / Update N secrets" | `aria-label` tracks text; spinner when busy |
-| `CopyRow` | Label + value + Copy; optional masking | value `data-sensitive`; button named "Copy <label>"; "Copied" in `aria-live` |
+| `CopyRow` | Label + value + Copy; optional masking | value `data-sensitive`; button named "Copy <label>"; Clipboard API with legacy fallback when missing or denied; copied/failure state announced |
 | `VariablesCard` | Editable GitHub variable list | label per input, clear/revert buttons, dirty/error/success row tints |
 | `SecretsCard` | Secret presence/validity list + edit dialog | masked by default, reveal toggle, validation badges |
 | `StepRow` (cards/) | One line of a progress checklist | icon + label + detail + determinate bar |
@@ -388,10 +390,10 @@ Source of truth: [theme.ts](corp-src/theme.ts) (MUI theme, CSS variables) and [A
 | `success` main / dark / light | `#16a34a` / `#15803d` / `#22c55e` | done, create |
 | `text` primary / secondary / muted | `#0f172a` / `#475569` / `#64748b` | body / supporting / hints, disabled |
 | `divider` | `#e2e8f0` | borders |
-| `background` default / paper | `#f8fafc` / `#ffffff` | page / surfaces |
+| `background` default / paper | `#f8fafc` / `#ffffff` | light-scheme page / surfaces |
 | `card.*` | per-status border, icon, dark-contrast summary; muted bg `#f8fafc`; muted text `#94a3b8`; radius 10px; shadows | card chrome (typed `theme.palette.card`) |
 
-Visual language: selectable light or dark slate-neutral schemes with a blue brand accent; dark is the default and the user's choice persists. Status is carried by a coloured 1px border, glyph, and text. The palette table above lists light-scheme values; `theme.ts` defines both schemes.
+Visual language: light or dark slate-neutral schemes with a blue brand accent; the system-reported scheme is used by default, and explicit Light/Dark choices persist. Dark is the fallback only when the browser cannot expose its color-scheme preference; its page and surface backgrounds are `#080d0f` and `#1b2629`. Status is carried by a coloured 1px border, glyph, and text. The palette table above lists light-scheme values; `theme.ts` defines both schemes.
 
 ### 7.2 Typography
 
@@ -430,7 +432,7 @@ ESLint ([eslint.config.js](eslint.config.js)): recommended `jsx-a11y`; `no-restr
 
 | Area | Implementation |
 |---|---|
-| Landmarks / headings | skip link, `header`, `main`, `footer`; one `h1`; `h2` "Deployment setup progress" and "Help & information"; cards are `h3` |
+| Landmarks / headings | skip link, `header`, `main`, `footer`; one `h1`; `h2` "Deployment setup progress" and "Help & information"; cards are `h3`; footer content has no subgroup headings |
 | Keyboard | native `button`/`a`/inputs only; title and chevron are separate tab stops; Enter/Space toggle; requirement rows are buttons |
 | Focus | global `:focus-visible` (2px blue + halo) and explicit card focus styles; skip link focus reveal |
 | Names | toggle name = visible title + summary + hidden status ("Locked" wins); icon-only buttons labelled; new-tab links announce "(opens in new tab)"; inputs tied to `FieldLabel` |
@@ -439,7 +441,7 @@ ESLint ([eslint.config.js](eslint.config.js)): recommended `jsx-a11y`; `no-restr
 | Reflow | fluid grid; automated check at 320px |
 | Colour independence | status always has text (summary, hidden status, pill text), not colour alone |
 | Privacy | opt-in blur for `data-sensitive` content; secrets masked by default |
-| Automated tests | `@axe-core/playwright` scans (collapsed, expanded, locked), card-height/accessibility-name regression, dark/light toggle and persistence, footer shortcut dialog checks, and Tab/Enter/Space sweep in [CardAccessibility.spec.mts](pwtests/corp-src/mock-tests/CardAccessibility.spec.mts); 320px reflow, forced-colors and reduced-motion emulation |
+| Automated tests | `@axe-core/playwright` scans (collapsed, expanded, locked), card-height/accessibility-name regression, system preference following and explicit mode persistence, footer shortcut dialog checks, and Tab/Enter/Space sweep in [CardAccessibility.spec.mts](pwtests/corp-src/mock-tests/CardAccessibility.spec.mts); 320px expanded-card reflow, forced-colors focus/boundary and reduced-motion emulation |
 | Shortcuts | `?` opens footer help when focus is outside input, textarea, select, and contenteditable controls; Escape closes the modal; other listed keys use native control behavior |
 
 The footer dialog lists the supported behavior: `?` opens help; Tab/Shift+Tab moves focus; Enter/Space activates a focused button; Enter follows a focused link or runs a focused control's supported action; Escape closes the dialog. The `?` handler ignores Ctrl/Meta/Alt combinations and editable targets.
@@ -451,6 +453,10 @@ Muted card titles (`#94a3b8`) remain below 4.5:1 by design and are excluded from
 ### 8.3 Not yet validated
 
 Manual 200% zoom reflow, keyboard-only end-to-end run, screen-reader announcements, and Windows high-contrast checks (Step 10 in `CSS_STANDARDISATION.md`).
+
+### 8.4 Browser support
+
+The UI targets modern evergreen browsers supported by Vite 7, React 19, and MUI 7; Internet Explorer and similarly old browsers are out of scope. Clipboard access falls back to a legacy copy command when the Clipboard API is missing or denied, with failure announced if both methods fail. UUID generation uses `crypto.randomUUID()` when available and otherwise secure `crypto.getRandomValues()`; it fails explicitly if secure randomness is unavailable. `color-mix()` is progressively enhanced for the configuration-error surface, which retains a theme-based background and border without it. Forced-colors mode uses the system `Highlight` color for keyboard focus. Automated browser coverage currently uses Chromium only. Firefox and Safari/WebKit have not been verified.
 
 ---
 
@@ -488,3 +494,14 @@ Observed from source review; none of these have been confirmed with assistive te
 | Accessibility sweeps | [CardAccessibility.spec.mts](pwtests/corp-src/mock-tests/CardAccessibility.spec.mts) |
 | Live integration | [pwtests/corp-src/integration-tests](pwtests/corp-src/integration-tests) (auth set-up projects) |
 | Test hooks (UI contract) | `id="card-<id>"`, `data-id`, `data-sensitive`, accessible names; see README design decision 6 |
+
+---
+
+## 11. Remaining work
+
+- Run representative smoke and accessibility tests in Firefox and Safari/WebKit; current automated browser projects use Chromium only.
+- Investigate Vite's browser bundle warnings for Node modules pulled in by `dotenv` from `corp-src/api/backend.ts` and `corp-src/api/github.ts`. Replace the dependency with a browser-safe `.env` parser or document why the current client bundle is safe in supported browsers.
+- Triage the latest full unit run: 252 tests passed and 3 Access Pass telemetry tests failed because Application Insights is null. The full shared-building-block browser test also has an editor-border assertion mismatch; the isolated clipboard-fallback test passes.
+- Complete manual 200% browser zoom checks at desktop and narrow widths, and verify Windows High Contrast/reduced-motion behavior on a real platform. Playwright emulation and the 320px viewport check do not replace these checks.
+- Complete a representative keyboard-only deployment flow and verify live progress/error announcements with a supported screen reader.
+- Review and address the other open UI findings in section 9, especially tooltip-only information, `StepRow` status announcements, low-visibility disabled actions, and placeholder footer links.

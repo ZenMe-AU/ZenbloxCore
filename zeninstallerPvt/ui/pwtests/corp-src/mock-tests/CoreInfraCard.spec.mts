@@ -98,6 +98,7 @@ test("Allows manual region entry when Azure region lookup fails", async ({ page,
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
   await expectSuccessfulSteps(card, coreInfraStepLabels("pwtests"));
   const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/zbcore-pwtests-rg"));
+  const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/zbcore-pwtests-rg"));
   expect(resourceGroupWrite?.body).toMatchObject({ location: "westus2" });
   await expectSnapshot(page, card, testInfo, "manual-region-fallback", viewportName);
 });
@@ -114,6 +115,7 @@ test("Retries a transient resource-group provisioning failure", async ({ page, c
   await saveCoreCompanyCode(card);
   await card.getByRole("button", { name: "Create core infrastructure" }).click();
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
+  const resourceGroupRow = card.getByText("Create resource group zbcore-pwtests-rg", { exact: true }).locator("../..");
   const resourceGroupRow = card.getByText("Create resource group zbcore-pwtests-rg", { exact: true }).locator("../..");
   await expect(resourceGroupRow.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(1);
   await expect(azureMock.createdResources).not.toContain("resource-group");
@@ -152,6 +154,7 @@ test("Does not reuse infrastructure status after the subscription target drifts"
       }),
     });
   });
+  await page.route(`${AZURE_MANAGEMENT_URL}${secondSubscriptionId}/resourcegroups/zbcore-pwtests-rg`, async (route) => {
   await page.route(`${AZURE_MANAGEMENT_URL}${secondSubscriptionId}/resourcegroups/zbcore-pwtests-rg`, async (route) => {
     if (route.request().method() === "GET") {
       return route.fulfill({
@@ -192,6 +195,7 @@ test("Recreates missing infrastructure and repairs revoked resource-group access
   const { card, azureMock, unexpectedRequests } = await prepareCoreInfraCard(page, context, viewportName);
   await saveCoreCompanyCode(card);
   await runCoreInfrastructure(card);
+  const groupScope = `/subscriptions/${mockSubscriptionId}/resourcegroups/zbcore-pwtests-rg`;
   const groupScope = `/subscriptions/${mockSubscriptionId}/resourcegroups/zbcore-pwtests-rg`;
   azureMock.createdResources.delete("resource-group");
   azureMock.createdResources.delete("storage-container");
@@ -315,8 +319,10 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
   const readerRoleId = "acdd72a7-3385-48ef-bd42-f606fba81ae7";
   const storageReaderRoleId = "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1";
   expect(azureMock.roleAssignments.get(`/subscriptions/${mockSubscriptionId}/resourcegroups/zbcore-${companyShortCode}-rg`)).toContain(readerRoleId);
+  expect(azureMock.roleAssignments.get(`/subscriptions/${mockSubscriptionId}/resourcegroups/zbcore-${companyShortCode}-rg`)).toContain(readerRoleId);
   expect(
     azureMock.roleAssignments.get(
+      `/subscriptions/${mockSubscriptionId}/resourcegroups/zbcore-${companyShortCode}-rg/providers/microsoft.storage/storageaccounts/zbcore${companyShortCode}stor`
       `/subscriptions/${mockSubscriptionId}/resourcegroups/zbcore-${companyShortCode}-rg/providers/microsoft.storage/storageaccounts/zbcore${companyShortCode}stor`
     )
   ).toContain(storageReaderRoleId);
@@ -404,6 +410,7 @@ async function prepareCoreInfraCard(
   if (options.reusedStorageResourceGroup) azureMock.createdResources.add("storage-account");
   const resourceWrites: Array<{ path: string; body: unknown }> = [];
   let resourceGroupPutAttempts = 0;
+  const rootGroupSuffix = `/resourcegroups/zbcore-${companyShortCode}-rg`.toLowerCase();
   const rootGroupSuffix = `/resourcegroups/zbcore-${companyShortCode}-rg`.toLowerCase();
   await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
     const request = route.request();

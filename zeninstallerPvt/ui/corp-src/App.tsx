@@ -388,7 +388,7 @@ function AppDashboard() {
               </Typography>
             </Box>
             <CardIntro variant="body1" sx={{ lineHeight: 1.7, mt: 1, mb: 0 }}>
-              Complete the cards below in any order — each shows what it needs before it can run.
+              Complete the cards below in any order; each shows what it needs before it can run.
             </CardIntro>
           </Box>
 

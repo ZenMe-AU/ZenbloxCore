@@ -15,12 +15,15 @@ import { CARD_MIN_W, EXPANDED_W } from "./config/cardLayout";
 const rootElement = document.getElementById("root")!;
 rootElement.style.setProperty("--card-w", `${CARD_MIN_W}px`);
 rootElement.style.setProperty("--card-w-expanded", `${EXPANDED_W}px`);
+if (typeof window.matchMedia !== "function") {
+  document.documentElement.setAttribute("data-mui-color-scheme", "dark");
+}
 
 createRoot(rootElement).render(
   <StrictMode>
     <ThemeProvider
       theme={theme}
-      defaultMode="dark"
+      defaultMode="system"
       modeStorageKey="zeninstaller-corp-mode"
       colorSchemeStorageKey="zeninstaller-corp-color-scheme"
       disableTransitionOnChange

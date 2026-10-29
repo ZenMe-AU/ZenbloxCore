@@ -4,13 +4,14 @@
  */
 
 import { toHex } from "./crypto";
+import { createRandomUuid } from "./randomUuid";
 
 export type SessionCredentials = { sessionId: string; accessToken: string };
 
 // The browser owns the credentials so the access token never travels as a workflow input.
 export function createSessionCredentials(): SessionCredentials {
   return {
-    sessionId: crypto.randomUUID(),
+    sessionId: createRandomUuid(),
     accessToken: toHex(crypto.getRandomValues(new Uint8Array(32))),
   };
 }

@@ -3,11 +3,26 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { createRandomUuid } from "../logic/randomUuid";
 import { parseSocketEvent, parseWebPubSubUrl } from "../logic/remoteTerminal";
 import { stageLabel, TERMINAL_COLORS, TERMINAL_THEME } from "../config/remoteTerminal";
 
 const SESSION = "11111111-2222-3333-4444-555555555555";
+
+describe("createRandomUuid", () => {
+  it("uses secure random values when crypto.randomUUID is unavailable", () => {
+    vi.stubGlobal("crypto", {
+      getRandomValues: (bytes: Uint8Array) => bytes.fill(0xab),
+    });
+
+    try {
+      expect(createRandomUuid()).toBe("abababab-abab-4bab-abab-abababababab");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
 
 function group(data: unknown, sessionId = SESSION) {
   return JSON.stringify({ type: "message", group: sessionId, data });

@@ -8,6 +8,7 @@ settings:
 overrides:
   '@playwright/test': 1.64.1
   playwright: 1.64.1
+  playwright-core: 1.64.1
 
 importers:
 
@@ -846,7 +847,7 @@ packages:
     resolution: {integrity: sha512-SGUhG5PIHd2eMdpgBF2PyQLOhX+qyDR2PT4cmoS4Qk2ak+jX/rrSvst9l0PGv5WTHolKpUMvVmoHpr4cZgf1RQ==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
-      playwright-core: '>= 1.0.0'
+      playwright-core: 1.64.1
 
   '@azure-rest/core-client@2.9.0':
     resolution: {integrity: sha512-6933vNLqh06RR7rumnrq3UZIeBtRLeBHDPMrieDPIljiCaMMwt0nRw++nd3TOxiohtasNtm29rC+b/9ZVKCOqg==}
@@ -7113,11 +7114,6 @@ packages:
   pkg-types@2.3.3:
     resolution: {integrity: sha512-j/lCFdcppV0JxWpCEITdbDltBxPP6cHT+yNJ6Go2OgoSA9518X847X9z0p6LtA4Nc16+eQzCZjRrWanTGvHJ5w==}
 
-  playwright-core@1.62.1:
-    resolution: {integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==}
-    engines: {node: '>=20'}
-    hasBin: true
-
   playwright-core@1.64.1:
     resolution: {integrity: sha512-BC4s8y6SEVA6Q1rSxZTto8hI1KUI3xXlHGZgvGqP4IqPdI/a6FX9H29IDNz7vKo9l21b6LfYosScPL6M3xxyDQ==}
     engines: {node: '>=20'}
@@ -11874,7 +11870,7 @@ snapshots:
   '@playwright/experimental-ct-core@1.62.1(@types/node@24.13.3)(esbuild@0.27.7)(jiti@2.7.0)(yaml@2.9.0)':
     dependencies:
       playwright: 1.64.1
-      playwright-core: 1.62.1
+      playwright-core: 1.64.1
       vite: 8.3.1(@types/node@24.13.3)(esbuild@0.27.7)(jiti@2.7.0)(yaml@2.9.0)
     transitivePeerDependencies:
       - '@types/node'
@@ -16507,8 +16503,6 @@ snapshots:
       confbox: 0.3.1
       exsolve: 1.1.1
       pathe: 2.0.3
-
-  playwright-core@1.62.1: {}
 
   playwright-core@1.64.1: {}
 

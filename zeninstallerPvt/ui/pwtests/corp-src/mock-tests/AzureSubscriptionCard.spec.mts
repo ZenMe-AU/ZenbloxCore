@@ -137,7 +137,7 @@ test("Failed variable writes allow retry", async ({ page, context }, testInfo) =
     failedOneWrite = true;
     await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ message: "mock write failure" }) });
   });
-  const saveButton = result.azureSubscriptionCard.getByRole("button", { name: "Save 2 variables", exact: true });
+  const saveButton = result.azureSubscriptionCard.getByRole("button", { name: "Save 2 variables" });
   await expect(saveButton).toBeEnabled();
   await saveButton.click();
   await expect.poll(() => Object.keys(result.github.variables).length).toBe(2);
@@ -172,7 +172,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await expect(subscriptionOption).toBeVisible();
     await subscriptionOption.click();
     await expect(subscriptionSelect).toContainText("Mock subscription");
-    const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables", exact: true });
+    const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save 2 variables" });
     await expectSnapshot(page, azureSubscriptionCard, testInfo, "before-save", viewportName);
     await saveButton.click();
     await expect(azureSubscriptionCard.getByRole("button", { name: "Save variables" })).toBeDisabled();

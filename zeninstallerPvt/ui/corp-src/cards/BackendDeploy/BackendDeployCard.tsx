@@ -23,6 +23,18 @@ type Props = {
   repoFullName: string | null;
 };
 
+function Intro({ appName }: { appName: string }) {
+  return (
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+      Builds the Zeninstaller backend in GitHub Actions, then pushes the package straight from this browser to{" "}
+      <Box component="code" sx={{ typography: "body1" }}>
+        {appName || "the Function App"}
+      </Box>
+      .
+    </Typography>
+  );
+}
+
 export default function BackendDeployCard({ card, backend, repoFullName }: Props) {
   const { appName, latest, deployed, loadingLatest, loadingDeployed, building, build, buildWorkflow, updateAvailable, error, steps, running, run } = backend;
 
@@ -35,16 +47,11 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} />
         ) : undefined
       }
+      lockedIntro={<Intro appName={appName} />}
       {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-          Builds the Zeninstaller backend in GitHub Actions, then pushes the package straight from this browser to{" "}
-          <Box component="code" sx={{ typography: "technical" }}>
-            {appName || "the Function App"}
-          </Box>
-          .
-        </Typography>
+        <Intro appName={appName} />
 
         <Box>
           <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Versions</Typography>

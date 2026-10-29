@@ -93,6 +93,9 @@ async function runHappyPath({ page }: { page: import("@playwright/test").Page },
   const card = await test.step("Expand unauthenticated Azure login card", async () => {
     await page.goto(CORP_URL);
     const result = await expandAzureLoginCard(page);
+    const accountGuide = result.getByRole("link", { name: /How to create a free Azure account/ });
+    await expect(accountGuide).toHaveCSS("font-size", "16px");
+    await expect(accountGuide).toHaveCSS("text-decoration-line", "none");
     await expectSnapshot(page, result, testInfo, "start", viewportName);
     return result;
   });
@@ -113,6 +116,7 @@ async function runHappyPath({ page }: { page: import("@playwright/test").Page },
     await expect(tenantSelect.locator("input")).toHaveValue(mockTenantId);
     await expect(card.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
     await expect(card.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Next step, set up 'Repository & environment'" })).toHaveCount(0);
     await expectSnapshot(page, card, testInfo, "end", viewportName);
   });
 }

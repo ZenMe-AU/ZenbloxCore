@@ -93,7 +93,8 @@ export default function GithubLoginCard({ card, auth }: Props) {
               <Box component="span" sx={{ fontWeight: 600 }}>
                 Backend
               </Box>{" "}
-              signs you in through GitHub's OAuth flow and keeps your access token on the server.{" "}
+              signs you in through GitHub's OAuth flow and routes GitHub API requests through ZenInstaller's backend; your access token stays in this browser session
+              and is sent with those requests, but is not stored on the server.{" "}
               <Box component="span" sx={{ fontWeight: 600 }}>
                 Direct (PAT)
               </Box>{" "}

@@ -18,6 +18,7 @@ import {
   isGroupMember,
 } from "../../api/azureGraph";
 import { isConsentError } from "../../logic/consent";
+import { createRandomUuid } from "../../logic/randomUuid";
 import type { CardHook, CardRequirements, CardStatus, SetupStep, AzureAccount } from "../../types";
 
 export type GroupRow = {
@@ -56,7 +57,7 @@ const DEFAULT_GROUPS: Omit<GroupRow, "id" | "isNew">[] = [
 ];
 
 function newRowId(): string {
-  return `new:${crypto.randomUUID()}`;
+  return `new:${createRandomUuid()}`;
 }
 
 // Entra requires a mailNickname on every group create, security-only or not.
