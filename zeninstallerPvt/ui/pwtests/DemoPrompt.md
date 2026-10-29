@@ -25,3 +25,14 @@ Create a new card after "Choose Azure Subscription" that calls Azure API to list
 - For the mock test, seed the completion state of previous cards without manually interacting with the UI (this should be in PTD)
 - For the integration test, use the existing repositories defined in testInit.ts instead of mocking the repo (this should be in PTD)
 - List the resources in scrollable menu
+
+### Prompt 4 (PTR.md and PTD.md attached)
+Create a new card after "Choose Azure Subscription" that calls Azure API to list all resources in the selected Azure subscription for the user to review before continuing with app registration card. 
+
+- Don't have the card depend on Github Login, only depend on Azure login 
+- Have a button for refresh 
+- Group by resource group if they are contained in a resource group 
+- Use the saved authentication files under tell AI that auth is saved under pwtests/corp-src/.auth for integration
+- Use existing repo and resources defined in testInit
+- Auto-run integration test it generates without modifying 
+- optional feature (text-filtering)
