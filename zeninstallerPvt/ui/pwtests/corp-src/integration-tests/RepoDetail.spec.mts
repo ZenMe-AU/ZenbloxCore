@@ -63,7 +63,7 @@ test("Creates valid repo with no environments", async ({ page, context }, testIn
 
   await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
   await expectVisibleWithin(repoCard.getByText("Valid", { exact: true }), "Repository validation", 50_000);
-  await expectVisibleWithin(repoCard.getByText("No environment found"), "No environment message", 50_000);
+  await expectVisibleWithin(repoCard.getByText(/^No PROD or TEST environment was found/), "No environment message", 50_000);
   await expect(repoCard.getByRole("button", { name: "Clone Repository" })).toHaveCount(0);
 
   await expectSnapshot(page, repoCard, testInfo, "repo-no-env", viewportName);

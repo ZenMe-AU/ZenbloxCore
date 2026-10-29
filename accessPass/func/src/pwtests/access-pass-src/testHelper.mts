@@ -283,6 +283,15 @@ export function loadAccessPassUsers(options: LoadAccessPassUsersOptions = {}): A
   }
 }
 
+function safeAuthFileName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// ACCESS_PASS_AUTH_USER selects a configured account; otherwise the first user is used.
 export function getAzureJourneyUser(users: AccessPassUser[]): AccessPassUser {
   const requestedUserId = process.env.ACCESS_PASS_AUTH_USER;
 
@@ -299,14 +308,6 @@ export function getAzureJourneyUser(users: AccessPassUser[]): AccessPassUser {
     throw new Error("No Access Pass users found. Add at least one user to pwtests/auth/data/access-pass-users.local.json");
   }
   return firstUser;
-}
-
-function safeAuthFileName(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 export function getAccessPassUserAuth(user: AccessPassUser) {

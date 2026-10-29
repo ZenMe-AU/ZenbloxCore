@@ -15,7 +15,7 @@ import ViewLink from "../../components/ViewLink";
 import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { getPrivateInstallerAppName } from "../../logic/naming";
 import { resourceGroupScope } from "../../api/azureArm";
-import { MONO as mono, labelSx } from "../../config/styles";
+import { labelSx } from "../../config/styles";
 import CloudVariableDetail from "../CloudVariableDetail";
 import { PRIVATE_FRONTEND_KEYS } from "../../logic/variables";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
@@ -23,11 +23,19 @@ import type { Account, CardChrome, GhEnv } from "../../types";
 
 function PlainRow({ label, value }: { label: string; value: string }) {
   return (
-    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+    <Typography sx={{ typography: "technical", color: "text.muted" }}>
       {label}:{" "}
-      <Box component="span" sx={{ color: "#0f172a" }}>
+      <Box component="span" sx={{ color: "text.primary" }}>
         {value}
       </Box>
+    </Typography>
+  );
+}
+
+function Intro() {
+  return (
+    <Typography sx={{ typography: "body2", color: "text.secondary", lineHeight: 1.6 }}>
+      Creates the Azure Storage and Microsoft Entra resources used to host and protect the private ZenInstaller site.
     </Typography>
   );
 }
@@ -82,23 +90,20 @@ export default function PrivateFrontendInfraCard({
       : undefined;
 
   return (
-    <Card title="Private Zeninstaller Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} {...card}>
+    <Card title="Frontend hosting environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.6 }}>
-          The relay behind the stage-card terminal: Web PubSub, the session table, and the Function App that issues group-scoped tokens. Everything
-          connects by managed identity — no access key is stored.
-        </Typography>
+        <Intro />
 
         {infra.steps.length === 0 && (
           <Box>
             <Typography sx={{ ...labelSx, mb: 0.75 }}>Resources</Typography>
-            <Box sx={{ borderLeft: "2px solid #e2e8f0", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
+            <Box sx={{ borderLeft: "2px solid", borderLeftColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
               <PlainRow label="Resource group" value={infra.resourceGroupName} />
               <PlainRow label="Log Analytics" value={infra.lawName} />
 
               {/* Global to Azure, so it has to be changeable when another tenant already holds it. */}
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
-                <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>Site storage account:</Typography>
+                <Typography sx={{ typography: "technical", color: "text.muted" }}>Site storage account:</Typography>
                 {editingStorage ? (
                   <>
                     <TextField
@@ -108,27 +113,27 @@ export default function PrivateFrontendInfraCard({
                       error={!!infra.siteStorageError}
                       helperText={infra.siteStorageError ?? undefined}
                       sx={{ width: 200 }}
-                      inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.75rem" } }}
+                      className="corpTechnicalInput"
                     />
                     {/* Stays open until the name is one this installation can actually create or reuse. */}
                     <IconButton
                       size="small"
                       disabled={infra.siteStorageChecking}
                       onClick={() => void infra.checkSiteStorageAccount().then((ok) => ok && setEditingStorage(false))}
-                      sx={{ color: "#22c55e", p: 0.25 }}
+                      sx={{ color: "success.main", p: 0.25 }}
                     >
-                      {infra.siteStorageChecking ? <CircularProgress size={12} /> : <CheckIcon sx={{ fontSize: 14 }} />}
+                      {infra.siteStorageChecking ? <CircularProgress size={12} /> : <CheckIcon sx={{ typography: "caption" }} />}
                     </IconButton>
                   </>
                 ) : (
                   <>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#0f172a", ...mono }}>{infra.siteStorageAccount}</Typography>
+                    <Typography sx={{ typography: "technical", color: "text.primary" }}>{infra.siteStorageAccount}</Typography>
                     <IconButton
                       size="small"
                       onClick={() => setEditingStorage(true)}
-                      sx={{ color: "#cbd5e1", p: 0.25, "&:hover": { color: "#2563eb" } }}
+                      sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}
                     >
-                      <EditIcon sx={{ fontSize: 13 }} />
+                      <EditIcon sx={{ typography: "caption" }} />
                     </IconButton>
                   </>
                 )}
@@ -140,18 +145,18 @@ export default function PrivateFrontendInfraCard({
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
                 {editingLocation ? (
                   <>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>Location:</Typography>
+                    <Typography sx={{ typography: "technical", color: "text.muted" }}>Location:</Typography>
                     {infra.locations.length > 0 ? (
                       <Select
                         size="small"
                         value={infra.location}
                         onChange={(e) => infra.setLocation(e.target.value)}
-                        sx={{ fontSize: "0.75rem", ...mono, minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
+                        sx={{ typography: "technical", minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
                       >
                         {infra.locations.map((l) => (
-                          <MenuItem key={l.name} value={l.name} sx={{ fontSize: "0.78rem", ...mono }}>
+                          <MenuItem key={l.name} value={l.name} sx={{ typography: "technical" }}>
                             {l.displayName}{" "}
-                            <Box component="span" sx={{ color: "#94a3b8", ml: 0.5 }}>
+                            <Box component="span" sx={{ color: "text.muted", ml: 0.5 }}>
                               ({l.name})
                             </Box>
                           </MenuItem>
@@ -164,28 +169,28 @@ export default function PrivateFrontendInfraCard({
                         onChange={(e) => infra.setLocation(e.target.value)}
                         placeholder={infra.locationsLoading ? "Loading regions..." : "e.g. australiaeast"}
                         sx={{ minWidth: 220 }}
-                        inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                        className="corpTechnicalInput"
                       />
                     )}
                     {infra.locationsLoading && <CircularProgress size={12} />}
-                    <IconButton size="small" onClick={() => setEditingLocation(false)} sx={{ color: "#22c55e", p: 0.25 }}>
-                      <CheckIcon sx={{ fontSize: 14 }} />
+                    <IconButton size="small" onClick={() => setEditingLocation(false)} sx={{ color: "success.main", p: 0.25 }}>
+                      <CheckIcon sx={{ typography: "caption" }} />
                     </IconButton>
                   </>
                 ) : (
                   <>
-                    <Typography sx={{ fontSize: "0.75rem", color: "#64748b", ...mono }}>
+                    <Typography sx={{ typography: "technical", color: "text.muted" }}>
                       Location:{" "}
-                      <Box component="span" sx={{ color: "#0f172a" }}>
+                        <Box component="span" sx={{ color: "text.primary" }}>
                         {infra.locations.find((l) => l.name === infra.location)?.displayName ?? infra.location}
                       </Box>
                     </Typography>
                     <IconButton
                       size="small"
                       onClick={() => setEditingLocation(true)}
-                      sx={{ color: "#cbd5e1", p: 0.25, "&:hover": { color: "#2563eb" } }}
+                      sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}
                     >
-                      <EditIcon sx={{ fontSize: 13 }} />
+                      <EditIcon sx={{ typography: "caption" }} />
                     </IconButton>
                   </>
                 )}
@@ -201,19 +206,14 @@ export default function PrivateFrontendInfraCard({
             variant="contained"
             size="small"
             sx={{
-              background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-              ...mono,
-              fontSize: "0.75rem",
-              textTransform: "none",
+              typography: "body2",
               py: 0.6,
               px: 2,
-              "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-              "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
             }}
           >
             {infra.running ? (
               <>
-                <CircularProgress size={12} sx={{ mr: 1, color: "#93c5fd" }} />
+                <CircularProgress size={12} sx={{ mr: 1, color: "primary.light" }} />
                 Creating...
               </>
             ) : infra.done ? (
@@ -225,11 +225,11 @@ export default function PrivateFrontendInfraCard({
         </Box>
 
         {infra.steps.length > 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid #e2e8f0", pl: 1.5 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid", borderLeftColor: "divider", pl: 1.5 }}>
             {infra.steps.map((s) => (
               <StepRow key={s.id} step={s} />
             ))}
-            {infra.running && <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", mt: 0.5 }}>Running...</Typography>}
+            {infra.running && <Typography sx={{ typography: "caption", color: "text.muted", mt: 0.5 }}>Running...</Typography>}
           </Box>
         )}
 
@@ -238,19 +238,19 @@ export default function PrivateFrontendInfraCard({
           onClick={() => setVarExpanded((e) => !e)}
           sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
         >
-          <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
-          <Typography sx={{ fontSize: "0.68rem", color: "#94a3b8", ...mono, whiteSpace: "nowrap" }}>
+          <Box sx={{ flex: 1, height: "1px", background: "divider" }} />
+          <Typography sx={{ typography: "caption", color: "text.muted", whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
             sx={{
-              fontSize: 14,
-              color: "#94a3b8",
+              typography: "caption",
+              color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
               transition: "transform 0.2s",
             }}
           />
-          <Box sx={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+          <Box sx={{ flex: 1, height: "1px", background: "divider" }} />
         </Box>
 
         {/* unmountOnExit=false keeps draft edits alive while collapsed */}

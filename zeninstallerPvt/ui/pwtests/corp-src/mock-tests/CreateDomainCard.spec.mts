@@ -7,7 +7,8 @@ import {
 	expectSuccessfulSteps,
 	installCoreInfraAzureMock,
 	installCreateDomainAzureMock,
-	prepareMockAzureSubscription,
+	installMockAzure,
+	installMockGitHub,
 	mockSubscriptionId,
 	mockTenantId,
 	type CreateDomainAzureMockState,
@@ -128,7 +129,7 @@ test("Retries setup after a temporary DNS-zone failure", async ({ page, context 
 	await expectSnapshot(page, card, testInfo, "dns-zone-retry", viewportName);
 });
 
-test("Stops setup when Microsoft consent is denied", async ({ page, context }, testInfo) => {
+test("Stops setup when MS consent is denied", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	test.setTimeout(180_000);
 	const { card, azure, unexpectedRequests } = await prepareDomainCard(page, context, viewportName, {
@@ -245,11 +246,11 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 }
 
 async function openDomainCard(card: import("@playwright/test").Locator) {
-	const description = card.getByText(/Creates the DNS zone for/i);
-	if (await description.isVisible()) return;
-
-	await card.getByText("Core domain", { exact: true }).first().click();
-	await expect(description).toBeVisible();
+	await expect(card.getByText("Core domain", { exact: true }).first()).toBeVisible();
+	if (await card.locator('svg[data-testid="ExpandMoreIcon"]').count()) {
+		await card.getByText("Core domain", { exact: true }).first().click();
+	}
+	await expect(card.getByText(/Creates the DNS zone for/i)).toBeVisible();
 }
 
 async function prepareDomainCard(
@@ -274,19 +275,22 @@ async function prepareDomainCard(
 		route.fulfill({ status: 200, json: { itemsReceived: 0, itemsAccepted: 0, errors: [] } }),
 	);
 
-	const prepared = await prepareMockAzureSubscription(page, context, repoName, {
-		initialVariables: { NAME: companyShortCode },
-		saveVariables: true,
-		initialAzureState: {
-			appDisplayName: "zeninstaller-mock-create-domain",
-			servicePrincipalCreated: true,
-			rbacAssigned: true,
+	const github = await installMockGitHub(page, context, {
+		repositoryName: repoName,
+		branches: ["main", "PROD"],
+		initialVariables: {
+			NAME: companyShortCode,
+			AZURE_TENANT_ID: mockTenantId,
+			AZURE_SUBSCRIPTION_ID: mockSubscriptionId,
+			VITE_AZURE_TENANT_ID: mockTenantId,
+			AZURE_CLIENT_ID: mockClientId,
+			AZURE_PLAN_CLIENT_ID: mockClientId,
 		},
 	});
-	const { github } = prepared;
-	Object.assign(github.variables, {
-		AZURE_CLIENT_ID: mockClientId,
-		AZURE_PLAN_CLIENT_ID: mockClientId,
+	await installMockAzure(page, {
+		appDisplayName: "zeninstaller-mock-create-domain",
+		servicePrincipalCreated: true,
+		rbacAssigned: true,
 	});
 
 	const azure = await installCreateDomainAzureMock(page, domainName, options.initialAzureState);
@@ -341,14 +345,14 @@ async function prepareDomainCard(
 	await page.route("**/msal.ts*", (route) =>
 		route.fulfill({ contentType: "application/javascript", body: authenticationModule(options.rejectConsent ?? false) }),
 	);
-	await page.evaluate(({ tenantId, corpName, dnsName, subscriptionId, domainStatus }) => {
+	await context.addInitScript(({ clientId, tenantId, corpName, dnsName, subscriptionId, domainStatus }) => {
 		localStorage.setItem("zeninstaller_azure_result", JSON.stringify({
-			clientId: "00000000-0000-0000-0000-000000000002",
+			clientId,
 			tenantId,
 			subscriptionIds: [subscriptionId],
 		}));
 		localStorage.setItem("zeninstaller_infra_result", JSON.stringify({ corpName, subscriptionId }));
-		if (domainStatus) {
+		if (domainStatus && !localStorage.getItem("zeninstaller_create_domain_result")) {
 			localStorage.setItem("zeninstaller_create_domain_result", JSON.stringify({
 				corpName,
 				dnsName,
@@ -360,13 +364,22 @@ async function prepareDomainCard(
 		}
 		sessionStorage.setItem("zeninstaller_arm_tenant", tenantId);
 	}, {
+		clientId: mockClientId,
 		tenantId: mockTenantId,
 		corpName: companyShortCode,
 		dnsName: domainName,
 		subscriptionId: mockSubscriptionId,
 		domainStatus: options.persistedDomainStatus ?? null,
 	});
-	await page.reload();
+	const url = new URL(CORP_URL);
+	url.search = new URLSearchParams({
+		account: "mock-user",
+		repo: repoName,
+		env: "PROD",
+		tenant: mockTenantId,
+		subscription: mockSubscriptionId,
+	}).toString();
+	await page.goto(url.toString());
 	const card = page.locator("#card-create_domain");
 	await openDomainCard(card);
 	await expect(card.getByRole("textbox")).toBeVisible();

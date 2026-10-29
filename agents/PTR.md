@@ -59,8 +59,10 @@ Here are examples of issue types that may fit into this category:
 4. Any other issues that affect the operation of the in-scope UI components.
 
 ## Code coverage
-1. Code coverage is recorded in v8 format in the coverage folder glob: zeninstallerPvt/ui/pwtests/test-results/**/v8-coverage.json 
-2. When reviewing the test files, make recommendations on how the code coverage of the reviewed test can be improved and then record this in the manifest.
+1. Aggregate code coverage is recorded at `pwtest-results/coverage-report/lcov.info`. Diagnostic per-test LCOV reports are recorded at `<test-result>/coverage-report/lcov.info`, beside each test result's `result.json`.
+2. When reviewing tests, use the per-test reports to identify which lines and branches are exercised by the integration and mock tests, and use the aggregate report to understand total suite coverage. Compare both reports before recommending additional coverage.
+3. Record coverage findings in the review manifest. Recommend an edge-case scenario only when coverage data establishes that it exercises a distinct, currently uncovered path or branch; do not recommend a scenario already covered by the other test or one that adds assertions without improving code coverage. 
+4. If coverage data is missing or does not establish a gap, do not claim that a proposed edge case will improve coverage.
 
 ## Code quality
 All reviews should include reviews of the code quality of the in-scope components and tests.
@@ -129,8 +131,6 @@ See the script comments for usage examples and parameter details.
 - **Streaming** — Handles large JSONL files line-by-line without loading everything into memory.
 - **JSONL-native** — Implicit per-line iteration with simple syntax.
 - **Lossless** — No truncation; full control over what gets output.
-
-
 
 
 

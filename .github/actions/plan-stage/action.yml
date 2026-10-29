@@ -90,7 +90,7 @@ runs:
 
     - uses: pnpm/setup@v2
       with:
-        runtime: node@22
+        runtime: node@^24.22.1
         cache: true
 
     # Not best-effort: run-stage reports a failed plan itself, so anything that gets past its own

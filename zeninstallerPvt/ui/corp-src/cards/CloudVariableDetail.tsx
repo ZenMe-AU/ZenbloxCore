@@ -4,17 +4,17 @@
  */
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { Account } from "../types";
 import type { UseGithubVariables } from "../hooks/useGithubVariables";
 import VariablesCard from "../components/VariablesCard";
+import ExternalLink from "../components/ExternalLink";
 import RefreshButton from "../components/RefreshButton";
 import SaveButton from "../components/SaveButton";
 import { useVariableEditor } from "../hooks/util/useVariableEditor";
 import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
-import { MONO as mono, sectionLabelSx } from "../config/styles";
 
 type Props = {
   account: Account | null;
@@ -30,6 +30,8 @@ type Props = {
   onComplete?: (done: boolean) => void;
   githubUrl?: string;
   saveHint?: ReactNode; // Rendered next to the Save button (e.g. an "unsaved change" warning).
+  tableHint?: ReactNode; // Rendered under the variable table, above the Save button (e.g. a note on the whole set).
+  keyHints?: Partial<Record<string, ReactNode>>; // Note under one variable's row, e.g. where its value comes from.
   keyErrors?: Partial<Record<string, string>>; // Per-key external validation error, shown as a row-level error icon.
   autoSaveCounter?: number; // Increment to auto-apply populate values and immediately save them to GitHub.
   onAutoSaveResult?: (result: "saved" | "no-changes" | "error") => void; // Called when auto-save (triggered by autoSaveCounter) completes.
@@ -50,6 +52,8 @@ export default function CloudVariableDetail({
   onComplete,
   githubUrl,
   saveHint,
+  tableHint,
+  keyHints,
   keyErrors,
   autoSaveCounter,
   onAutoSaveResult,
@@ -80,8 +84,9 @@ export default function CloudVariableDetail({
 
   const visibleKeys = hiddenKeys?.length ? keys.filter((k) => !hiddenKeys.includes(k)) : keys;
 
-  // Counts what is on screen; a hidden key has no row for the reader to go and fill in.
+  // Both count what is on screen; a hidden key has no row for the reader to fill in or to have edited.
   const notConfigured = visibleKeys.filter((k) => !variables.values[k]).length;
+  const visibleDirtyKeys = dirtyKeys.filter((k) => visibleKeys.includes(k));
 
   const complete = keys.every((k) => !!variables.values[k]);
   const scopedValues = Object.fromEntries(keys.map((k) => [k, variables.values[k] ?? ""]));
@@ -115,12 +120,12 @@ export default function CloudVariableDetail({
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, gap: 1 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography sx={sectionLabelSx}>{title}</Typography>
-          {variables.loading && <CircularProgress size={12} sx={{ color: "#94a3b8" }} />}
+          <Typography variant="sectionLabel">{title}</Typography>
+          {variables.loading && <CircularProgress aria-label="Loading variables" size={12} sx={{ color: "text.muted" }} />}
           {!variables.loading && notConfigured > 0 && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <ErrorOutlineIcon sx={{ fontSize: 12, color: "#ea580c" }} />
-              <Typography sx={{ fontSize: "0.65rem", color: "#ea580c" }}>{notConfigured} not configured</Typography>
+            <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.light" }} />
+              <Typography color="warning.light">{notConfigured} not configured</Typography>
             </Box>
           )}
         </Box>
@@ -141,9 +146,12 @@ export default function CloudVariableDetail({
         upsertStatuses={upsertStatuses}
         overwriteWarning
         keyErrors={keyErrors}
+        keyHints={keyHints}
         onChange={handleChange}
         onRevert={handleRevert}
       />
+
+      {tableHint && <Box sx={{ mt: 1 }}>{tableHint}</Box>}
 
       <Box
         sx={{
@@ -159,7 +167,7 @@ export default function CloudVariableDetail({
           <SaveButton
             verb="Save"
             noun="variable"
-            count={dirtyKeys.length}
+            count={visibleDirtyKeys.length}
             loading={updating}
             disabled={!!disabled || !account || !repo || !envName || updating || dirtyKeys.length === 0}
             onClick={() => void handleSave()}
@@ -167,24 +175,14 @@ export default function CloudVariableDetail({
           {saveHint}
         </Box>
         {githubUrl && (
-          <Button
-            size="small"
-            aria-label="Manage on GitHub"
-            endIcon={<OpenInNewIcon sx={{ fontSize: 12 }} />}
-            onClick={() => window.open(githubUrl, "_blank")}
-            sx={{
-              flexShrink: 0,
-              fontSize: "0.7rem",
-              color: "#64748b",
-              textTransform: "none",
-              ...mono,
-              "&:hover": { color: "#0f172a" },
-            }}
-          >
-            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-              Manage on GitHub
+          <ExternalLink href={githubUrl} label="Manage on GitHub">
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, flexShrink: 0, color: "text.muted", "&:hover": { color: "text.primary" } }}>
+              <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                Manage on GitHub
+              </Box>
+              <OpenInNewIcon aria-hidden="true" sx={{ typography: "caption" }} />
             </Box>
-          </Button>
+          </ExternalLink>
         )}
       </Box>
     </Box>

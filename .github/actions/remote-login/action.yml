@@ -101,7 +101,7 @@ runs:
 
     - uses: pnpm/setup@v2
       with:
-        runtime: node@22
+        runtime: node@^24.22.1
         install: false
 
     - name: Install the agent's dependencies

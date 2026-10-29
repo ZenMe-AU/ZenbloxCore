@@ -70,7 +70,7 @@ test("Direct mode back to Backend mode", async ({ page, context }) => {
   await githubCard.getByRole("button", { name: "Direct (PAT)", exact: true }).click();
   await expectVisibleWithin(githubCard.getByRole("button", { name: "Connect with PAT", exact: true }), "Connect with PAT button", 50_000);
   await githubCard.getByRole("button", { name: "Backend", exact: true }).click();
-  await expectVisibleWithin(githubCard.getByRole("button", { name: "Login with GitHub", exact: true }), "Login with GitHub button", 50_000);
+  await expectVisibleWithin(githubCard.getByRole("button", { name: "Sign in with GitHub", exact: true }), "Sign in with GitHub button", 50_000);
 });
 
 async function runHappyPath({ page, context }: { page: import("@playwright/test").Page; context: import("@playwright/test").BrowserContext }, testInfo: import("@playwright/test").TestInfo): Promise<void> {
@@ -79,7 +79,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 
   const githubCard = await test.step("Expand Unauthenticated Github Login Card", async () => {
     const githubCard = await expandGithubLoginCard(page);
-    await expect(githubCard.getByRole("button", { name: /^(Login with GitHub|Connect with PAT)$/ })).toBeVisible();
+    await expect(githubCard.getByRole("button", { name: /^(Sign in with GitHub|Connect with PAT)$/ })).toBeVisible();
     await expectSnapshot(page, githubCard, testInfo, "start", viewportName);
     return githubCard;
   });
@@ -99,7 +99,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
       await expect(patMode).toHaveCount(0);
     }
     await expectVisibleWithin(githubCard.getByRole("button", { name: "Sign out", exact: true }), "Sign out button", 50_000);
-    await expect(githubCard.getByRole("button", { name: "Login with GitHub", exact: true })).toHaveCount(0);
+    await expect(githubCard.getByRole("button", { name: "Sign in with GitHub", exact: true })).toHaveCount(0);
     await expectSnapshot(page, githubCard, testInfo, "end", viewportName);
   });
   await test.step("Sign out and keep downstream cards unauthenticated after reload", async () => {
@@ -109,7 +109,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await page.reload();
     await expandGithubLoginCard(page);
     await expect(githubCard.getByText(/Authenticated as/i)).toHaveCount(0);
-    await expect(githubCard.getByRole("button", { name: /^(Login with GitHub|Connect with PAT)$/ })).toBeVisible();
+    await expect(githubCard.getByRole("button", { name: /^(Sign in with GitHub|Connect with PAT)$/ })).toBeVisible();
     await expectSnapshot(page, githubCard, testInfo, "signed-out", viewportName);
   });
 }

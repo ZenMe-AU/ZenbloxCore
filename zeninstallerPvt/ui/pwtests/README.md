@@ -44,7 +44,7 @@ Run the following test while showing the browser and letting the user authentica
 Ask the user if they want to use a PAT or backend. 
 
 #### PAT path
-If they want to use a PAT, they need to save the PAT into /.env as GITHUB_TOKEN
+Set GITHUB_TOKEN in the environment, the repository-root .env, or zeninstallerPvt/ui/pwtests/.env. Existing environment variables take precedence, followed by the root file and then the test-specific file.
 Then run the following test while showing the browser: /pwtests/corp-src/setup/github-pat-login.setup.ts
 
 #### Backend path

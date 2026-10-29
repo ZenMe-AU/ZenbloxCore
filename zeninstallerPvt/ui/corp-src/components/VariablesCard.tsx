@@ -3,6 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
+import type { ReactNode } from "react";
 import { Box, IconButton, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -10,24 +11,10 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import UndoIcon from "@mui/icons-material/Undo";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { alpha } from "@mui/material/styles";
+import FieldLabel from "./FieldLabel";
 import type { UpsertStatus } from "../types";
 import { getVariableDisplayName } from "../logic/variables";
-
-// ─── Input style ──────────────────────────────────────────────────────────────
-
-const inputSx = {
-  "& .MuiInputBase-root": {
-    background: "#f8fafc",
-    color: "#0f172a",
-    fontFamily: "'IBM Plex Mono', monospace",
-    fontSize: "0.78rem",
-    borderRadius: "6px",
-  },
-  "& .MuiInputBase-input": { py: "5px", px: "10px" },
-  "& .MuiOutlinedInput-notchedOutline": { borderColor: "#e2e8f0" },
-  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#cbd5e1" },
-  "& .MuiInputBase-input::placeholder": { color: "#94a3b8" },
-};
 
 // ─── Variable row ─────────────────────────────────────────────────────────────
 
@@ -42,6 +29,7 @@ function VariableRow({
   deployedValues,
   overwriteWarning,
   error,
+  hint,
   onChange,
   onRevert,
 }: {
@@ -55,6 +43,7 @@ function VariableRow({
   deployedValues?: Record<string, string>;
   overwriteWarning?: boolean;
   error?: string; // External validation error (e.g. app reg not found in tenant) — independent of upsert/save status.
+  hint?: ReactNode; // A second line under this row, below a light divider — for the one field it explains.
   onChange: (key: string, value: string) => void;
   onRevert: (key: string) => void;
 }) {
@@ -69,75 +58,110 @@ function VariableRow({
     <Box
       sx={{
         display: "flex",
-        alignItems: "center",
-        gap: 1.5,
+        flexDirection: "column",
+        gap: 0.5,
         py: 0.875,
         px: 2,
-        borderBottom: "1px solid #f8fafc",
-        background: isSuccess ? "#f0fdf4" : isError ? "#fef2f2" : isDirty ? "#fffbeb" : "transparent",
+        borderBottom: (theme) => `1px solid ${theme.palette.background.default}`,
+        backgroundColor: (theme) => isSuccess
+          ? alpha(theme.palette.success.light, 0.1)
+          : isError
+            ? alpha(theme.palette.error.light, 0.08)
+            : isDirty
+              ? alpha(theme.palette.warning.light, 0.08)
+              : "transparent",
         transition: "background 0.2s",
       }}
     >
-      {/* Key label + optional info tooltip */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: "10.5rem", flexShrink: 0 }}>
-        <Typography
-          sx={{
-            fontSize: "0.78rem",
-            fontFamily: "'IBM Plex Mono', monospace",
-            color: isDirty ? "#92400e" : "#0f172a",
-            whiteSpace: "nowrap",
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        {/* Key label + optional info tooltip */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: "10.5rem", flexShrink: 0 }}>
+          <FieldLabel
+            htmlFor={`variable-${varKey}`}
+            sx={{ color: (theme) => isDirty ? theme.palette.warning.dark : theme.palette.text.primary, whiteSpace: "nowrap", mb: 0 }}
+          >
+            {getVariableDisplayName(varKey)}
+          </FieldLabel>
+          {description && (
+            <Tooltip title={description} placement="top" arrow>
+              <InfoOutlinedIcon sx={{ typography: "caption", color: (theme) => theme.palette.card.mutedIcon, cursor: "help", "&:hover": { color: (theme) => theme.palette.card.mutedIconHover } }} />
+            </Tooltip>
+          )}
+        </Box>
+
+        <TextField
+          id={`variable-${varKey}`}
+          className="corpEditor"
+          data-editor-state={isError ? "error" : isDirty ? "dirty" : undefined}
+          data-sensitive="true"
+          error={isError}
+          placeholder="not set"
+          value={localValue}
+          onChange={(e) => onChange(varKey, e.target.value)}
+          sx={{ flex: 1 }}
+          InputProps={{
+            endAdornment:
+              localValue || isDirty ? (
+                <InputAdornment position="end" sx={{ gap: 0 }}>
+                  {localValue && (
+                    <IconButton aria-label={`Clear ${getVariableDisplayName(varKey)}`} size="small" onClick={() => onChange(varKey, "")} sx={{ color: (theme) => theme.palette.text.muted, p: 0.25, "&:hover": { color: (theme) => theme.palette.text.secondary } }}>
+                      <ClearIcon sx={{ typography: "caption" }} />
+                    </IconButton>
+                  )}
+                  {isDirty && (
+                    <Tooltip title="Revert to saved value">
+                      <IconButton aria-label={`Revert ${getVariableDisplayName(varKey)} to saved value`} size="small" onClick={() => onRevert(varKey)} sx={{ color: (theme) => theme.palette.text.muted, p: 0.25, "&:hover": { color: (theme) => theme.palette.warning.main } }}>
+                        <UndoIcon sx={{ typography: "caption" }} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </InputAdornment>
+              ) : undefined,
           }}
-        >
-          {getVariableDisplayName(varKey)}
-        </Typography>
-        {description && (
-          <Tooltip title={description} placement="top" arrow>
-            <InfoOutlinedIcon sx={{ fontSize: 13, color: "#cbd5e1", cursor: "help", "&:hover": { color: "#94a3b8" } }} />
+        />
+
+        {isDeployedDiff && !isDirty && !isError && (
+          <Tooltip title={`Plan configured: ${deployedValues![varKey] || "(empty)"}`} placement="top" arrow>
+            <WarningAmberIcon sx={{ typography: "caption", color: (theme) => theme.palette.warning.main, flexShrink: 0 }} />
           </Tooltip>
         )}
-      </Box>
 
-      <TextField
-        data-sensitive="true"
-        size="small"
-        placeholder="not set"
-        value={localValue}
-        onChange={(e) => onChange(varKey, e.target.value)}
-        sx={{
-          flex: 1,
-          ...inputSx,
-          ...(isDirty ? { "& .MuiOutlinedInput-notchedOutline": { borderColor: "#fbbf24" } } : {}),
-          ...(isError ? { "& .MuiOutlinedInput-notchedOutline": { borderColor: "#ef4444" } } : {}),
-        }}
-        InputProps={{
-          endAdornment:
-            localValue || isDirty ? (
-              <InputAdornment position="end" sx={{ gap: 0 }}>
-                {localValue && (
-                  <IconButton size="small" onClick={() => onChange(varKey, "")} sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#475569" } }}>
-                    <ClearIcon sx={{ fontSize: 13 }} />
-                  </IconButton>
-                )}
-                {isDirty && (
-                  <Tooltip title="Revert to saved value">
-                    <IconButton size="small" onClick={() => onRevert(varKey)} sx={{ color: "#94a3b8", p: 0.25, "&:hover": { color: "#d97706" } }}>
-                      <UndoIcon sx={{ fontSize: 13 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </InputAdornment>
-            ) : undefined,
-        }}
-      />
+        {willOverwrite && !isError && (
+          <Tooltip title={`Replaces saved value: ${savedValue}`} placement="top" arrow>
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.4,
+                px: 0.875,
+                py: 0.2,
+                borderRadius: 0.5,
+                backgroundColor: (theme) => alpha(theme.palette.warning.light, 0.08),
+                border: (theme) => `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
+                color: (theme) => theme.palette.warning.dark,
+                flexShrink: 0,
+                cursor: "help",
+              }}
+            >
+              <WarningAmberIcon sx={{ typography: "caption" }} />
+              overwrites
+            </Box>
+          </Tooltip>
+        )}
 
-      {isDeployedDiff && !isDirty && !isError && (
-        <Tooltip title={`Plan configured: ${deployedValues![varKey] || "(empty)"}`} placement="top" arrow>
-          <WarningAmberIcon sx={{ fontSize: 14, color: "#d97706", flexShrink: 0 }} />
-        </Tooltip>
-      )}
+        {isError && (
+          <Tooltip title={error ?? upsertStatus?.error ?? "Update failed"}>
+            <Box component="span" role="alert" aria-label={error ?? upsertStatus?.error ?? "Update failed"} sx={{ display: "inline-flex" }}>
+              <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: (theme) => theme.palette.error.light, flexShrink: 0 }} />
+            </Box>
+          </Tooltip>
+        )}
 
-      {willOverwrite && !isError && (
-        <Tooltip title={`Replaces saved value: ${savedValue}`} placement="top" arrow>
+        {isSuccess && (
+          <Typography role="status" aria-live="polite" sx={{ color: "success.dark", whiteSpace: "nowrap" }}>just updated</Typography>
+        )}
+
+        {!isDirty && !isSuccess && !isError && validStatus === true && (
           <Box
             sx={{
               display: "inline-flex",
@@ -145,75 +169,44 @@ function VariableRow({
               gap: 0.4,
               px: 0.875,
               py: 0.2,
-              borderRadius: "4px",
-              background: "#fffbeb",
-              border: "1px solid #fde68a",
-              fontSize: "0.62rem",
-              fontFamily: "'IBM Plex Mono', monospace",
-              color: "#b45309",
+              borderRadius: 0.5,
+              backgroundColor: (theme) => alpha(theme.palette.success.light, 0.1),
+              border: (theme) => `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+              color: "success.dark",
               flexShrink: 0,
-              cursor: "help",
             }}
+            role="status"
+            aria-live="polite"
           >
-            <WarningAmberIcon sx={{ fontSize: 10 }} />
-            overwrites
+            <CheckCircleIcon sx={{ typography: "caption" }} />
+            valid
           </Box>
-        </Tooltip>
-      )}
+        )}
 
-      {isError && (
-        <Tooltip title={error ?? upsertStatus?.error ?? "Update failed"}>
-          <ErrorOutlineIcon sx={{ fontSize: 14, color: "#ef4444", flexShrink: 0 }} />
-        </Tooltip>
-      )}
+        {!isDirty && !isSuccess && !isError && validStatus === false && (
+          <Box
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.4,
+              px: 0.875,
+              py: 0.2,
+              borderRadius: 0.5,
+              backgroundColor: (theme) => alpha(theme.palette.error.light, 0.08),
+              border: (theme) => `1px solid ${alpha(theme.palette.error.light, 0.3)}`,
+              color: "error.dark",
+              flexShrink: 0,
+            }}
+            role="alert"
+          >
+            <ErrorOutlineIcon sx={{ typography: "caption" }} />
+            invalid
+          </Box>
+        )}
+      </Box>
 
-      {isSuccess && (
-        <Typography sx={{ fontSize: "0.62rem", color: "#16a34a", fontFamily: "'IBM Plex Mono', monospace", whiteSpace: "nowrap" }}>just updated</Typography>
-      )}
-
-      {!isDirty && !isSuccess && !isError && validStatus === true && (
-        <Box
-          sx={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 0.4,
-            px: 0.875,
-            py: 0.2,
-            borderRadius: "4px",
-            background: "#f0fdf4",
-            border: "1px solid #bbf7d0",
-            fontSize: "0.62rem",
-            fontFamily: "'IBM Plex Mono', monospace",
-            color: "#16a34a",
-            flexShrink: 0,
-          }}
-        >
-          <CheckCircleIcon sx={{ fontSize: 10 }} />
-          valid
-        </Box>
-      )}
-
-      {!isDirty && !isSuccess && !isError && validStatus === false && (
-        <Box
-          sx={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 0.4,
-            px: 0.875,
-            py: 0.2,
-            borderRadius: "4px",
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
-            fontSize: "0.62rem",
-            fontFamily: "'IBM Plex Mono', monospace",
-            color: "#ef4444",
-            flexShrink: 0,
-          }}
-        >
-          <ErrorOutlineIcon sx={{ fontSize: 10 }} />
-          invalid
-        </Box>
-      )}
+      {/* Light divider so the hint reads as part of this row rather than the solid line between rows. */}
+      {hint && <Box sx={{ borderTop: 1, borderColor: "divider", pt: 0.75 }}>{hint}</Box>}
     </Box>
   );
 }
@@ -230,6 +223,7 @@ type Props = {
   deployedValues?: Record<string, string>; // Values from the last deployed corp.env snapshot — used to highlight changed rows
   overwriteWarning?: boolean; // When true, dirty rows that replace a non-empty saved value show an "overwrites" warning
   keyErrors?: Partial<Record<string, string>>; // Per-key external validation error (e.g. app reg not found in tenant)
+  keyHints?: Partial<Record<string, ReactNode>>; // Note under one variable's row, e.g. where its value comes from
   onChange: (key: string, value: string) => void;
   onRevert: (key: string) => void;
 };
@@ -246,11 +240,12 @@ export default function VariablesCard({
   deployedValues,
   overwriteWarning,
   keyErrors,
+  keyHints,
   onChange,
   onRevert,
 }: Props) {
   return (
-    <Box sx={{ border: "1px solid #f1f5f9", borderRadius: "8px", overflow: "hidden" }}>
+    <Box sx={{ border: "1px solid", borderColor: "card.contentDivider", borderRadius: "8px", overflow: "hidden" }}>
       {requiredKeys.map((key) => (
         <VariableRow
           key={key}
@@ -264,6 +259,7 @@ export default function VariablesCard({
           deployedValues={deployedValues}
           overwriteWarning={overwriteWarning}
           error={keyErrors?.[key]}
+          hint={keyHints?.[key]}
           onChange={onChange}
           onRevert={onRevert}
         />

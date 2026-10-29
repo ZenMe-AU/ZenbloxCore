@@ -3,11 +3,26 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { describe, it, expect } from "vitest";
-import { parseSocketEvent } from "../logic/remoteTerminal";
-import { stageLabel } from "../config/remoteTerminal";
+import { describe, it, expect, vi } from "vitest";
+import { createRandomUuid } from "../logic/randomUuid";
+import { parseSocketEvent, parseWebPubSubUrl } from "../logic/remoteTerminal";
+import { stageLabel, TERMINAL_COLORS, TERMINAL_THEME } from "../config/remoteTerminal";
 
 const SESSION = "11111111-2222-3333-4444-555555555555";
+
+describe("createRandomUuid", () => {
+  it("uses secure random values when crypto.randomUUID is unavailable", () => {
+    vi.stubGlobal("crypto", {
+      getRandomValues: (bytes: Uint8Array) => bytes.fill(0xab),
+    });
+
+    try {
+      expect(createRandomUuid()).toBe("abababab-abab-4bab-abab-abababababab");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
 
 function group(data: unknown, sessionId = SESSION) {
   return JSON.stringify({ type: "message", group: sessionId, data });
@@ -47,6 +62,12 @@ describe("parseSocketEvent", () => {
     });
   });
 
+  it("rejects device-code links that are malformed or not HTTPS", () => {
+    for (const url of ["javascript:alert(1)", "http://signin.example", "https://user:pass@example.com", "not a URL"]) {
+      expect(parseSocketEvent(group(JSON.stringify({ type: "deviceCode", cloud: "azure", url })), SESSION)).toBeNull();
+    }
+  });
+
   it("treats a payload that is not JSON as raw terminal bytes", () => {
     const ansi = "\u001b[32mok\u001b[0m";
     expect(parseSocketEvent(group(ansi), SESSION)).toEqual({
@@ -67,11 +88,40 @@ describe("parseSocketEvent", () => {
   });
 });
 
+describe("parseWebPubSubUrl", () => {
+  it("accepts secure Azure Web PubSub client URLs", () => {
+    const url = "wss://example.webpubsub.azure.com/client/hubs/terminal?access_token=token";
+    expect(parseWebPubSubUrl(url)).toBe(url);
+  });
+
+  it("rejects insecure, malformed, and non-Web-PubSub URLs", () => {
+    for (const url of [
+      "ws://example.webpubsub.azure.com/client",
+      "wss://example.com/client",
+      "wss://example.webpubsub.azure.com:8443/client",
+      "javascript:alert(1)",
+      "not a URL",
+    ]) {
+      expect(parseWebPubSubUrl(url)).toBeNull();
+    }
+  });
+});
+
 describe("stageLabel", () => {
   it("names the runner's stages and passes unknown ones through", () => {
     expect(stageLabel("azure-login")).toBe("Azure Login");
     expect(stageLabel("aws-login")).toBe("AWS Login");
     expect(stageLabel("terraform-plan")).toBe("Terraform Plan");
     expect(stageLabel("something-new")).toBe("something-new");
+  });
+});
+
+describe("terminal color schemes", () => {
+  it("provides coordinated light and dark terminal palettes", () => {
+    expect(TERMINAL_THEME.light.background).toBe(TERMINAL_COLORS.light.panel);
+    expect(TERMINAL_THEME.light.foreground).toBe(TERMINAL_COLORS.light.text);
+    expect(TERMINAL_THEME.dark.background).toBe(TERMINAL_COLORS.dark.panel);
+    expect(TERMINAL_THEME.dark.foreground).toBe(TERMINAL_COLORS.dark.text);
+    expect(TERMINAL_COLORS.light.panel).not.toBe(TERMINAL_COLORS.dark.panel);
   });
 });

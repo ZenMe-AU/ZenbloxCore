@@ -8,7 +8,6 @@ import { Box, Button, CircularProgress, IconButton, InputAdornment, TextField, T
 import ClearIcon from "@mui/icons-material/Clear";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import { MONO as monoSx } from "../../config/styles";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getGithubUserUrl, GITHUB_LOGIN_URL } from "../../logic/github";
@@ -24,7 +23,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography sx={{ fontSize: "0.78rem", color: "#475569", lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
       Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox.
     </Typography>
   );
@@ -90,12 +89,12 @@ export default function GithubLoginCard({ card, auth }: Props) {
         {/* Mode toggle — hidden once logged in, and when PAT is the only mode there is nothing to pick */}
         {!user && backendAvailable && (
           <Box sx={{ mb: 2 }}>
-            <Typography sx={{ fontSize: "0.72rem", color: "#64748b", mb: 1 }}>
-              <Box component="span" sx={{ ...monoSx, fontWeight: 600 }}>
+            <Typography color="text.muted" sx={{ mb: 1 }}>
+              <Box component="span" sx={{ fontWeight: 600 }}>
                 Backend
               </Box>{" "}
               signs you in through GitHub's OAuth flow and keeps your access token on the server.{" "}
-              <Box component="span" sx={{ ...monoSx, fontWeight: 600 }}>
+              <Box component="span" sx={{ fontWeight: 600 }}>
                 Direct (PAT)
               </Box>{" "}
               skips the backend entirely — paste your own Personal Access Token and the browser talks to GitHub directly.
@@ -105,9 +104,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
               exclusive
               onChange={handleModeChange}
               size="small"
-              sx={{
-                "& .MuiToggleButton-root": { ...monoSx, fontSize: "0.7rem", textTransform: "none", px: 1.5, py: 0.4 },
-              }}
+              sx={{ "& .MuiToggleButton-root": { px: 1.5, py: 0.4 } }}
             >
               <ToggleButton value="backend">Backend</ToggleButton>
               <ToggleButton value="direct">Direct (PAT)</ToggleButton>
@@ -116,9 +113,9 @@ export default function GithubLoginCard({ card, auth }: Props) {
         )}
 
         {authLoading ? (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
-            <CircularProgress size={16} sx={{ color: "#cbd5e1" }} />
-            <Typography sx={{ fontSize: "0.78rem", color: "#94a3b8", ...monoSx }}>{signingIn ? "Signing you in..." : "Verifying access..."}</Typography>
+          <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
+            <CircularProgress aria-label={signingIn ? "Signing you in" : "Verifying access"} size={16} sx={{ color: "text.disabled" }} />
+            <Typography color="text.muted">{signingIn ? "Signing you in..." : "Verifying access..."}</Typography>
           </Box>
         ) : !user ? (
           mode === "direct" ? (
@@ -146,12 +143,14 @@ export default function GithubLoginCard({ card, auth }: Props) {
                 }}
                 error={!!patError}
                 helperText={patError || "Personal Access Token with repo + workflow scopes"}
-                inputProps={{ style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.8rem" } }}
+                aria-label="GitHub Personal Access Token"
+                className="corpTechnicalInput"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
                       {pat && (
                         <IconButton
+                          aria-label="Clear GitHub Personal Access Token"
                           size="small"
                           onClick={() => {
                             setPat("");
@@ -159,7 +158,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
                           }}
                           tabIndex={-1}
                         >
-                          <ClearIcon sx={{ fontSize: 14, color: "#94a3b8" }} />
+                          <ClearIcon sx={{ typography: "caption", color: "text.muted" }} />
                         </IconButton>
                       )}
                       <IconButton
@@ -169,29 +168,22 @@ export default function GithubLoginCard({ card, auth }: Props) {
                         tabIndex={-1}
                         aria-label={showPat ? "Hide token" : "Show token"}
                       >
-                        {showPat ? <VisibilityOffIcon sx={{ fontSize: 14, color: "#94a3b8" }} /> : <VisibilityIcon sx={{ fontSize: 14, color: "#94a3b8" }} />}
+                        {showPat ? <VisibilityOffIcon sx={{ typography: "caption", color: "text.muted" }} /> : <VisibilityIcon sx={{ typography: "caption", color: "text.muted" }} />}
                       </IconButton>
                     </InputAdornment>
                   ),
                 }}
-                FormHelperTextProps={{ sx: { ...monoSx, fontSize: "0.68rem" } }}
+                FormHelperTextProps={{ role: patError ? "alert" : undefined }}
               />
               <Button
                 variant="contained"
                 type="submit"
                 disabled={!pat?.trim() || signingIn}
-                startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "#cbd5e1" }} /> : undefined}
+                startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "text.disabled" }} /> : undefined}
                 sx={{
                   alignSelf: "flex-start",
-                  background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                  textTransform: "none",
-                  ...monoSx,
-                  fontSize: "0.8rem",
                   py: 0.75,
                   px: 2,
-                  borderRadius: "8px",
-                  "&:hover": { background: "linear-gradient(135deg, #1d4ed8, #1e40af)" },
-                  "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1" },
                 }}
               >
                 {signingIn ? "Connecting..." : "Connect with PAT"}
@@ -202,35 +194,29 @@ export default function GithubLoginCard({ card, auth }: Props) {
               variant="contained"
               onClick={onLogin}
               disabled={signingIn}
-              startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "#cbd5e1" }} /> : undefined}
+              startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "text.disabled" }} /> : undefined}
               sx={{
-                background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
-                textTransform: "none",
-                ...monoSx,
-                fontSize: "0.85rem",
                 py: 1,
                 px: 2.5,
-                borderRadius: "8px",
-                boxShadow: "0 2px 8px #2563eb33",
+                boxShadow: (theme) => `0 2px 8px ${theme.palette.primary.main}33`,
                 "&:hover": {
-                  background: "linear-gradient(135deg, #1d4ed8, #1e40af)",
-                  boxShadow: "0 4px 12px #2563eb44",
+                  boxShadow: (theme) => `0 4px 12px ${theme.palette.primary.main}44`,
                 },
-                "&.Mui-disabled": { background: "#f1f5f9", color: "#cbd5e1", boxShadow: "none" },
+                "&.Mui-disabled": { boxShadow: "none" },
               }}
             >
-              {signingIn ? "Connecting..." : "Login with GitHub"}
+              {signingIn ? "Connecting..." : "Sign in with GitHub"}
             </Button>
           )
         ) : (
-          <Box>
-            <Typography sx={{ fontSize: "0.78rem", color: "#64748b", mb: 2 }}>
+          <Box role="status" aria-live="polite">
+            <Typography color="text.muted" sx={{ mb: 2 }}>
               Authenticated as{" "}
-              <Box component="span" data-sensitive="true" sx={{ ...monoSx, fontWeight: 600 }}>
+              <Box component="span" data-sensitive="true" sx={{ color: "success.main", fontWeight: 600 }}>
                 {user.login}
               </Box>
               {mode === "direct" && (
-                <Box component="span" sx={{ color: "#94a3b8" }}>
+                <Box component="span" sx={{ color: "text.muted" }}>
                   {" "}
                   · PAT mode
                 </Box>
@@ -240,16 +226,11 @@ export default function GithubLoginCard({ card, auth }: Props) {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Button
                 size="small"
-                variant="outlined"
+                variant="contained"
+                color="error"
                 onClick={onLogout}
                 sx={{
-                  borderColor: "#e2e8f0",
-                  color: "#94a3b8",
-                  fontSize: "0.72rem",
-                  textTransform: "none",
-                  ...monoSx,
                   py: 0.5,
-                  "&:hover": { borderColor: "#fecaca", color: "#ef4444" },
                 }}
               >
                 Sign out

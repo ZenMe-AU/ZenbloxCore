@@ -255,6 +255,7 @@ describe("azure workflow cards", () => {
           corpName: "Zenblox",
           spClientId: "client-a",
           tenantId: "tenant-1",
+          variableValues: {},
         }),
       (value) => {
         latest = value;

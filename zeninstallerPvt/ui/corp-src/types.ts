@@ -11,6 +11,7 @@ export type AzureTenant = { tenantId: string; displayName: string; defaultDomain
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 export type CardId =
+  | "github_signup"
   | "github_login"
   | "azure_login"
   | "repo"
@@ -189,6 +190,7 @@ export type Prerequisite = PrerequisiteCard | PrerequisiteVar | PrerequisiteVarG
 export type StageDefinition = {
   dir: string;
   label: string; // Shown on the card
+  description?: string; // One-line overview shown on the card, including while locked
   workflowId: string;
   prerequisites: Prerequisite[];
   optional?: boolean; // When true, a pending stage is treated as skipped rather than waiting.

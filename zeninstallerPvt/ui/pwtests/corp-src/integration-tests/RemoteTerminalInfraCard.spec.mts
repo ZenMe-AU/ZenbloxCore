@@ -1,9 +1,8 @@
 /// <reference types="node" />
 // UI component: ../../../corp-src/cards/RemoteTerminalInfraCard.tsx
-import { writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { CORP_URL, viewports } from "../../testInit";
-import { expectSnapshot } from "../../util/testHelper.ts";
+import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
 import { expectSuccessfulSteps } from "../util/mockTestHelper.mts";
 import {
 	connectionInput,
@@ -18,11 +17,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test.afterEach(async ({ page }, testInfo) => {
-	if (page.isClosed()) return;
-	const entries = await page.coverage.stopJSCoverage();
-	const file = testInfo.outputPath("v8-coverage.json");
-	await writeFile(file, JSON.stringify(entries), "utf8");
-	await testInfo.attach("v8-coverage", { path: file, contentType: "application/json" });
+	await attachJSCoverage(page, testInfo);
 });
 
 for (const [viewportName, viewport] of Object.entries(viewports)) {
