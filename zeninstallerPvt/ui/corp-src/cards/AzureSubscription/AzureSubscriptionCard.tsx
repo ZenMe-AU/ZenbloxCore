@@ -53,7 +53,7 @@ function Intro() {
  * group; the selection is fed to the infra, domain, and app-registration cards.
  */
 function Action({ subscriptionId, tenantId }: { subscriptionId: string; tenantId?: string }) {
-  return <ViewLink href={subscriptionId ? getAzureSubscriptionUrl(tenantId, subscriptionId) : AZURE_SUBSCRIPTIONS_URL} />;
+  return <ViewLink href={subscriptionId ? getAzureSubscriptionUrl(tenantId, subscriptionId) : AZURE_SUBSCRIPTIONS_URL} label="Subscription" />;
 }
 
 export default function AzureSubscriptionCard({

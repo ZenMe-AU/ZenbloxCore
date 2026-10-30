@@ -11,6 +11,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import type { UsePrivateFrontendInfraCard } from "./usePrivateFrontendInfraCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { getPrivateInstallerAppName } from "../../logic/naming";
@@ -90,7 +91,7 @@ export default function PrivateFrontendInfraCard({
       : undefined;
 
   return (
-    <Card title="Frontend hosting environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} lockedIntro={<Intro />} {...card}>
+    <Card title="Frontend hosting environment" action={rgUrl ? <ViewLink href={rgUrl} label="Frontend resources" /> : undefined} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro />
 
@@ -199,17 +200,22 @@ export default function PrivateFrontendInfraCard({
           </Box>
         )}
 
+        {infra.steps.length > 0 && (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid", borderLeftColor: "divider", pl: 1.5 }}>
+            {infra.steps.map((s) => (
+              <StepRow key={s.id} step={s} />
+            ))}
+            {infra.running && <Typography sx={{ typography: "caption", color: "text.muted", mt: 0.5 }}>Running...</Typography>}
+          </Box>
+        )}
+        <ProcessRetryNotice started={infra.steps.length > 0} />
+
         <Box>
           <Button
             onClick={() => void infra.run()}
             disabled={infra.running}
             variant="contained"
             size="small"
-            sx={{
-              typography: "body2",
-              py: 0.6,
-              px: 2,
-            }}
           >
             {infra.running ? (
               <>
@@ -223,15 +229,6 @@ export default function PrivateFrontendInfraCard({
             )}
           </Button>
         </Box>
-
-        {infra.steps.length > 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid", borderLeftColor: "divider", pl: 1.5 }}>
-            {infra.steps.map((s) => (
-              <StepRow key={s.id} step={s} />
-            ))}
-            {infra.running && <Typography sx={{ typography: "caption", color: "text.muted", mt: 0.5 }}>Running...</Typography>}
-          </Box>
-        )}
 
         {/* ── Divider (clickable toggle) ── */}
         <Box

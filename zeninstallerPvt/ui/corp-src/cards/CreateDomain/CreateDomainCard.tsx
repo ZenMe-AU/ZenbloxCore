@@ -11,6 +11,7 @@ import { warningMessageIconSx } from "../../config/styles";
 import type { UseCreateDomainCard } from "./useCreateDomainCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_DNS_ZONES_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { dnsZoneScope } from "../../api/azureArm";
@@ -59,7 +60,7 @@ function PrimaryCheckbox({ checked, disabled, dnsName, onChange }: { checked: bo
 }
 
 function Action({ resourceId }: { resourceId: string | null }) {
-  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_DNS_ZONES_URL} />;
+  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_DNS_ZONES_URL} label="DNS zone" />;
 }
 
 export default function CreateDomainCard({
@@ -158,6 +159,7 @@ export default function CreateDomainCard({
           </Box>
         )}
         {checkStatusError && <ErrorText>Couldn't check existing setup: {checkStatusError}</ErrorText>}
+
         {/* Planned resources */}
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -188,10 +190,6 @@ export default function CreateDomainCard({
                 variant="contained"
                 onClick={run}
                 disabled={disabled || running}
-                sx={{
-                  py: 0.85,
-                  px: 2.5,
-                }}
               >
                 {resourcesDone ? "Re-run setup" : "Set up core DNS domain"}
               </Button>
@@ -211,6 +209,7 @@ export default function CreateDomainCard({
               <StepRow key={s.id} step={s} />
             ))}
             {running && <StatusText>Running...</StatusText>}
+            <ProcessRetryNotice started={steps.length > 0} />
             {!running && (
               <Button
                 size="small"

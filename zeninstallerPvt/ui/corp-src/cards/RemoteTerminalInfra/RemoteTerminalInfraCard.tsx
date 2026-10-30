@@ -12,6 +12,7 @@ import type { UseRemoteTerminalInfraCard } from "./useRemoteTerminalInfraCard";
 import StepRow from "../StepRow";
 import EditableNameRow from "./EditableNameRow";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
@@ -86,7 +87,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
       : undefined;
 
   return (
-    <Card title="Private Zeninstaller Backend Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} lockedIntro={<Intro />} {...card}>
+    <Card title="Private Zeninstaller Backend Environment" action={rgUrl ? <ViewLink href={rgUrl} label="Backend resources" /> : undefined} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro />
 
@@ -190,6 +191,15 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
           </Box>
         )}
 
+        {infra.steps.length > 0 && (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+            {infra.steps.map((s) => (
+              <StepRow key={s.id} step={s} />
+            ))}
+          </Box>
+        )}
+        <ProcessRetryNotice started={infra.steps.length > 0} />
+
         <Box>
           <Button
             onClick={() => void infra.run()}
@@ -197,7 +207,6 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
             variant="contained"
             size="small"
             aria-busy={infra.running}
-            sx={{ py: 0.6, px: 2 }}
           >
             {infra.running ? (
               <Box component="span" role="status" aria-live="polite" sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
@@ -211,14 +220,6 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
             )}
           </Button>
         </Box>
-
-        {infra.steps.length > 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
-            {infra.steps.map((s) => (
-              <StepRow key={s.id} step={s} />
-            ))}
-          </Box>
-        )}
 
         {/* ── Divider (clickable toggle) ── */}
         <ButtonBase

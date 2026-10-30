@@ -314,13 +314,17 @@ const theme = createTheme({
   },
   components: {
     MuiButton: {
+      defaultProps: {
+        size: "small",
+      },
       styleOverrides: {
-        root: {
-          borderRadius: 8,
-          fontWeight: 600,
-          fontSize: "1rem",
-          textTransform: "none",
-        },
+        root: ({ theme }) => ({
+          minHeight: 32,
+          padding: "4px 12px",
+          borderRadius: 6,
+          ...theme.typography.button,
+          lineHeight: 1.25,
+        }),
         contained: ({ theme }) => ({
           backgroundImage: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
           "&:hover": {
@@ -345,6 +349,20 @@ const theme = createTheme({
           }),
         },
       ],
+    },
+    MuiToggleButton: {
+      defaultProps: {
+        size: "small",
+      },
+      styleOverrides: {
+        root: ({ theme }) => ({
+          minHeight: 32,
+          padding: "4px 12px",
+          borderRadius: 6,
+          ...theme.typography.button,
+          lineHeight: 1.25,
+        }),
+      },
     },
     MuiTextField: {
       defaultProps: {

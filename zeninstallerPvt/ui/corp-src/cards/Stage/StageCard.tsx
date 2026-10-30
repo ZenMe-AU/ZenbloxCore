@@ -38,6 +38,7 @@ import { MONO_FONT } from "../../config/styles";
 import Card from "../../components/Card";
 import VariablesCard from "../../components/VariablesCard";
 import ErrorText from "../../components/ErrorText";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import StatusText from "../../components/StatusText";
 import StagePlanDetail from "./StagePlanDetail";
 import RemoteTerminal from "./RemoteTerminal";
@@ -146,10 +147,6 @@ function StageVarEditor({
           disabled={updating || dirtyKeys.length === 0 || !selectedEnv}
           variant="contained"
           size="small"
-          sx={{
-            py: 0.75,
-            px: 2,
-          }}
         >
           {updating ? "Updating..." : dirtyKeys.length > 0 ? `Update ${dirtyKeys.length} variable${dirtyKeys.length !== 1 ? "s" : ""}` : "Update variables"}
         </Button>
@@ -260,7 +257,7 @@ type Props = {
 
 function Action({ repoFullName, runId }: { repoFullName: string | null; runId?: string }) {
   if (!repoFullName || !runId) return null;
-  return <ViewLink href={getWorkflowRunUrl(repoFullName, runId)} />;
+  return <ViewLink href={getWorkflowRunUrl(repoFullName, runId)} label="Workflow run" />;
 }
 
 export default function StageCard({
@@ -293,6 +290,7 @@ export default function StageCard({
   const [deployLog, setDeployLog] = useState<{ id: number; text: string | null } | null>(null);
   const [planLog, setPlanLog] = useState<{ id: number; text: string | null } | null>(null);
   const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [deployStarted, setDeployStarted] = useState(false);
 
   // One instance per card. The permissions come straight from this stage's definition, so there
   // is no shared pending flag to leak and no union of every stage's permissions to over-grant.
@@ -315,7 +313,10 @@ export default function StageCard({
   const onDeploy =
     trackDeploy &&
     (async () => {
-      if (await remoteTerminal.start()) await trackDeploy();
+      if (await remoteTerminal.start()) {
+        setDeployStarted(true);
+        await trackDeploy();
+      }
     });
 
   const onPlanSummaryRef = useRef(onPlanSummary);
@@ -407,7 +408,6 @@ export default function StageCard({
           />
           {(permissionError ?? runError) && <ErrorText>{permissionError ?? runError}</ErrorText>}
         </Box>
-
         {stageDef.prerequisites.length > 0 && (
           <Box>
             <Typography
@@ -571,7 +571,7 @@ export default function StageCard({
               ) : null}
               {stage.deployedAt && <Typography color="text.secondary">{relativeTime(stage.deployedAt)}</Typography>}
               {/* The apply's own run, not the plan's — the header link points at the plan. */}
-              {repoFullName && stage.deployRunId && <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} />}
+              {repoFullName && stage.deployRunId && <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} label="Workflow run" />}
             </Box>
             {/* 13px icon + the 8px gap above. */}
             <Box sx={{ pl: "21px" }}>
@@ -580,6 +580,16 @@ export default function StageCard({
             </Box>
           </Box>
         )}
+        <ProcessRetryNotice
+          started={
+            statusUpdateRunning ||
+            deployStarted ||
+            stage.status === "success" ||
+            stage.status === "failed" ||
+            stage.status === "deployed" ||
+            !!stage.deployStatus
+          }
+        />
       </Box>
     </Card>
   );

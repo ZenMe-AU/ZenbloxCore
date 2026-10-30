@@ -349,6 +349,7 @@ Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)):
 | `FieldLabel` | `FormLabel` bound with `htmlFor` | labels inputs |
 | `ErrorText` | Error message | `role=alert` |
 | `StatusText` | Progress/success message | `role=status`, `aria-live=polite` |
+| `ProcessRetryNotice` | Static retry guidance for runnable setup/deployment sections | `role=note`; no live-region behavior |
 | `ConfigErrorNotice` | "Card isn't configured correctly" panel | none (see issues) |
 | `ExternalLink` | Inline new-tab link | `aria-label="<label> (opens in new tab)"`, `rel=noopener noreferrer` |
 | `ViewLink` | Outlined "View" button-link, text hidden at `xs` | same new-tab naming; `title=href` |
@@ -359,11 +360,13 @@ Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)):
 | `SecretsCard` | Secret presence/validity list + edit dialog | masked by default, reveal toggle, validation badges |
 | `StepRow` (cards/) | One line of a progress checklist | icon + label + detail + determinate bar |
 
+Runnable process sections show the same retry guidance before and during execution: if one or more steps fail, users can try running the process again once or twice. This is informational only; it does not start automatic retries or promise that a retry will succeed.
+
 ### 6.2 Common controls and patterns
 
 | Pattern | Implementation |
 |---|---|
-| Primary action | `Button variant="contained"` with 135deg blue gradient (theme override); disabled flattens to `#f1f5f9` / `#cbd5e1` |
+| Primary action | `Button variant="contained"` with 135deg blue gradient and shared compact sizing (0.875rem text, 32px minimum height, 4px 12px padding, 6px radius); disabled flattens to `#f1f5f9` / `#cbd5e1` |
 | Destructive action | `color="error" variant="contained"` red gradient (sign-out) |
 | Secondary action | `variant="outlined"` (Deploy status update, shortcuts, View) |
 | Text field | MUI `TextField` small; class `corpEditor` (monospace, tinted bg, dirty = amber border, error = red) and `corpTechnicalInput` for IDs/keys |
@@ -410,7 +413,7 @@ Only `sans-serif` (UI) and `monospace` (technical values) are permitted; no web 
 | `fieldLabel` | 1rem / 600, `#475569` | form labels |
 | `sectionLabel` | 1rem / 700, `#0f172a` | in-card section headings |
 | `technical` / `technicalBody` | monospace 0.75 / 1rem | IDs, values, terminal |
-| `button` | 0.875rem / 600, no transform (MUI root override raises to 1rem) | buttons |
+| `button` | 0.875rem / 600, no transform | compact action buttons; 32px minimum height, 4px 12px padding, 6px radius |
 
 ### 7.3 Spacing, shape, elevation, motion
 

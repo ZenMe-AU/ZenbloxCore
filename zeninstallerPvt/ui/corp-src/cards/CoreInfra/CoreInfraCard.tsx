@@ -13,6 +13,7 @@ import type { UseCoreInfraCard } from "./useCoreInfraCard";
 import StepRow from "../StepRow";
 import EditableNameRow from "../RemoteTerminalInfra/EditableNameRow";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_RESOURCE_GROUPS_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
@@ -53,7 +54,7 @@ function Intro({ containerName }: { containerName: string }) {
 }
 
 function Action({ resourceId }: { resourceId: string | null }) {
-  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_RESOURCE_GROUPS_URL} />;
+  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_RESOURCE_GROUPS_URL} label="Core resources" />;
 }
 
 export default function CoreInfraCard({
@@ -311,11 +312,7 @@ export default function CoreInfraCard({
               variant="contained"
               onClick={run}
               disabled={disabled || running || !location.trim() || editingStorage}
-              sx={{
-                alignSelf: "flex-start",
-                py: 0.85,
-                px: 2.5,
-              }}
+              sx={{ alignSelf: "flex-start" }}
             >
               {done ? "Re-run setup" : "Create core infrastructure"}
             </Button>
@@ -329,6 +326,7 @@ export default function CoreInfraCard({
               <StepRow key={s.id} step={s} />
             ))}
             {running && <StatusText>Running...</StatusText>}
+            <ProcessRetryNotice started={steps.length > 0} />
             {!running && (
               <Button
                 size="small"

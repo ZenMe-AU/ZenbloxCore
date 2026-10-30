@@ -349,14 +349,15 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
               display: "flex",
               alignItems: "center",
               gap: 0.75,
-              py: 0.75,
+              minHeight: 32,
               px: 1.5,
+              typography: "button",
               color: "text.muted",
               "&:hover": { backgroundColor: "action.hover", color: "primary.main" },
             }}
           >
             <AddIcon aria-hidden="true" sx={{ typography: "caption" }} />
-            <Typography color="inherit">Add group</Typography>
+            <Typography component="span" variant="button" color="inherit">Add group</Typography>
           </ButtonBase>
         </Box>
 
@@ -366,10 +367,6 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
             onClick={() => void sync()}
             disabled={disabled || !canSync || syncing}
             startIcon={syncing ? <CircularProgress aria-label="Syncing groups" size={12} /> : undefined}
-            sx={{
-              py: 0.65,
-              px: 2,
-            }}
           >
             Sync groups
           </Button>

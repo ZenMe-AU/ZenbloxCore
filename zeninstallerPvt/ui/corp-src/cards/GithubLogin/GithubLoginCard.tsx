@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { Box, Button, CircularProgress, IconButton, InputAdornment, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, IconButton, InputAdornment, Link, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
@@ -22,15 +22,18 @@ type Props = {
 };
 
 function Intro() {
+  const docsUrl = import.meta.env.VITE_DOCS_URL || "";
+
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox.
+      Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox.{" "}
+      <Link href={`${docsUrl}/Allow_access_to_GitHub`}>Need help? Click here</Link>
     </Typography>
   );
 }
 
 function Action({ login }: { login?: string }) {
-  return <ViewLink href={login ? getGithubUserUrl(login) : GITHUB_LOGIN_URL} />;
+  return <ViewLink href={login ? getGithubUserUrl(login) : GITHUB_LOGIN_URL} label="GitHub" />;
 }
 
 export default function GithubLoginCard({ card, auth }: Props) {
@@ -98,14 +101,13 @@ export default function GithubLoginCard({ card, auth }: Props) {
               <Box component="span" sx={{ fontWeight: 600 }}>
                 Direct (PAT)
               </Box>{" "}
-              skips the backend entirely — paste your own Personal Access Token and the browser talks to GitHub directly.
+              skips the backend entirely; paste your own Personal Access Token and the browser talks to GitHub directly.
             </Typography>
             <ToggleButtonGroup
               value={mode}
               exclusive
               onChange={handleModeChange}
               size="small"
-              sx={{ "& .MuiToggleButton-root": { px: 1.5, py: 0.4 } }}
             >
               <ToggleButton value="backend">Backend</ToggleButton>
               <ToggleButton value="direct">Direct (PAT)</ToggleButton>
@@ -183,8 +185,6 @@ export default function GithubLoginCard({ card, auth }: Props) {
                 startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "text.disabled" }} /> : undefined}
                 sx={{
                   alignSelf: "flex-start",
-                  py: 0.75,
-                  px: 2,
                 }}
               >
                 {signingIn ? "Connecting..." : "Connect with PAT"}
@@ -196,15 +196,6 @@ export default function GithubLoginCard({ card, auth }: Props) {
               onClick={onLogin}
               disabled={signingIn}
               startIcon={signingIn ? <CircularProgress size={14} sx={{ color: "text.disabled" }} /> : undefined}
-              sx={{
-                py: 1,
-                px: 2.5,
-                boxShadow: (theme) => `0 2px 8px ${theme.palette.primary.main}33`,
-                "&:hover": {
-                  boxShadow: (theme) => `0 4px 12px ${theme.palette.primary.main}44`,
-                },
-                "&.Mui-disabled": { boxShadow: "none" },
-              }}
             >
               {signingIn ? "Connecting..." : "Sign in with GitHub"}
             </Button>
@@ -230,9 +221,6 @@ export default function GithubLoginCard({ card, auth }: Props) {
                 variant="contained"
                 color="error"
                 onClick={onLogout}
-                sx={{
-                  py: 0.5,
-                }}
               >
                 Sign out
               </Button>

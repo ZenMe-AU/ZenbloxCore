@@ -10,6 +10,7 @@ import { warningMessageIconSx } from "../../config/styles";
 import type { UseBackendDeployCard } from "./useBackendDeployCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import ErrorText from "../../components/ErrorText";
@@ -44,7 +45,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
       action={
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
-          <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} />
+          <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} label="Backend workflow" />
         ) : undefined
       }
       lockedIntro={<Intro appName={appName} />}
@@ -143,6 +144,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
             ))}
           </Box>
         )}
+        <ProcessRetryNotice started={steps.length > 0} />
       </Box>
     </Card>
   );

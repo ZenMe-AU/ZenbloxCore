@@ -39,7 +39,7 @@ function Intro() {
  * App-registration, domain, and terraform cards all reuse the session it establishes.
  */
 function Action() {
-  return <ViewLink href={getEntraOverviewUrl()} />;
+  return <ViewLink href={getEntraOverviewUrl()} label="Entra ID" />;
 }
 
 export default function AzureLoginCard({ card, azureLogin }: Props) {
@@ -93,11 +93,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                 <Button
                   variant="contained"
                   onClick={login}
-                  sx={{
-                    alignSelf: "flex-start",
-                    py: 1,
-                    px: 2.5,
-                  }}
+                  sx={{ alignSelf: "flex-start" }}
                 >
                   Sign in with Azure
                 </Button>

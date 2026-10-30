@@ -14,6 +14,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
 import { getIamRoleUrl } from "./consoleUrls";
@@ -46,7 +47,7 @@ function Intro() {
 
 function Action({ roleName }: { roleName: string }) {
   if (!roleName) return null;
-  return <ViewLink href={getIamRoleUrl(roleName)} />;
+  return <ViewLink href={getIamRoleUrl(roleName)} label="IAM role" />;
 }
 
 function StepRow({ step }: { step: SetupStep }) {
@@ -178,11 +179,6 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 variant="contained"
                 onClick={handleCreate}
                 disabled={card.locked || !canCreate}
-                sx={{
-                  py: 1,
-                  px: 2.5,
-                  boxShadow: (theme) => `0 2px 8px ${theme.palette.primary.main}33`,
-                }}
               >
                 Create IAM Role
               </Button>
@@ -205,6 +201,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
               <StepRow key={s.id} step={s} />
             ))}
             {loading && <Typography role="status" aria-live="polite" color="text.muted" sx={{ mt: 0.5 }}>Running...</Typography>}
+            <ProcessRetryNotice started={steps.length > 0} />
             {!loading && (
               <Button
                 size="small"

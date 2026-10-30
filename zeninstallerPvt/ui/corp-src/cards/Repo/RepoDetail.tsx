@@ -410,10 +410,6 @@ export default function RepoDetail({
             disabled={cloning}
             variant="contained"
             size="small"
-            sx={{
-              py: 0.75,
-              px: 2.5,
-            }}
           >
             {cloning ? (
               <>

@@ -14,6 +14,7 @@ import type { UseAzureAppRegistrationCard } from "./useAzureAppRegistrationCard"
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import FieldLabel from "../../components/FieldLabel";
 import StatusText from "../../components/StatusText";
@@ -44,7 +45,7 @@ function Intro() {
 }
 
 function Action({ clientId }: { clientId: string }) {
-  return <ViewLink href={clientId ? getAppRegistrationUrl(clientId) : AZURE_APP_REGISTRATIONS_URL} />;
+  return <ViewLink href={clientId ? getAppRegistrationUrl(clientId) : AZURE_APP_REGISTRATIONS_URL} label="App registration" />;
 }
 
 export default function AzureAppRegistrationCard({ card, appReg, githubAccount, repoName, selectedEnv, subscriptionId, variables, githubUrl }: Props) {
@@ -271,10 +272,6 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                       variant="contained"
                       onClick={handleRun}
                       disabled={disabled || !subscriptionId || !appName.trim()}
-                      sx={{
-                        py: 0.85,
-                        px: 2.5,
-                      }}
                     >
                       {rbacMissing ? "Grant Reader access on this subscription" : "Create app registration"}
                     </Button>
@@ -295,6 +292,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                     <StepRow key={s.id} step={s} />
                   ))}
                   {running && <StatusText>Running...</StatusText>}
+                  <ProcessRetryNotice started={steps.length > 0} />
                   {!running && (
                     <Button
                       size="small"

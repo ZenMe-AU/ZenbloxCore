@@ -19,7 +19,7 @@ export async function expandGithubLoginCard(page: Page) {
 
 export async function expandAzureLoginCard(page: Page) {
   const azureCard = page.locator("#card-azure_login");
-  const introText = azureCard.getByText(/Sign in with Azure so we can create the app registration and cloud resources for you\./i);
+  const introText = azureCard.getByText(/Sign in with a Microsoft account that can access the Microsoft Entra tenant you want to configure\./i);
   if (!(await introText.isVisible())) {
     await azureCard.getByText(/^Azure login$/i).click();
   }

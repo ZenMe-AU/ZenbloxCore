@@ -58,10 +58,6 @@ function DeployButton({ onDeploy, disabled }: { onDeploy: () => void; disabled?:
       variant="contained"
       size="small"
       onClick={() => void onDeploy()}
-      sx={{
-        py: 0.45,
-        px: 1.5,
-      }}
     >
       Deploy
     </Button>

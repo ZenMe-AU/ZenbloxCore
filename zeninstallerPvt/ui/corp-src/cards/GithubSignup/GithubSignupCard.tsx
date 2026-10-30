@@ -53,7 +53,7 @@ export default function GithubSignupCard({ card, signup, onOpenLogin }: Props) {
         <Button
           type="submit"
           variant="contained"
-          sx={{ alignSelf: "flex-start", py: 1, px: 2.5 }}
+          sx={{ alignSelf: "flex-start" }}
         >
           Continue to GitHub signup
         </Button>

@@ -48,7 +48,7 @@ function Intro() {
 }
 
 function Action() {
-  return <ViewLink href={getAwsConsoleUrl()} />;
+  return <ViewLink href={getAwsConsoleUrl()} label="AWS Console" />;
 }
 
 export default function AwsLoginCard({ card, awsLogin }: Props) {
@@ -219,15 +219,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
               disabled={card.locked || !canSignIn || loggingIn}
               aria-busy={loggingIn}
               startIcon={loggingIn ? <CircularProgress aria-label="Signing in to AWS" size={14} sx={{ color: "inherit" }} /> : undefined}
-              sx={{
-                alignSelf: "flex-start",
-                py: 1,
-                px: 2.5,
-                boxShadow: (theme) => `0 2px 8px ${theme.palette.primary.main}33`,
-                "&:hover": {
-                  boxShadow: (theme) => `0 4px 12px ${theme.palette.primary.main}44`,
-                },
-              }}
+              sx={{ alignSelf: "flex-start" }}
             >
               {loggingIn ? "Signing in..." : needsMfa ? "Verify & sign in" : "Sign in"}
             </Button>

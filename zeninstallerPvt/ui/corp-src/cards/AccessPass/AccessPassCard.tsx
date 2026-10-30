@@ -11,6 +11,7 @@ import StepRow from "../StepRow";
 import { logEvent } from "../../monitor/telemetry";
 import Card from "../../components/Card";
 import CopyRow from "../../components/CopyRow";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
@@ -60,7 +61,7 @@ function Intro() {
 }
 
 function Action() {
-  return <ViewLink href={getEntraUsersUrl()} />;
+  return <ViewLink href={getEntraUsersUrl()} label="Entra users" />;
 }
 
 /*
@@ -374,6 +375,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     <StepRow key={`${user.id}-${s.id}`} step={s} />
                                   ))}
                                   {running && <StatusText>Creating access pass...</StatusText>}
+                                  <ProcessRetryNotice started={showingSelectedUserSteps} />
                                   {!running && (
                                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.25 }}>
                                       {consentRequired && (
@@ -381,10 +383,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                           size="small"
                                           variant="outlined"
                                           onClick={() => void requestAccessPassConsent()}
-                                          sx={{
-                                            minWidth: 0,
-                                            px: 1,
-                                          }}
+                                          sx={{ minWidth: 0 }}
                                         >
                                           Grant consent
                                         </Button>
@@ -578,7 +577,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                     size="small"
                     variant="outlined"
                     onClick={() => void requestAccessPassConsent()}
-                    sx={{ minWidth: 0, px: 1 }}
+                    sx={{ minWidth: 0 }}
                   >
                     Grant consent
                   </Button>

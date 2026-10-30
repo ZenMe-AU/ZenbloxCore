@@ -9,6 +9,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { UseWebDeployCard } from "./useWebDeployCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
@@ -85,13 +86,14 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
   // Carries this page's query across so the site opens on the same repo and environment.
   const siteLink = siteUrl ? `${siteUrl}/${window.location.search}` : null;
 
+
   return (
     <Card
       title="Private Zeninstaller Frontend"
       action={
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
-          <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} />
+          <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} label="Web workflow" />
         ) : undefined
       }
       lockedIntro={<Intro storageAccountName={storageAccountName} />}
@@ -239,6 +241,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             {running && <StatusText>Deploying frontend...</StatusText>}
           </Box>
         )}
+        <ProcessRetryNotice started={steps.length > 0} />
       </Box>
     </Card>
   );

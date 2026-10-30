@@ -372,6 +372,12 @@ Step 8 migrations are complete. Follow-ups are to rerun Azure-dependent mock flo
 - **Card header interaction and descriptions.** The full card header is a pointer toggle; the title and chevron remain separate keyboard-operable controls, and expanded-card actions stop event propagation. Where provided, card introductions and pipeline-stage descriptions are shown in locked cards before their unmet-requirement lists.
 - **Theme and accessibility refinements.** Card header hover backgrounds use shared status-border tinting. Forced-colors mode gives `:focus-visible` a system `Highlight` outline and removes the box-shadow focus halo. `ConfigErrorNotice` now has theme-based background and border fallbacks, enhanced with `color-mix()` where supported.
 
+### Button styling follow-up (2026-10-29)
+
+- **Implemented:** MUI text buttons now share a compact baseline: small default size, 32px minimum height, 0.875rem semibold button typography, 4px 12px padding, and 6px radius. The baseline also applies to MUI toggle buttons. Primary gradients, outlined borders, destructive colors, and selected states remain distinct.
+- Removed per-action padding, typography, and shadow overrides across login, setup, repository, Access Pass, infrastructure, and stage actions. The PROD/TEST environment selectors and Add group `ButtonBase` control use the compact button typography and dimensions; card-header and prerequisite navigation controls keep their own interaction geometry.
+- Added `ButtonStyles.browser.test.tsx` to assert the computed baseline for contained, outlined, and selected-toggle controls. Icon-only controls retain their existing sizes, touch targets, and semantic hover colors.
+
 ## 8. Design decisions (mirrored in `README.md`)
 
 Per the repository `README.md` rules, decisions live in the folder where they apply. This folder's [README.md](README.md) records:
