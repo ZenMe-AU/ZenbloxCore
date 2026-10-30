@@ -29,10 +29,6 @@ jobs:
     name: PrivAVD ${{ inputs.dir }}
     environment: ${{ inputs.github_env_name }}
     runs-on: ubuntu-latest
-    # An explicit bash shell runs with -o pipefail, so `pwsh ... | tee` fails when the script does.
-    defaults:
-      run:
-        shell: bash
     env:
       TF_IN_AUTOMATION: "true"
       # Never wait on a prompt; init.ps1 runs a bare `terraform apply`.
@@ -117,11 +113,15 @@ jobs:
           AWS_LOGIN: "false"
 
       # ── Run ─────────────────────────────────────────────────────────────────
+      # *>&1 keeps Write-Host in the log; a throw skips the pipe, so the catch appends its message before failing the step.
       - name: Run the stage script as the signed-in user
         id: script
+        shell: pwsh
         env:
           SCRIPT: ${{ fromJSON('{"privavd-gallery":"init.ps1","privavd-image":"build.ps1","privavd-paw":"deployPAW.ps1"}')[inputs.dir] }}
-        run: pwsh -NoProfile -File "corpSetup/PrivAVD/$SCRIPT" 2>&1 | tee /tmp/deploy_output.txt
+        run: |
+          try { & "corpSetup/PrivAVD/$env:SCRIPT" *>&1 | Tee-Object -FilePath /tmp/deploy_output.txt }
+          catch { "$_" | Tee-Object -FilePath /tmp/deploy_output.txt -Append; throw }
 
       # ── Record ──────────────────────────────────────────────────────────────
       - name: Make sure the log explains itself
