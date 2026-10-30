@@ -39,7 +39,7 @@ function Intro() {
  * App-registration, domain, and terraform cards all reuse the session it establishes.
  */
 function Action() {
-  return <ViewLink href={getEntraOverviewUrl()} label="Entra ID" />;
+  return <ViewLink href={getEntraOverviewUrl()} label="Open Entra tenant overview" />;
 }
 
 export default function AzureLoginCard({ card, azureLogin }: Props) {
@@ -138,9 +138,9 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                 </FieldLabel>
                 {/* Only tells you how to find a tenant to type in, which a pinned tenant makes moot. */}
                 {!tenantPinned && (
-                  <ExternalLink href={CLOUD_DOCS.azure.urlGetTenantId} label="Show page to get Tenant ID">
+                  <ExternalLink href={CLOUD_DOCS.azure.urlGetTenantId} label="Find your Tenant ID in Microsoft Entra">
                     <>
-                      Show page to get Tenant ID <OpenInNewIcon fontSize="inherit" />
+                      Find your Tenant ID in Microsoft Entra <OpenInNewIcon fontSize="inherit" />
                     </>
                   </ExternalLink>
                 )}

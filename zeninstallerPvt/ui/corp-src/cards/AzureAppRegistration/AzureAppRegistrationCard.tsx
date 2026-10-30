@@ -45,7 +45,12 @@ function Intro() {
 }
 
 function Action({ clientId }: { clientId: string }) {
-  return <ViewLink href={clientId ? getAppRegistrationUrl(clientId) : AZURE_APP_REGISTRATIONS_URL} label="App registration" />;
+  return (
+    <ViewLink
+      href={clientId ? getAppRegistrationUrl(clientId) : AZURE_APP_REGISTRATIONS_URL}
+      label={clientId ? "Open app registration in Azure" : "Browse Azure app registrations"}
+    />
+  );
 }
 
 export default function AzureAppRegistrationCard({ card, appReg, githubAccount, repoName, selectedEnv, subscriptionId, variables, githubUrl }: Props) {

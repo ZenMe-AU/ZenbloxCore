@@ -86,7 +86,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 			await expect(terraformCard.getByRole("button", { name: /^Save\s+variables?$/ })).toBeDisabled({ timeout: 60_000 });
 
 			// Re-run even a completed backend: its cached status does not check the state container.
-			const setupButton = terraformCard.getByRole("button", { name: /^(?:Create core infrastructure|Re-run setup)$/ });
+			const setupButton = terraformCard.getByRole("button", { name: /^(?:Create core infrastructure|Re-run)$/ });
 			await expectVisibleWithin(setupButton, "Terraform backend setup button", 50_000);
 			await expect(setupButton).toBeEnabled({ timeout: 60_000 });
 			await setupButton.click();
@@ -109,7 +109,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 			const domainInput = card.getByText("DNS Domain").locator("../..").getByRole("textbox");
 			await expectVisibleWithin(domainInput, "Corp domain input", 50_000);
 			await expect(card.getByRole("progressbar")).toBeHidden({ timeout: 60_000 });
-			const rerunButton = card.getByRole("button", { name: "Re-run setup" });
+			const rerunButton = card.getByRole("button", { name: "Re-run" });
 
 			if ((await domainInput.inputValue()).trim() !== liveDnsDomain) {
 				const verifiedDomainsHeading = card.getByText("Verified domains in this tenant", { exact: true });
@@ -146,7 +146,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 
 			await expect(card.getByRole("button", { name: "Save variables" })).toBeDisabled();
 			await expect(card.getByRole("button", { name: "Verify domain now" })).toBeEnabled();
-			const setupButton = card.getByRole("button", { name: "Re-run setup" });
+			const setupButton = card.getByRole("button", { name: "Re-run" });
 			await expectVisibleWithin(setupButton, "Corp domain setup button", 50_000);
 			await setupButton.click();
 			await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Domain re-run completion", 500_000);

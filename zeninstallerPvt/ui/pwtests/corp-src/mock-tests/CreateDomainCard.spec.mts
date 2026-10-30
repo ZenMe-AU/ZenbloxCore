@@ -190,7 +190,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		await page.reload();
 		await openDomainCard(card);
 
-		const rerunButton = card.getByRole("button", { name: "Re-run setup" });
+		const rerunButton = card.getByRole("button", { name: "Re-run" });
 		await expect(rerunButton).toBeVisible();
 		await expect(card.getByRole("button", { name: "Save variables" })).toBeDisabled();
 		await rerunButton.click();

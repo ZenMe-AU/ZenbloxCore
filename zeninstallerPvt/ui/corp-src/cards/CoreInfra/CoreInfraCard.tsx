@@ -54,7 +54,12 @@ function Intro({ containerName }: { containerName: string }) {
 }
 
 function Action({ resourceId }: { resourceId: string | null }) {
-  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_RESOURCE_GROUPS_URL} label="Core resources" />;
+  return (
+    <ViewLink
+      href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_RESOURCE_GROUPS_URL}
+      label={resourceId ? "Open core resource in Azure" : "Browse Azure resource groups"}
+    />
+  );
 }
 
 export default function CoreInfraCard({
@@ -164,6 +169,13 @@ export default function CoreInfraCard({
           variables={variables}
           populate={populate}
           title="Company short code"
+          keyHints={{
+            NAME: (
+              <Typography variant="body2" color="text.secondary">
+                Used to build Azure resource names, for example acme-law and acmepvt.
+              </Typography>
+            ),
+          }}
           githubUrl={githubUrl}
           autoSaveCounter={autoSaveCounter}
         />
@@ -314,7 +326,7 @@ export default function CoreInfraCard({
               disabled={disabled || running || !location.trim() || editingStorage}
               sx={{ alignSelf: "flex-start" }}
             >
-              {done ? "Re-run setup" : "Create core infrastructure"}
+              {done ? "Re-run" : "Create core infrastructure"}
             </Button>
           </Box>
         )}

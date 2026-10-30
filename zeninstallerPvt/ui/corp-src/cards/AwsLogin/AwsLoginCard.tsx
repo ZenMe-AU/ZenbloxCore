@@ -48,7 +48,7 @@ function Intro() {
 }
 
 function Action() {
-  return <ViewLink href={getAwsConsoleUrl()} label="AWS Console" />;
+  return <ViewLink href={getAwsConsoleUrl()} label="Open AWS Console" />;
 }
 
 export default function AwsLoginCard({ card, awsLogin }: Props) {

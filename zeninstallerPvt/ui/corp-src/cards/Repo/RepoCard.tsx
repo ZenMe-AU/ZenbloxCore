@@ -29,7 +29,7 @@ function Intro() {
  */
 function Action({ repoFullName }: { repoFullName: string | null }) {
   if (!repoFullName) return null;
-  return <ViewLink href={getRepoUrl(repoFullName)} label="Repository" />;
+  return <ViewLink href={getRepoUrl(repoFullName)} label="Open GitHub repository" />;
 }
 
 export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {

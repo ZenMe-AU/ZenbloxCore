@@ -79,10 +79,10 @@ export default function EnvDetail({
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
           Pick the environment to configure.{" "}
-          <Box component="span" sx={{ typography: "technicalBody", fontWeight: 600 }}>
+          <Box component="span">
             {validEnvs.join(", ")}
           </Box>{" "}
-          are configured independently, with their own settings and deployment; everything below applies only to the one you select.
+          are configured independently, with their own settings and deployments. PROD is the live deployment; TEST is for validating changes. Everything below applies only to the environment you select.
         </Typography>
         {!lockedByPR && (
           <RefreshButton

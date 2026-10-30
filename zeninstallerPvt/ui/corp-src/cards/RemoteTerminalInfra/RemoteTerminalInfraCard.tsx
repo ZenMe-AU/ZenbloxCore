@@ -87,7 +87,12 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
       : undefined;
 
   return (
-    <Card title="Private Zeninstaller Backend Environment" action={rgUrl ? <ViewLink href={rgUrl} label="Backend resources" /> : undefined} lockedIntro={<Intro />} {...card}>
+    <Card
+      title="Private Zeninstaller Backend Environment"
+      action={rgUrl ? <ViewLink href={rgUrl} label="Open backend resource group in Azure" /> : undefined}
+      lockedIntro={<Intro />}
+      {...card}
+    >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro />
 

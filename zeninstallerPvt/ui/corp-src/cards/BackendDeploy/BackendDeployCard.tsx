@@ -45,7 +45,10 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
       action={
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
-          <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} label="Backend workflow" />
+          <ViewLink
+            href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)}
+            label={latest ? "Open latest backend workflow run" : "Open backend workflow in GitHub"}
+          />
         ) : undefined
       }
       lockedIntro={<Intro appName={appName} />}

@@ -257,7 +257,7 @@ type Props = {
 
 function Action({ repoFullName, runId }: { repoFullName: string | null; runId?: string }) {
   if (!repoFullName || !runId) return null;
-  return <ViewLink href={getWorkflowRunUrl(repoFullName, runId)} label="Workflow run" />;
+  return <ViewLink href={getWorkflowRunUrl(repoFullName, runId)} label="Open plan run in GitHub" />;
 }
 
 export default function StageCard({
@@ -571,7 +571,7 @@ export default function StageCard({
               ) : null}
               {stage.deployedAt && <Typography color="text.secondary">{relativeTime(stage.deployedAt)}</Typography>}
               {/* The apply's own run, not the plan's — the header link points at the plan. */}
-              {repoFullName && stage.deployRunId && <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} label="Workflow run" />}
+              {repoFullName && stage.deployRunId && <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} label="Open deployment run in GitHub" />}
             </Box>
             {/* 13px icon + the 8px gap above. */}
             <Box sx={{ pl: "21px" }}>

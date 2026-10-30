@@ -385,7 +385,7 @@ async function prepareExistingRelayRepository(page: Page, context: BrowserContex
 	await relayCard.getByText("Private Zeninstaller Environment", { exact: true }).click();
 	const coreRequirement = relayCard.getByText("Set up Corp infrastructure", { exact: true });
 	if (await coreRequirement.isVisible()) {
-		await coreCard.getByRole("button", { name: /^(?:Create core infrastructure|Re-run setup)$/ }).click();
+		await coreCard.getByRole("button", { name: /^(?:Create core infrastructure|Re-run)$/ }).click();
 		await expect(coreCard.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
 		await expectSuccessfulSteps(coreCard, coreInfraStepLabels(corpName));
 	}

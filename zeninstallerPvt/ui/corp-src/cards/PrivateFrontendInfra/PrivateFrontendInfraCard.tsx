@@ -91,7 +91,12 @@ export default function PrivateFrontendInfraCard({
       : undefined;
 
   return (
-    <Card title="Frontend hosting environment" action={rgUrl ? <ViewLink href={rgUrl} label="Frontend resources" /> : undefined} lockedIntro={<Intro />} {...card}>
+    <Card
+      title="Frontend hosting environment"
+      action={rgUrl ? <ViewLink href={rgUrl} label="Open frontend resource group in Azure" /> : undefined}
+      lockedIntro={<Intro />}
+      {...card}
+    >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro />
 
@@ -236,12 +241,12 @@ export default function PrivateFrontendInfraCard({
           sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
         >
           <Box sx={{ flex: 1, height: "1px", background: "divider" }} />
-          <Typography sx={{ typography: "caption", color: "text.muted", whiteSpace: "nowrap" }}>
+          <Typography sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap" }}>
             {varExpanded ? "collapse" : "open to enter connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
             sx={{
-              typography: "caption",
+              typography: "body2",
               color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
               transition: "transform 0.2s",

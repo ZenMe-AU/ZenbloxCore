@@ -61,7 +61,7 @@ function Intro() {
 }
 
 function Action() {
-  return <ViewLink href={getEntraUsersUrl()} label="Entra users" />;
+  return <ViewLink href={getEntraUsersUrl()} label="Open Entra users list" />;
 }
 
 /*

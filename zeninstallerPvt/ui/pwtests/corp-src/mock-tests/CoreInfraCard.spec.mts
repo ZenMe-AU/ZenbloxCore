@@ -137,7 +137,7 @@ test("Does not reuse infrastructure status after the subscription target drifts"
   await openCoreInfraCard(driftedCard);
   await expect(prepared.github.variables.AZURE_SUBSCRIPTION_ID).toBe(mockSecondSubscriptionId);
   await expect(driftedCard.getByRole("button", { name: "Create core infrastructure" })).toBeEnabled();
-  await expect(driftedCard.getByRole("button", { name: "Re-run setup" })).toHaveCount(0);
+  await expect(driftedCard.getByRole("button", { name: "Re-run" })).toHaveCount(0);
   await expectSnapshot(page, driftedCard, testInfo, "target-drift", viewportName);
 });
 
@@ -227,7 +227,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
       .map(([scope, roles]) => [scope, [...roles].sort()] as const)
       .sort(([left], [right]) => left.localeCompare(right));
     const writesBeforeRerun = resourceWrites.length;
-    await reloadedCard.getByRole("button", { name: "Re-run setup" }).click();
+    await reloadedCard.getByRole("button", { name: "Re-run" }).click();
     await expect(reloadedCard.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
     await expectSuccessfulSteps(reloadedCard, coreInfraStepLabels("pwtests"));
     await expect(reloadedCard.getByText("Already exists", { exact: true }).first()).toBeVisible();
@@ -405,7 +405,7 @@ async function chooseAustraliaEast(card: import("@playwright/test").Locator, pag
 }
 
 async function runCoreInfrastructure(card: import("@playwright/test").Locator) {
-  const setupButton = card.getByRole("button", { name: /^(?:Create core infrastructure|Re-run setup)$/ });
+  const setupButton = card.getByRole("button", { name: /^(?:Create core infrastructure|Re-run)$/ });
   await expect(setupButton).toBeEnabled();
   await setupButton.click();
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });

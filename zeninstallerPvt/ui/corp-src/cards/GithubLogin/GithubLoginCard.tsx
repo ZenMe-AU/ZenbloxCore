@@ -33,7 +33,7 @@ function Intro() {
 }
 
 function Action({ login }: { login?: string }) {
-  return <ViewLink href={login ? getGithubUserUrl(login) : GITHUB_LOGIN_URL} label="GitHub" />;
+  return <ViewLink href={login ? getGithubUserUrl(login) : GITHUB_LOGIN_URL} label={login ? "Open GitHub profile" : "Open GitHub sign-in"} />;
 }
 
 export default function GithubLoginCard({ card, auth }: Props) {

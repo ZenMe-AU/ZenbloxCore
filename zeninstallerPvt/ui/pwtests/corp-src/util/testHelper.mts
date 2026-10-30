@@ -187,7 +187,7 @@ export async function prepareExistingRelayRepository(
   const card = await openRemoteTerminalCard(page);
   const coreRequirement = card.getByText("Set up Corp infrastructure", { exact: true });
   if (await coreRequirement.isVisible()) {
-    await coreCard.getByRole("button", { name: /^(?:Create core infrastructure|Re-run setup)$/ }).click();
+    await coreCard.getByRole("button", { name: /^(?:Create core infrastructure|Re-run)$/ }).click();
     await expect(coreCard.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
     await expectSuccessfulSteps(coreCard, coreInfraStepLabels(corpName));
   }

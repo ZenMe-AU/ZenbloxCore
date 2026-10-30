@@ -47,7 +47,7 @@ function Intro() {
 
 function Action({ roleName }: { roleName: string }) {
   if (!roleName) return null;
-  return <ViewLink href={getIamRoleUrl(roleName)} label="IAM role" />;
+  return <ViewLink href={getIamRoleUrl(roleName)} label="Open IAM role in AWS" />;
 }
 
 function StepRow({ step }: { step: SetupStep }) {

@@ -93,7 +93,10 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
       action={
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
-          <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} label="Web workflow" />
+          <ViewLink
+            href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)}
+            label={latest ? "Open latest web workflow run" : "Open web workflow in GitHub"}
+          />
         ) : undefined
       }
       lockedIntro={<Intro storageAccountName={storageAccountName} />}

@@ -60,7 +60,12 @@ function PrimaryCheckbox({ checked, disabled, dnsName, onChange }: { checked: bo
 }
 
 function Action({ resourceId }: { resourceId: string | null }) {
-  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_DNS_ZONES_URL} label="DNS zone" />;
+  return (
+    <ViewLink
+      href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_DNS_ZONES_URL}
+      label={resourceId ? "Open DNS zone in Azure" : "Browse Azure DNS zones"}
+    />
+  );
 }
 
 export default function CreateDomainCard({
@@ -191,7 +196,7 @@ export default function CreateDomainCard({
                 onClick={run}
                 disabled={disabled || running}
               >
-                {resourcesDone ? "Re-run setup" : "Set up core DNS domain"}
+                {resourcesDone ? "Re-run" : "Set up core DNS domain"}
               </Button>
               {checkingStatus && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>

@@ -50,11 +50,11 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await expectVisibleWithin(terraformCard.getByText("Company short code"), "Company short code field", 50_000);
 
     setupAlreadyExists = await terraformCard
-      .getByRole("button", { name: "Re-run setup" })
+      .getByRole("button", { name: "Re-run" })
       .isVisible()
       .catch(() => false);
     if (setupAlreadyExists) {
-      await expectVisibleWithin(terraformCard.getByRole("button", { name: "Re-run setup" }), "Re-run setup button", 50_000);
+      await expectVisibleWithin(terraformCard.getByRole("button", { name: "Re-run" }), "Re-run button", 50_000);
       await expectSnapshot(page, terraformCard, testInfo, "already-existing-start", viewportName);
     } else {
       const companyInput = terraformCard.getByText("COMPANY_SHORT_CODE", { exact: true }).locator("../..").getByRole("textbox");
@@ -73,7 +73,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
   await test.step("Provision the Terraform state backend", async () => {
     const card = page.locator("#card-core_infra");
     await card.getByRole("button", {
-      name: setupAlreadyExists ? "Re-run setup" : "Create core infrastructure",
+      name: setupAlreadyExists ? "Re-run" : "Create core infrastructure",
       exact: true,
     }).click();
     await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 500_000 });
@@ -103,7 +103,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await expectVisibleWithin(card.getByText("Terraform state backend"), "Terraform state backend title", 50_000);
     await expectVisibleWithin(card.getByText(`Resource group: root-${companyShortCode}`, { exact: true }), "Persisted resource-group status", 50_000);
     await expectVisibleWithin(card.getByText(/^State container: terraformstate$/, { exact: true }), "Persisted state-container name", 50_000);
-    await expectVisibleWithin(card.getByRole("button", { name: "Re-run setup" }), "Re-run setup button", 50_000);
+    await expectVisibleWithin(card.getByRole("button", { name: "Re-run" }), "Re-run button", 50_000);
     await expectSnapshot(page, card, testInfo, "end", viewportName);
   });
 
@@ -116,8 +116,8 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     }
 
     await expectVisibleWithin(resources, "Infrastructure resources", 50_000);
-    const rerunButton = card.getByRole("button", { name: "Re-run setup" });
-    await expectVisibleWithin(rerunButton, "Re-run setup button", 50_000);
+    const rerunButton = card.getByRole("button", { name: "Re-run" });
+    await expectVisibleWithin(rerunButton, "Re-run button", 50_000);
     await rerunButton.click();
     await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 500_000 });
     await expectSuccessfulSteps(card, coreInfraStepLabels(companyShortCode));
