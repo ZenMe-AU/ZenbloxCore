@@ -42,34 +42,22 @@ export default function Footer() {
         </Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 2 }}>
           <Box>
-            <Typography component="h3" sx={{ fontWeight: 600, mb: 1 }}>
-              Keyboard shortcuts
-            </Typography>
             <Button variant="outlined" size="small" onClick={() => setShortcutsOpen(true)} aria-haspopup="dialog">
               View keyboard shortcuts
             </Button>
           </Box>
           <Box>
-            <Typography component="h3" sx={{ fontWeight: 600, mb: 1 }}>
-              Contact
-            </Typography>
             <Typography variant="body2" color="text.secondary">
               Contact information coming soon.
             </Typography>
           </Box>
           <Box>
-            <Typography component="h3" sx={{ fontWeight: 600, mb: 1 }}>
-              Policies
-            </Typography>
             <Link href={`${DOCS_BASE}/Privacy_Policy`}>Privacy policy</Link>
             <Typography variant="body2" color="text.secondary">
               Terms of use coming soon.
             </Typography>
           </Box>
           <Box>
-            <Typography component="h3" sx={{ fontWeight: 600, mb: 1 }}>
-              Support
-            </Typography>
             <Link href={`${DOCS_BASE}/`}>Support documentation</Link>
           </Box>
         </Box>

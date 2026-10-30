@@ -31,6 +31,15 @@ function PlainRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function Intro() {
+  return (
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+      The relay for terminals in stage cards includes Web PubSub, the session table, and the Function App that issues tokens scoped to each group. Everything
+      connects by managed identity; no access key is stored.
+    </Typography>
+  );
+}
+
 type Props = {
   card: CardChrome;
   infra: UseRemoteTerminalInfraCard;
@@ -77,12 +86,9 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
       : undefined;
 
   return (
-    <Card title="Private Zeninstaller Backend Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} {...card}>
+    <Card title="Private Zeninstaller Backend Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-          The relay behind the stage-card terminal: Web PubSub, the session table, and the Function App that issues group-scoped tokens. Everything connects by
-          managed identity — no access key is stored.
-        </Typography>
+        <Intro />
 
         {infra.steps.length === 0 && (
           <Box>

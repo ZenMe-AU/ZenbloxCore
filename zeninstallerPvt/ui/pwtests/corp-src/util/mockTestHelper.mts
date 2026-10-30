@@ -19,6 +19,10 @@ import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard, open
 import { chooseExistingRepo, createNewRepo } from "./testHelper.mts";
 import { TEST_REPO_MAIN } from "../../testInit.js";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "./setupHelper.mjs";
+import {
+  functionAppFromApiUrl, getFunctionAppName, getCoreLogAnalyticsName, getCoreResourceGroupName,
+  getCoreStorageAccountName, PRIVATE_RESOURCE_GROUP,
+} from "../../../corp-src/logic/naming.ts";
 
 const mockUser = { login: "mock-user", id: 12345 };
 const mockTenantId = "00000000-0000-0000-0000-000000000001";
@@ -82,16 +86,19 @@ async function json(route: Route, body: unknown, status = 200) {
 }
 
 export function coreInfraStepLabels(companyShortCode: string) {
+  const slug = companyShortCode.toLowerCase().replace(/[^a-z0-9]/g, "-");
+  const storage = `zbcore${companyShortCode.toLowerCase().replace(/[^a-z0-9]/g, "")}stor`;
   return [
     "Confirm Microsoft permissions",
     "Register required Azure resource providers",
-    `Create resource group root-${companyShortCode}`,
+    `Create resource group zbcore-${slug}-rg`,
     "Grant GitHub Actions access to the resource group",
-    `Create Log Analytics workspace ${companyShortCode}-law`,
+    `Create Log Analytics workspace zbcore-${slug}-law`,
     "Configure subscription activity-log diagnostics",
-    `Create Application Insights ${companyShortCode}-appinsights`,
-    `Create storage account ${companyShortCode}pvt`,
+    `Create storage account ${storage}`,
     "Create terraformstate container",
+    "Lock the storage account against deletion",
+    "Send state writes and deletes to the workspace",
     "Grant GitHub Actions access to Terraform state",
   ];
 }
@@ -117,12 +124,14 @@ export async function installCoreInfraAzureMock(page: Page): Promise<CoreInfraAz
   };
 
   const resourceKey = (path: string) => {
-    if (/^\/subscriptions\/[^/]+\/resourcegroups\/root-pwtests$/i.test(path)) return "resource-group";
-    if (/\/workspaces\/pwtests-law$/i.test(path)) return "log-analytics";
+    if (/^\/subscriptions\/[^/]+\/resourcegroups\/zbcore-pwtests-rg$/i.test(path)) return "resource-group";
+    if (/\/workspaces\/zbcore-pwtests-law$/i.test(path)) return "log-analytics";
+    if (/\/blobservices\/default\/providers\/microsoft\.insights\/diagnosticsettings\/standard-diagnostics-setting$/i.test(path)) return "blob-diagnostics";
     if (/\/diagnosticsettings\/standard-diagnostics-setting$/i.test(path)) return "diagnostics";
-    if (/\/components\/pwtests-appinsights$/i.test(path)) return "app-insights";
-    if (/\/storageaccounts\/pwtestspvt$/i.test(path)) return "storage-account";
+    if (/\/storageaccounts\/zbcorepwtestsstor$/i.test(path)) return "storage-account";
+    if (/\/storageaccounts\/zbcorepwtestsstor\/providers\/microsoft\.authorization\/locks\/tfstate-cannot-delete$/i.test(path)) return "storage-lock";
     if (/\/containers\/terraformstate$/i.test(path)) return "storage-container";
+    if (/\/locks\/tfstate-cannot-delete$/i.test(path)) return "storage-lock";
     return null;
   };
 
@@ -145,13 +154,20 @@ export async function installCoreInfraAzureMock(page: Page): Promise<CoreInfraAz
     if (normalizedPath.endsWith("/checknameavailability") && method === "POST") {
       return json(route, { nameAvailable: true });
     }
+    if (/^\/subscriptions\/[^/]+\/providers\/microsoft.storage\/storageaccounts$/i.test(path) && method === "GET") {
+      return json(route, { value: state.createdResources.has("storage-account") ? [{
+        id: `/subscriptions/${mockSubscriptionId}/resourceGroups/zbcore-pwtests-rg/providers/Microsoft.Storage/storageAccounts/zbcorepwtestsstor`,
+        name: "zbcorepwtestsstor",
+      }] : [] });
+    }
 
 		const roleAssignmentsMarker = "/providers/microsoft.authorization/roleassignments";
 		const roleAssignmentsIndex = normalizedPath.indexOf(roleAssignmentsMarker);
 		if (roleAssignmentsIndex >= 0) {
 			const scope = normalizedPath.slice(0, roleAssignmentsIndex);
 			const isCoreInfraScope =
-				/\/resourcegroups\/root-pwtests$/i.test(scope) || /\/storageaccounts\/pwtestspvt$/i.test(scope);
+				/\/resourcegroups\/zbcore-pwtests-rg$/i.test(scope) || /\/storageaccounts\/zbcorepwtestsstor$/i.test(scope);
+				/\/resourcegroups\/zbcore-pwtests-rg$/i.test(scope) || /\/storageaccounts\/zbcorepwtestsstor$/i.test(scope);
 			if (!isCoreInfraScope) return route.fallback();
 
 			if (method === "GET") {
@@ -173,6 +189,15 @@ export async function installCoreInfraAzureMock(page: Page): Promise<CoreInfraAz
 				return json(route, {});
 			}
 		}
+
+    if (/^\/subscriptions\/[^/]+\/providers\/microsoft\.storage\/storageaccounts$/i.test(path) && method === "GET") {
+      const subscription = path.split("/")[2];
+      return json(route, {
+        value: state.createdResources.has("storage-account")
+          ? [{ name: "zbcorepwtestsstor", id: `/subscriptions/${subscription}/resourceGroups/zbcore-pwtests-rg/providers/Microsoft.Storage/storageAccounts/zbcorepwtestsstor` }]
+          : [],
+      });
+    }
 
     const key = resourceKey(normalizedPath);
     if (key) {
@@ -498,6 +523,12 @@ export async function installCreateDomainAzureMock(
 		const path = new URL(request.url()).pathname;
 		const normalizedPath = path.toLowerCase();
 		const zonePath = `/providers/microsoft.network/dnszones/${domainName.toLowerCase()}`;
+		if (/^\/subscriptions\/[^/]+\/providers\/microsoft.network\/dnszones$/i.test(path) && request.method() === "GET") {
+			return json(route, { value: state.dnsZoneExists ? [{
+				id: `/subscriptions/${mockSubscriptionId}/resourceGroups/zbcore-pwtests-rg/providers/Microsoft.Network/dnsZones/${domainName}`,
+				name: domainName, properties: { nameServers },
+			}] : [] });
+		}
 
 		if (normalizedPath.endsWith(zonePath)) {
 			if (request.method() === "GET") {
@@ -561,6 +592,11 @@ export async function installCreateDomainAzureMock(
 		if (path.endsWith("/appRoleAssignments") && request.method() === "POST") {
 			state.adminConsentGranted = true;
 			return json(route, {}, 201);
+		}
+		if (path.endsWith("/appRoleAssignments") && request.method() === "GET") {
+			return json(route, { value: state.adminConsentGranted ? [
+				{ appRoleId: "7e05723c-0bb0-42da-be95-ae9f08a6e53c" },
+			] : [] });
 		}
 
 		return route.fallback();
@@ -744,9 +780,10 @@ export async function prepareMockAzureSubscription(
     await createNewRepo(page, repoCard, repoName);
   }
   await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden();
-  const prodEnvironment = repoCard.getByText("PROD", { exact: true });
+  const prodEnvironment = repoCard.getByRole("button", { name: "PROD", exact: true });
   await expect(prodEnvironment).toBeVisible();
   await prodEnvironment.click();
+  await expect(prodEnvironment).toHaveAttribute("aria-pressed", "true");
   const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD" });
   if (await createProdButton.isVisible()) {
     await createProdButton.click();
@@ -756,7 +793,7 @@ export async function prepareMockAzureSubscription(
   const azureSubscriptionCard = await expandAzureSubscriptionCard(page);
   await expect(azureSubscriptionCard.getByText("Loading subscriptions...", { exact: true })).toBeHidden();
   const subscriptionState = azureSubscriptionCard
-    .getByRole("combobox")
+    .getByRole("combobox", { name: "Subscription", exact: true })
     .or(azureSubscriptionCard.getByText("This tenant has no subscriptions you can access.", { exact: true }))
     .or(azureSubscriptionCard.getByText(/Couldn't load subscriptions for this tenant/));
   await expect(subscriptionState).toBeVisible();
@@ -767,8 +804,8 @@ export async function prepareMockAzureSubscription(
     await expect(saveButton).toBeDisabled();
   }
 
-  const tenantVariableInput = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true }).locator("..").locator("..").getByRole("textbox");
-  const subscriptionVariableInput = azureSubscriptionCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true }).locator("..").locator("..").getByRole("textbox");
+  const tenantVariableInput = azureSubscriptionCard.getByRole("textbox", { name: "AZURE_TENANT_ID", exact: true });
+  const subscriptionVariableInput = azureSubscriptionCard.getByRole("textbox", { name: "AZURE_SUBSCRIPTION_ID", exact: true });
   const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save variables", exact: true });
 
   return {
@@ -824,19 +861,13 @@ export async function prepareExistingBackend(page: Page, context: BrowserContext
 		}
 		return Object.fromEntries(entries.map(({ name, value }) => [name, value]));
 	}, { repoName });
-	for (const key of ["NAME", "AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID", "WEBPUBSUB_ENDPOINT",
-		"WEBPUBSUB_CLIENT_ID", "WEBPUBSUB_TENANT_ID", "BACKEND_API"]) {
+	for (const key of ["AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID", "VITE_API_URL"]) {
 		expect(variables[key], `Existing PROD variable ${key} is required; run the prerequisite card separately`).toBeTruthy();
 	}
 	expect(variables.AZURE_TENANT_ID, "Use the tenant already saved in PROD").toBe(tenantId);
-	expect(variables.BACKEND_API).toBe(`https://${variables.NAME}-terminal-app.azurewebsites.net`);
-	await page.evaluate((values) => {
-		localStorage.setItem("zeninstaller_remote_terminal_infra_result", JSON.stringify({
-			corpName: values.NAME, subscriptionId: values.AZURE_SUBSCRIPTION_ID,
-			apiUrl: values.BACKEND_API, webPubSubHost: values.WEBPUBSUB_ENDPOINT, hubName: "terminal",
-			pipelineClientId: values.WEBPUBSUB_CLIENT_ID, pipelineTenantId: values.WEBPUBSUB_TENANT_ID,
-		}));
-	}, variables);
+	const appName = functionAppFromApiUrl(variables.VITE_API_URL);
+	expect(appName, "VITE_API_URL must identify the existing Azure Function App").toBeTruthy();
+	if (!appName) throw new Error("The existing VITE_API_URL is not an Azure Function App URL.");
 	await page.reload();
 	const readLatestBuild = () => page.evaluate(async ({ repoName }) => {
 		const auth = JSON.parse(sessionStorage.getItem("zeninstaller_github_auth") ?? "null");
@@ -860,7 +891,7 @@ export async function prepareExistingBackend(page: Page, context: BrowserContext
 			artifactId: typeof build.artifactId === "number" ? build.artifactId : null, builtAt: build.builtAt,
 		};
 	}, { repoName });
-	return { card: await openBackendCard(page), appName: `${variables.NAME}-terminal-app`, variables, readLatestBuild };
+	return { card: await openBackendCard(page), appName, variables, readLatestBuild };
 }
 
 const sha = "abcdef1234567890abcdef1234567890abcdef12";
@@ -886,6 +917,7 @@ export type MockBackendOptions = {
 	failSettingsWrite?: boolean;
 	failVersionRead?: boolean;
 	seedBuild?: SeedBuild;
+	resourceGroup?: string | null;
 };
 
 export async function prepareMockBackend(
@@ -1020,12 +1052,24 @@ export async function prepareMockBackend(
 		return route.fallback();
 	});
 
-	const appSettingsPath = "/sites/pwtests-terminal-app/config/appsettings";
-	const appPath = "/subscriptions/mock-subscription/resourcegroups/root-pwtests/providers/microsoft.web/sites/pwtests-terminal-app";
+	const resourceGroup = options.resourceGroup ?? PRIVATE_RESOURCE_GROUP;
+	const appPath = `/subscriptions/mock-subscription/resourcegroups/${resourceGroup}/providers/microsoft.web/sites/pwtests-terminal-app`.toLowerCase();
+	const appSettingsPath = `${appPath}/config/appsettings`;
+	const defaultAppPath = `/subscriptions/${mockSubscriptionId}/resourcegroups/${PRIVATE_RESOURCE_GROUP}/providers/microsoft.web/sites/${getFunctionAppName(mockSubscriptionId)}`.toLowerCase();
 	await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
 		const request = route.request();
 		const path = new URL(request.url()).pathname.toLowerCase();
 		const method = request.method();
+		if (path === "/subscriptions/mock-subscription/providers/microsoft.web/sites" && method === "GET") {
+			return route.fulfill({ json: { value: [
+				{ id: defaultAppPath, name: getFunctionAppName(mockSubscriptionId) },
+				...(options.resourceGroup === null ? [] : [{ id: appPath, name: "pwtests-terminal-app" }]),
+			] } });
+		}
+		if (path === `${defaultAppPath}/config/appsettings/list` && method === "POST") {
+			// The unversioned default app is read before the saved target finishes restoring.
+			return route.fulfill({ json: { properties: {} } });
+		}
 		if (path.endsWith(`${appSettingsPath}/list`) && method === "POST") {
 			state.settingsReads++;
 			if (options.failVersionRead && state.settingsWrites > 0) {
@@ -1041,16 +1085,6 @@ export async function prepareMockBackend(
 			state.settingsWrites++;
 			state.settings = (request.postDataJSON() as { properties: Record<string, string> }).properties;
 			return route.fulfill({ json: { properties: state.settings } });
-		}
-		if (path.endsWith(`${appPath}/extensions/onedeploy`) && method === "PUT") {
-			state.deployRequests++;
-			state.uploads++;
-			expect(request.headers()["content-type"]).toBe("application/zip");
-			expect(request.postDataBuffer()).toEqual(zip);
-			if (options.failUploadOnce && state.uploads === 1) {
-				return route.fulfill({ status: 500, body: "Mock upload failure" });
-			}
-			return route.fulfill({ status: 202, json: {} });
 		}
 		if (path.endsWith(`${appPath}/deployments`) && method === "GET") {
 			state.deploymentPolls++;
@@ -1069,8 +1103,21 @@ export async function prepareMockBackend(
 		return route.fallback();
 	});
 	await page.route("https://pwtests-terminal-app.scm.azurewebsites.net/**", async (route) => {
-		unexpectedRequests.push(`${route.request().method()} ${route.request().url()}`);
-		await route.abort("blockedbyclient");
+		const request = route.request();
+		const url = new URL(request.url());
+		if (url.pathname !== "/api/publish" || url.search !== "?type=zip" || request.method() !== "POST") {
+			unexpectedRequests.push(`${request.method()} ${request.url()}`);
+			return route.abort("blockedbyclient");
+		}
+		state.deployRequests++;
+		state.uploads++;
+		expect(request.headers()["content-type"]).toBe("application/zip");
+		expect(request.headers().authorization).toBe("Bearer mock-token");
+		expect(request.postDataBuffer()).toEqual(zip);
+		if (options.failUploadOnce && state.uploads === 1) {
+			return route.fulfill({ status: 500, body: "Mock upload failure" });
+		}
+		return route.fulfill({ status: 202, json: {} });
 	});
 	const url = new URL(CORP_URL);
 	url.search = new URLSearchParams({

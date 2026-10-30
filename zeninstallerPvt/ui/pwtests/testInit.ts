@@ -4,9 +4,6 @@
  */
 
 // Has browser viewport and URL configuration
-
-export const HOME_URL = "http://localhost:5173/";
-export const ACCESS_PASS_URL = "http://localhost:5173/accessPass.html";
 export const CORP_URL = "http://localhost:5174/core/";
 export const BACKEND_URL = "http://localhost:7071";
 
@@ -32,10 +29,5 @@ export const TEST_REPO_FROM_PROD = "pwtests-test-from-prod"; // creating test br
 
 // Domain for CreateDomainCard.spec.mts
 export const TEST_DNS_DOMAIN = "zenblox.com.au";
-
-export const viewports = {
-  Desktop: { width: 1280, height: 720 },
-  Mobile: { width: 414, height: 896 },
-} as const;
 
 

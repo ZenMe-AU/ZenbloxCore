@@ -47,6 +47,15 @@ body {
   border: 2px solid var(--mui-palette-primary-main, #2563eb);
 }
 
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px;
+    box-shadow: none !important;
+    forced-color-adjust: auto;
+  }
+}
+
 :root[data-mask-sensitive="true"] [data-sensitive] {
   filter: blur(5px);
   user-select: none;

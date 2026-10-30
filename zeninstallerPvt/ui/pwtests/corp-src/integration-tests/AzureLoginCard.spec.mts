@@ -5,19 +5,11 @@
 
 // UI component: ../../../corp-src/cards/AzureLogin/AzureLoginCard.tsx
 import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { restoreAzureSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
+import { expectSnapshot, expectVisibleWithin } from "../../../../../.playwright/testHelper.js";
 import { expandAzureLoginCard } from "../util/cardHelper.mts";
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath(page, context, testInfo);
@@ -57,7 +49,7 @@ async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestI
     await expectVisibleWithin(azureCard.getByRole("button", { name: "Sign out", exact: true }), "Sign out button", 50_000);
     await expect(azureCard.getByRole("button", { name: "Sign in with Azure", exact: true })).toHaveCount(0);
     await expectVisibleWithin(azureCard.getByText(/^Tenant/), "Tenant label", 50_000);
-    await expectVisibleWithin(azureCard.getByRole("combobox"), "Stored tenant selector", 50_000);
+    await expectVisibleWithin(azureCard.getByRole("combobox", { name: /^Tenant\b/ }), "Stored tenant selector", 50_000);
     // Re-select the tenant to confirm its ID is selected.
     const tenantSelect = azureCard.getByTestId("tenant-select");
     await expect.poll(async () => (await tenantSelect.locator("input").inputValue()).trim(), { timeout: 50_000 }).not.toBe("");

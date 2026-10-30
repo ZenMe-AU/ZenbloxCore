@@ -388,164 +388,164 @@ function AppDashboard() {
               </Typography>
             </Box>
             <CardIntro variant="body1" sx={{ lineHeight: 1.7, mt: 1, mb: 0 }}>
-              Complete the cards below in any order — each shows what it needs before it can run.
+              Complete the cards below in any order; each shows what it needs before it can run.
             </CardIntro>
           </Box>
 
           <Box sx={groupSx}>
-          <Box component="section" aria-label="Deployment setup progress" sx={{ ...groupSx, mt: 3 }}>
-            <Box sx={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr", alignItems: "center", gap: 0.5, mb: 1 }}>
-              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-                <Typography component="h2" variant="sectionLabel">Deployment setup progress</Typography>
-                <Button
-                  size="small"
-                  variant="text"
-                  disabled={!nextStep}
-                  onClick={() => nextStep && openCard(nextStep.id)}
-                  sx={{ flexShrink: 0 }}
-                >
-                  {nextStep ? `Next step: ${nextStep.title}` : "All setup tasks complete"}
-                </Button>
+            <Box component="section" aria-label="Deployment setup progress" sx={{ ...groupSx, mt: 3 }}>
+              <Box sx={{ gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "1fr", alignItems: "center", gap: 0.5, mb: 1 }}>
+                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                  <Typography component="h2" variant="sectionLabel">Deployment setup progress</Typography>
+                  <Button
+                    size="small"
+                    variant="text"
+                    disabled={!nextStep}
+                    onClick={() => nextStep && openCard(nextStep.id)}
+                    sx={{ flexShrink: 0 }}
+                  >
+                    {nextStep ? `Next step: ${nextStep.title}` : "All setup tasks complete"}
+                  </Button>
+                </Box>
+                <LinearProgress
+                  aria-label="Deployment setup progress"
+                  variant="determinate"
+                  value={(completedCount / progressCards.length) * 100}
+                  sx={{ gridColumn: "1 / -1", height: 6, borderRadius: 3 }}
+                />
               </Box>
-              <LinearProgress
-                aria-label="Deployment setup progress"
-                variant="determinate"
-                value={(completedCount / progressCards.length) * 100}
-                sx={{ gridColumn: "1 / -1", height: 6, borderRadius: 3 }}
+
+              <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
+
+              <GithubSignupCard card={cardProps("github_signup")} signup={githubSignup} onOpenLogin={() => openCard("github_login")} />
+
+              <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
+
+              <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
+
+              <AzureSubscriptionCard
+                card={cardProps("azure_subscription")}
+                azure={azureLogin}
+                subscription={azureSubscription}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+                onOpenAzureLogin={() => openCard("azure_login")}
+                onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
               />
+
+              <AzureAppRegistrationCard
+                card={cardProps("azure_app_registration")}
+                appReg={azureAppSetup}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                subscriptionId={azureSubscription.selectedSubscriptionId}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+              />
+
+              <CoreInfraCard
+                card={cardProps("core_infra")}
+                infra={infra}
+                azureAccount={azureLogin.account}
+                corpName={corpName}
+                subscriptionId={azureSubscription.selectedSubscriptionId}
+                spClientId={azureAppSetup.spClientId}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+              />
+
+              <CreateDomainCard
+                card={cardProps("create_domain")}
+                createDomain={createDomain}
+                azureAccount={azureLogin.account}
+                corpName={corpName}
+                dnsName={dnsName}
+                subscriptionId={azureSubscription.selectedSubscriptionId}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+              />
+
+              <RemoteTerminalInfraCard
+                card={cardProps("remote_terminal_infra")}
+                infra={remoteTerminalInfra}
+                subscriptionId={azureSubscription.selectedSubscriptionId}
+                tenantId={githubVariableValues.AZURE_TENANT_ID}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+              />
+
+              <BackendDeployCard
+                card={cardProps("backend_deploy")}
+                backend={backendDeploy}
+                repoFullName={
+                  githubRepoEnv.repo.selectedAccount && githubRepoEnv.repo.selectedRepo
+                    ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
+                    : null
+                }
+              />
+
+              <PrivateFrontendInfraCard
+                card={cardProps("private_frontend_infra")}
+                infra={privateFrontendInfra}
+                subscriptionId={azureSubscription.selectedSubscriptionId}
+                tenantId={githubVariableValues.AZURE_TENANT_ID ?? ""}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+              />
+
+              <WebDeployCard
+                card={cardProps("web_deploy")}
+                web={webDeploy}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+                repoFullName={
+                  githubRepoEnv.repo.selectedAccount && githubRepoEnv.repo.selectedRepo
+                    ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
+                    : null
+                }
+              />
+
+              <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
+
+              <AwsSetupCard
+                card={cardProps("aws_setup")}
+                awsSetup={awsSetup}
+                account={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                repoFullName={githubRepoEnv.repo.repoFullName}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+              />
+
+              {stageCards.map(({ key, ...stageCard }) => (
+                <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
+              ))}
+
+              <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
             </Box>
-
-            <GithubSignupCard card={cardProps("github_signup")} signup={githubSignup} onOpenLogin={() => openCard("github_login")} />
-
-            <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
-
-            <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
-
-            <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
-
-            <AzureSubscriptionCard
-              card={cardProps("azure_subscription")}
-              azure={azureLogin}
-              subscription={azureSubscription}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-              onOpenAzureLogin={() => openCard("azure_login")}
-              onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
-            />
-
-            <AzureAppRegistrationCard
-              card={cardProps("azure_app_registration")}
-              appReg={azureAppSetup}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              subscriptionId={azureSubscription.selectedSubscriptionId}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
-
-            <CoreInfraCard
-              card={cardProps("core_infra")}
-              infra={infra}
-              azureAccount={azureLogin.account}
-              corpName={corpName}
-              subscriptionId={azureSubscription.selectedSubscriptionId}
-              spClientId={azureAppSetup.spClientId}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
-
-            <CreateDomainCard
-              card={cardProps("create_domain")}
-              createDomain={createDomain}
-              azureAccount={azureLogin.account}
-              corpName={corpName}
-              dnsName={dnsName}
-              subscriptionId={azureSubscription.selectedSubscriptionId}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
-
-            <RemoteTerminalInfraCard
-              card={cardProps("remote_terminal_infra")}
-              infra={remoteTerminalInfra}
-              subscriptionId={azureSubscription.selectedSubscriptionId}
-              tenantId={githubVariableValues.AZURE_TENANT_ID}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
-
-            <BackendDeployCard
-              card={cardProps("backend_deploy")}
-              backend={backendDeploy}
-              repoFullName={
-                githubRepoEnv.repo.selectedAccount && githubRepoEnv.repo.selectedRepo
-                  ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
-                  : null
-              }
-            />
-
-            <PrivateFrontendInfraCard
-              card={cardProps("private_frontend_infra")}
-              infra={privateFrontendInfra}
-              subscriptionId={azureSubscription.selectedSubscriptionId}
-              tenantId={githubVariableValues.AZURE_TENANT_ID ?? ""}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-            />
-
-            <WebDeployCard
-              card={cardProps("web_deploy")}
-              web={webDeploy}
-              githubAccount={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-              githubUrl={githubRepoEnv.githubEnvUrl}
-              repoFullName={
-                githubRepoEnv.repo.selectedAccount && githubRepoEnv.repo.selectedRepo
-                  ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
-                  : null
-              }
-            />
-            
-            <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
-
-            <AwsSetupCard
-              card={cardProps("aws_setup")}
-              awsSetup={awsSetup}
-              account={githubRepoEnv.repo.selectedAccount}
-              repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-              repoFullName={githubRepoEnv.repo.repoFullName}
-              selectedEnv={githubRepoEnv.env.selectedEnv}
-              variables={githubVariables}
-            />
-
-            {stageCards.map(({ key, ...stageCard }) => (
-              <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
-            ))}
-
-            <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
           </Box>
-        </Box>
-        </Box>
+        </Box >
         <Footer />
-      </Box>
+      </Box >
 
       <RestoreToast loading={urlRestore.restoring} warnings={urlRestore.warnings} onDismiss={urlRestore.dismissWarnings} />
     </>

@@ -20,6 +20,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c01subscription",
         label: "Azure subscription budget",
+        description: "Sets a spending budget on the Azure subscription and emails the contacts you list when costs approach it.",
         azurePermissions: [],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -37,6 +38,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c02globalGroups",
         label: "Organisation security groups",
+        description: "Creates the Microsoft Entra security groups that control who can access the organisation's resources.",
         azurePermissions: [
           GRAPH_PERMISSIONS.GroupReadWriteAll,
           GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
@@ -55,6 +57,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c07userAccounts",
         label: "User accounts and sign-in",
+        description: "Creates the organisation's user accounts and configures how they sign in, including authentication methods.",
         azurePermissions: [
           GRAPH_PERMISSIONS.GroupReadWriteAll,
           GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
@@ -73,6 +76,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c20awsentrasso",
         label: "AWS single sign-on with Entra ID",
+        description: "Registers AWS IAM Identity Center as an Entra application so users can sign in to AWS with their organisation account.",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -83,6 +87,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c21awsentrassoP2",
         label: "AWS single sign-on with Microsoft Entra ID P2",
+        description: "Assigns groups to the AWS application and applies the claims policy, which needs a Microsoft Entra ID P2 licence.",
         azurePermissions: [GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll, GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -94,6 +99,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c25cloudfront",
         label: "AWS CloudFront distribution",
+        description: "Deploys the CloudFront distribution that serves the corporate login app and guards access through Entra authentication.",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },

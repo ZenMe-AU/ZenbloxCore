@@ -197,7 +197,7 @@ const theme = createTheme({
         },
         divider: "#354448",
         background: {
-          default: "#0f171a",
+          default: "#080d0f",
           paper: "#1b2629",
         },
         card: {
@@ -387,7 +387,14 @@ const theme = createTheme({
     },
     MuiLink: {
       defaultProps: {
-        underline: "always",
+        underline: "none",
+      },
+      styleOverrides: {
+        root: ({ theme }) => ({
+          ...theme.typography.body1,
+          textDecoration: "none",
+          "&:hover": { textDecoration: "none" },
+        }),
       },
     },
     MuiTypography: {

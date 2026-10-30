@@ -5,7 +5,7 @@
 
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TextField, ThemeProvider } from "@mui/material";
 import Caption from "../components/Caption";
 import CardIntro from "../components/CardIntro";
@@ -23,7 +23,7 @@ import theme from "../theme";
 describe("shared UI building blocks", () => {
   it("defines distinct accessible palettes for day and night modes", () => {
     expect(theme.colorSchemes.light.palette.background.default).toBe("#f8fafc");
-    expect(theme.colorSchemes.dark.palette.background.default).toBe("#0f171a");
+    expect(theme.colorSchemes.dark.palette.background.default).toBe("#080d0f");
     expect(theme.colorSchemes.light.palette.background.paper).toBe("#ffffff");
     expect(theme.colorSchemes.dark.palette.background.paper).toBe("#1b2629");
     expect(theme.colorSchemes.dark.palette.text.primary).toBe("#e7edef");
@@ -40,8 +40,8 @@ describe("shared UI building blocks", () => {
           <ThemeProvider
             theme={theme}
             defaultMode="light"
-            modeStorageKey="zeninstaller-test-mode"
-            colorSchemeStorageKey="zeninstaller-test-color-scheme"
+              modeStorageKey="zeninstaller-test-mode"
+              colorSchemeStorageKey="zeninstaller-test-color-scheme"
           >
             <CardIntro>Intro copy</CardIntro>
             <FieldLabel htmlFor="editor-base">Variable key</FieldLabel>
@@ -137,9 +137,56 @@ describe("shared UI building blocks", () => {
       expect(link?.target).toBe("_blank");
       expect(link?.rel).toBe("noopener noreferrer");
       expect(link?.getAttribute("aria-label")).toBe("Documentation (opens in new tab)");
+      expect(getComputedStyle(link!).fontSize).toBe("14px");
+      expect(getComputedStyle(link!).textDecorationLine).toBe("none");
     } finally {
       flushSync(() => root.unmount());
       container.remove();
+    }
+  });
+
+  it("falls back when clipboard access is unavailable or denied and announces failure", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
+    const execCommandDescriptor = Object.getOwnPropertyDescriptor(document, "execCommand");
+    let legacyCopySucceeds = true;
+    const execCommand = vi.fn(() => legacyCopySucceeds);
+
+    try {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+      Object.defineProperty(document, "execCommand", { configurable: true, value: execCommand });
+      flushSync(() => root.render(<CopyRow label="Legacy value" value="sensitive-value" />));
+
+      const copyButton = container.querySelector<HTMLButtonElement>('button[aria-label="Copy Legacy value"]')!;
+      copyButton.focus();
+      flushSync(() => copyButton.click());
+      expect(execCommand).toHaveBeenCalledWith("copy");
+      expect(copyButton.getAttribute("aria-label")).toBe("Copied Legacy value");
+      expect(document.activeElement).toBe(copyButton);
+
+      legacyCopySucceeds = false;
+      flushSync(() => copyButton.click());
+      expect(copyButton.getAttribute("aria-label")).toBe("Copy failed Legacy value");
+      expect(container.querySelector('[aria-live="assertive"]')?.textContent).toBe("Copy failed");
+
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: { writeText: vi.fn().mockRejectedValue(new Error("Clipboard permission denied")) },
+      });
+      legacyCopySucceeds = true;
+      flushSync(() => copyButton.click());
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+      expect(execCommand).toHaveBeenCalledTimes(3);
+      expect(copyButton.getAttribute("aria-label")).toBe("Copied Legacy value");
+    } finally {
+      flushSync(() => root.unmount());
+      container.remove();
+      if (clipboardDescriptor) Object.defineProperty(navigator, "clipboard", clipboardDescriptor);
+      else Reflect.deleteProperty(navigator, "clipboard");
+      if (execCommandDescriptor) Object.defineProperty(document, "execCommand", execCommandDescriptor);
+      else Reflect.deleteProperty(document, "execCommand");
     }
   });
 });

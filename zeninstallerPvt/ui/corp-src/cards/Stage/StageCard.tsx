@@ -388,9 +388,16 @@ export default function StageCard({
 
   const repoFullName = account && repoName ? `${account.login}/${repoName}` : null;
 
+  const intro = stageDef.description ? (
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+      {stageDef.description}
+    </Typography>
+  ) : undefined;
+
   return (
-    <Card title={stageDef.label} action={<Action repoFullName={repoFullName} runId={stage.runId} />} {...card}>
+    <Card title={stageDef.label} action={<Action repoFullName={repoFullName} runId={stage.runId} />} lockedIntro={intro} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {intro}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
           <RunStatusUpdateButton
             onRun={handleRunStatusUpdate}

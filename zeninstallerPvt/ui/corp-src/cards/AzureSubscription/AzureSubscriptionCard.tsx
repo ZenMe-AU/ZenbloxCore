@@ -4,7 +4,7 @@
  */
 
 import { useEffect } from "react";
-import { Box, Button, CircularProgress, MenuItem, Select, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Link, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { Account, CardChrome, GhEnv } from "../../types";
@@ -110,19 +110,14 @@ export default function AzureSubscriptionCard({
           <Typography color="text.muted">
             Tenant: <Box component="span" sx={{ color: "text.primary" }}>{tenantLabel}</Box>
           </Typography>
-          <Button
-            size="small"
+          <Link
+            component="button"
+            type="button"
             onClick={onOpenAzureLogin}
-            sx={{
-              minWidth: 0,
-              color: "primary.main",
-              py: 0,
-              px: 0.5,
-              "&:hover": { textDecoration: "underline" },
-            }}
+            sx={{ py: 0, px: 0.5, textAlign: "left" }}
           >
             Change on Azure login →
-          </Button>
+          </Link>
         </Box>
 
         {subsError && !subscriptionNoAccess && <Typography color="error.main" role="alert">{subsError}</Typography>}
