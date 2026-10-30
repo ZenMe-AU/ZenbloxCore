@@ -159,7 +159,7 @@ function StageVarEditor({
 }
 
 // Shared by the plan and deploy failures — both publish the same kind of single-file log artifact.
-function FailureLog({ fetched, text }: { fetched: boolean; text: string | null }) {
+export function FailureLog({ fetched, text }: { fetched: boolean; text: string | null }) {
   if (!fetched) return <StatusText>Loading log...</StatusText>;
   if (!text) return null;
   return (

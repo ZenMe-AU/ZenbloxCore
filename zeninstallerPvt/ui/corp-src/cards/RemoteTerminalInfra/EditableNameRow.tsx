@@ -17,9 +17,10 @@ type EditableNameRowProps = {
   editing: boolean;
   setEditing: (editing: boolean) => void;
   width: number;
+  hint?: string;
 };
 
-export default function EditableNameRow({ label, value, onChange, error, checking, check, editing, setEditing, width }: EditableNameRowProps) {
+export default function EditableNameRow({ label, value, onChange, error, checking, check, editing, setEditing, width, hint }: EditableNameRowProps) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
       <Typography color="text.muted">{label}:</Typography>
@@ -30,7 +31,7 @@ export default function EditableNameRow({ label, value, onChange, error, checkin
             value={value}
             onChange={(e) => onChange(e.target.value)}
             error={!!error}
-            helperText={error ?? undefined}
+            helperText={error ?? hint}
             sx={{ width }}
             className="corpTechnicalInput"
             inputProps={{ "aria-label": label }}

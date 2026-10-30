@@ -33,8 +33,8 @@ export type RemoteLoginDispatch = {
   ref: string;
   sessionId: string;
   dir: string;
-  // The plan run whose tfplan the workflow applies once the sign-in completes.
-  planRunId: string;
+  // The plan run whose tfplan the workflow applies once the sign-in completes; workflows that run without a plan omit it.
+  planRunId?: string;
 };
 
 export function createGithubApi(token: string) {

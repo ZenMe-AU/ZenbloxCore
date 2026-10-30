@@ -28,6 +28,9 @@ import { useAccessPassCard } from "./cards/AccessPass/useAccessPassCard";
 import { useAwsLoginCard } from "./cards/AwsLogin/useAwsLoginCard";
 import { useWebDeployCard } from "./cards/WebDeploy/useWebDeployCard";
 import { useAwsSetupCard } from "./cards/AwsSetup/useAwsSetupCard";
+import { usePrivAvdGalleryCard } from "./cards/PrivAvdGallery/usePrivAvdGalleryCard";
+import { usePrivAvdImageCard } from "./cards/PrivAvdImage/usePrivAvdImageCard";
+import { usePrivAvdPawCard } from "./cards/PrivAvdPaw/usePrivAvdPawCard";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -50,6 +53,9 @@ import AccessPassCard from "./cards/AccessPass/AccessPassCard";
 import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
 import AwsSetupCard from "./cards/AwsSetup/AwsSetupCard";
 import StageCard from "./cards/Stage/StageCard";
+import PrivAvdGalleryCard from "./cards/PrivAvdGallery/PrivAvdGalleryCard";
+import PrivAvdImageCard from "./cards/PrivAvdImage/PrivAvdImageCard";
+import PrivAvdPawCard from "./cards/PrivAvdPaw/PrivAvdPawCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -201,6 +207,15 @@ function AppDashboard() {
     })
   );
 
+  const privAvdTarget = {
+    account: githubRepoEnv.repo.selectedAccount,
+    repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
+    selectedEnv: githubRepoEnv.env.selectedEnv,
+  };
+  const privAvdGallery = addCard(usePrivAvdGalleryCard(privAvdTarget));
+  const privAvdImage = addCard(usePrivAvdImageCard(privAvdTarget));
+  const privAvdPaw = addCard(usePrivAvdPawCard(privAvdTarget));
+
   const plan = useDeploymentPlan({
     account: githubRepoEnv.repo.selectedAccount,
     repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
@@ -330,6 +345,12 @@ function AppDashboard() {
       title: stageDef.label,
       done: card.status === "complete" || card.status === "skipped",
       chrome: card,
+    })),
+    ...[privAvdGallery, privAvdImage, privAvdPaw].map(({ cardId, cardDependencyLabel, done }) => ({
+      id: cardId,
+      title: cardDependencyLabel,
+      done,
+      chrome: cardProps(cardId),
     })),
     {
       id: "access_pass" as const,
@@ -539,6 +560,27 @@ function AppDashboard() {
               {stageCards.map(({ key, ...stageCard }) => (
                 <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
               ))}
+
+              <PrivAvdGalleryCard
+                card={cardProps("privavd_gallery")}
+                privAvd={privAvdGallery}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
+              <PrivAvdImageCard
+                card={cardProps("privavd_image")}
+                privAvd={privAvdImage}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
+              <PrivAvdPawCard
+                card={cardProps("privavd_paw")}
+                privAvd={privAvdPaw}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
 
               <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
             </Box>
