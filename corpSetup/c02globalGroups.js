@@ -6,7 +6,7 @@
 /* This script configures the corporate environment with the relevant permissions to allow automated deployments.
  */
 import { execSync } from "child_process";
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { getSubscriptionId } from "../util/azureCli.cjs";
 import { fileURLToPath } from "url";
@@ -166,6 +166,31 @@ function main(corpEnvFile) {
     } catch (_) {
       dbAdminProdId = null;
     }
+    // Active and eligible (PIM) role assignments are switched by commenting blocks in the .tf files; only import what is declared.
+    const tfConfig = readdirSync(workingDirName)
+      .filter((f) => f.endsWith(".tf"))
+      .map((f) => readFileSync(resolve(workingDirName, f), "utf8"))
+      .join("\n");
+    const needsImport = (address) => {
+      const [type, name] = address.split(".");
+      return !tfStateList.includes(address) && new RegExp(`^resource "${type}" "${name}"`, "m").test(tfConfig);
+    };
+    // // Eligible (PIM) imports: uncomment together with the "Eligible, P2 License Required" blocks in main.tf / group.tf.
+    // // Role definition id of an existing PIM eligibility at exactly `scope`, or null. Queried at the subscription, which
+    // // also lists inherited eligibilities, so subscription Reader is enough even for a management group scope.
+    // const findEligibleRoleDefinitionId = (scope, principalId, roleGuid) => {
+    //   try {
+    //     return (
+    //       execSync(
+    //         `az rest --method GET --url "https://management.azure.com/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/roleEligibilitySchedules?api-version=2020-10-01&\\$filter=principalId eq '${principalId}'" --query "value[?properties.scope=='${scope}' && ends_with(properties.roleDefinitionId, '${roleGuid}')].properties.roleDefinitionId | [0]" -o tsv`,
+    //         { encoding: "utf8", stdio: "pipe" }
+    //       ).trim() || null
+    //     );
+    //   } catch (_) {
+    //     console.log(`Cannot read PIM eligibility schedules for ${principalId}, skipping import.`);
+    //     return null;
+    //   }
+    // };
     if (rgDeployerId && !tfStateList.includes("azuread_group.resource_group_deployer")) {
       console.log("Importing existing ResourceGroupDeployer group with ID:", rgDeployerId);
       execSync(`terraform import azuread_group.resource_group_deployer /groups/${rgDeployerId}`, {
@@ -173,7 +198,7 @@ function main(corpEnvFile) {
         shell: true,
         cwd: resolve(__dirname, workingDirName),
       });
-      if (!tfStateList.includes("azurerm_role_assignment.resource_group_deployer_owner")) {
+      if (needsImport("azurerm_role_assignment.resource_group_deployer_owner")) {
         const ownerRoleAssignmentId = execSync(
           `az role assignment list --assignee "${rgDeployerId}" --role "Owner" --scope /subscriptions/${subscriptionId} --query "[0].id" -o tsv`,
           { encoding: "utf8" }
@@ -187,6 +212,19 @@ function main(corpEnvFile) {
           });
         }
       }
+      // if (needsImport("azurerm_pim_eligible_role_assignment.resource_group_deployer_owner")) {
+      //   const scope = `/subscriptions/${subscriptionId}`;
+      //   // 8e3af657-... is the built-in Owner role
+      //   const roleDefinitionId = findEligibleRoleDefinitionId(scope, rgDeployerId, "8e3af657-a8ff-443c-a75c-2fe8c4bcb635");
+      //   if (roleDefinitionId) {
+      //     console.log("Importing existing ResourceGroupDeployer eligible Owner role assignment.");
+      //     execSync(`terraform import azurerm_pim_eligible_role_assignment.resource_group_deployer_owner "${scope}|${roleDefinitionId}|${rgDeployerId}"`, {
+      //       stdio: "pipe",
+      //       shell: true,
+      //       cwd: resolve(__dirname, workingDirName),
+      //     });
+      //   }
+      // }
     }
     if (leadDevId && !tfStateList.includes("azuread_group.lead_developer")) {
       console.log("Importing existing LeadDeveloper group with ID:", leadDevId);
@@ -210,6 +248,19 @@ function main(corpEnvFile) {
           });
         }
       }
+      // if (needsImport("azurerm_pim_eligible_role_assignment.lead_developer_app_config_owner")) {
+      //   const scope = `/subscriptions/${subscriptionId}`;
+      //   // 5ae67dd6-... is the built-in App Configuration Data Owner role
+      //   const roleDefinitionId = findEligibleRoleDefinitionId(scope, leadDevId, "5ae67dd6-50cb-40e7-96ff-dc2bfa4b606b");
+      //   if (roleDefinitionId) {
+      //     console.log("Importing existing LeadDeveloper eligible App Configuration Data Owner role assignment.");
+      //     execSync(`terraform import azurerm_pim_eligible_role_assignment.lead_developer_app_config_owner "${scope}|${roleDefinitionId}|${leadDevId}"`, {
+      //       stdio: "pipe",
+      //       shell: true,
+      //       cwd: resolve(__dirname, workingDirName),
+      //     });
+      //   }
+      // }
     }
     if (dbAdminDevId && !tfStateList.includes("azuread_group.db_admin_dev")) {
       console.log("Importing existing DbAdmin-Dev group with ID:", dbAdminDevId);
@@ -277,6 +328,52 @@ function main(corpEnvFile) {
         }
       }
     }
+    // // Eligible (PIM) imports for group.tf.
+    // let privId;
+    // try {
+    //   privId = execSync(`az ad group show --group "PrivilegedAccounts" --query id -o tsv`, { encoding: "utf8", stdio: "pipe" }).trim();
+    // } catch (_) {
+    //   privId = null;
+    // }
+    // if (privId && needsImport("azuread_directory_role_eligibility_schedule_request.global_administrator")) {
+    //   let requestId = null;
+    //   try {
+    //     // 62e90394-... is the Global Administrator template ID, which group.tf uses as role_definition_id.
+    //     requestId = execSync(
+    //       `az rest --method GET --url "https://graph.microsoft.com/v1.0/roleManagement/directory/roleEligibilityScheduleRequests?\\$filter=principalId eq '${privId}' and roleDefinitionId eq '62e90394-69f5-4237-9190-012177145e10'" --query "value[?status=='Provisioned'] | [0].id" -o tsv`,
+    //       { encoding: "utf8", stdio: "pipe" }
+    //     ).trim();
+    //   } catch (_) {
+    //     console.log("Cannot read Global Administrator eligibility requests, skipping import.");
+    //   }
+    //   if (requestId) {
+    //     console.log("Importing existing PrivilegedAccounts eligible Global Administrator request.");
+    //     execSync(`terraform import azuread_directory_role_eligibility_schedule_request.global_administrator ${requestId}`, {
+    //       stdio: "pipe",
+    //       shell: true,
+    //       cwd: resolve(__dirname, workingDirName),
+    //     });
+    //   }
+    // }
+    // if (privId && needsImport("azurerm_pim_eligible_role_assignment.privileged_accounts_owner")) {
+    //   const tenantId = execSync(`az account show --query tenantId -o tsv`, { encoding: "utf8" }).trim();
+    //   const scope = `/providers/Microsoft.Management/managementGroups/${tenantId}`;
+    //   // 8e3af657-... is the built-in Owner role
+    //   const roleDefinitionId = findEligibleRoleDefinitionId(scope, privId, "8e3af657-a8ff-443c-a75c-2fe8c4bcb635");
+    //   if (roleDefinitionId) {
+    //     console.log("Importing existing PrivilegedAccounts eligible Owner role assignment on the Tenant Root Group.");
+    //     try {
+    //       execSync(`terraform import azurerm_pim_eligible_role_assignment.privileged_accounts_owner "${scope}|${roleDefinitionId}|${privId}"`, {
+    //         stdio: "pipe",
+    //         shell: true,
+    //         cwd: resolve(__dirname, workingDirName),
+    //       });
+    //     } catch (_) {
+    //       // The provider re-reads at the Tenant Root Group, which a subscription-only Reader cannot; apply then fails on the existing eligibility instead of duplicating it.
+    //       console.log("Cannot read the Tenant Root Group, skipping import.");
+    //     }
+    //   }
+    // }
     // console.log("Starting Terraform initialization.");
     // // Run terraform
     // execSync(`terraform apply ${autoApprove ? " -auto-approve" : ""}`, {
