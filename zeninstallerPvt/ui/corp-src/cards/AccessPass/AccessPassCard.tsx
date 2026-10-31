@@ -54,8 +54,9 @@ type Props = {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Create a Temporary Access Pass for a user managed by your account. This removes their existing authentication methods, randomizes their password, and
-      issues an access pass that lasts one hour.
+      Create a one-hour Temporary Access Pass for a user you manage in Microsoft Entra. ZenInstaller removes the user's existing sign-in methods and resets
+      their password to a random value before issuing the pass. They may be unable to sign in until they use it, so confirm the user's identity and arrange to
+      deliver the pass securely.
     </Typography>
   );
 }

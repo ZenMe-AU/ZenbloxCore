@@ -38,9 +38,10 @@ type Props = {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Create an AWS IAM role trusted by GitHub Actions for the selected environment(s), using an immutable OIDC subject with numeric GitHub organization and
-      repository IDs. GitHub Actions can then get temporary AWS credentials without storing access keys. The role receives the AWS-managed AdministratorAccess
-      policy, which allows broad access to your AWS account. ZenInstaller saves the role ARN to the selected GitHub environment for deployment stages to use.
+      ZenInstaller creates an AWS IAM role that GitHub Actions can use for the environments you select. The trust policy uses GitHub's immutable OIDC subject,
+      which includes numeric organization and repository IDs. GitHub Actions exchanges its OIDC token for temporary AWS credentials, so you don't need to store
+      access keys in GitHub. The role receives the AWS-managed AdministratorAccess policy, which grants broad access to your AWS account. ZenInstaller saves the
+      role ARN to each selected GitHub environment for deployment workflows.
     </Typography>
   );
 }

@@ -35,8 +35,8 @@ function PlainRow({ label, value }: { label: string; value: string }) {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-      The relay for terminals in stage cards includes Web PubSub, the session table, and the Function App that issues tokens scoped to each group. Everything
-      connects by managed identity; no access key is stored.
+      Configure a secure deployment terminal in GitHub that always verifies approval with a human before making a change to the environment.
+      This will configure a web pubsub backend that allows realtime feedback to the browser during deployments.
     </Typography>
   );
 }

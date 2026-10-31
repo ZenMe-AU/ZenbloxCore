@@ -27,11 +27,11 @@ type Props = {
 function Intro({ appName }: { appName: string }) {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-      Builds the Zeninstaller backend in GitHub Actions, then pushes the package straight from this browser to{" "}
+      GitHub Actions builds the ZenInstaller backend. ZenInstaller downloads that build and deploys it from this browser to{" "}
       <Box component="code" sx={{ typography: "body1" }}>
         {appName || "the Function App"}
       </Box>
-      .
+      . You can check which build is live before deploying an update.
     </Typography>
   );
 }

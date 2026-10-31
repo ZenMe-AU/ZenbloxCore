@@ -39,15 +39,15 @@ function SiteLink({ label, color, href }: { label: string; color: string; href: 
 function Intro({ storageAccountName }: { storageAccountName: string }) {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-      Builds the Zeninstaller frontend in GitHub Actions, then writes the files straight from this browser into the{" "}
+      GitHub Actions builds the ZenInstaller frontend. ZenInstaller downloads the build and uploads its files from this browser to the{" "}
       <Box component="code" sx={{ typography: "body1" }}>
         $web
       </Box>{" "}
-      container of{" "}
+      container in{" "}
       <Box component="code" sx={{ typography: "body1" }}>
         {storageAccountName || "the site's storage account"}
       </Box>
-      .
+      . Build and deploy are separate, so you can review a build before publishing it.
     </Typography>
   );
 }

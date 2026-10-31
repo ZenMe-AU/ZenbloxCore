@@ -19,7 +19,7 @@ export async function expandGithubLoginCard(page: Page) {
 
 export async function expandAzureLoginCard(page: Page) {
   const azureCard = page.locator("#card-azure_login");
-  const introText = azureCard.getByText(/Sign in with a Microsoft account that can access the Microsoft Entra tenant you want to configure\./i);
+  const introText = azureCard.getByText(/Sign in with a Microsoft account that can access the Entra tenant you want to configure\./i);
   if (!(await introText.isVisible())) {
     await azureCard.getByText(/^Azure login$/i).click();
   }
@@ -49,7 +49,7 @@ export async function expandAzureSubscriptionCard(page: Page) {
 
 export async function expandAzureAppRegistrationCard(page: Page) {
   const appRegistrationCard = page.locator("#card-azure_app_registration");
-  const introText = appRegistrationCard.getByText(/Create a Microsoft Entra app registration for GitHub Actions/i);
+  const introText = appRegistrationCard.getByText(/Creates an Entra app for GitHub Actions to use when planning Terraform changes/i);
   if (!(await introText.isVisible())) {
     await appRegistrationCard.getByText(/^Create an app registration in Azure$/i).click();
   }
@@ -74,9 +74,9 @@ export function backendStepLabels(appName: string) {
 
 export async function openRemoteTerminalCard(page: Page) {
   const card = page.locator("#card-remote_terminal_infra");
-  const description = card.getByText(/The relay behind the stage-card terminal:/);
+  const description = card.getByText(/Creates the Azure services behind deployment-stage terminals\./);
   if (await card.locator('svg[data-testid="ExpandMoreIcon"]').count()) {
-    await card.getByText("Private Zeninstaller Environment", { exact: true }).click();
+    await card.getByText("Private Zeninstaller Backend Environment", { exact: true }).click();
   }
   await expect(description).toBeVisible({ timeout: 60_000 });
   return card;
