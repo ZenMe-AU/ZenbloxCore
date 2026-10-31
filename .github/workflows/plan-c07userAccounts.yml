@@ -1,4 +1,5 @@
 name: Plan c07userAccounts
+run-name: ${{ github.workflow }} @ ${{ inputs.github_env_name }}
 
 on:
   workflow_dispatch:

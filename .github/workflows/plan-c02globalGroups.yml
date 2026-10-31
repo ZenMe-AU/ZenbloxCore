@@ -1,4 +1,5 @@
 name: Plan c02globalGroups
+run-name: ${{ github.workflow }} @ ${{ inputs.github_env_name }}
 
 on:
   workflow_dispatch:
