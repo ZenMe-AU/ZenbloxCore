@@ -4,25 +4,18 @@
  */
 
 // UI component: ../../../corp-src/cards/GithubSignup/GithubSignupCard.tsx
-import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
-import { attachJSCoverage, expectSnapshot } from "../../util/testHelper";
+import { type BrowserContext, expect, type Page, type TestInfo } from "@playwright/test";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import { prepareGithubLoginMock } from "../util/mockTestHelper.mts";
-import { expandGithubSignupCard, runSignupHappyPath, signupEmail } from "../util/GithubSignupCardHelper.mts";
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
+import { expandGithubSignupCard } from "../util/cardHelper.mts";
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath(page, context, testInfo);
 });
 
 test("Empty and malformed emails cannot open signup", async ({ page, context }, testInfo) => {
+  const signupEmail = "signup-prefill+card@example.com";
   const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
   const card = await expandGithubSignupCard(page);
   const email = card.getByRole("textbox", { name: "Email address" });
@@ -47,6 +40,7 @@ test("Empty and malformed emails cannot open signup", async ({ page, context }, 
 });
 
 test("Existing users can go straight to login without saving an email", async ({ page, context }, testInfo) => {
+  const signupEmail = "signup-prefill+card@example.com";
   const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
   const card = await expandGithubSignupCard(page);
   await card.getByRole("textbox", { name: "Email address" }).fill(signupEmail);
@@ -63,11 +57,8 @@ test("Existing users can go straight to login without saving an email", async ({
   await expectSnapshot(page, card, testInfo, "existing-account", getViewportName(testInfo));
 });
 
-async function runHappyPath(
-  page: import("@playwright/test").Page,
-  context: import("@playwright/test").BrowserContext,
-  testInfo: import("@playwright/test").TestInfo,
-): Promise<void> {
+async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestInfo): Promise<void> {
+  const signupEmail = "signup-prefill+card@example.com";
   const { unexpectedRequests } = await prepareGithubLoginMock(page, context);
   const signupRequests: string[] = [];
   await context.route("https://github.com/signup?**", async (route) => {
@@ -81,7 +72,34 @@ async function runHappyPath(
       body: `<label>Email <input type="email" name="email" value="${signupEmail}"></label><label>Password <input type="password"></label>`,
     });
   });
-  await runSignupHappyPath(page, testInfo);
+  const viewport = getViewportName(testInfo);
+  const card = await test.step("Open the optional signup card", async () => {
+    const result = await expandGithubSignupCard(page);
+    await expect(result.getByText(/Complete the remaining signup steps yourself/)).toBeVisible();
+    await expectSnapshot(page, result, testInfo, "start", viewport);
+    return result;
+  });
+
+  await test.step("Open GitHub with an encoded email and leave signup to the user", async () => {
+    const signupEmail = "signup-prefill+card@example.com";
+    await card.getByRole("textbox", { name: "Email address" }).fill(signupEmail);
+    const popupPromise = page.context().waitForEvent("page");
+    await card.getByRole("button", { name: "Continue to GitHub signup", exact: true }).click();
+    const popup = await popupPromise;
+    try {
+      await popup.waitForURL("https://github.com/signup?**");
+      const url = new URL(popup.url());
+      expect([...url.searchParams.entries()]).toEqual([["user_email", signupEmail]]);
+      await expect(popup.locator('input[type="email"]')).toHaveValue(signupEmail, { timeout: 30_000 });
+      expect(await popup.evaluate(() => window.opener === null)).toBe(true);
+      await expect(card.getByRole("textbox", { name: "Email address" })).toHaveValue(signupEmail);
+      await expect(card.locator('[data-testid="CheckCircleIcon"]')).toHaveCount(0);
+      expect(new URL(page.url()).searchParams.has("user_email")).toBe(false);
+      await expectSnapshot(page, card, testInfo, "end", viewport);
+    } finally {
+      await popup.close();
+    }
+  });
   expect(signupRequests).toHaveLength(1);
   expect(unexpectedRequests).toEqual([]);
 }

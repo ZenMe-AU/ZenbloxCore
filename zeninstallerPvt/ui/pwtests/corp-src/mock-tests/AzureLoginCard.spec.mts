@@ -5,7 +5,7 @@
 
 // UI component: ../../../corp-src/cards/AzureLogin/AzureLoginCard.tsx
 import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import {
   installMockAzure,
   mockMsaTenantId,
@@ -15,21 +15,13 @@ import {
   signInMockAzure,
 } from "../util/mockTestHelper.mts";
 import { CORP_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import { expandAzureLoginCard } from "../util/cardHelper.mts";
 
 const mockTenants = [
   { tenantId: mockTenantId, displayName: "Mock tenant" },
   { tenantId: mockSecondTenantId, displayName: "Mock second tenant" },
 ];
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page }, testInfo) => {
   await runHappyPath({ page }, testInfo);
@@ -46,7 +38,7 @@ test("An empty tenant list permits manual tenant confirmation", async ({ page },
   });
   await expect(card.getByText(/Signed in as/i)).toBeVisible();
   await expect(card.getByText("Loading tenants...", { exact: true })).toBeHidden();
-  const tenantIdInput = card.getByPlaceholder("Tenant ID");
+  const tenantIdInput = card.getByRole("textbox", { name: "Tenant", exact: true });
   await expect(tenantIdInput).toBeVisible();
   const confirmButton = card.getByRole("button", { name: "Confirm tenant" });
   await expect(confirmButton).toBeDisabled();
@@ -115,7 +107,10 @@ async function runHappyPath({ page }: { page: import("@playwright/test").Page },
     await expect(card.getByTestId("txtAzureUsername")).toHaveText("mock-user@example.com");
     await expect(card.getByText("Loading tenants...", { exact: true })).toBeHidden();
     const tenantSelect = card.getByTestId("tenant-select");
-    await expect(tenantSelect).toBeVisible();
+    await expect(card.getByRole("combobox", { name: /^Tenant\b/ })).toBeVisible();
+    const tenantHelp = card.getByRole("link", { name: "Show page to get Tenant ID (opens in new tab)", exact: true });
+    await expect(tenantHelp).toHaveAttribute("href", "https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Overview");
+    await expect(tenantHelp).toHaveAttribute("target", "_blank");
     await tenantSelect.click();
     await page.getByRole("option", { name: /Mock tenant/ }).click();
     await expect(tenantSelect.locator("input")).toHaveValue(mockTenantId);

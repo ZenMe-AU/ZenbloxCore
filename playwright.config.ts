@@ -15,10 +15,7 @@ process.env.NODE_ENV = process.env.NODE_ENV || "dev";
 process.env.DEBUG = [process.env.DEBUG, "pw:api"].filter(Boolean).join(",");
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({
-  path: [
-    path.resolve(currentDirectory, ".env"),
-    path.resolve(currentDirectory, "zeninstallerPvt/ui/pwtests/.env"),
-  ],
+  path: [path.resolve(currentDirectory, ".env"), path.resolve(currentDirectory, "zeninstallerPvt/ui/pwtests/.env")],
 });
 
 export default defineConfig({
@@ -29,11 +26,26 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
+  //globalSetup: "./zeninstallerPvt/ui/pwtests/coverage/global-setup.mjs",
   reporter: [
-    // A terminal reporter is what streams worker stdout/stderr (incl. pw:api) to the console.
-    ["line"], 
-    [path.resolve(currentDirectory, "zeninstallerPvt/ui/pwtests/coverage/coverage-reporter.ts")],
+    ["line"], // Prints a line-by-line output of test steps in the terminal.
+    [
+      "monocart-reporter",
+      {
+        name: "Playwright Report",
+        outputFile: "./pwtest-results/report.html",
+        coverage: {
+          outputDir: "./pwtest-results/coverage",
+          reports: [
+            ["v8"], // Generates a V8 coverage-data.js
+            ["v8-json"], // Generates a V8 coverage-report.json
+            ["console-summary"], // Prints a summary in your terminal
+          ],
+        },
+      },
+    ],
   ],
+
   timeout: 60_000,
   expect: {
     timeout: 10_000,
@@ -62,7 +74,7 @@ export default defineConfig({
       workers: 2,
       retries: 1,
       use: {
-        ...devices["Desktop Chrome"]
+        ...devices["Desktop Chrome"],
       },
     },
   ],
@@ -72,7 +84,7 @@ export default defineConfig({
    */
   webServer: {
     command: "pnpm run dev",
-    url: process.env.BASE_URL,
+    url: process.env.BASE_URL || "http://localhost:5174/core/",
     cwd: path.resolve(currentDirectory, "zeninstallerPvt/ui"),
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
