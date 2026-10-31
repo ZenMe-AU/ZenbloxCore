@@ -35,8 +35,8 @@ function PlainRow({ label, value }: { label: string; value: string }) {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-      The relay for terminals in stage cards includes Web PubSub, the session table, and the Function App that issues tokens scoped to each group. Everything
-      connects by managed identity; no access key is stored.
+      Creates the Azure services behind deployment-stage terminals. Web PubSub connects the browser and GitHub runner, a table tracks each session, and a Function
+      App issues tokens scoped to the matching Web PubSub group. The services connect using managed identity, so no access key is stored.
     </Typography>
   );
 }

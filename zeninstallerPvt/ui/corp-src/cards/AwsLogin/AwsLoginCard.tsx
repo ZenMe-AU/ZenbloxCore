@@ -26,15 +26,17 @@ type Props = {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Sign in with your AWS access key in this browser. We never send your long lived AWS access key or secret key to our servers; only temporary AWS session
-      credentials are kept in this tab until they expire.
+      Sign in to AWS in this browser with an IAM access key and secret key. ZenInstaller sends them directly to AWS, not to its servers. Only temporary session
+      credentials are kept in this tab until they expire. Use an IAM user allowed to create identity providers and roles. After creating the GitHub Actions role,
+      deactivate and delete these access keys.
       <>
         <br />
-        You will need to copy the credentials from AWS after&nbsp;
+        Follow the{" "}
         <ExternalLink href={CLOUD_DOCS.aws.bootstrapCredentials} label="AWS setup guide">
-          following the AWS setup guide
+          AWS setup guide
           <OpenInNewIcon aria-hidden="true" sx={{ typography: "caption" }} />
         </ExternalLink>
+        {" "}to create the access keys.
         <br />
         If you do not have an AWS account yet, {" "}
         <ExternalLink href={CLOUD_DOCS.aws.createAccount} label="Create an AWS account">

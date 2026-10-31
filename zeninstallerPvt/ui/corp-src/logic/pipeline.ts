@@ -38,7 +38,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c02globalGroups",
         label: "Organisation security groups",
-        description: "Creates the Microsoft Entra security groups that control who can access the organisation's resources.",
+        description: "Creates Entra security groups for privileged accounts, deployment, lead developers, and database administration. It nests groups and assigns directory and Azure roles to define access.",
         azurePermissions: [
           GRAPH_PERMISSIONS.GroupReadWriteAll,
           GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
@@ -57,7 +57,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c07userAccounts",
         label: "User accounts and sign-in",
-        description: "Creates the organisation's user accounts and configures how they sign in, including authentication methods.",
+        description: "Creates user accounts from your user list, sets up the security groups and memberships you specify, assigns each user's configured directory roles, enables FIDO2 as an authentication method, and verifies and sets your DNS domain as the tenant's primary domain.",
         azurePermissions: [
           GRAPH_PERMISSIONS.GroupReadWriteAll,
           GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
@@ -76,7 +76,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c20awsentrasso",
         label: "AWS single sign-on with Entra ID",
-        description: "Registers AWS IAM Identity Center as an Entra application so users can sign in to AWS with their organisation account.",
+        description: "Creates an Entra enterprise app from the AWS Single-Account Access template and configures SAML sign-in for the AWS federation setup.",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -87,7 +87,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c21awsentrassoP2",
         label: "AWS single sign-on with Microsoft Entra ID P2",
-        description: "Assigns groups to the AWS application and applies the claims policy, which needs a Microsoft Entra ID P2 licence.",
+        description: "Connects the Entra AWS app to AWS with a SAML identity provider and administrator/read-only IAM roles, assigns the LeadDeveloper group, and maps the claims AWS uses to select a role.",
         azurePermissions: [GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll, GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration],
         prerequisites: [
           { type: "var", key: "NAME" },
@@ -99,7 +99,7 @@ const DEFINITIONS: Record<string, PipelineSource> = {
       {
         dir: "c25cloudfront",
         label: "AWS CloudFront distribution",
-        description: "Deploys the CloudFront distribution that serves the corporate login app and guards access through Entra authentication.",
+        description: "Builds and hosts the corporate login app in S3, then serves it through CloudFront with DNS and HTTPS. Lambda@Edge functions protect requests using Entra sign-in.",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
         prerequisites: [
           { type: "var", key: "NAME" },

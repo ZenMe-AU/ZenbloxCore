@@ -44,11 +44,11 @@ type Props = {
 function Intro({ containerName }: { containerName: string }) {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Creates the root Azure resources, including the resource group, Log Analytics, Application Insights, and private storage account; Terraform uses the{" "}
+      Sets up core Azure resources for deployment: a resource group, Log Analytics, Application Insights, and a storage account for Terraform state. Terraform
+      state lives in the{" "}
       <Box component="code" sx={{ typography: "body1" }}>
         {containerName}
-      </Box>{" "}
-      container for state, and GitHub Actions can access it.
+      </Box>{" "}container, which GitHub Actions can access to plan and deploy consistently.
     </Typography>
   );
 }

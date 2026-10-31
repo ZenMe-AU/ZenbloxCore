@@ -36,7 +36,8 @@ function PlainRow({ label, value }: { label: string; value: string }) {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-      Creates the Azure Storage and Microsoft Entra resources used to host and protect the private ZenInstaller site.
+      Prepares Azure to host the private ZenInstaller site. It creates a resource group, monitoring workspace, site storage, and an Entra app registration for
+      sign-in, then sends site activity and file changes to monitoring.
     </Typography>
   );
 }

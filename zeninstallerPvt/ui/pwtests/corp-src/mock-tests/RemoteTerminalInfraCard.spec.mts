@@ -139,7 +139,7 @@ test("Requires authentication before creating relay resources", async ({ page, c
 	const unexpectedRequests = await installRelayNetworkGuard(context);
 	await page.goto(CORP_URL);
 	const card = page.locator("#card-remote_terminal_infra");
-	await card.getByText("Private Zeninstaller Environment", { exact: true }).click();
+	await card.getByText("Private Zeninstaller Backend Environment", { exact: true }).click();
 	await expect(card.getByText("Sign in to Azure", { exact: true })).toBeVisible();
 	await expect(card.getByRole("button", { name: /Create terminal relay|Re-run/ })).toHaveCount(0);
 	await expectSnapshot(page, card, testInfo, "authentication-required", viewportName);
