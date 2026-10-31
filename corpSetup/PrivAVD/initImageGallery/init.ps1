@@ -12,7 +12,8 @@ if ([string]::IsNullOrWhiteSpace($env:TF_VAR_PAW_LOCATION)) {
 $terraformDirectory = $PSScriptRoot
 Push-Location $terraformDirectory
 try {
-    terraform init
+    terraform init @(& (Join-Path $PSScriptRoot "..\tfBackend.ps1") -Key "privavd-gallery-${env:TF_VAR_GALLERY_RG}.tfstate")
+    if ($LASTEXITCODE -ne 0) { throw "terraform init failed with exit code $LASTEXITCODE." }
 
     # Resources can already exist from a previous manual/ps1 run - import any that aren't tracked in state yet instead of letting `apply` fail with "already exists". Safe to re-run.
     $resources = @{
@@ -31,6 +32,7 @@ try {
     }
 
     terraform apply
+    if ($LASTEXITCODE -ne 0) { throw "terraform apply failed with exit code $LASTEXITCODE." }
 }
 finally {
     Pop-Location

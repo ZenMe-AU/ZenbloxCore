@@ -27,6 +27,9 @@ export type CardId =
   | "global_groups"
   | "aws_login"
   | "aws_setup"
+  | "privavd_gallery"
+  | "privavd_image"
+  | "privavd_paw"
   | `stage_${string}`;
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped" | "unavailable";
 

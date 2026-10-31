@@ -50,6 +50,20 @@
                 "!access-pass-src/components/SummaryChip.tsx",
                 "!access-pass-src/components/VariablesCard.tsx"
             ]
+        },
+        "zeninstallerPvt/ui": {
+            "entry": [
+                "corp-src/**/*.{test,spec}.{ts,tsx,js,jsx}",
+                "pwtests/**/*.{spec,setup}.{ts,mts}"
+            ],
+            "project": [
+                "corp-src/**/*.{ts,tsx,js,jsx}",
+                "pwtests/**/*.{ts,tsx,mts}",
+                "deploy/**/*.{js,cjs,mjs}",
+                "vite.config.ts",
+                "vitest.config.ts",
+                "eslint.config.js"
+            ]
         }
     }
 }

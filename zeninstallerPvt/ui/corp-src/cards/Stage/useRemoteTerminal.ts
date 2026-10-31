@@ -274,7 +274,7 @@ export function useRemoteTerminal(opts: {
 
   const start = useCallback(async (): Promise<boolean> => {
     const { account, repoName, workflowId, dir, planRunId, selectedEnv } = optsRef.current;
-    if (!account || !repoName || !selectedEnv || !planRunId) return false;
+    if (!account || !repoName || !selectedEnv) return false;
 
     teardown();
     setStatus("registering");

@@ -40,7 +40,7 @@ monocart-report/
 
 # Terraform files
 *.tfstate
-terraform.tfstate.backup
+*.tfstate.*
 .terraform.*
 .terraform/
 *.tfplan
