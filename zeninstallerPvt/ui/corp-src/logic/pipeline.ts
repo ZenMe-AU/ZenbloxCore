@@ -12,7 +12,6 @@ const PLAN_STAGE_WORKFLOW = "planStage.yml";
 
 export const PIPELINES: Record<string, PipelineConfig> = {
   corpSetup: {
-    workflowId: "planChanges.yml",
     deployWorkflowId: "remoteLogin.yml",
     label: "ZenInstaller Setup Central Corp Environment",
     templateRepo: "ZenMe-AU/ZenbloxCore",

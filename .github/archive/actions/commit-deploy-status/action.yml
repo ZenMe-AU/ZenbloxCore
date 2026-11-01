@@ -1,3 +1,4 @@
+# DEPRECATED
 name: Commit deploy status
 description: Record one stage's deploy result in deploymentChangeset.json and push it
 

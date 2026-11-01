@@ -66,7 +66,7 @@ async function mount() {
 }
 
 describe("Run Status Update triggers one stage", () => {
-  it("dispatches the shared stage workflow with that stage's dir, not the all-stages plan", async () => {
+  it("dispatches the shared stage workflow with that stage's dir", async () => {
     const plan = await mount();
 
     await act(async () => {
@@ -76,7 +76,6 @@ describe("Run Status Update triggers one stage", () => {
     expect(apiMocks.triggerWorkflow).toHaveBeenCalledTimes(1);
     const [, , workflowId, , , dir] = apiMocks.triggerWorkflow.mock.calls[0];
     expect(workflowId).toBe("planStage.yml");
-    expect(workflowId).not.toBe(PIPELINE.workflowId);
     expect(dir).toBe("c25cloudfront");
   });
 

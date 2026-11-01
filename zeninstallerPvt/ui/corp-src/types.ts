@@ -198,7 +198,6 @@ export type StageDefinition = {
 };
 
 export type PipelineConfig = {
-  workflowId: string;
   deployWorkflowId: string;
   label: string;
   templateRepo: string;

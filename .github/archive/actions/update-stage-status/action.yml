@@ -1,3 +1,4 @@
+# DEPRECATED
 name: Update Stage Status
 description: Update the status of a stage based on Terraform plan results
 

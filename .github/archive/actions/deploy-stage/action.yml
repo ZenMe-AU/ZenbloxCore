@@ -1,3 +1,4 @@
+# DEPRECATED
 name: Deploy stage
 description: Apply one stage's already-planned tfplan and report how it went
 

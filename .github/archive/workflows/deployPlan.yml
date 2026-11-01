@@ -1,3 +1,4 @@
+# DEPRECATED
 name: Deploy a planned stage
 
 # One file for every stage, unlike the plan side: applying a tfplan is the same operation whatever
