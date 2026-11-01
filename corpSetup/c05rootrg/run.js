@@ -8,11 +8,11 @@
 import { execSync } from "child_process";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { resolve, dirname } from "path";
-import { getResourceGroupName, getLogAnalyticsWorkspaceName, getStorageAccountName, getAppInsightsName } from "../util/namingConvention.cjs";
-import { getSubscriptionId, getDefaultAzureLocation } from "../util/azureCli.cjs";
+import { getResourceGroupName, getLogAnalyticsWorkspaceName, getStorageAccountName, getAppInsightsName } from "../../util/namingConvention.cjs";
+import { getSubscriptionId, getDefaultAzureLocation } from "../../util/azureCli.cjs";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import { setTfVar } from "./tfUtils.js";
+import { setTfVar } from "../tfUtils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -115,7 +115,7 @@ function main(corpEnvFile) {
 
   try {
     // Find the working directory
-    const workingDirName = resolve(__dirname, "c05rootrg");
+    const workingDirName = __dirname;
     if (!workingDirName) {
       throw new Error(`c05rootrg directory not found in ${__dirname}`);
     }

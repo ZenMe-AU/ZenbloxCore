@@ -14,7 +14,7 @@ Import-first flows reduce destructive changes but add script complexity and reli
 [Idempotence](https://en.wikipedia.org/wiki/Idempotence).
 
 ## Implementation
-Stage scripts check for existing resources and import them into state before apply, including [corpSetup/c01subscription.js](../../corpSetup/c01subscription.js#L150), [corpSetup/c02globalGroups.js](../../corpSetup/c02globalGroups.js#L173), and [corpSetup/c05rootrg.js](../../corpSetup/c05rootrg.js#L179).
+Stage scripts check for existing resources and import them into state before apply, including [corpSetup/c01subscription/run.js](../../corpSetup/c01subscription/run.js#L150), [corpSetup/c02globalGroups/run.js](../../corpSetup/c02globalGroups/run.js#L173), and [corpSetup/c05rootrg/run.js](../../corpSetup/c05rootrg/run.js#L179).
 
 The process is also stated as an idempotent behavior in [corpSetup/README.md](../../corpSetup/README.md#L108).
 

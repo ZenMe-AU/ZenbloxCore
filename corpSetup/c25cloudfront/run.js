@@ -20,11 +20,11 @@ import {
   getCachePolicyName,
   getResponseHeadersPolicyName,
   getAppRegistrationName,
-} from "../util/namingConvention.cjs";
-import { getSubscriptionId } from "../util/azureCli.cjs";
+} from "../../util/namingConvention.cjs";
+import { getSubscriptionId } from "../../util/azureCli.cjs";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import { setTfVar } from "./tfUtils.js";
+import { setTfVar } from "../tfUtils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -110,7 +110,7 @@ function main(corpEnvFile) {
   try {
     // Find the working directory that matches the stage
     const workingDirName = "c25cloudfront";
-    const workingDirPath = resolve(__dirname, workingDirName);
+    const workingDirPath = __dirname;
     if (!workingDirPath) {
       throw new Error(`c25cloudfront directory not found in ${__dirname}`);
     }
@@ -345,7 +345,7 @@ function main(corpEnvFile) {
     //   execSync(`terraform import aws_cloudwatch_log_group.lambda_edge_auth_guard_logs /aws/lambda/${lambdaEdgeAuthGuardName}`, {
     //     stdio: "inherit",
     //     shell: true,
-    //     cwd: resolve(__dirname, workingDirName),
+    //     cwd: workingDirPath,
     //   });
     // }
 
@@ -354,12 +354,12 @@ function main(corpEnvFile) {
     // execSync(`terraform apply ${autoApprove ? " -auto-approve" : ""}`, {
     //   stdio: "inherit",
     //   shell: true,
-    //   cwd: resolve(__dirname, workingDirName),
+    //   cwd: workingDirPath,
     // });
     // if (!env.get("SUBSCRIPTION_ID")) {
     //   const newSubscriptionId = execSync(`terraform output -raw new_subscription_id`, {
     //     encoding: "utf-8",
-    //     cwd: resolve(__dirname, workingDirName),
+    //     cwd: workingDirPath,
     //   }).trim();
     //   env.add("SUBSCRIPTION_ID", newSubscriptionId);
     //   env.saveToFile();

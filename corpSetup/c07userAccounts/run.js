@@ -8,8 +8,8 @@ import { execSync } from "child_process";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import { setTfVar } from "./tfUtils.js";
-import { getResourceGroupName } from "../util/namingConvention.cjs";
+import { setTfVar } from "../tfUtils.js";
+import { getResourceGroupName } from "../../util/namingConvention.cjs";
 
 // ESM-compatible path resolution for this script's directory.
 const __filename = fileURLToPath(import.meta.url);
@@ -74,7 +74,7 @@ function main(corpEnvFile) {
   const autoApprove = process.argv.includes("--auto-approve");
 
   // Step 1: Resolve the Terraform working folder for this stage.
-  const workingDirName = resolve(__dirname, "c07userAccounts");
+  const workingDirName = __dirname;
 
   if (!workingDirName) {
     throw new Error(`c07userAccounts directory not found in ${__dirname}`);

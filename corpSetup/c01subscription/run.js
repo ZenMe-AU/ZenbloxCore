@@ -8,10 +8,10 @@
 import { execSync } from "child_process";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { resolve, dirname } from "path";
-import { getSubscriptionId } from "../util/azureCli.cjs";
+import { getSubscriptionId } from "../../util/azureCli.cjs";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import { setTfVar } from "./tfUtils.js";
+import { setTfVar } from "../tfUtils.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -94,7 +94,7 @@ function main(corpEnvFile) {
 
   try {
     // Find the working directory
-    const workingDirName = resolve(__dirname, "c01subscription");
+    const workingDirName = __dirname;
     if (!workingDirName) {
       throw new Error(`c01subscription directory not found in ${__dirname}`);
     }
