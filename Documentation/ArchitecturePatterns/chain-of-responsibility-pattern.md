@@ -14,9 +14,9 @@ Handler separation improves clarity and evolution, but increases orchestration p
 [Chain-of-responsibility pattern](https://en.wikipedia.org/wiki/Chain-of-responsibility_pattern).
 
 ## Implementation
-CloudFront behavior associates distinct Lambda@Edge functions for viewer-request and viewer-response in [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L403) and [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L408).
+CloudFront behavior associates distinct Lambda@Edge functions for viewer-request and viewer-response in [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L403) and [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L408).
 
-The response handler applies CORS mutations in [corpSetup/c25cloudfront/source/rewriteHeaderLambdaEdge/index.mjs](../../corpSetup/c25cloudfront/source/rewriteHeaderLambdaEdge/index.mjs#L8), while the request handler performs token checks in [corpSetup/c25cloudfront/source/authGuardLambdaEdge/index.mjs](../../corpSetup/c25cloudfront/source/authGuardLambdaEdge/index.mjs#L121).
+The response handler applies CORS mutations in [corpSetup/CloudFront/source/rewriteHeaderLambdaEdge/index.mjs](../../corpSetup/CloudFront/source/rewriteHeaderLambdaEdge/index.mjs#L8), while the request handler performs token checks in [corpSetup/CloudFront/source/authGuardLambdaEdge/index.mjs](../../corpSetup/CloudFront/source/authGuardLambdaEdge/index.mjs#L121).
 
 ## Future enhancements
 - Define a handler contract matrix for shared headers and error semantics.

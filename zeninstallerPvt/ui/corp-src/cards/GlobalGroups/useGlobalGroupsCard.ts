@@ -37,7 +37,7 @@ export type GroupRowResult = {
 
 export type SavedGroup = { displayName: string; description: string; memberOfGroupNames: string[] };
 
-// Verbatim from ZBCorpArchitecture/corpSetup/c02globalGroups/main.tf — offered via "Add default
+// Verbatim from ZBCorpArchitecture/corpSetup/GlobalGroups/main.tf — offered via "Add default
 // groups", never auto-seeded (an empty tenant just shows an empty list otherwise).
 const DEFAULT_GROUPS: Omit<GroupRow, "id" | "isNew">[] = [
   {
@@ -142,7 +142,7 @@ export interface UseGlobalGroupsCard extends CardHook {
 /*
  * A lightweight Entra security-groups manager: the row list mirrors what actually exists in the
  * tenant (fetched live via listGroups/getGroupParents), with local drafts layered on top for
- * edits/creates/deletes not yet synced. "Add default groups" offers c02globalGroups's 5-group
+ * edits/creates/deletes not yet synced. "Add default groups" offers GlobalGroups's 5-group
  * template as a starting point — nothing is auto-seeded, an empty tenant just shows an empty list.
  */
 export function useGlobalGroupsCard({ azureAccount, confirmedTenantId }: UseGlobalGroupsCardParams): UseGlobalGroupsCard {

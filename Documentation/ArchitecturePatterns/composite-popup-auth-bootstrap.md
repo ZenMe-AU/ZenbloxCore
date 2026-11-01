@@ -11,11 +11,11 @@ The protected edge route needs a user-friendly login initiation and completion m
 Popup mediation decouples login UI from guarded routes, but can be sensitive to browser popup policies and cross-window coordination.
 
 ## Implementation
-The edge login page template opens and coordinates a popup flow in [corpSetup/c25cloudfront/source/authGuardLambdaEdge/template/login.html.tpl](../../corpSetup/c25cloudfront/source/authGuardLambdaEdge/template/login.html.tpl#L108).
+The edge login page template opens and coordinates a popup flow in [corpSetup/CloudFront/source/authGuardLambdaEdge/template/login.html.tpl](../../corpSetup/CloudFront/source/authGuardLambdaEdge/template/login.html.tpl#L108).
 
-The login SPA enforces auth and token retrieval in [corpSetup/c25cloudfront/source/loginApp/src/pages/LoginGuard.tsx](../../corpSetup/c25cloudfront/source/loginApp/src/pages/LoginGuard.tsx#L19) and [corpSetup/c25cloudfront/source/loginApp/src/hooks/useAuth.ts](../../corpSetup/c25cloudfront/source/loginApp/src/hooks/useAuth.ts#L24).
+The login SPA enforces auth and token retrieval in [corpSetup/CloudFront/source/loginApp/src/pages/LoginGuard.tsx](../../corpSetup/CloudFront/source/loginApp/src/pages/LoginGuard.tsx#L19) and [corpSetup/CloudFront/source/loginApp/src/hooks/useAuth.ts](../../corpSetup/CloudFront/source/loginApp/src/hooks/useAuth.ts#L24).
 
-The handoff completes through postMessage status signaling and cookie availability for the next edge check in [corpSetup/c25cloudfront/source/loginApp/src/hooks/useAuth.ts](../../corpSetup/c25cloudfront/source/loginApp/src/hooks/useAuth.ts#L57).
+The handoff completes through postMessage status signaling and cookie availability for the next edge check in [corpSetup/CloudFront/source/loginApp/src/hooks/useAuth.ts](../../corpSetup/CloudFront/source/loginApp/src/hooks/useAuth.ts#L57).
 
 ## Future enhancements
 - Add explicit fallback UX for popup-blocked scenarios.

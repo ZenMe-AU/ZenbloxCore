@@ -96,7 +96,7 @@ function main(corpEnvFile) {
     // Find the working directory
     const workingDirName = __dirname;
     if (!workingDirName) {
-      throw new Error(`c01subscription directory not found in ${__dirname}`);
+      throw new Error(`SubscriptionBudget directory not found in ${__dirname}`);
     }
     console.log("workingDir:", workingDirName);
     // const corpEnvFile = resolve(__dirname, "corp.env");

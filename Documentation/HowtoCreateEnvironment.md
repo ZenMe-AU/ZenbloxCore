@@ -17,7 +17,7 @@
             ```
             CONTACT_EMAILS=<your contact email>
             ```
-        1. in variables.tf inside of "c01subscription" folder inside of "corpSetup" you will need to fill out the following variable defaults with your account info:
+        1. in variables.tf inside of "SubscriptionBudget" folder inside of "corpSetup" you will need to fill out the following variable defaults with your account info:
             - billing_account_name
             - billing_profile_name
             - invoice_section_name

@@ -6,7 +6,7 @@ locals {
   # login_uri = "login.${var.dns_name}"
 
   # Use path.module so paths resolve correctly regardless of where terraform runs
-  # (corpSetup/c25cloudfront/ during plan, stage/ during deploy)
+  # (corpSetup/CloudFront/ during plan, stage/ during deploy)
   bucket_static_website_source_folder      = "${path.module}/${var.bucket_static_website_source_folder}"
   bucket_spa_source_folder                 = "${path.module}/${var.bucket_spa_source_folder}"
   lambda_edge_auth_guard_source_folder     = "${path.module}/${var.lambda_edge_auth_guard_source_folder}"

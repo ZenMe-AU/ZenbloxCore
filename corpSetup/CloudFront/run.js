@@ -109,10 +109,11 @@ function main(corpEnvFile) {
 
   try {
     // Find the working directory that matches the stage
+    // Names the remote state blob; kept from the old folder name so the existing state is still found.
     const workingDirName = "c25cloudfront";
     const workingDirPath = __dirname;
     if (!workingDirPath) {
-      throw new Error(`c25cloudfront directory not found in ${__dirname}`);
+      throw new Error(`CloudFront directory not found in ${__dirname}`);
     }
     console.log("workingDir:", workingDirPath);
     if (!existsSync(corpEnvFile)) {

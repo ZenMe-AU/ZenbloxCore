@@ -19,7 +19,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
     validEnvs: ["PROD", "TEST"] as const,
     stages: [
       {
-        dir: "c01subscription",
+        dir: "SubscriptionBudget",
         workflowId: PLAN_STAGE_WORKFLOW,
         deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "Azure subscription budget",
@@ -39,7 +39,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
         ],
       },
       {
-        dir: "c02globalGroups",
+        dir: "GlobalGroups",
         workflowId: PLAN_STAGE_WORKFLOW,
         deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "Organisation security groups",
@@ -56,11 +56,11 @@ export const PIPELINES: Record<string, PipelineConfig> = {
         ],
       },
       /*
-       * c05rootrg was replaced by the Corp Domain Setup + Terraform Setup cards,
+       * RootRg was replaced by the Corp Domain Setup + Terraform Setup cards,
        * which create the same resources directly via ARM/Graph from the browser.
        */
       {
-        dir: "c07userAccounts",
+        dir: "UserAccounts",
         workflowId: PLAN_STAGE_WORKFLOW,
         deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "User accounts and sign-in",
@@ -81,7 +81,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
         ],
       },
       {
-        dir: "c20awsentrasso",
+        dir: "AwsEntraSso",
         workflowId: PLAN_STAGE_WORKFLOW,
         deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "AWS single sign-on with Entra ID",
@@ -94,7 +94,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
         ],
       },
       {
-        dir: "c21awsentrassoP2",
+        dir: "AwsEntraSsoP2",
         workflowId: PLAN_STAGE_WORKFLOW,
         deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "AWS single sign-on with Microsoft Entra ID P2",
@@ -108,7 +108,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
         ],
       },
       {
-        dir: "c25cloudfront",
+        dir: "CloudFront",
         workflowId: PLAN_STAGE_WORKFLOW,
         deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "AWS CloudFront distribution",

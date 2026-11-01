@@ -117,7 +117,7 @@ function main(corpEnvFile) {
     // Find the working directory
     const workingDirName = __dirname;
     if (!workingDirName) {
-      throw new Error(`c05rootrg directory not found in ${__dirname}`);
+      throw new Error(`RootRg directory not found in ${__dirname}`);
     }
     console.log("workingDir:", workingDirName);
     if (!existsSync(corpEnvFile)) {

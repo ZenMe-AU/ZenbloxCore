@@ -77,7 +77,7 @@ function main(corpEnvFile) {
   const workingDirName = __dirname;
 
   if (!workingDirName) {
-    throw new Error(`c07userAccounts directory not found in ${__dirname}`);
+    throw new Error(`UserAccounts directory not found in ${__dirname}`);
   }
   // Step 2: Ensure corp.env exists, then load it.
   if (!existsSync(corpEnvFile)) {
@@ -127,7 +127,7 @@ function main(corpEnvFile) {
   //console.log("client_secret:", clientSecret);
   // console.log("tenant_id:", tenantId);
 
-  // Step 5: Initialize Terraform for c07userAccounts.
+  // Step 5: Initialize Terraform for UserAccounts.
   execSync("terraform init", { stdio: "inherit", shell: true, cwd: workingDirName });
 
   // Step 6: Plan or apply resources.

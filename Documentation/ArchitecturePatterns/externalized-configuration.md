@@ -16,7 +16,7 @@ Externalized config improves portability but increases dependency on template co
 ## Implementation
 The orchestrator reads and validates corp-level environment variables from [corpSetup/initCorpEnvDeploy.js](../../corpSetup/initCorpEnvDeploy.js#L38), then persists stage outputs for downstream steps at [corpSetup/initCorpEnvDeploy.js](../../corpSetup/initCorpEnvDeploy.js#L228).
 
-Terraform environment injection is handled in [corpSetup/tfUtils.js](../../corpSetup/tfUtils.js). Edge and login runtime configuration are rendered from templates in [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L30), [corpSetup/c25cloudfront/source/loginApp/template/config.js.tpl](../../corpSetup/c25cloudfront/source/loginApp/template/config.js.tpl#L1), and [corpSetup/c25cloudfront/source/authGuardLambdaEdge/template/config.js.tpl](../../corpSetup/c25cloudfront/source/authGuardLambdaEdge/template/config.js.tpl#L1).
+Terraform environment injection is handled in [corpSetup/tfUtils.js](../../corpSetup/tfUtils.js). Edge and login runtime configuration are rendered from templates in [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L30), [corpSetup/CloudFront/source/loginApp/template/config.js.tpl](../../corpSetup/CloudFront/source/loginApp/template/config.js.tpl#L1), and [corpSetup/CloudFront/source/authGuardLambdaEdge/template/config.js.tpl](../../corpSetup/CloudFront/source/authGuardLambdaEdge/template/config.js.tpl#L1).
 
 ## Future enhancements
 - Add schema validation for generated config artifacts before packaging.

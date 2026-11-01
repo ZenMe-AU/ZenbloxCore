@@ -17,8 +17,8 @@ The approach simplifies login handoff and immediate edge access checks with exis
 - Negative: security tradeoff versus stronger session-only or HttpOnly patterns depending on threat model.
 
 ## Evidence
-- [corpSetup/c25cloudfront/source/loginApp/src/hooks/useAuth.ts](../../corpSetup/c25cloudfront/source/loginApp/src/hooks/useAuth.ts#L36)
-- [corpSetup/c25cloudfront/source/authGuardLambdaEdge/index.mjs](../../corpSetup/c25cloudfront/source/authGuardLambdaEdge/index.mjs#L31)
+- [corpSetup/CloudFront/source/loginApp/src/hooks/useAuth.ts](../../corpSetup/CloudFront/source/loginApp/src/hooks/useAuth.ts#L36)
+- [corpSetup/CloudFront/source/authGuardLambdaEdge/index.mjs](../../corpSetup/CloudFront/source/authGuardLambdaEdge/index.mjs#L31)
 
 ## Related Patterns
 - [OpenID Connect](../ArchitecturePatterns/openid-connect.md)

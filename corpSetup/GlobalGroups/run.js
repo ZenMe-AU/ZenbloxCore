@@ -98,7 +98,7 @@ function main(corpEnvFile) {
     // Find the working directory
     const workingDirName = __dirname;
     if (!workingDirName) {
-      throw new Error(`c02globalGroups directory not found in ${__dirname}`);
+      throw new Error(`GlobalGroups directory not found in ${__dirname}`);
     }
     console.log("workingDir:", workingDirName);
     if (!existsSync(corpEnvFile)) {

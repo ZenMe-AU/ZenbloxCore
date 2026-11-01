@@ -14,7 +14,7 @@ Shared flow improves consistency, but script inheritance-by-convention can hide 
 [Template method pattern](https://en.wikipedia.org/wiki/Template_method_pattern).
 
 ## Implementation
-The shared lifecycle is implemented in [corpSetup/initCorpEnvDeploy.js](../../corpSetup/initCorpEnvDeploy.js#L155), with per-stage functions handling custom prechecks and imports, for example [corpSetup/c05rootrg/run.js](../../corpSetup/c05rootrg/run.js#L159) and [corpSetup/c25cloudfront/run.js](../../corpSetup/c25cloudfront/run.js#L184).
+The shared lifecycle is implemented in [corpSetup/initCorpEnvDeploy.js](../../corpSetup/initCorpEnvDeploy.js#L155), with per-stage functions handling custom prechecks and imports, for example [corpSetup/RootRg/run.js](../../corpSetup/RootRg/run.js#L159) and [corpSetup/CloudFront/run.js](../../corpSetup/CloudFront/run.js#L184).
 
 Each stage script plugs into the common runner and contributes stage-specific logic before Terraform execution.
 

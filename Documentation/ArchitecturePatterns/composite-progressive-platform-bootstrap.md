@@ -13,7 +13,7 @@ Progressive rollout reduces blast radius and improves diagnosability, but increa
 ## Implementation
 The stage orchestrator drives sequential execution and shared lifecycle behavior in [corpSetup/initCorpEnvDeploy.js](../../corpSetup/initCorpEnvDeploy.js#L161).
 
-Idempotent imports and state adoption in foundational stages are handled in [corpSetup/c02globalGroups/run.js](../../corpSetup/c02globalGroups/run.js#L173) and [corpSetup/c05rootrg/run.js](../../corpSetup/c05rootrg/run.js#L179).
+Idempotent imports and state adoption in foundational stages are handled in [corpSetup/GlobalGroups/run.js](../../corpSetup/GlobalGroups/run.js#L173) and [corpSetup/RootRg/run.js](../../corpSetup/RootRg/run.js#L179).
 
 Cross-stage environment output propagation is persisted through [corpSetup/initCorpEnvDeploy.js](../../corpSetup/initCorpEnvDeploy.js#L228).
 

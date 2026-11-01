@@ -98,7 +98,7 @@ function main(corpEnvFile) {
     // Find the working directory that matches the stage
     const workingDirName = __dirname;
     if (!workingDirName) {
-      throw new Error(`c20awsentrasso directory not found in ${__dirname}`);
+      throw new Error(`AwsEntraSso directory not found in ${__dirname}`);
     }
     console.log("workingDir:", workingDirName);
     if (!existsSync(corpEnvFile)) {

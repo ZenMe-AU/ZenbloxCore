@@ -70,26 +70,26 @@ describe("Run Status Update triggers one stage", () => {
     const plan = await mount();
 
     await act(async () => {
-      await plan().onRun("c25cloudfront");
+      await plan().onRun("CloudFront");
     });
 
     expect(apiMocks.triggerWorkflow).toHaveBeenCalledTimes(1);
     const [, , workflowId, , , dir] = apiMocks.triggerWorkflow.mock.calls[0];
     expect(workflowId).toBe("planStage.yml");
-    expect(dir).toBe("c25cloudfront");
+    expect(dir).toBe("CloudFront");
   });
 
   it("watches for the deploy report without dispatching — the remote terminal starts the run", async () => {
     // The hook finds the run id in its own loaded stages rather than being handed one.
-    reportFor("c25cloudfront", "plan", { runId: "999", stage: "c25cloudfront", status: "success" });
+    reportFor("CloudFront", "plan", { runId: "999", stage: "CloudFront", status: "success" });
     const plan = await mount();
 
     await act(async () => {
-      await plan().deployStage("c25cloudfront");
+      await plan().deployStage("CloudFront");
     });
 
     expect(apiMocks.triggerWorkflow).not.toHaveBeenCalled();
-    expect(plan().runs.c25cloudfront).toMatchObject({ kind: "deploy", retryCount: 0, error: null });
+    expect(plan().runs.CloudFront).toMatchObject({ kind: "deploy", retryCount: 0, error: null });
   });
 
 });
@@ -97,9 +97,9 @@ describe("Run Status Update triggers one stage", () => {
 describe("a failed plan reaches the card with something to show", () => {
   it("carries planLogId through, so the card can fetch the log instead of just saying failed", async () => {
     // Exactly what the workflow reports when the plan fails: no planJson, but a log.
-    reportFor("c01subscription", "plan", {
+    reportFor("SubscriptionBudget", "plan", {
       runId: "555",
-      stage: "c01subscription",
+      stage: "SubscriptionBudget",
       status: "failed",
       planJsonId: null,
       planLogId: 22,
@@ -107,7 +107,7 @@ describe("a failed plan reaches the card with something to show", () => {
     });
 
     const plan = await mount();
-    const found = plan().stages.find((s) => s.stage === "c01subscription")!;
+    const found = plan().stages.find((s) => s.stage === "SubscriptionBudget")!;
     expect(found.status).toBe("failed");
     expect(found.planLogId).toBe(22);
   });
@@ -115,11 +115,11 @@ describe("a failed plan reaches the card with something to show", () => {
 
 describe("every result comes from that stage's own Deployment", () => {
   it("merges the plan report and the deploy report for the same stage", async () => {
-    reportFor("c01subscription", "plan", { runId: "new", stage: "c01subscription", status: "success", planLogId: 7 });
-    reportFor("c01subscription", "deploy", { deployStatus: "success", deployRunId: "42" });
+    reportFor("SubscriptionBudget", "plan", { runId: "new", stage: "SubscriptionBudget", status: "success", planLogId: 7 });
+    reportFor("SubscriptionBudget", "deploy", { deployStatus: "success", deployRunId: "42" });
 
     const plan = await mount();
-    const found = plan().stages.find((s) => s.stage === "c01subscription")!;
+    const found = plan().stages.find((s) => s.stage === "SubscriptionBudget")!;
 
     expect(found.status).toBe("success");
     expect(found.runId).toBe("new");
@@ -146,13 +146,13 @@ describe("a run belongs to the card that started it", () => {
     const plan = await mount();
 
     await act(async () => {
-      await plan().onRun("c25cloudfront");
+      await plan().onRun("CloudFront");
     });
 
-    expect(plan().runs["c25cloudfront"]).toBeDefined();
-    expect(plan().runs["c25cloudfront"].kind).toBe("plan");
+    expect(plan().runs["CloudFront"]).toBeDefined();
+    expect(plan().runs["CloudFront"].kind).toBe("plan");
     // The point of the whole per-stage split: c01 must not be greyed out by c25's run.
-    for (const other of PIPELINE.stages.filter((st) => st.dir !== "c25cloudfront")) {
+    for (const other of PIPELINE.stages.filter((st) => st.dir !== "CloudFront")) {
       expect(plan().runs[other.dir]).toBeUndefined();
     }
   });
@@ -162,11 +162,11 @@ describe("a run belongs to the card that started it", () => {
     const plan = await mount();
 
     await act(async () => {
-      await plan().onRun("c02globalGroups");
+      await plan().onRun("GlobalGroups");
     });
 
-    expect(plan().runs["c02globalGroups"].error).toBe("Failed to trigger workflow");
-    expect(plan().runs["c01subscription"]).toBeUndefined();
+    expect(plan().runs["GlobalGroups"].error).toBe("Failed to trigger workflow");
+    expect(plan().runs["SubscriptionBudget"]).toBeUndefined();
   });
 
   it("counts down on its own clock, without dragging the others along", async () => {
@@ -174,22 +174,22 @@ describe("a run belongs to the card that started it", () => {
     vi.useFakeTimers();
     try {
       await act(async () => {
-        await plan().onRun("c01subscription");
+        await plan().onRun("SubscriptionBudget");
       });
-      const start = plan().runs["c01subscription"].countdown;
+      const start = plan().runs["SubscriptionBudget"].countdown;
 
       await act(async () => {
         vi.advanceTimersByTime(5000);
       });
       await act(async () => {
-        await plan().onRun("c25cloudfront");
+        await plan().onRun("CloudFront");
       });
       await act(async () => {
         vi.advanceTimersByTime(3000);
       });
 
-      expect(plan().runs["c01subscription"].countdown).toBe(start - 8);
-      expect(plan().runs["c25cloudfront"].countdown).toBe(start - 3);
+      expect(plan().runs["SubscriptionBudget"].countdown).toBe(start - 8);
+      expect(plan().runs["CloudFront"].countdown).toBe(start - 3);
     } finally {
       vi.useRealTimers();
     }
@@ -200,7 +200,7 @@ describe("a run belongs to the card that started it", () => {
     vi.useFakeTimers();
     try {
       await act(async () => {
-        await plan().onRun("c01subscription");
+        await plan().onRun("SubscriptionBudget");
       });
       // Long enough for the first poll to fire and re-fetch every stage's report.
       await act(async () => {
@@ -213,14 +213,14 @@ describe("a run belongs to the card that started it", () => {
   });
 
   it("marks a deploy run as a deploy, not a plan", async () => {
-    reportFor("c25cloudfront", "plan", { runId: "999", stage: "c25cloudfront", status: "success" });
+    reportFor("CloudFront", "plan", { runId: "999", stage: "CloudFront", status: "success" });
     const plan = await mount();
 
     await act(async () => {
-      await plan().deployStage("c25cloudfront");
+      await plan().deployStage("CloudFront");
     });
 
-    expect(plan().runs["c25cloudfront"].kind).toBe("deploy");
+    expect(plan().runs["CloudFront"].kind).toBe("deploy");
   });
 });
 

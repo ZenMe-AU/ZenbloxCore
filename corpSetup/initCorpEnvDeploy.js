@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-//Execute with: node initCorpEnvDeploy.js --stage c01
+//Execute with: node initCorpEnvDeploy.js --dir SubscriptionBudget
 
 /* This script configures the corporate environment with the relevant permissions to allow automated deployments.
  */
@@ -14,13 +14,13 @@ import { getDefaultAzureLocation } from "../util/azureCli.cjs";
 import minimist from "minimist";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import { main as c01function } from "./c01subscription/run.js";
-import { main as c02function } from "./c02globalGroups/run.js";
-import { main as c05function } from "./c05rootrg/run.js";
-import { main as c07function } from "./c07userAccounts/run.js";
-import { main as c20function, manual_message, c20_post_apply_saml_save } from "./c20awsentrasso/run.js";
-import { main as c21function } from "./c21awsentrassoP2/run.js";
-import { main as c25function } from "./c25cloudfront/run.js";
+import { main as c01function } from "./SubscriptionBudget/run.js";
+import { main as c02function } from "./GlobalGroups/run.js";
+import { main as c05function } from "./RootRg/run.js";
+import { main as c07function } from "./UserAccounts/run.js";
+import { main as c20function, manual_message, c20_post_apply_saml_save } from "./AwsEntraSso/run.js";
+import { main as c21function } from "./AwsEntraSsoP2/run.js";
+import { main as c25function } from "./CloudFront/run.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -121,33 +121,19 @@ function getAzureLocation() {
 function main() {
   const autoApprove = process.argv.includes("--auto-approve");
   const args = minimist(process.argv.slice(2));
-  const stage = args.stage;
   const dir = args.dir;
-  const stageRegex = /^c\d{2}$/;
   const planOnly = process.argv.includes("--planOnly");
   const stageDirs = () => readdirSync(__dirname, { withFileTypes: true }).filter((e) => e.isDirectory());
 
   try {
-    let workingDirName;
-    if (dir) {
-      // --dir names the directory outright. Matched against the real listing rather than joined
-      // onto a path, so it cannot be pointed outside corpSetup.
-      workingDirName = stageDirs().find((e) => e.name === dir)?.name;
-      if (!workingDirName) {
-        throw new Error(`No such stage directory: ${dir}`);
-      }
-    } else {
-      // --stage is the older form: a cXX code the directory is found by prefix.
-      if (!stage) {
-        throw new Error("Either --dir or --stage is required.");
-      }
-      if (!stageRegex.test(stage)) {
-        throw new Error("Invalid stage format. Expected format: cXX");
-      }
-      workingDirName = stageDirs().find((e) => e.name.startsWith(stage))?.name;
-      if (!workingDirName) {
-        throw new Error(`No directory found for stage: ${stage}`);
-      }
+    if (!dir) {
+      throw new Error("--dir is required.");
+    }
+    // --dir names the directory outright. Matched against the real listing rather than joined
+    // onto a path, so it cannot be pointed outside corpSetup.
+    const workingDirName = stageDirs().find((e) => e.name === dir)?.name;
+    if (!workingDirName) {
+      throw new Error(`No such stage directory: ${dir}`);
     }
     console.log("workingDir:", workingDirName);
     const corpEnvFile = resolve(__dirname, "corp.env");
@@ -169,39 +155,39 @@ function main() {
     } catch {}
     console.log("tfStateList:", tfStateList);
     switch (workingDirName) {
-      case "c01subscription": {
+      case "SubscriptionBudget": {
         c01function(corpEnvFile);
         break;
       }
-      case "c02globalGroups": {
+      case "GlobalGroups": {
         // need Groups Administrator role to run this stage
         c02function(corpEnvFile);
         break;
       }
-      case "c05rootrg": {
+      case "RootRg": {
         c05function(corpEnvFile);
         break;
       }
-      case "c07userAccounts": {
+      case "UserAccounts": {
         c07function(corpEnvFile);
         break;
       }
-      case "c20awsentrasso": {
+      case "AwsEntraSso": {
         c20function(corpEnvFile);
         break;
       }
-      case "c21awsentrassoP2": {
+      case "AwsEntraSsoP2": {
         c21function(corpEnvFile);
         break;
       }
-      case "c25cloudfront": {
+      case "CloudFront": {
         c25function(corpEnvFile);
         break;
       }
     }
 
     // c07 handles its own terraform lifecycle (init/plan/apply/export).
-    if (workingDirName === "c07userAccounts") {
+    if (workingDirName === "UserAccounts") {
       return;
     }
 
@@ -221,8 +207,8 @@ function main() {
         cwd: resolve(__dirname, workingDirName),
       });
 
-      // // Post-apply SAML configuration for c20awsentrasso
-      // if (workingDirName === "c20awsentrasso") {
+      // // Post-apply SAML configuration for AwsEntraSso
+      // if (workingDirName === "AwsEntraSso") {
       //   manual_message();
       // }
 
