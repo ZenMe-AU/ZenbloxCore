@@ -30,6 +30,9 @@ app.http("triggerActions", {
       if (workflow_id === "remoteLogin.yml" && (!session_id || !dir || !plan_run_id)) {
         throw new MissingParam();
       }
+      if (workflow_id === "planStage.yml" && !dir) {
+        throw new MissingParam();
+      }
 
       const octokit = new Octokit({ auth: accessToken });
       const { data } = await octokit.request(`POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches`, {

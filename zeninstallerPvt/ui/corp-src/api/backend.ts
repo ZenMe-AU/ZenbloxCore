@@ -335,7 +335,7 @@ export async function setOidcImmutableSubject(account: Account, repo: string): P
 
 // ─── Workflow ─────────────────────────────────────────────────────────────────
 
-export async function triggerWorkflow(account: Account, repo: string, workflowId: string, githubEnvName: string, ref: string) {
+export async function triggerWorkflow(account: Account, repo: string, workflowId: string, githubEnvName: string, ref: string, dir?: string) {
   const res = await fetchWithAuth(`${url}/triggerActions`, {
     method: "POST",
     body: JSON.stringify({
@@ -345,6 +345,7 @@ export async function triggerWorkflow(account: Account, repo: string, workflowId
       workflow_id: workflowId,
       ref,
       github_env_name: githubEnvName,
+      dir,
     }),
   });
   if (!res.ok) throw new Error(`Failed to trigger workflow: ${res.status}`);

@@ -66,7 +66,7 @@ async function mount() {
 }
 
 describe("Run Status Update triggers one stage", () => {
-  it("dispatches that stage's own workflow, not the all-stages plan", async () => {
+  it("dispatches the shared stage workflow with that stage's dir, not the all-stages plan", async () => {
     const plan = await mount();
 
     await act(async () => {
@@ -74,9 +74,10 @@ describe("Run Status Update triggers one stage", () => {
     });
 
     expect(apiMocks.triggerWorkflow).toHaveBeenCalledTimes(1);
-    const workflowId = apiMocks.triggerWorkflow.mock.calls[0][2];
-    expect(workflowId).toBe("plan-c25cloudfront.yml");
+    const [, , workflowId, , , dir] = apiMocks.triggerWorkflow.mock.calls[0];
+    expect(workflowId).toBe("planStage.yml");
     expect(workflowId).not.toBe(PIPELINE.workflowId);
+    expect(dir).toBe("c25cloudfront");
   });
 
   it("watches for the deploy report without dispatching — the remote terminal starts the run", async () => {
@@ -91,6 +92,7 @@ describe("Run Status Update triggers one stage", () => {
     expect(apiMocks.triggerWorkflow).not.toHaveBeenCalled();
     expect(plan().runs.c25cloudfront).toMatchObject({ kind: "deploy", retryCount: 0, error: null });
   });
+
 });
 
 describe("a failed plan reaches the card with something to show", () => {
@@ -224,18 +226,9 @@ describe("a run belongs to the card that started it", () => {
 });
 
 describe("stage workflow files", () => {
-  // Assembled from the directory in pipeline.ts, so there is no table that can drift.
-  it("carries its own file on every stage, named after its directory", () => {
-    const ids = PIPELINE.stages.map((s) => s.workflowId);
-    expect(ids).toEqual([
-      "plan-c01subscription.yml",
-      "plan-c02globalGroups.yml",
-      "plan-c07userAccounts.yml",
-      "plan-c20awsentrasso.yml",
-      "plan-c21awsentrassoP2.yml",
-      "plan-c25cloudfront.yml",
-    ]);
-    expect(new Set(ids).size).toBe(ids.length);
+  // Each stage names its own file; today they all share planStage.yml, which takes the stage as its dir input.
+  it("plans every stage through planStage.yml", () => {
+    expect(PIPELINE.stages.map((s) => s.workflowId)).toEqual(PIPELINE.stages.map(() => "planStage.yml"));
   });
 
   it("keeps deploy on one shared file, since it has no stage-specific logic", () => {

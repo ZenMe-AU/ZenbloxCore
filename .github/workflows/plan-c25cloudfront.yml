@@ -1,3 +1,4 @@
+# DEPRECATED: use planStage.yml, which plans any stage from its dir input. Kept only for callers that still dispatch this file.
 name: Plan c25cloudfront
 run-name: ${{ github.workflow }} @ ${{ inputs.github_env_name }}
 

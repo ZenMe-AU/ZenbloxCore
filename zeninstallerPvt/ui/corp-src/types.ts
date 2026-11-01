@@ -191,7 +191,7 @@ export type StageDefinition = {
   dir: string;
   label: string; // Shown on the card
   description?: string; // One-line overview shown on the card, including while locked
-  workflowId: string;
+  workflowId: string; // Plans this stage; dispatched with the stage's dir.
   prerequisites: Prerequisite[];
   optional?: boolean; // When true, a pending stage is treated as skipped rather than waiting.
   azurePermissions?: readonly string[]; // Microsoft Graph application permission IDs required by this stage.
