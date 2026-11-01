@@ -6,7 +6,7 @@
 import PrivAvdDeployCard, { type PrivAvdDeployCardProps } from "../../components/PrivAvdDeployCard";
 import { PRIVAVD_GALLERY_DESCRIPTION, PRIVAVD_GALLERY_RESOURCES, PRIVAVD_GALLERY_TITLE } from "./config";
 
-export default function PrivAvdGalleryCard(props: PrivAvdDeployCardProps) {
+export default function AvdGalleryCard(props: PrivAvdDeployCardProps) {
   return (
     <PrivAvdDeployCard
       title={PRIVAVD_GALLERY_TITLE}

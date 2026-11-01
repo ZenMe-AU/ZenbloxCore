@@ -6,7 +6,7 @@
 import PrivAvdDeployCard, { type PrivAvdDeployCardProps } from "../../components/PrivAvdDeployCard";
 import { PRIVAVD_PAW_DESCRIPTION, PRIVAVD_PAW_RESOURCES, PRIVAVD_PAW_TITLE } from "./config";
 
-export default function PrivAvdPawCard(props: PrivAvdDeployCardProps) {
+export default function PawDeployCard(props: PrivAvdDeployCardProps) {
   return (
     <PrivAvdDeployCard
       title={PRIVAVD_PAW_TITLE}

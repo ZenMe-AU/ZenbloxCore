@@ -28,9 +28,9 @@ import { useAccessPassCard } from "./cards/AccessPass/useAccessPassCard";
 import { useAwsLoginCard } from "./cards/AwsLogin/useAwsLoginCard";
 import { useWebDeployCard } from "./cards/WebDeploy/useWebDeployCard";
 import { useAwsSetupCard } from "./cards/AwsSetup/useAwsSetupCard";
-import { usePrivAvdGalleryCard } from "./cards/AvdGallery/usePrivAvdGalleryCard";
-import { usePrivAvdImageCard } from "./cards/PawImage/usePrivAvdImageCard";
-import { usePrivAvdPawCard } from "./cards/PawDeploy/usePrivAvdPawCard";
+import { useAvdGalleryCard } from "./cards/AvdGallery/useAvdGalleryCard";
+import { usePawImageCard } from "./cards/PawImage/usePawImageCard";
+import { usePawDeployCard } from "./cards/PawDeploy/usePawDeployCard";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -53,9 +53,9 @@ import AccessPassCard from "./cards/AccessPass/AccessPassCard";
 import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
 import AwsSetupCard from "./cards/AwsSetup/AwsSetupCard";
 import StageCard from "./cards/Stage/StageCard";
-import PrivAvdGalleryCard from "./cards/AvdGallery/PrivAvdGalleryCard";
-import PrivAvdImageCard from "./cards/PawImage/PrivAvdImageCard";
-import PrivAvdPawCard from "./cards/PawDeploy/PrivAvdPawCard";
+import AvdGalleryCard from "./cards/AvdGallery/AvdGalleryCard";
+import PawImageCard from "./cards/PawImage/PawImageCard";
+import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -212,9 +212,9 @@ function AppDashboard() {
     repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
     selectedEnv: githubRepoEnv.env.selectedEnv,
   };
-  const privAvdGallery = addCard(usePrivAvdGalleryCard(privAvdTarget));
-  const privAvdImage = addCard(usePrivAvdImageCard(privAvdTarget));
-  const privAvdPaw = addCard(usePrivAvdPawCard(privAvdTarget));
+  const avdGallery = addCard(useAvdGalleryCard(privAvdTarget));
+  const pawImage = addCard(usePawImageCard(privAvdTarget));
+  const pawDeploy = addCard(usePawDeployCard(privAvdTarget));
 
   const plan = useDeploymentPlan({
     account: githubRepoEnv.repo.selectedAccount,
@@ -346,7 +346,7 @@ function AppDashboard() {
       done: card.status === "complete" || card.status === "skipped",
       chrome: card,
     })),
-    ...[privAvdGallery, privAvdImage, privAvdPaw].map(({ cardId, cardDependencyLabel, done }) => ({
+    ...[avdGallery, pawImage, pawDeploy].map(({ cardId, cardDependencyLabel, done }) => ({
       id: cardId,
       title: cardDependencyLabel,
       done,
@@ -561,23 +561,23 @@ function AppDashboard() {
                 <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
               ))}
 
-              <PrivAvdGalleryCard
+              <AvdGalleryCard
                 card={cardProps("privavd_gallery")}
-                privAvd={privAvdGallery}
+                privAvd={avdGallery}
                 {...privAvdTarget}
                 variables={githubVariables}
               />
 
-              <PrivAvdImageCard
+              <PawImageCard
                 card={cardProps("privavd_image")}
-                privAvd={privAvdImage}
+                privAvd={pawImage}
                 {...privAvdTarget}
                 variables={githubVariables}
               />
 
-              <PrivAvdPawCard
+              <PawDeployCard
                 card={cardProps("privavd_paw")}
-                privAvd={privAvdPaw}
+                privAvd={pawDeploy}
                 {...privAvdTarget}
                 variables={githubVariables}
               />

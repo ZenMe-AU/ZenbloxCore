@@ -1,4 +1,5 @@
 name: Deploy PrivAVD
+run-name: Priv Run PrivAVD/${{ fromJSON('{"initImageGallery":"init.ps1","buildImage":"build.ps1","deployPaw":"deployPAW.ps1"}')[inputs.dir] }} @ ${{ inputs.github_env_name }}
 
 on:
   workflow_dispatch:
@@ -9,7 +10,7 @@ on:
       dir:
         required: true
         type: choice
-        options: [privavd-gallery, privavd-image, privavd-paw]
+        options: [initImageGallery, buildImage, deployPaw]
         description: "PrivAVD stage to run"
       github_env_name:
         required: false
@@ -59,7 +60,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Install Packer
-        if: inputs.dir == 'privavd-image'
+        if: inputs.dir == 'buildImage'
         uses: hashicorp/setup-packer@v3
         with:
           version: 1.11.2
@@ -118,7 +119,7 @@ jobs:
         id: script
         shell: pwsh
         env:
-          SCRIPT: ${{ fromJSON('{"privavd-gallery":"init.ps1","privavd-image":"build.ps1","privavd-paw":"deployPAW.ps1"}')[inputs.dir] }}
+          SCRIPT: ${{ fromJSON('{"initImageGallery":"init.ps1","buildImage":"build.ps1","deployPaw":"deployPAW.ps1"}')[inputs.dir] }}
         run: |
           try { & "corpSetup/PrivAVD/$env:SCRIPT" *>&1 | Tee-Object -FilePath /tmp/deploy_output.txt }
           catch { "$_" | Tee-Object -FilePath /tmp/deploy_output.txt -Append; throw }
