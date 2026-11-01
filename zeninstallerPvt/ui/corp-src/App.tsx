@@ -28,9 +28,9 @@ import { useAccessPassCard } from "./cards/AccessPass/useAccessPassCard";
 import { useAwsLoginCard } from "./cards/AwsLogin/useAwsLoginCard";
 import { useWebDeployCard } from "./cards/WebDeploy/useWebDeployCard";
 import { useAwsSetupCard } from "./cards/AwsSetup/useAwsSetupCard";
-import { usePrivAvdGalleryCard } from "./cards/PrivAvdGallery/usePrivAvdGalleryCard";
-import { usePrivAvdImageCard } from "./cards/PrivAvdImage/usePrivAvdImageCard";
-import { usePrivAvdPawCard } from "./cards/PrivAvdPaw/usePrivAvdPawCard";
+import { usePrivAvdGalleryCard } from "./cards/AvdGallery/usePrivAvdGalleryCard";
+import { usePrivAvdImageCard } from "./cards/PawImage/usePrivAvdImageCard";
+import { usePrivAvdPawCard } from "./cards/PawDeploy/usePrivAvdPawCard";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -53,9 +53,9 @@ import AccessPassCard from "./cards/AccessPass/AccessPassCard";
 import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
 import AwsSetupCard from "./cards/AwsSetup/AwsSetupCard";
 import StageCard from "./cards/Stage/StageCard";
-import PrivAvdGalleryCard from "./cards/PrivAvdGallery/PrivAvdGalleryCard";
-import PrivAvdImageCard from "./cards/PrivAvdImage/PrivAvdImageCard";
-import PrivAvdPawCard from "./cards/PrivAvdPaw/PrivAvdPawCard";
+import PrivAvdGalleryCard from "./cards/AvdGallery/PrivAvdGalleryCard";
+import PrivAvdImageCard from "./cards/PawImage/PrivAvdImageCard";
+import PrivAvdPawCard from "./cards/PawDeploy/PrivAvdPawCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
