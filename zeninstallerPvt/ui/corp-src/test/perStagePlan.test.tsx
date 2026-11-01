@@ -230,12 +230,7 @@ describe("stage workflow files", () => {
     expect(PIPELINE.stages.map((s) => s.workflowId)).toEqual(PIPELINE.stages.map(() => "planStage.yml"));
   });
 
-  it("keeps deploy on one shared file, since it has no stage-specific logic", () => {
-    // Points at the remote-login terminal for now. Whatever it is called, it is one file — deploy
-    // has no per-stage logic to keep apart, unlike plan.
-    expect(PIPELINE.deployWorkflowId).toBe("remoteLogin.yml");
-    for (const stage of PIPELINE.stages) {
-      expect(stage).not.toHaveProperty("deployWorkflowId");
-    }
+  it("deploys every stage through remoteLogin.yml", () => {
+    expect(PIPELINE.stages.map((s) => s.deployWorkflowId)).toEqual(PIPELINE.stages.map(() => "remoteLogin.yml"));
   });
 });

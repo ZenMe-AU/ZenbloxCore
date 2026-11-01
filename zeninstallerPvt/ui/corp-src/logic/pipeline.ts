@@ -9,10 +9,11 @@ import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, C01_KEYS } from "./variables";
 
 // Plans any one stage; dispatched with the stage's dir.
 const PLAN_STAGE_WORKFLOW = "planStage.yml";
+// Applies any one planned stage as the person who signs in; dispatched with the stage's dir.
+const DEPLOY_STAGE_WORKFLOW = "remoteLogin.yml";
 
 export const PIPELINES: Record<string, PipelineConfig> = {
   corpSetup: {
-    deployWorkflowId: "remoteLogin.yml",
     label: "ZenInstaller Setup Central Corp Environment",
     templateRepo: "ZenMe-AU/ZenbloxCore",
     validEnvs: ["PROD", "TEST"] as const,
@@ -20,6 +21,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         dir: "c01subscription",
         workflowId: PLAN_STAGE_WORKFLOW,
+        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "Azure subscription budget",
         description: "Sets a spending budget on the Azure subscription and emails the contacts you list when costs approach it.",
         azurePermissions: [],
@@ -39,6 +41,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         dir: "c02globalGroups",
         workflowId: PLAN_STAGE_WORKFLOW,
+        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "Organisation security groups",
         description: "Creates the Microsoft Entra security groups that control who can access the organisation's resources.",
         azurePermissions: [
@@ -59,6 +62,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         dir: "c07userAccounts",
         workflowId: PLAN_STAGE_WORKFLOW,
+        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "User accounts and sign-in",
         description: "Creates the organisation's user accounts and configures how they sign in, including authentication methods.",
         azurePermissions: [
@@ -79,6 +83,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         dir: "c20awsentrasso",
         workflowId: PLAN_STAGE_WORKFLOW,
+        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "AWS single sign-on with Entra ID",
         description: "Registers AWS IAM Identity Center as an Entra application so users can sign in to AWS with their organisation account.",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
@@ -91,6 +96,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         dir: "c21awsentrassoP2",
         workflowId: PLAN_STAGE_WORKFLOW,
+        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "AWS single sign-on with Microsoft Entra ID P2",
         description: "Assigns groups to the AWS application and applies the claims policy, which needs a Microsoft Entra ID P2 licence.",
         azurePermissions: [GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll, GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration],
@@ -104,6 +110,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
       {
         dir: "c25cloudfront",
         workflowId: PLAN_STAGE_WORKFLOW,
+        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "AWS CloudFront distribution",
         description: "Deploys the CloudFront distribution that serves the corporate login app and guards access behind Entra sign-in.",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],

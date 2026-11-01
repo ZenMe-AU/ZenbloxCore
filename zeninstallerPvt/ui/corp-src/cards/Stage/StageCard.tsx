@@ -29,7 +29,6 @@ import type {
 import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../../api";
 import { useAzurePermissions } from "../../hooks/util/useAzurePermissions";
 import { useRemoteTerminal } from "./useRemoteTerminal";
-import { PIPELINE } from "../../logic/pipeline";
 import { computePlanSummary, isPlanBehind } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
 import ViewLink from "../../components/ViewLink";
@@ -305,7 +304,7 @@ export default function StageCard({
   const remoteTerminal = useRemoteTerminal({
     account,
     repoName,
-    workflowId: PIPELINE.deployWorkflowId,
+    workflowId: stageDef.deployWorkflowId,
     dir: stageDef.dir,
     planRunId: stage.runId,
     selectedEnv,
