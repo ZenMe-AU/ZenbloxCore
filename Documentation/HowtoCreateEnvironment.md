@@ -26,7 +26,7 @@
             follow the instruction inside "How to fill out variables tf.docx" to find these values
     1. Run the following in the terminal under the directory of ZBCorpArchitecture\corpSetup:
         ``` ps
-        node initCorpEnvDeploy.js --stage c01
+        node SubscriptionBudget/run.js
         ```
     1. after c01 finished deploying run the following:
         ```
@@ -48,7 +48,7 @@
 
 1. Execute c02. Run the following in the terminal:
     ``` ps
-    node initCorpEnvDeploy.js --stage c02
+    node GlobalGroups/run.js
 1. Execute c05
     1. in corp.env located in CorpSetup folder fill out DNS= with your company's DNS
     1. your corp.env should look something like this:
@@ -59,7 +59,7 @@
     ```
     1. Execute c05. Run the following in the terminal:
     ``` ps
-    node initCorpEnvDeploy.js --stage c05
+    node RootRg/run.js
     ```
     1. after the deployment finishes go to the dns zone created in azure which should have the same name as the dns in corp.env
     find the server details and give them to your company's dns provider to be stored
@@ -74,7 +74,7 @@
 1. Execute c07
     1. Execute c07. Run the following in the terminal:
     ``` ps
-    node initCorpEnvDeploy.js --stage c07
+    node UserAccounts/run.js
     ```
     
 1. Execute c20
@@ -92,12 +92,12 @@
         ```
     1. Run the following in the terminal:
         ``` ps
-        node initCorpEnvDeploy.js --stage c20
+        node AwsEntraSso/run.js
         ```
 1. Execute c21. Run the following in the terminal:
     ``` ps
-    node initCorpEnvDeploy.js --stage c21
+    node AwsEntraSsoP2/run.js
 1. Execute c25. Run the following in the terminal:
     ``` ps
-    node initCorpEnvDeploy.js --stage c25
+    node CloudFront/run.js
     ```

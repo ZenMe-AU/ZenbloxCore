@@ -1,6 +1,6 @@
 # Corporate Environment Deployment Automation
 
-This script (`initCorpEnvDeploy.js`) automates the setup and management of a corporate Azure environment using Terraform and Azure CLI. It supports multi-stage deployment, resource import, and environment variable management for repeatable, auditable infrastructure provisioning.
+Each stage folder's `run.js` automates the setup and management of a corporate Azure environment using Terraform and Azure CLI. It supports multi-stage deployment, resource import, and environment variable management for repeatable, auditable infrastructure provisioning.
 
 ## Prerequisites
 
@@ -22,22 +22,20 @@ This script (`initCorpEnvDeploy.js`) automates the setup and management of a cor
    - Ensure `corp.env` is present and contains required keys (e.g., `NAME`, `DNS`, `SUBSCRIPTION_ID` as needed).
    - Log in to Azure CLI: `az login`
 
-3. **Run the script for a specific stage:**
-
-   Name the stage directory:
+3. **Run a stage** from `corpSetup`, by running that stage folder's `run.js`:
 
    ```sh
-   node initCorpEnvDeploy.js --dir SubscriptionBudget
+   node SubscriptionBudget/run.js
    ```
 
 4. **Auto-approve Terraform apply (optional):**
    ```sh
-   node initCorpEnvDeploy.js --dir SubscriptionBudget --auto-approve
+   node SubscriptionBudget/run.js --auto-approve
    ```
 
 5. **Plan without applying:**
    ```sh
-   node initCorpEnvDeploy.js --dir SubscriptionBudget --planOnly
+   node SubscriptionBudget/run.js --planOnly
    ```
 
 ## Stages Overview
@@ -109,12 +107,10 @@ This script (`initCorpEnvDeploy.js`) automates the setup and management of a cor
 
 ## Notes
 
-- Each stage is mapped to a subdirectory (e.g., `SubscriptionBudget`) containing the relevant Terraform code.
-- `--dir` is matched against the actual subdirectory listing, so an unknown or out-of-tree value is
-  rejected rather than resolved.
+- Each stage is a subdirectory (e.g., `SubscriptionBudget`) holding its Terraform code and the `run.js` that imports existing resources, then plans or applies there.
 - The script is idempotent: it will import existing resources into Terraform state if they already exist in Azure.
 - You can customize contact emails and other variables by editing `corp.env` or passing them as Terraform variables.
 
 ---
 
-For more details, review the code and comments in `initCorpEnvDeploy.js` and the Terraform files in each stage directory.
+For more details, review each stage's `run.js` and the Terraform files in each stage directory.

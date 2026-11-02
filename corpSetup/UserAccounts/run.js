@@ -170,4 +170,5 @@ function main(corpEnvFile) {
   return subscriptionId;
 }
 
-export { main };
+// Run directly: node UserAccounts/run.js [--planOnly] [--auto-approve]. main() runs its own init/plan/apply and the CSV export.
+main(resolve(__dirname, "../corp.env"));

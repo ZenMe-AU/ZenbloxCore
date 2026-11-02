@@ -36,7 +36,7 @@ Follow these steps to run the corpSetUp script:
 
         pnpm install
 
-        node ./ZBCorpArchitecture/corpSetup/initCorpEnvDeploy.js
+        node ./ZBCorpArchitecture/corpSetup/<Stage>/run.js   # once per stage, e.g. SubscriptionBudget
 
 1.  after the .js has finished running the corpSetUp should be fully installed
 

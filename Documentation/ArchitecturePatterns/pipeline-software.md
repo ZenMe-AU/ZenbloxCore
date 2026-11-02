@@ -14,7 +14,7 @@ Strong ordering improves reliability but reduces ad hoc parallelism and can incr
 [Pipeline (software)](https://en.wikipedia.org/wiki/Pipeline_(software)).
 
 ## Implementation
-The deployment orchestrator validates and dispatches stage codes and executes a controlled sequence through stage handlers in [corpSetup/initCorpEnvDeploy.js](../../corpSetup/initCorpEnvDeploy.js#L125) and [corpSetup/initCorpEnvDeploy.js](../../corpSetup/initCorpEnvDeploy.js#L161).
+Each stage is dispatched by its folder name: the plan action validates the name and runs that folder's run.js in [.github/actions/plan-and-publish/action.yml](../../.github/actions/plan-and-publish/action.yml#L37), which ends by planning or applying in its own folder, for example [corpSetup/RootRg/run.js](../../corpSetup/RootRg/run.js#L373).
 
 The operational runbook mirrors this sequence, documenting the cXX progression from bootstrap to cloudfront delivery in [Documentation/README.md](../README.md).
 

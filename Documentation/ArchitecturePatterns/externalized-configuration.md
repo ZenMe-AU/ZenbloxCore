@@ -14,7 +14,7 @@ Externalized config improves portability but increases dependency on template co
 [Configuration management](https://en.wikipedia.org/wiki/Configuration_management).
 
 ## Implementation
-The orchestrator reads and validates corp-level environment variables from [corpSetup/initCorpEnvDeploy.js](../../corpSetup/initCorpEnvDeploy.js#L38), then persists stage outputs for downstream steps at [corpSetup/initCorpEnvDeploy.js](../../corpSetup/initCorpEnvDeploy.js#L228).
+Each stage reads and validates corp-level environment variables from corp.env, for example [corpSetup/RootRg/run.js](../../corpSetup/RootRg/run.js#L126), and the subscription stage persists its output for downstream steps at [corpSetup/SubscriptionBudget/run.js](../../corpSetup/SubscriptionBudget/run.js#L191).
 
 Terraform environment injection is handled in [corpSetup/tfUtils.js](../../corpSetup/tfUtils.js). Edge and login runtime configuration are rendered from templates in [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L30), [corpSetup/CloudFront/source/loginApp/template/config.js.tpl](../../corpSetup/CloudFront/source/loginApp/template/config.js.tpl#L1), and [corpSetup/CloudFront/source/authGuardLambdaEdge/template/config.js.tpl](../../corpSetup/CloudFront/source/authGuardLambdaEdge/template/config.js.tpl#L1).
 

@@ -3,7 +3,7 @@
     "workspaces": {
         ".": {
             "entry": [
-                "corpSetup/c*.js"
+                "corpSetup/*/run.js"
             ],
             "project": [
                 "corpSetup/**/*.{js,cjs,mjs}",

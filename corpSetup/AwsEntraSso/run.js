@@ -92,6 +92,7 @@ const env = {
 };
 
 function main(corpEnvFile) {
+  const planOnly = process.argv.includes("--planOnly");
   const autoApprove = process.argv.includes("--auto-approve");
 
   try {
@@ -274,6 +275,13 @@ function main(corpEnvFile) {
     }
 
     // Run terraform
+    if (planOnly) {
+      console.log("Planning Terraform changes to tfplan");
+      execSync("terraform plan -lock=false -out=tfplan", { stdio: "inherit", shell: true, cwd: __dirname });
+    } else {
+      console.log("Applying Terraform changes.");
+      execSync(`terraform apply ${autoApprove ? " -auto-approve" : ""}`, { stdio: "inherit", shell: true, cwd: __dirname });
+    }
   } catch (error) {
     console.error(error.stack);
     process.exit(1);
@@ -365,4 +373,5 @@ export function c20_post_apply_saml_save(terraformCwd) {
   }
 }
 
-export { main };
+// Run directly: node <Stage>/run.js [--planOnly] [--auto-approve]
+main(resolve(__dirname, "../corp.env"));

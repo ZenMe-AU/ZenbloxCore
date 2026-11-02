@@ -90,6 +90,7 @@ const env = {
 };
 
 function main(corpEnvFile) {
+  const planOnly = process.argv.includes("--planOnly");
   const autoApprove = process.argv.includes("--auto-approve");
 
   try {
@@ -172,10 +173,33 @@ function main(corpEnvFile) {
     //   env.add("SUBSCRIPTION_ID", newSubscriptionId);
     //   env.saveToFile();
     // }
+
+    if (planOnly) {
+      console.log("Planning Terraform changes to tfplan");
+      execSync("terraform plan -lock=false -out=tfplan", { stdio: "inherit", shell: true, cwd: __dirname });
+    } else {
+      console.log("Applying Terraform changes.");
+      execSync(`terraform apply ${autoApprove ? " -auto-approve" : ""}`, { stdio: "inherit", shell: true, cwd: __dirname });
+      saveNewSubscriptionId();
+    }
   } catch (error) {
     console.error(error.stack);
     process.exit(1);
   }
 }
 
-export { main };
+// A subscription created by this apply only exists afterwards; record it so later stages target it.
+function saveNewSubscriptionId() {
+  if (env.get("SUBSCRIPTION_ID")) return;
+  try {
+    const newSubscriptionId = execSync(`terraform output -raw new_subscription_id`, { encoding: "utf-8", cwd: __dirname }).trim();
+    if (!newSubscriptionId) throw new Error("new_subscription_id is empty");
+    env.add("SUBSCRIPTION_ID", newSubscriptionId);
+    env.saveToFile();
+  } catch (err) {
+    console.warn("Failed to get new_subscription_id from Terraform:", err.message);
+  }
+}
+
+// Run directly: node <Stage>/run.js [--planOnly] [--auto-approve]
+main(resolve(__dirname, "../corp.env"));
