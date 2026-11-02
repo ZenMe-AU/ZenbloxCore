@@ -349,6 +349,7 @@ Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)):
 | `ErrorText` | Error message | `role=alert` |
 | `StatusText` | Progress/success message | `role=status`, `aria-live=polite` |
 | `ConfigErrorNotice` | "Card isn't configured correctly" panel | none (see issues) |
+| `WarningNotice` | Bordered warning panel: icon and message, optional content below | `role=status`, `aria-live=polite` |
 | `ExternalLink` | Inline new-tab link | `aria-label="<label> (opens in new tab)"`, `rel=noopener noreferrer` |
 | `ViewLink` | Outlined "View" button-link, text hidden at `xs` | same new-tab naming; `title=href` |
 | `RefreshButton` | Refresh, then Done / Failed (transient) | `aria-label` tracks text |
