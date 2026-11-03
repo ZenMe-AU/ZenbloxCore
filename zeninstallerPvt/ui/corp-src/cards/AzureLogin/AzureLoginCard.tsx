@@ -25,7 +25,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography component="p" variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary">
       Sign in with Azure so we can create the app registration and cloud resources for you. We never store your Azure credentials — sign-in happens directly
       with Microsoft, and only a short-lived access token is used.
     </Typography>

@@ -55,7 +55,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary">
       A simple view of this tenant's Entra security groups — edit, create, or delete groups and manage their nesting directly.
     </Typography>
   );

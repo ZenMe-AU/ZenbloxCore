@@ -52,7 +52,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary">
       Create a Temporary Access Pass for a user managed by your signed-in account. This removes their existing sign-in methods, randomizes their password, and
       issues a one-hour access pass.
     </Typography>

@@ -389,7 +389,7 @@ export default function StageCard({
   const repoFullName = account && repoName ? `${account.login}/${repoName}` : null;
 
   const intro = stageDef.description ? (
-    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary">
       {stageDef.description}
     </Typography>
   ) : undefined;

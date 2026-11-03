@@ -34,7 +34,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary">
       Create a Microsoft Entra app registration for GitHub Actions. ZenInstaller configures GitHub OIDC trust for the selected environment, so workflows can sign
       in without a stored client secret, and grants the app Reader access to the selected Azure subscription for Terraform plans. The app ID is saved to that
       environment. This does not grant deployment permissions; deployments are applied separately through the remote-terminal flow.
