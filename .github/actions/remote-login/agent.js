@@ -123,6 +123,7 @@ async function main() {
     });
 
     child.onExit(({ exitCode }) => {
+      child = null;
       if (finished) return;
       if (exitCode !== 0) {
         loginExitCode = exitCode;
