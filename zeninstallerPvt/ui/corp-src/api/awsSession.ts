@@ -9,11 +9,11 @@ const SESSION_STORAGE_KEY = "zeninstaller_aws_session";
 
 export type StoredAwsTemporarySession = {
   identity: AwsCallerIdentity;
-  mfaDevices: AwsMfaDevice[];
+  mfaDevices?: AwsMfaDevice[]; // Only use in the deprecated GetSessionToken sign-in path, which lists the MFA devices.
   credentials: { accessKeyId: string; secretAccessKey: string; sessionToken: string; expiration: string };
 };
 
-export function saveAwsTemporarySession(identity: AwsCallerIdentity, mfaDevices: AwsMfaDevice[], creds: AwsSessionCredentials) {
+export function saveAwsTemporarySession(identity: AwsCallerIdentity, creds: AwsSessionCredentials, mfaDevices?: AwsMfaDevice[]) {
   if (!creds.expiration) return;
   const payload: StoredAwsTemporarySession = {
     identity,

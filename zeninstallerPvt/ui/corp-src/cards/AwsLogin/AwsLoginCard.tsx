@@ -4,17 +4,15 @@
  */
 
 import { useState } from "react";
-import { Box, Button, CircularProgress, IconButton, InputAdornment, MenuItem, TextField, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, IconButton, InputAdornment, TextField, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew"; //Todo: check why this import could not be found or why it is missing
 import Visibility from "@mui/icons-material/Visibility"; //Todo: check why this import could not be found or why it is missing
 import VisibilityOff from "@mui/icons-material/VisibilityOff"; //Todo: check why this import could not be found or why it is missing
-import WarningAmberIcon from "@mui/icons-material/WarningAmber"; //Todo: check why this import could not be found or why it is missing
 import Card from "../../components/Card";
 import ExternalLink from "../../components/ExternalLink";
 import ViewLink from "../../components/ViewLink";
 import { getAwsConsoleUrl } from "./consoleUrls";
 import { CLOUD_DOCS } from "./docsConfig";
-import { warningMessageIconSx } from "../../config/styles";
 import type { UseAwsLoginCard } from "./useAwsLoginCard";
 import type { CardChrome } from "../../types";
 
@@ -53,27 +51,7 @@ function Action() {
 
 export default function AwsLoginCard({ card, awsLogin }: Props) {
   const [showSecret, setShowSecret] = useState(false);
-  const {
-    accessKeyId,
-    setAccessKeyId,
-    secretAccessKey,
-    setSecretAccessKey,
-    account,
-    mfaDevices,
-    selectedMfaSerial,
-    setSelectedMfaSerial,
-    mfaTokenCode,
-    setMfaTokenCode,
-    needsMfa,
-    fidoOnly,
-    done,
-    loggingIn,
-    signInError,
-    canSignIn,
-    login,
-    logout,
-  } = awsLogin;
-  const usableDevices = mfaDevices.filter((d) => d.usable);
+  const { accessKeyId, setAccessKeyId, secretAccessKey, setSecretAccessKey, account, done, loggingIn, signInError, canSignIn, login, logout } = awsLogin;
 
   return (
     <Card title="AWS login" action={<Action />} lockedIntro={<Intro />} {...card}>
@@ -92,8 +70,8 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
           <>
             <Box>
               <Typography variant="body2" color="text.muted" sx={{ mb: 1.5, lineHeight: 1.6 }}>
-                Use an IAM user allowed to create identity providers and roles. Generate access keys from Security credentials; they are exchanged for short-term
-                session credentials. After the role is created, deactivate and delete these access keys.
+                Use the access keys of the zeninstaller IAM user from the AWS setup guide; they are exchanged for short-term credentials by assuming its
+                zeninstaller-bootstrap role. After the role is created, deactivate and delete these access keys.
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
                 <TextField
@@ -165,52 +143,6 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
           </Box>
         )}
 
-        {needsMfa && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            {usableDevices.length > 1 && (
-              <TextField
-                select
-                size="small"
-                label="MFA device"
-                value={selectedMfaSerial ?? ""}
-                onChange={(e) => setSelectedMfaSerial(e.target.value)}
-                helperText="Pick the device you have on hand"
-                sx={{ maxWidth: 280 }}
-              >
-                {usableDevices.map((d) => (
-                  <MenuItem key={d.serialNumber} value={d.serialNumber}>
-                    {d.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-            <TextField
-              size="small"
-              label="MFA code"
-              value={mfaTokenCode}
-              onChange={(e) => setMfaTokenCode(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && canSignIn && !loggingIn) login();
-              }}
-              placeholder="123456"
-              helperText={usableDevices.length > 1 ? "Code from the selected device" : `Code from ${usableDevices[0]?.name ?? "your MFA device"}`}
-              className="corpTechnicalInput"
-              inputProps={{ maxLength: 6 }}
-              sx={{ maxWidth: 160 }}
-            />
-          </Box>
-        )}
-
-        {fidoOnly && (
-          <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "flex-start", gap: 0.75, maxWidth: 420 }}>
-            <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
-            <Typography color="warning.dark" sx={{ lineHeight: 1.6 }}>
-              Your only MFA is a security key (FIDO), which AWS can't use for CLI/API sign-in. We'll continue without MFA — if your account requires MFA,
-              register an authenticator-app (TOTP) device or use access keys that don't enforce MFA.
-            </Typography>
-          </Box>
-        )}
-
         {!done && (
           <Box>
             <Button
@@ -229,7 +161,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                 },
               }}
             >
-              {loggingIn ? "Signing in..." : needsMfa ? "Verify & sign in" : "Sign in"}
+              {loggingIn ? "Signing in..." : "Sign in"}
             </Button>
           </Box>
         )}
