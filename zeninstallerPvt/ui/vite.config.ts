@@ -6,12 +6,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
+import checkCardOrder from "./plugins/checkCardOrder";
 
 // https://vite.dev/config/
 export default defineConfig({
   base: "/core/",
   server: { port: 5174, strictPort: true },
-  plugins: [react()],
+  plugins: [react(), checkCardOrder()],
   build: {
     outDir: "dist/core",
     rollupOptions: {

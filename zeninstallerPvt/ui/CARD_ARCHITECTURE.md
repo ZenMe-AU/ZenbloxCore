@@ -167,7 +167,7 @@ Delete its folder. Its id leaves `CardId`, so any other card that still lists it
 export const CARD_ORDER: readonly string[] = ["github_login", "repo", "azure_login", "stages", "access_pass"];
 ```
 
-- An id with no card is ignored, so removing or parking a card folder never breaks the list.
+- An id with no card is ignored, so removing or parking a card folder never breaks the list. `pnpm run dev` and `pnpm run build` warn in the terminal naming it (`plugins/checkCardOrder.ts`), which also catches typos.
 - The Stage folder renders all pipeline-stage cards, which move together under the id `"stages"`. Stage registers that id for this list only; no card reports it, so never list it in `cardRequirements`.
 - An empty list means every card uses its own `order`.
 - The progress bar and "Next step" follow the page order, so they follow the list too.
