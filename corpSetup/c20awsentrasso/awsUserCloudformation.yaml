@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+    UserName:
+        Type: String
+
+        Default: zeninstaller
+
+Resources:
+    User:
+        Type: AWS::IAM::User
+
+        Properties:
+            UserName: !Ref UserName
+
+    AccessKey:
+        Type: AWS::IAM::AccessKey
+
+        DependsOn: User
+
+        Properties:
+            UserName: !Ref UserName
+
+            Status: Active
+
+    UserPolicy:
+        Type: AWS::IAM::Policy
+
+        Properties:
+            PolicyName: ZenInstallerPolicy
+
+            PolicyDocument:
+                Version: "2012-10-17"
+
+                Statement:
+                    - Effect: Allow
+
+                      Action:
+                          - iam:ListMFADevices
+
+                      Resource: !Sub "arn:aws:iam::${AWS::AccountId}:user/${UserName}"
+
+            Users:
+                - !Ref User
+
+Outputs:
+    AccessKeyId:
+        Description: Access key ID
+
+        Value: !Ref AccessKey
+
+    SecretAccessKey:
+        Description: Secret access key
+
+        Value: !GetAtt AccessKey.SecretAccessKey

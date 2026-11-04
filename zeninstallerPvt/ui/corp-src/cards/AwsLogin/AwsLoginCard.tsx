@@ -25,8 +25,8 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Sign in with your AWS access key in this browser. We never send your long lived AWS access key or secret key to our servers; only temporary AWS session
+    <Typography variant="body1" color="text.secondary">
+      Sign in with your AWS access key in this browser. We never send your long-term AWS access key or secret key to our servers; only short-term AWS session
       credentials are kept in this tab until they expire.
       <>
         <br />

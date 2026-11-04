@@ -29,7 +29,7 @@ export async function requestAuthorizationCode(opts: {
 
   const params = new URLSearchParams({
     client_id: opts.clientId,
-    redirect_uri: window.location.origin,
+    redirect_uri: appUrl(),
     scope: opts.scope,
     response_type: "code",
     code_challenge: challenge,
@@ -61,6 +61,7 @@ export function takePendingCode(provider: string): string | null {
 }
 
 // ── The return leg itself ──
+export const appUrl = () => new URL(import.meta.env.BASE_URL, window.location.origin).href;
 
 // Pure: what the provider put on the address bar, with nothing read or written.
 export function parseOAuthReturn(search: string): { code: string; provider: string; returnUrl: string } | null {

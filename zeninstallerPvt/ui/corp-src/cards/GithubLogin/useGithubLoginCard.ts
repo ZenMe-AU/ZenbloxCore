@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import { verifyAuth, switchToDirect, switchToBackend, fetchGithubUser } from "../../api";
 import { BACKEND_CONFIGURED, exchangeGithubCode } from "../../api/backend";
-import { requestAuthorizationCode, takePendingCode } from "../../logic/oauth";
+import { appUrl, requestAuthorizationCode, takePendingCode } from "../../logic/oauth";
 import { read, remove } from "../../logic/browserStore";
 import { clearStoredToken, getStoredToken, setLoginStatus, setStoredToken } from "../../logic/tokenStore";
 import type { LoginStatus } from "../../logic/tokenStore";
@@ -75,7 +75,7 @@ async function exchangeToken(code: string): Promise<string> {
     client_id: GITHUB_CLIENT_ID,
     code,
     code_verifier: verifier,
-    redirect_uri: window.location.origin,
+    redirect_uri: appUrl(),
   });
   if (!data.access_token) throw new Error(data.error ?? "Token exchange failed");
   setStoredToken(GITHUB_TOKEN_KEY, data.access_token);

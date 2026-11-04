@@ -25,11 +25,9 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography component="p" variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Sign in with a Microsoft account that can access the Microsoft Entra tenant you want to configure. A tenant is your organisation's directory for users
-      and apps; choose it here, then select an Azure subscription within it on the next card. ZenInstaller uses this to create the app registration
-      and cloud resources you request. Microsoft handles your password; authentication tokens are cached in this browser session and cleared when it ends.
-      ZenInstaller does not store these tokens on its servers.
+    <Typography variant="body1" color="text.secondary">
+      Sign in with Azure so we can create the app registration and cloud resources for you. We never store your Azure credentials — sign-in happens directly
+      with Microsoft, and only a short-lived access token is used.
     </Typography>
   );
 }
