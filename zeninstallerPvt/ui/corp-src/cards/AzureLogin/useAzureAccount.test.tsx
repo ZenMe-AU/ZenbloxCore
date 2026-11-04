@@ -7,8 +7,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAzureAccount, type UseAzureAccount } from "../cards/AzureLogin/useAzureAccount";
-import type { AzureAccount } from "../types";
+import { useAzureAccount, type UseAzureAccount } from "./useAzureAccount";
+import type { AzureAccount } from "../../types";
 
 async function waitFor(assertion: () => void, timeoutMs = 1000) {
   const deadline = Date.now() + timeoutMs;
@@ -34,7 +34,7 @@ const { apiMocks } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../auth/msal", () => ({
+vi.mock("../../auth/msal", () => ({
   getMsal: apiMocks.getMsal,
   getToken: apiMocks.getToken,
   MSA_TENANT: "msa-tenant",
@@ -46,11 +46,11 @@ vi.mock("../auth/msal", () => ({
   },
 }));
 
-vi.mock("../api/azureGraph", () => ({
+vi.mock("../../api/azureGraph", () => ({
   listTenants: apiMocks.listTenants,
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../../config/azureConfig", () => ({
   LOGIN_SCOPES: ["login.scope"],
   ARM_SCOPES: ["arm.scope"],
 }));

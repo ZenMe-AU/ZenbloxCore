@@ -7,8 +7,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useCoreInfraCard, type UseCoreInfraCard } from "../cards/CoreInfra/useCoreInfraCard";
-import type { AzureAccount } from "../types";
+import { useCoreInfraCard, type UseCoreInfraCard } from "./useCoreInfraCard";
+import type { AzureAccount } from "../../types";
 
 async function waitFor(assertion: () => void, timeoutMs = 2000) {
   const deadline = Date.now() + timeoutMs;
@@ -59,7 +59,7 @@ const { configMocks } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../api/azureArm", () => ({
+vi.mock("../../api/azureArm", () => ({
   getProviderRegistrationState: apiMocks.getProviderRegistrationState,
   registerProvider: apiMocks.registerProvider,
   ensureResourceGroup: apiMocks.ensureResourceGroup,
@@ -80,11 +80,11 @@ vi.mock("../api/azureArm", () => ({
   storageAccountScope: apiMocks.storageAccountScope,
 }));
 
-vi.mock("../api/azureGraph", () => ({
+vi.mock("../../api/azureGraph", () => ({
   getExistingSP: apiMocks.getExistingSP,
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../../config/azureConfig", () => ({
   get AZURE_CLIENT_ID() {
     return configMocks.azureClientId;
   },
@@ -93,7 +93,7 @@ vi.mock("../config/azureConfig", () => ({
   APP_SCOPES: ["app.scope"],
 }));
 
-vi.mock("../auth/msal", () => ({
+vi.mock("../../auth/msal", () => ({
   ensureScopeConsent: apiMocks.ensureScopeConsent,
 }));
 

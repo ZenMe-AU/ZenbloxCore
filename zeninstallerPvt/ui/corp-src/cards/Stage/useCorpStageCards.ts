@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { Account, CardChrome, CardHook, CardId, CardStatus, GhEnv, PipelineConfig, PlanSummary, Stage, StageDefinition } from "../../types";
+import type { Account, CardHook, CardId, CardStatus, GhEnv, PipelineConfig, PlanSummary, Stage, StageDefinition } from "../../types";
 import type { UseDeploymentPlan } from "./useDeploymentPlan";
 import { getEffectiveStatus, getStageCardId, getStageSummaryText, hasVariableDiff, stageToCardStatus } from "../../logic/stage";
 
@@ -16,7 +16,7 @@ declare module "../../types" {
 
 export type CorpStageCardModel = {
   key: string;
-  card: CardChrome;
+  face: CardHook;
   stageDef: StageDefinition;
   stage: Stage;
   deployDisabled: boolean;
@@ -39,33 +39,25 @@ export type CorpStageCardModel = {
 export function useCorpStageCards({
   pipeline,
   plan,
-  allCards,
+  faces,
   repoDone,
-  repoDependencyLabel,
-  expandedIds,
   account,
   repoName,
   selectedEnv,
   variableValues,
   onVariableConfirmed,
-  onToggle,
-  onRequirementClick,
 }: {
   pipeline: PipelineConfig;
   plan: UseDeploymentPlan;
-  allCards: Record<string, CardHook>;
+  faces: CardHook[];
   repoDone: boolean;
-  repoDependencyLabel?: string | null;
-  expandedIds: Set<CardId>;
   account: Account | null;
   repoName: string;
   selectedEnv: GhEnv | null;
   variableValues: Record<string, string>;
   onVariableConfirmed: (key: string, value: string) => void;
-  onToggle: (id: CardId) => void;
-  onRequirementClick: (id: CardId) => void;
 }): CorpStageCardModel[] {
-  const cardStatus = Object.fromEntries(Object.entries(allCards).map(([id, hook]) => [id, hook.status])) as Record<CardId, CardStatus>;
+  const cardStatus = Object.fromEntries(faces.map((face) => [face.cardId, face.status])) as Record<CardId, CardStatus>;
 
   return pipeline.stages.map((stageDef: StageDefinition) => {
     const stage = plan.stages.find((s) => s.stage === stageDef.dir) ?? {
@@ -79,26 +71,14 @@ export function useCorpStageCards({
     const run = plan.runs[stageDef.dir];
     const isStale = run != null;
     const deployDisabled = isStale || varsMismatch;
-    const cardId = getStageCardId(stageDef.dir);
-    const requirements = repoDone
-      ? []
-      : [
-          {
-            label: repoDependencyLabel ?? "Repository & environment",
-            target: "repo" as CardId,
-          },
-        ];
-    const locked = requirements.length > 0;
-    const card: CardChrome = {
-      cardId,
-      status: locked ? "idle" : stageToCardStatus(effectiveStatus, isStale, plan.stagesLoading),
-      summary: locked ? undefined : getStageSummaryText(stage, summary, plan.stagesLoading, isStale, stageDef.optional),
-      locked,
-      requirements,
-      unavailable: false,
-      expanded: expandedIds.has(cardId),
-      onToggle: () => onToggle(cardId),
-      onRequirementClick,
+    const status = stageToCardStatus(effectiveStatus, isStale, plan.stagesLoading);
+    // Locked behind the repo card, like any card with requirements: CardsProvider shows it idle until then.
+    const face: CardHook = {
+      cardId: getStageCardId(stageDef.dir),
+      status,
+      summary: getStageSummaryText(stage, summary, plan.stagesLoading, isStale, stageDef.optional),
+      done: repoDone && (status === "complete" || status === "skipped"),
+      cardRequirements: ["repo"],
     };
     const trackDeploy =
       effectiveStatus === "success" && stage.runId && selectedEnv
@@ -109,7 +89,7 @@ export function useCorpStageCards({
 
     return {
       key: stageDef.dir,
-      card,
+      face,
       stageDef,
       stage,
       latestSha: plan.latestSha,

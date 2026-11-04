@@ -7,34 +7,19 @@ import { useEffect, useRef, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
-import type { UseCoreInfraCard } from "./useCoreInfraCard";
-import StepRow from "../StepRow";
+import { useCoreInfraCard } from "./useCoreInfraCard";
+import StepRow from "../../components/StepRow";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_RESOURCE_GROUPS_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
 import { getVariableDisplayName, CORP_NAME_KEYS, TFSTATE_BACKEND_KEYS } from "../../logic/variables";
-import CloudVariableDetail from "../CloudVariableDetail";
-import type { UseGithubVariables } from "../../hooks/useGithubVariables";
+import CloudVariableDetail from "../../components/CloudVariableDetail";
 import StatusText from "../../components/StatusText";
-import type { Account, CardChrome, AzureAccount, GhEnv } from "../../types";
+import { useAzureSession, useGithubSession } from "../../session";
 
 const CORE_INFRA_KEYS = [...CORP_NAME_KEYS, ...TFSTATE_BACKEND_KEYS];
-
-type Props = {
-  card: CardChrome;
-  infra: UseCoreInfraCard;
-  azureAccount: AzureAccount | null;
-  corpName: string;
-  subscriptionId: string;
-  spClientId: string;
-  githubAccount: Account | null;
-  repoName: string;
-  selectedEnv: GhEnv | null;
-  variables: UseGithubVariables;
-  githubUrl?: string;
-};
 
 function Intro({ containerName }: { containerName: string }) {
   return (
@@ -50,19 +35,20 @@ function Action({ resourceId }: { resourceId: string | null }) {
   return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_RESOURCE_GROUPS_URL} />;
 }
 
-export default function CoreInfraCard({
-  card,
-  infra,
-  azureAccount,
-  corpName,
-  subscriptionId,
-  spClientId,
-  githubAccount,
-  repoName,
-  selectedEnv,
-  variables,
-  githubUrl,
-}: Props) {
+export default function CoreInfraCard() {
+  const { account: azureAccount, subscriptionId } = useAzureSession();
+  const { account: githubAccount, repoName, selectedEnv, variables, githubUrl } = useGithubSession();
+  const corpName = variables.values.NAME ?? "";
+  const spClientId = variables.values.AZURE_CLIENT_ID ?? "";
+  const infra = useCoreInfraCard({
+    azureAccount,
+    subscriptionId,
+    corpName,
+    spClientId,
+    tenantId: variables.values.AZURE_TENANT_ID ?? "",
+    variableValues: variables.values,
+  });
+
   const {
     location,
     setLocation,
@@ -87,7 +73,6 @@ export default function CoreInfraCard({
     result,
     runNonce,
   } = infra;
-  const disabled = card.locked;
   const [editingLocation, setEditingLocation] = useState(false);
   const [editingStorage, setEditingStorage] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
@@ -126,9 +111,9 @@ export default function CoreInfraCard({
   return (
     <Card
       title="Terraform state backend"
+      face={infra}
       action={<Action resourceId={rgExists ? resourceGroupScope(subscriptionId, infra.resourceGroupName) : null} />}
       intro={<Intro containerName={containerName} />}
-      {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {/* Gating hints */}
@@ -243,7 +228,7 @@ export default function CoreInfraCard({
             <Button
               variant="contained"
               onClick={run}
-              disabled={disabled || running || !location.trim() || editingStorage}
+              disabled={running || !location.trim() || editingStorage}
               sx={{
                 alignSelf: "flex-start",
                 py: 0.85,

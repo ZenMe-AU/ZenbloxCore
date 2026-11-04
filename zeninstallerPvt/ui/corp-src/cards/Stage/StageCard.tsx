@@ -15,7 +15,7 @@ import BlockIcon from "@mui/icons-material/Block";
 import type {
   Account,
   AzureAccount,
-  CardChrome,
+  CardHook,
   CardId,
   CardStatus,
   GhEnv,
@@ -236,7 +236,7 @@ function RunStatusUpdateButton({
 }
 
 type Props = {
-  card: CardChrome;
+  face: CardHook;
   stageDef: StageDefinition;
   stage: Stage;
   latestSha?: string;
@@ -264,7 +264,7 @@ function Action({ repoFullName, runId }: { repoFullName: string | null; runId?: 
 }
 
 export default function StageCard({
-  card,
+  face,
   stageDef,
   stage,
   latestSha,
@@ -389,7 +389,7 @@ export default function StageCard({
   const repoFullName = account && repoName ? `${account.login}/${repoName}` : null;
 
   return (
-    <Card title={stageDef.label} action={<Action repoFullName={repoFullName} runId={stage.runId} />} intro={stageDef.description} {...card}>
+    <Card title={stageDef.label} face={face} action={<Action repoFullName={repoFullName} runId={stage.runId} />} intro={stageDef.description}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
           <RunStatusUpdateButton

@@ -15,13 +15,7 @@ import ViewLink from "../../components/ViewLink";
 import { getAwsConsoleUrl } from "./consoleUrls";
 import { CLOUD_DOCS } from "./docsConfig";
 import { warningMessageIconSx } from "../../config/styles";
-import type { UseAwsLoginCard } from "./useAwsLoginCard";
-import type { CardChrome } from "../../types";
-
-type Props = {
-  card: CardChrome;
-  awsLogin: UseAwsLoginCard;
-};
+import { useAwsSession } from "../../session";
 
 function Intro() {
   return (
@@ -51,7 +45,8 @@ function Action() {
   return <ViewLink href={getAwsConsoleUrl()} />;
 }
 
-export default function AwsLoginCard({ card, awsLogin }: Props) {
+export default function AwsLoginCard() {
+  const { login: awsLogin } = useAwsSession();
   const [showSecret, setShowSecret] = useState(false);
   const {
     accessKeyId,
@@ -76,7 +71,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
   const usableDevices = mfaDevices.filter((d) => d.usable);
 
   return (
-    <Card title="AWS login" action={<Action />} intro={<Intro />} {...card}>
+    <Card title="AWS login" face={awsLogin} action={<Action />} intro={<Intro />}>
       <Box
         component="form"
         // Gives the browser's password manager a real submit to detect, so it can offer to save the key pair.
@@ -102,7 +97,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                   value={accessKeyId}
                   onChange={(e) => setAccessKeyId(e.target.value)}
                   placeholder="AKIA..."
-                  disabled={!!account || loggingIn || card.locked}
+                  disabled={!!account || loggingIn}
                   sx={{ maxWidth: 340 }}
                   className="corpTechnicalInput"
                 />
@@ -114,7 +109,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
                   autoComplete="current-password"
                   value={secretAccessKey}
                   onChange={(e) => setSecretAccessKey(e.target.value)}
-                  disabled={!!account || loggingIn || card.locked}
+                  disabled={!!account || loggingIn}
                   sx={{ maxWidth: 340 }}
                   className="corpTechnicalInput"
                   InputProps={{
@@ -214,7 +209,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
             <Button
               variant="contained"
               type="submit"
-              disabled={card.locked || !canSignIn || loggingIn}
+              disabled={!canSignIn || loggingIn}
               aria-busy={loggingIn}
               startIcon={loggingIn ? <CircularProgress aria-label="Signing in to AWS" size={14} sx={{ color: "inherit" }} /> : undefined}
               sx={{

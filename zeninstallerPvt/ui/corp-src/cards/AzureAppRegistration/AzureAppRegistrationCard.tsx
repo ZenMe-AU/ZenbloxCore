@@ -9,28 +9,17 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
-import type { Account, CardChrome, GhEnv } from "../../types";
-import type { UseAzureAppRegistrationCard } from "./useAzureAppRegistrationCard";
-import type { UseGithubVariables } from "../../hooks/useGithubVariables";
-import StepRow from "../StepRow";
+import { useAzureAppRegistrationCard } from "./useAzureAppRegistrationCard";
+import { useAzureSession, useGithubSession } from "../../session";
+import StepRow from "../../components/StepRow";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import FieldLabel from "../../components/FieldLabel";
 import StatusText from "../../components/StatusText";
 import { AZURE_APP_REGISTRATIONS_URL, getAppRegistrationUrl } from "./consoleUrls";
 import { AZURE_APP_KEYS } from "../../logic/variables";
-import CloudVariableDetail from "../CloudVariableDetail";
+import CloudVariableDetail from "../../components/CloudVariableDetail";
 
-type Props = {
-  card: CardChrome;
-  appReg: UseAzureAppRegistrationCard;
-  githubAccount: Account | null;
-  repoName: string;
-  selectedEnv: GhEnv | null;
-  subscriptionId: string;
-  variables: UseGithubVariables;
-  githubUrl?: string;
-};
 
 function Intro() {
   return (
@@ -46,7 +35,21 @@ function Action({ clientId }: { clientId: string }) {
   return <ViewLink href={clientId ? getAppRegistrationUrl(clientId) : AZURE_APP_REGISTRATIONS_URL} />;
 }
 
-export default function AzureAppRegistrationCard({ card, appReg, githubAccount, repoName, selectedEnv, subscriptionId, variables, githubUrl }: Props) {
+export default function AzureAppRegistrationCard() {
+  const azure = useAzureSession();
+  const { subscriptionId } = azure;
+  const { account: githubAccount, repoName, repoId, selectedEnv, variables, githubUrl } = useGithubSession();
+  const appReg = useAzureAppRegistrationCard({
+    azureAccount: azure.account,
+    githubAccount,
+    githubRepo: repoName,
+    githubRepoId: repoId,
+    subscriptionId,
+    subscriptionLabel: azure.subscription.subscriptionLabel,
+    tenantId: azure.login.confirmedTenantId || undefined,
+    variableValues: variables.values,
+    manualTenantId: azure.login.manualTenantId,
+  });
   const {
     azureAccount,
     appName,
@@ -64,7 +67,6 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
     planClientIdMismatch,
     onVariablesComplete,
   } = appReg;
-  const disabled = card.locked;
   const [varExpanded, setVarExpanded] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const [bannerState, setBannerState] = useState<"none" | "saved" | "no-changes" | "error">("none");
@@ -134,7 +136,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
   const keyErrors = spNotFound ? { AZURE_CLIENT_ID: "Not found in the selected tenant", AZURE_PLAN_CLIENT_ID: "Not found in the selected tenant" } : undefined;
 
   return (
-    <Card title="Create an app registration in Azure" action={<Action clientId={appReg.spClientId} />} intro={<Intro />} {...card}>
+    <Card title="Create an app registration in Azure" face={appReg} action={<Action clientId={appReg.spClientId} />} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {/* ── Result banner (shown after create+auto-save completes) ── */}
         {bannerState !== "none" && (
@@ -264,7 +266,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                     <Button
                       variant="contained"
                       onClick={handleRun}
-                      disabled={disabled || !subscriptionId || !appName.trim()}
+                      disabled={!subscriptionId || !appName.trim()}
                       sx={{
                         py: 0.85,
                         px: 2.5,
@@ -343,7 +345,6 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
             variables={variables}
             populate={populate}
             title="Connection details"
-            disabled={disabled}
             keyErrors={keyErrors}
             onComplete={onVariablesComplete}
             onAutoSaveResult={(result) => setBannerState(result)}

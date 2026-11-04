@@ -13,13 +13,7 @@ import ViewLink from "../../components/ViewLink";
 import { getGithubUserUrl, GITHUB_LOGIN_URL } from "../../logic/github";
 import RefreshButton from "../../components/RefreshButton";
 import { useRefreshIndicator } from "../../hooks/util/useRefreshIndicator";
-import type { CardChrome } from "../../types";
-import { type UseGithubLoginCard } from "./useGithubLoginCard";
-
-type Props = {
-  card: CardChrome;
-  auth: UseGithubLoginCard;
-};
+import { useGithubSession } from "../../session";
 
 function Intro() {
   return (
@@ -33,7 +27,8 @@ function Action({ login }: { login?: string }) {
   return <ViewLink href={login ? getGithubUserUrl(login) : GITHUB_LOGIN_URL} />;
 }
 
-export default function GithubLoginCard({ card, auth }: Props) {
+export default function GithubLoginCard() {
+  const { login: auth } = useGithubSession();
   const {
     loggingIn: authLoading,
     account: user,
@@ -80,7 +75,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
   };
 
   return (
-    <Card title="GitHub login" action={<Action login={user?.login} />} intro={<Intro />} {...card}>
+    <Card title="GitHub login" face={auth} action={<Action login={user?.login} />} intro={<Intro />}>
       <Box>
         {/* Mode toggle — hidden once logged in, and when PAT is the only mode there is nothing to pick */}
         {!user && backendAvailable && (

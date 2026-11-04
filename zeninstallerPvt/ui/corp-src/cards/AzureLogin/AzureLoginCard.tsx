@@ -14,14 +14,8 @@ import ErrorText from "../../components/ErrorText";
 import ExternalLink from "../../components/ExternalLink";
 import FieldLabel from "../../components/FieldLabel";
 import StatusText from "../../components/StatusText";
-import type { CardChrome } from "../../types";
-import type { UseAzureLoginCard } from "./useAzureLoginCard";
+import { useAzureSession } from "../../session";
 import { tenantDisplayName } from "../../logic/tenant";
-
-type Props = {
-  card: CardChrome;
-  azureLogin: UseAzureLoginCard;
-};
 
 function Intro() {
   return (
@@ -40,10 +34,11 @@ function Action() {
   return <ViewLink href={getEntraOverviewUrl()} />;
 }
 
-export default function AzureLoginCard({ card, azureLogin }: Props) {
-  if (card.status === "unavailable") {
+export default function AzureLoginCard() {
+  const { login: azureLogin } = useAzureSession();
+  if (azureLogin.status === "unavailable") {
     return (
-      <Card title="Azure login" intro={<Intro />} {...card}>
+      <Card title="Azure login" face={azureLogin} intro={<Intro />}>
         <ConfigErrorNotice />
       </Card>
     );
@@ -69,7 +64,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
   const savedTenantNotInList = !!savedTenantId && manualTenantId === savedTenantId && tenants.length > 0 && !tenants.some((t) => t.tenantId === savedTenantId);
 
   return (
-    <Card title="Azure login" action={<Action />} intro={<Intro />} {...card}>
+    <Card title="Azure login" face={azureLogin} action={<Action />} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {!azureAccount ? (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>

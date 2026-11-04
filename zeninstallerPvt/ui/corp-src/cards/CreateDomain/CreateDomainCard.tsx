@@ -8,8 +8,8 @@ import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
-import type { UseCreateDomainCard } from "./useCreateDomainCard";
-import StepRow from "../StepRow";
+import { useCreateDomainCard } from "./useCreateDomainCard";
+import StepRow from "../../components/StepRow";
 import Card from "../../components/Card";
 import { PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
@@ -17,27 +17,13 @@ import { AZURE_DNS_ZONES_URL, getAzureResourceUrl } from "../../logic/consoleUrl
 import { dnsZoneScope } from "../../api/azureArm";
 import { getVariableDisplayName } from "../../logic/variables";
 import { DNS_KEYS, CORE_RESOURCE_GROUP_KEYS } from "../../logic/variables";
-import CloudVariableDetail from "../CloudVariableDetail";
+import CloudVariableDetail from "../../components/CloudVariableDetail";
 import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
-import type { UseGithubVariables } from "../../hooks/useGithubVariables";
-import type { Account, CardChrome, AzureAccount, GhEnv } from "../../types";
+import { useAzureSession, useGithubSession } from "../../session";
 
 const CORE_DOMAIN_KEYS = [...DNS_KEYS, ...CORE_RESOURCE_GROUP_KEYS];
 
-type Props = {
-  card: CardChrome;
-  createDomain: UseCreateDomainCard;
-  azureAccount: AzureAccount | null;
-  corpName: string;
-  dnsName: string;
-  subscriptionId: string;
-  githubAccount: Account | null;
-  repoName: string;
-  selectedEnv: GhEnv | null;
-  variables: UseGithubVariables;
-  githubUrl?: string;
-};
 
 function Intro({ dnsName }: { dnsName: string }) {
   return (
@@ -48,7 +34,7 @@ function Intro({ dnsName }: { dnsName: string }) {
   );
 }
 
-function PrimaryCheckbox({ checked, disabled, dnsName, onChange }: { checked: boolean; disabled: boolean; dnsName: string; onChange: (v: boolean) => void }) {
+function PrimaryCheckbox({ checked, disabled, dnsName, onChange }: { checked: boolean; disabled?: boolean; dnsName: string; onChange: (v: boolean) => void }) {
   return (
     <Box component="label" sx={{ display: "flex", alignItems: "center", gap: 0.75, cursor: "pointer" }}>
       <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} style={{ margin: 0, width: 14, height: 14 }} />
@@ -63,19 +49,19 @@ function Action({ resourceId }: { resourceId: string | null }) {
   return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_DNS_ZONES_URL} />;
 }
 
-export default function CreateDomainCard({
-  card,
-  createDomain,
-  azureAccount,
-  corpName,
-  dnsName,
-  subscriptionId,
-  githubAccount,
-  repoName,
-  selectedEnv,
-  variables,
-  githubUrl,
-}: Props) {
+export default function CreateDomainCard() {
+  const { account: azureAccount, subscriptionId } = useAzureSession();
+  const { account: githubAccount, repoName, selectedEnv, variables, githubUrl } = useGithubSession();
+  const corpName = variables.values.NAME ?? "";
+  const dnsName = variables.values.DNS ?? "";
+  const createDomain = useCreateDomainCard({
+    azureAccount,
+    subscriptionId,
+    corpName,
+    dnsName,
+    spClientId: variables.values.AZURE_CLIENT_ID ?? "",
+    tenantId: variables.values.AZURE_TENANT_ID ?? "",
+  });
   const {
     checkingStatus,
     checkStatusError,
@@ -101,7 +87,6 @@ export default function CreateDomainCard({
     run,
     reset,
   } = createDomain;
-  const disabled = card.locked;
   const [editingLocation, setEditingLocation] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const prevRunNonceRef = useRef(runNonce);
@@ -123,6 +108,7 @@ export default function CreateDomainCard({
   return (
     <Card
       title="Core domain"
+      face={createDomain}
       action={
         <Action
           resourceId={
@@ -133,7 +119,6 @@ export default function CreateDomainCard({
         />
       }
       intro={<Intro dnsName={dnsName} />}
-      {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <CloudVariableDetail
@@ -189,13 +174,13 @@ export default function CreateDomainCard({
               </Box>
             </Box>
 
-            <PrimaryCheckbox checked={makePrimary} disabled={disabled} dnsName={dnsName} onChange={setMakePrimary} />
+            <PrimaryCheckbox checked={makePrimary} dnsName={dnsName} onChange={setMakePrimary} />
 
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
               <Button
                 variant="contained"
                 onClick={run}
-                disabled={disabled || running || !location.trim()}
+                disabled={running || !location.trim()}
                 sx={{
                   py: 0.85,
                   px: 2.5,
@@ -301,12 +286,12 @@ export default function CreateDomainCard({
               </Box>
             ) : (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <PrimaryCheckbox checked={makePrimary} disabled={disabled || verifying} dnsName={dnsName} onChange={setMakePrimary} />
+                <PrimaryCheckbox checked={makePrimary} disabled={verifying} dnsName={dnsName} onChange={setMakePrimary} />
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
                   <Button
                     variant="outlined"
                     onClick={verify}
-                    disabled={disabled || verifying}
+                    disabled={verifying}
                     startIcon={verifying ? <CircularProgress size={12} /> : undefined}
                     sx={{
                       borderColor: "primary.light",

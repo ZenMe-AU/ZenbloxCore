@@ -7,8 +7,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useRepoCard, type UseRepoCard } from "../cards/Repo/useRepoCard";
-import type { CardStatus } from "../types";
+import { useRepoCard, type UseRepoCard } from "./useRepoCard";
+import type { CardStatus } from "../../types";
 
 const { mockHooks } = vi.hoisted(() => ({
   mockHooks: {
@@ -17,15 +17,15 @@ const { mockHooks } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../cards/Repo/useGithubRepo", () => ({
+vi.mock("./useGithubRepo", () => ({
   useGithubRepo: mockHooks.useGithubRepo,
 }));
 
-vi.mock("../cards/Repo/useGithubEnvironment", () => ({
+vi.mock("./useGithubEnvironment", () => ({
   useGithubEnvironment: mockHooks.useGithubEnvironment,
 }));
 
-vi.mock("../logic/github", () => ({
+vi.mock("../../logic/github", () => ({
   getEnvSettingsUrl: vi.fn(() => "https://github.example/settings"),
 }));
 

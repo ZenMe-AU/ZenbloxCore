@@ -13,7 +13,8 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { alpha, useTheme } from "@mui/material/styles";
-import type { CardStatus, CardChrome } from "../types";
+import type { CardHook, CardStatus } from "../types";
+import { useCards, useReportCard } from "../hooks/useCards";
 import { borderHoverTint, borderTint } from "../config/styles";
 
 const STATUS_LABEL: Record<CardStatus, string> = {
@@ -62,9 +63,12 @@ function StatusIcon({
  * live content. unavailable: Broken from the start (e.g. missing config), not something to
  * unlock - same muted chrome as `locked` but with a warning icon, and summary/content stay visible.
  * intro: Text only. Card sets its typography and shows it above the content in every state, so cards never render it themselves.
+ * face: The card's hook (or just its id, status, summary, …). Card reports it with the title so other cards can lock on
+ * it, and gets its own chrome (locked, expanded, …) back from CardsProvider by face.cardId.
  */
-type Props = CardChrome & {
+type Props = {
   title: string;
+  face: CardHook;
   action?: React.ReactNode;
   intro?: React.ReactNode;
   children: React.ReactNode;
@@ -73,23 +77,12 @@ type Props = CardChrome & {
 /*
  * Collapses to a compact summary, expands (accordion) to the full card. Unlike
  * StepWrapper, a locked card still expands — it shows what's missing instead of blocking.
- * Owns its own outer id/width — App just renders <Card {...cardProps(id)} title="…"> directly,
+ * Owns its own outer id/width, so a card component renders <Card face={…} title="…"> directly,
  * no separate wrapping Box.
  */
-export default function Card({
-  cardId,
-  title,
-  summary,
-  status,
-  locked,
-  requirements,
-  expanded,
-  onToggle,
-  onRequirementClick,
-  action,
-  intro,
-  children,
-}: Props) {
+export default function Card({ title, face, action, intro, children }: Props) {
+  useReportCard({ ...face, title });
+  const { cardId, summary, status, locked, requirements, expanded, onToggle, onRequirementClick } = useCards().cardProps(face.cardId);
   const theme = useTheme();
   const colors = theme.vars.palette.card;
   /*

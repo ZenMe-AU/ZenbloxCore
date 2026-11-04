@@ -6,21 +6,19 @@
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { UseWebDeployCard } from "./useWebDeployCard";
-import StepRow from "../StepRow";
+import { useWebDeployCard } from "./useWebDeployCard";
+import StepRow from "../../components/StepRow";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
-import CloudVariableDetail from "../CloudVariableDetail";
+import CloudVariableDetail from "../../components/CloudVariableDetail";
 import { FRONTEND_VARIABLE_KEYS } from "../../logic/variables";
 import { warningMessageIconSx } from "../../config/styles";
 import { GITHUB_OAUTH_DOC } from "./config";
-import type { UseGithubVariables } from "../../hooks/useGithubVariables";
-import type { Account, GhEnv } from "../../types";
-import type { CardChrome } from "../../types";
+import { useAzureSession, useGithubSession } from "../../session";
 
 const when = (unixSeconds: number) => new Date(unixSeconds * 1000).toLocaleString();
 
@@ -44,18 +42,19 @@ function Intro({ storageAccountName }: { storageAccountName: string }) {
   );
 }
 
-type Props = {
-  card: CardChrome;
-  web: UseWebDeployCard;
-  repoFullName: string | null;
-  githubAccount: Account | null;
-  repoName: string;
-  selectedEnv: GhEnv | null;
-  variables: UseGithubVariables;
-  githubUrl?: string;
-};
 
-export default function WebDeployCard({ card, web, repoFullName, githubAccount, repoName, selectedEnv, variables, githubUrl }: Props) {
+export default function WebDeployCard() {
+  const { account: azureAccount, subscriptionId } = useAzureSession();
+  const { account: githubAccount, repoName, repoFullName, selectedEnv, variables, githubUrl } = useGithubSession();
+  const web = useWebDeployCard({
+    variableValues: variables.values,
+    azureAccount,
+    subscriptionId,
+    tenantId: variables.values.AZURE_TENANT_ID ?? "",
+    githubAccount,
+    repoName,
+    selectedEnv,
+  });
   const {
     storageAccountName,
     siteUrl,
@@ -81,6 +80,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
   return (
     <Card
       title="Private Zeninstaller Frontend"
+      face={web}
       action={
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
@@ -88,7 +88,6 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
         ) : undefined
       }
       intro={<Intro storageAccountName={storageAccountName} />}
-      {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <CloudVariableDetail

@@ -7,34 +7,16 @@ import { useEffect } from "react";
 import { Box, Button, CircularProgress, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
-import type { Account, CardChrome, GhEnv } from "../../types";
-import type { UseAzureAccount } from "../AzureLogin/useAzureAccount";
-import type { UseAzureSubscriptionCard } from "./useAzureSubscriptionCard";
-import type { UseGithubVariables } from "../../hooks/useGithubVariables";
+import { useCards } from "../../hooks/useCards";
+import { useAzureSession, useGithubSession, useUrlRestoreStatus } from "../../session";
 import { INITIAL_URL_PARAMS } from "../../hooks/useUrlStateManager";
 import { tenantDisplayName } from "../../logic/tenant";
 import { AZURE_TARGET_KEYS } from "../../logic/variables";
-import CloudVariableDetail from "../CloudVariableDetail";
+import CloudVariableDetail from "../../components/CloudVariableDetail";
 import Card from "../../components/Card";
 import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
-
-type Props = {
-  card: CardChrome;
-  azure: UseAzureAccount;
-  subscription: UseAzureSubscriptionCard;
-  // GitHub context — where AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID are saved.
-  githubAccount: Account | null;
-  repoName: string;
-  selectedEnv: GhEnv | null;
-  variables: UseGithubVariables;
-  githubUrl?: string;
-  // Expands the Azure login card and scrolls to it — that's where the tenant itself is picked.
-  onOpenAzureLogin: () => void;
-  // Called on a genuine manual subscription pick, so a caller can cancel a pending URL restore.
-  onUserInteract: () => void;
-};
 
 function Intro() {
   return (
@@ -56,18 +38,15 @@ function Action({ subscriptionId, tenantId }: { subscriptionId: string; tenantId
   return <ViewLink href={subscriptionId ? getAzureSubscriptionUrl(tenantId, subscriptionId) : AZURE_SUBSCRIPTIONS_URL} />;
 }
 
-export default function AzureSubscriptionCard({
-  card,
-  azure,
-  subscription,
-  githubAccount,
-  repoName,
-  selectedEnv,
-  variables,
-  githubUrl,
-  onOpenAzureLogin,
-  onUserInteract,
-}: Props) {
+export default function AzureSubscriptionCard() {
+  const { login: azure, subscription } = useAzureSession();
+  const { account: githubAccount, repoName, selectedEnv, variables, githubUrl } = useGithubSession();
+  const { openCard } = useCards();
+  const urlRestore = useUrlRestoreStatus();
+  // The tenant itself is picked on the Azure login card.
+  const onOpenAzureLogin = () => openCard("azure_login");
+  // A genuine manual subscription pick cancels a pending URL restore.
+  const onUserInteract = () => urlRestore.cancel(["tenant", "subscription"]);
   const { tenants, manualTenantId } = azure;
   const { subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, subscriptionDrift, subscriptionNoAccess } = subscription;
 
@@ -99,9 +78,9 @@ export default function AzureSubscriptionCard({
   return (
     <Card
       title="Choose Azure subscription"
+      face={subscription}
       action={<Action subscriptionId={selectedSubscriptionId} tenantId={azure.confirmedTenantId ?? undefined} />}
       intro={<Intro />}
-      {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>

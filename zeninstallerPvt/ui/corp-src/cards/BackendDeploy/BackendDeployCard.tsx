@@ -7,21 +7,16 @@ import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
-import type { UseBackendDeployCard } from "./useBackendDeployCard";
-import StepRow from "../StepRow";
+import { useBackendDeployCard } from "./useBackendDeployCard";
+import StepRow from "../../components/StepRow";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import ErrorText from "../../components/ErrorText";
-import type { CardChrome } from "../../types";
+import { useAzureSession, useGithubSession } from "../../session";
 
 const when = (unixSeconds: number) => new Date(unixSeconds * 1000).toLocaleString();
 
-type Props = {
-  card: CardChrome;
-  backend: UseBackendDeployCard;
-  repoFullName: string | null;
-};
 
 function Intro({ appName }: { appName: string }) {
   return (
@@ -32,12 +27,24 @@ function Intro({ appName }: { appName: string }) {
   );
 }
 
-export default function BackendDeployCard({ card, backend, repoFullName }: Props) {
+export default function BackendDeployCard() {
+  const { account: azureAccount, subscriptionId } = useAzureSession();
+  const { account: githubAccount, repoName, repoFullName, selectedEnv, variables } = useGithubSession();
+  const backend = useBackendDeployCard({
+    azureAccount,
+    subscriptionId,
+    tenantId: variables.values.AZURE_TENANT_ID ?? "",
+    githubAccount,
+    repoName,
+    selectedEnv,
+    variableValues: variables.values,
+  });
   const { appName, latest, deployed, loadingLatest, loadingDeployed, building, build, buildWorkflow, updateAvailable, error, steps, running, run } = backend;
 
   return (
     <Card
       title="Private Zeninstaller Backend"
+      face={backend}
       action={
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
@@ -45,7 +52,6 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
         ) : undefined
       }
       intro={<Intro appName={appName} />}
-      {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Box>

@@ -7,8 +7,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useCreateDomainCard, type UseCreateDomainCard } from "../cards/CreateDomain/useCreateDomainCard";
-import type { AzureAccount } from "../types";
+import { useCreateDomainCard, type UseCreateDomainCard } from "./useCreateDomainCard";
+import type { AzureAccount } from "../../types";
 
 async function waitFor(assertion: () => void, timeoutMs = 2000) {
   const deadline = Date.now() + timeoutMs;
@@ -56,12 +56,12 @@ const { configMocks } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../auth/msal", () => ({
+vi.mock("../../auth/msal", () => ({
   getMsal: apiMocks.getMsal,
   ensureScopeConsent: apiMocks.ensureScopeConsent,
 }));
 
-vi.mock("../api/azureArm", () => ({
+vi.mock("../../api/azureArm", () => ({
   getProviderRegistrationState: apiMocks.getProviderRegistrationState,
   registerProvider: apiMocks.registerProvider,
   ensureDnsZone: apiMocks.ensureDnsZone,
@@ -71,7 +71,7 @@ vi.mock("../api/azureArm", () => ({
   listLocations: apiMocks.listLocations,
 }));
 
-vi.mock("../api/azureGraph", () => ({
+vi.mock("../../api/azureGraph", () => ({
   getEntraDomain: apiMocks.getEntraDomain,
   createEntraDomain: apiMocks.createEntraDomain,
   getDomainVerificationTxt: apiMocks.getDomainVerificationTxt,
@@ -83,11 +83,11 @@ vi.mock("../api/azureGraph", () => ({
   listAppRoleAssignments: apiMocks.listAppRoleAssignments,
 }));
 
-vi.mock("../logic/consent", () => ({
+vi.mock("../../logic/consent", () => ({
   isConsentError: apiMocks.isConsentError,
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../../config/azureConfig", () => ({
   get AZURE_CLIENT_ID() {
     return configMocks.azureClientId;
   },

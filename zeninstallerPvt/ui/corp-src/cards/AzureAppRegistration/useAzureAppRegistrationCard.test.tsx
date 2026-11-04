@@ -7,8 +7,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AzureAccount } from "../types";
-import { useAzureAppRegistrationCard, type UseAzureAppRegistrationCard } from "../cards/AzureAppRegistration/useAzureAppRegistrationCard";
+import type { AzureAccount } from "../../types";
+import { useAzureAppRegistrationCard, type UseAzureAppRegistrationCard } from "./useAzureAppRegistrationCard";
 
 async function waitFor(assertion: () => void, timeoutMs = 1500) {
   const deadline = Date.now() + timeoutMs;
@@ -44,16 +44,16 @@ const { apiMocks } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../auth/msal", () => ({
+vi.mock("../../auth/msal", () => ({
   getMsal: apiMocks.getMsal,
   ensureScopeConsent: apiMocks.ensureScopeConsent,
 }));
 
-vi.mock("../api", () => ({
+vi.mock("../../api", () => ({
   setOidcImmutableSubject: apiMocks.setOidcImmutableSubject,
 }));
 
-vi.mock("../api/azureGraph", () => ({
+vi.mock("../../api/azureGraph", () => ({
   getExistingApp: apiMocks.getExistingApp,
   getAppNameByAppId: apiMocks.getAppNameByAppId,
   createAppRegistration: apiMocks.createAppRegistration,
@@ -63,21 +63,21 @@ vi.mock("../api/azureGraph", () => ({
   ensureRbacRole: apiMocks.ensureRbacRole,
 }));
 
-vi.mock("../logic/consent", () => ({
+vi.mock("../../logic/consent", () => ({
   isConsentError: apiMocks.isConsentError,
 }));
 
-vi.mock("../cards/AzureAppRegistration/useRbacCheck", () => ({
+vi.mock("./useRbacCheck", () => ({
   useRbacCheck: vi.fn(() => ({ status: apiMocks.rbacStatus, missingRoles: apiMocks.rbacMissingRoles })),
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../../config/azureConfig", () => ({
   AZURE_CLIENT_ID: "client-id",
   APP_SCOPES: ["app.scope"],
   ARM_SCOPES: ["arm.scope"],
 }));
 
-vi.mock("../config/githubConfig", () => ({
+vi.mock("../../config/githubConfig", () => ({
   VALID_ENVS: ["PROD", "TEST"],
 }));
 

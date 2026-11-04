@@ -17,8 +17,8 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import Card from "../../components/Card";
 import RefreshButton from "../../components/RefreshButton";
 import { useRefreshIndicator } from "../../hooks/util/useRefreshIndicator";
-import type { CardChrome } from "../../types";
-import { isRowDirty, wouldCreateCycle, type UseGlobalGroupsCard, type GroupRow, type GroupRowResult } from "./useGlobalGroupsCard";
+import { useAzureSession } from "../../session";
+import { isRowDirty, useGlobalGroupsCard, wouldCreateCycle, type GroupRow, type GroupRowResult } from "./useGlobalGroupsCard";
 import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
 
@@ -48,11 +48,6 @@ const ghostFieldSx = (muted: boolean) => (theme: import("@mui/material/styles").
   },
 });
 
-type Props = {
-  card: CardChrome;
-  globalGroups: UseGlobalGroupsCard;
-};
-
 function Intro() {
   return (
     <>
@@ -68,7 +63,9 @@ function Intro() {
  * groups" offers the same 5-group template ZBCorpArchitecture/corpSetup's c02globalGroups
  * Terraform stage creates, as a starting point.
  */
-export default function GlobalGroupsCard({ card, globalGroups }: Props) {
+export default function GlobalGroupsCard() {
+  const azure = useAzureSession();
+  const globalGroups = useGlobalGroupsCard({ azureAccount: azure.account, confirmedTenantId: azure.login.confirmedTenantId });
   const {
     rows,
     savedById,
@@ -93,7 +90,6 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
     consentRequired,
     requestGroupsConsent,
   } = globalGroups;
-  const disabled = card.locked;
   const { refreshResult, markClicked } = useRefreshIndicator(refreshing);
   const [expandedMemberOfId, setExpandedMemberOfId] = useState<string | null>(null);
   // Excludes names that would close a membership cycle (directly or transitively) with this row,
@@ -110,10 +106,10 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
   };
 
   return (
-    <Card title="Global groups" intro={<Intro />} {...card}>
+    <Card title="Global groups" face={globalGroups} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "flex-end", gap: 1 }}>
-          <RefreshButton busy={refreshing} result={refreshResult} disabled={disabled || loading} onClick={handleRefresh} />
+          <RefreshButton busy={refreshing} result={refreshResult} disabled={loading} onClick={handleRefresh} />
         </Box>
 
         {consentRequired && (
@@ -186,7 +182,6 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                       value={row.groupName}
                       onChange={(e) => updateRow(row.id, { groupName: e.target.value })}
                       error={!!rowErrors[row.id]}
-                      disabled={disabled}
                       sx={ghostFieldSx(false)}
                     />
                     <TextField
@@ -197,14 +192,12 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                       placeholder="Description (optional)"
                       value={row.description}
                       onChange={(e) => updateRow(row.id, { description: e.target.value })}
-                      disabled={disabled}
                       sx={ghostFieldSx(true)}
                     />
                   </Box>
                   {!memberOfExpanded && (
                     <ButtonBase
                       aria-label={`Edit memberships for ${row.groupName || "new group"}`}
-                      disabled={disabled}
                       onClick={() => setExpandedMemberOfId(row.id)}
                       sx={{
                         display: "flex",
@@ -229,7 +222,6 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                     <IconButton
                       size="small"
                       onClick={() => revertRow(row.id)}
-                      disabled={disabled}
                       title="Undo changes"
                       aria-label={`Undo changes to ${row.groupName}`}
                       sx={{ color: "text.disabled", "&:hover": { color: "warning.main" } }}
@@ -238,7 +230,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                     </IconButton>
                   )}
                   {row.isNew ? (
-                    <IconButton aria-label={`Remove new group ${row.groupName || "row"}`} size="small" onClick={() => removeRow(row.id)} disabled={disabled} sx={{ color: "text.disabled", "&:hover": { color: "error.main" } }}>
+                    <IconButton aria-label={`Remove new group ${row.groupName || "row"}`} size="small" onClick={() => removeRow(row.id)} sx={{ color: "text.disabled", "&:hover": { color: "error.main" } }}>
                       <CloseIcon sx={{ typography: "caption" }} />
                     </IconButton>
                   ) : (
@@ -246,7 +238,6 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                       aria-label={`Delete group ${row.groupName}`}
                       size="small"
                       onClick={() => requestDeleteRow(row.id)}
-                      disabled={disabled}
                       sx={{ color: "text.disabled", "&:hover": { color: "error.main" } }}
                     >
                       <DeleteOutlineIcon sx={{ typography: "caption" }} />
@@ -263,7 +254,6 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
                       options={memberOfOptions(row)}
                       value={row.memberOfGroupNames}
                       onChange={(_, value) => updateRow(row.id, { memberOfGroupNames: value })}
-                      disabled={disabled}
                       sx={{ flex: 1 }}
                       renderOption={(props, option) => (
                         <Box component="li" {...props} sx={{ py: 0.75 }}>
@@ -342,7 +332,6 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
 
           {/* Trailing "add a row" affordance — part of the list, not a separate button below it. */}
           <ButtonBase
-            disabled={disabled}
             onClick={addRow}
             sx={{
               display: "flex",
@@ -363,7 +352,7 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
           <Button
             variant="contained"
             onClick={() => void sync()}
-            disabled={disabled || !canSync || syncing}
+            disabled={!canSync || syncing}
             startIcon={syncing ? <CircularProgress aria-label="Syncing groups" size={12} /> : undefined}
             sx={{
               py: 0.65,
@@ -376,7 +365,6 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
             size="small"
             startIcon={<AddIcon sx={{ typography: "caption" }} />}
             onClick={addDefaultGroups}
-            disabled={disabled}
             sx={{ color: "text.secondary", "&:hover": { color: "primary.main" } }}
           >
             Add default groups

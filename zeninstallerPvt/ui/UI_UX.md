@@ -55,7 +55,13 @@ Responsive behaviour is intrinsic to the grid (3 to 2 to 1 columns as width shri
 
 ### 3.1 Contract
 
-Every card is backed by a hook that implements `CardHook` ([types.ts](corp-src/types.ts)):
+Every card is a folder under `cards/` whose `index.ts` exports `{ order, Component }` (`CardModule` in [useCards.ts](corp-src/hooks/useCards.ts)). App loads every `cards/*/index.ts` with `import.meta.glob` and renders them by `order`, so adding or removing a folder adds or removes its card. A card folder imports only the platform (`components/`, `hooks/`, `session/`, `logic/`, …), never another card folder; ESLint enforces this. A card's own tests live in its folder.
+
+Cards are linked through three channels only:
+
+1. **Sessions** ([session/](corp-src/session)): GitHub (sign-in, repo, environment, variables), Azure (sign-in, tenant, subscription) and AWS. `SessionProvider` runs the foundation cards' hooks once for the page; every card reads `useGithubSession()`, `useAzureSession()` or `useAwsSession()` instead of taking props.
+2. **GitHub variables**: one card's saved output (e.g. `AZURE_CLIENT_ID`) is another card's input.
+3. **Faces** ([CardsProvider](corp-src/components/CardsProvider.tsx)): each card's hook implements `CardHook` ([types.ts](corp-src/types.ts)) and is passed to `Card` as `face`.
 
 ```mermaid
 classDiagram
@@ -66,6 +72,7 @@ classDiagram
     summary?: string
     cardRequirements?: CardId[]
     cardDependencyLabel?: string
+    hideFromProgress?: boolean
   }
   class CardChrome {
     cardId
@@ -80,19 +87,22 @@ classDiagram
   }
   class Card {
     title
+    face: CardHook
     action?
     intro?
     children
   }
-  CardHook --> CardChrome : App.cardProps(id) derives
-  CardChrome --> Card : spread as props
+  CardHook --> Card : face
+  Card --> CardChrome : reports face + title, CardsProvider.cardProps(face.cardId) derives
 ```
 
-`App.cardProps(id)` is the single place where hook state becomes visual chrome:
+`CardsProvider.cardProps(id)` is the single place where reported faces become visual chrome:
 
 1. `requirements` = the card's `cardRequirements` whose target hook is not `done`, labelled with the target's `cardDependencyLabel`.
 2. `locked` = there is at least one unmet requirement (unless the card is `unavailable`, which suppresses requirements).
 3. A locked card's status is forced to `idle`, so it never shows a stale warning.
+
+The progress bar and next-step button list the faces in the order the cards first reported, which is their order on the page; a face with `hideFromProgress` (GitHub sign-up) is left out.
 
 ### 3.2 States
 
@@ -234,7 +244,7 @@ Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRe
 
 Notes:
 
-- `global_groups` ([GlobalGroups](corp-src/cards/GlobalGroups)) has a hook and component but is **not rendered** in `App.tsx`; the equivalent flow is the `c02globalGroups` stage.
+- `global_groups` ([GlobalGroups](corp-src/cards/GlobalGroups)) has a hook and component but no `index.ts`, so App doesn't load it; the equivalent flow is the `c02globalGroups` stage.
 - Stage definitions live in [logic/pipeline.ts](corp-src/logic/pipeline.ts): `c01subscription`, `c02globalGroups`, `c07userAccounts`, `c20awsentrasso`, `c21awsentrassoP2`, `c25cloudfront`.
 
 ---
@@ -479,7 +489,7 @@ Observed from source review; none of these have been confirmed with assistive te
 | 10 | Low | The page had no overall progress indicator or recommended-next-step cue. | Resolved: the page reports completed tasks out of 20 and provides a button to open the first incomplete, unlocked card. |
 | 11 | Low | Footer Contact and Terms content are placeholders. | Provide content or remove the entry points before release. Keyboard shortcuts help is now implemented. |
 | 12 | Low | Icons are sized via `typography: "caption"` (about 12px), and `IconButton size="small"` targets are about 30px. | Acceptable for WCAG 2.2 AA (24px), but consider larger targets on touch. |
-| 13 | Info | `GlobalGroupsCard` is built, tested and unused in `App.tsx`. | Remove or render it. |
+| 13 | Info | `GlobalGroupsCard` is built and tested but has no `index.ts`, so it isn't loaded. | Remove it, or add an `index.ts` to render it. |
 | 14 | Info | Disabled primary buttons in the light scheme (`#cbd5e1` on `#f1f5f9`) are very faint; exempt from contrast rules but hard to see as buttons. | Add a border or lighter-weight outline style. |
 | 15 | Info | Destructive actions (sign-out, end session) are one click with no confirmation. | Consider confirmation where state is lost. |
 

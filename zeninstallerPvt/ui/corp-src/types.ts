@@ -22,7 +22,7 @@ export type CardRequirements = CardId[]; //["github_login","repo"]
 // A missing prerequisite, plus the card that resolves it (so it can be clicked to jump there).
 export type Requirement = { label: string; target: CardId };
 
-// Everything App derives for a card's frame — exactly what cardProps() returns and Card renders.
+// Everything CardsProvider derives for a card's frame — exactly what cardProps() returns and Card renders.
 export type CardChrome = {
   cardId: CardId;
   status: CardStatus;
@@ -36,16 +36,18 @@ export type CardChrome = {
 };
 
 // Every card-backing hook self-reports its own completion via `done`, plus the face
-// App renders for it (status icon + collapsed summary), so other cards can query it and
-// App never has to re-derive per-card state itself.
+// Card renders for it (status icon + collapsed summary). Card reports it to CardsProvider,
+// so other cards can lock on it without importing it.
 export interface CardHook {
   readonly cardId: CardId;
+  title?: string; // Added by Card when it reports the face, so nothing else repeats the title.
   done: boolean;
   status: CardStatus;
   summary?: string;
   cardRequirements?: CardRequirements;
   cardDependencyLabel?: string;
   stage?: string;
+  hideFromProgress?: boolean; // Not a setup step (e.g. GitHub sign-up), so it isn't counted or offered as the next step.
 }
 
 // ─── Composable hook shapes ───────────────────────────────────────────────────

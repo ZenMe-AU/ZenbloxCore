@@ -6,18 +6,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, ButtonBase, Collapse, Typography } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import type { UseRemoteTerminalInfraCard } from "./useRemoteTerminalInfraCard";
-import StepRow from "../StepRow";
+import { useRemoteTerminalInfraCard } from "./useRemoteTerminalInfraCard";
+import StepRow from "../../components/StepRow";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
 import StatusText from "../../components/StatusText";
 import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
-import CloudVariableDetail from "../CloudVariableDetail";
+import CloudVariableDetail from "../../components/CloudVariableDetail";
 import { DEPLOYMENT_TERMINAL_KEYS } from "../../logic/variables";
-import type { UseGithubVariables } from "../../hooks/useGithubVariables";
-import type { Account, CardChrome, GhEnv } from "../../types";
+import { useAzureSession, useGithubSession } from "../../session";
 
 function Intro() {
   return (
@@ -28,19 +27,22 @@ function Intro() {
   );
 }
 
-type Props = {
-  card: CardChrome;
-  infra: UseRemoteTerminalInfraCard;
-  subscriptionId: string;
-  tenantId?: string;
-  githubAccount: Account | null;
-  repoName: string;
-  selectedEnv: GhEnv | null;
-  variables: UseGithubVariables;
-  githubUrl?: string;
-};
-
-export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, tenantId, githubAccount, repoName, selectedEnv, variables, githubUrl }: Props) {
+export default function RemoteTerminalInfraCard() {
+  const { account: azureAccount, subscriptionId } = useAzureSession();
+  const { account: githubAccount, repoName, repoId, selectedEnv, variables, githubUrl } = useGithubSession();
+  const tenantId = variables.values.AZURE_TENANT_ID;
+  const dnsName = variables.values.DNS ?? "";
+  const infra = useRemoteTerminalInfraCard({
+    azureAccount,
+    subscriptionId,
+    variableValues: variables.values,
+    tenantId: tenantId ?? "",
+    allowedOrigins: [window.location.origin, ...(dnsName ? [`https://www.${dnsName}`, `https://${dnsName}`] : [])],
+    githubAccount,
+    githubRepo: repoName,
+    githubRepoId: repoId,
+    githubEnvName: selectedEnv?.name ?? null,
+  });
   const [varExpanded, setVarExpanded] = useState(false);
   const [editingStorage, setEditingStorage] = useState(false);
   const [editingWebPubSub, setEditingWebPubSub] = useState(false);
@@ -74,7 +76,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
       : undefined;
 
   return (
-    <Card title="Private Zeninstaller Backend Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} intro={<Intro />} {...card}>
+    <Card title="Private Zeninstaller Backend Environment" face={infra} action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {infra.steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>

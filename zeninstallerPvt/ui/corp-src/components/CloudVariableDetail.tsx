@@ -9,10 +9,10 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { Account } from "../types";
 import type { UseGithubVariables } from "../hooks/useGithubVariables";
-import VariablesCard from "../components/VariablesCard";
-import ExternalLink from "../components/ExternalLink";
-import RefreshButton from "../components/RefreshButton";
-import SaveButton from "../components/SaveButton";
+import VariablesCard from "./VariablesCard";
+import ExternalLink from "./ExternalLink";
+import RefreshButton from "./RefreshButton";
+import SaveButton from "./SaveButton";
 import { useVariableEditor } from "../hooks/util/useVariableEditor";
 import { useRefreshIndicator } from "../hooks/util/useRefreshIndicator";
 

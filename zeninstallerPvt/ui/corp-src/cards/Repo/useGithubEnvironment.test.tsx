@@ -7,8 +7,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useGithubEnvironment, type UseGithubEnvironment } from "../cards/Repo/useGithubEnvironment";
-import type { Account, Branch, GhEnv, RepoOption } from "../types";
+import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
+import type { Account, Branch, GhEnv, RepoOption } from "../../types";
 
 const { apiMocks } = vi.hoisted(() => ({
   apiMocks: {
@@ -16,7 +16,7 @@ const { apiMocks } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../api", () => ({
+vi.mock("../../api", () => ({
   fetchEnvs: apiMocks.fetchEnvs,
 }));
 

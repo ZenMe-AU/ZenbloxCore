@@ -6,8 +6,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, ButtonBase, Collapse, Typography } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import type { UsePrivateFrontendInfraCard } from "./usePrivateFrontendInfraCard";
-import StepRow from "../StepRow";
+import { usePrivateFrontendInfraCard } from "./usePrivateFrontendInfraCard";
+import StepRow from "../../components/StepRow";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
@@ -15,10 +15,9 @@ import StatusText from "../../components/StatusText";
 import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { getPrivateInstallerAppName } from "../../logic/naming";
 import { resourceGroupScope } from "../../api/azureArm";
-import CloudVariableDetail from "../CloudVariableDetail";
+import CloudVariableDetail from "../../components/CloudVariableDetail";
 import { PRIVATE_FRONTEND_KEYS } from "../../logic/variables";
-import type { UseGithubVariables } from "../../hooks/useGithubVariables";
-import type { Account, CardChrome, GhEnv } from "../../types";
+import { useAzureSession, useGithubSession } from "../../session";
 
 function Intro() {
   return (
@@ -28,29 +27,18 @@ function Intro() {
   );
 }
 
-type Props = {
-  card: CardChrome;
-  infra: UsePrivateFrontendInfraCard;
-  subscriptionId: string;
-  tenantId?: string;
-  githubAccount: Account | null;
-  repoName: string;
-  selectedEnv: GhEnv | null;
-  variables: UseGithubVariables;
-  githubUrl?: string;
-};
 
-export default function PrivateFrontendInfraCard({
-  card,
-  infra,
-  subscriptionId,
-  tenantId,
-  githubAccount,
-  repoName,
-  selectedEnv,
-  variables,
-  githubUrl,
-}: Props) {
+export default function PrivateFrontendInfraCard() {
+  const { account: azureAccount, subscriptionId } = useAzureSession();
+  const { account: githubAccount, repoName, selectedEnv, variables, githubUrl } = useGithubSession();
+  const tenantId = variables.values.AZURE_TENANT_ID ?? "";
+  const infra = usePrivateFrontendInfraCard({
+    variableValues: variables.values,
+    azureAccount,
+    subscriptionId,
+    tenantId,
+    allowedOrigins: [window.location.origin],
+  });
   const [varExpanded, setVarExpanded] = useState(false);
   const [editingLocation, setEditingLocation] = useState(false);
   const [editingStorage, setEditingStorage] = useState(false);
@@ -78,7 +66,7 @@ export default function PrivateFrontendInfraCard({
       : undefined;
 
   return (
-    <Card title="Frontend hosting environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} intro={<Intro />} {...card}>
+    <Card title="Frontend hosting environment" face={infra} action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {infra.steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>

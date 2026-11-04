@@ -6,17 +6,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { PIPELINE } from "../logic/pipeline";
-import type { Account, Branch, GhEnv } from "../types";
+import { PIPELINE } from "../../logic/pipeline";
+import type { Account, Branch, GhEnv } from "../../types";
 
 const apiMocks = vi.hoisted(() => ({
   triggerWorkflow: vi.fn(),
   fetchStageReport: vi.fn(),
   getPlanEnv: vi.fn(),
 }));
-vi.mock("../api", () => apiMocks);
+vi.mock("../../api", () => apiMocks);
 
-const { useDeploymentPlan } = await import("../cards/Stage/useDeploymentPlan");
+const { useDeploymentPlan } = await import("./useDeploymentPlan");
 type Plan = ReturnType<typeof useDeploymentPlan>;
 
 const ACCOUNT = { login: "org-one", type: "Organization", id: 1 } as Account;

@@ -6,8 +6,8 @@
 import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { clearGithubToken } from "../cards/GithubLogin/useGithubLoginCard";
-import { readGithubAuthRecord, useGithubLoginCard, type UseGithubLoginCard } from "../cards/GithubLogin/useGithubLoginCard";
+import { clearGithubToken } from "./useGithubLoginCard";
+import { readGithubAuthRecord, useGithubLoginCard, type UseGithubLoginCard } from "./useGithubLoginCard";
 
 const { apiMocks } = vi.hoisted(() => ({
   apiMocks: {
@@ -20,12 +20,12 @@ const { apiMocks } = vi.hoisted(() => ({
 }));
 
 // Only the flag is faked: these tests assert on the real exchange's outgoing request.
-vi.mock("../api/backend", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../api/backend")>()),
+vi.mock("../../api/backend", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../api/backend")>()),
   BACKEND_CONFIGURED: true,
 }));
 
-vi.mock("../api", () => ({
+vi.mock("../../api", () => ({
   verifyAuth: apiMocks.verifyAuth,
   switchToDirect: apiMocks.switchToDirect,
   switchToBackend: apiMocks.switchToBackend,

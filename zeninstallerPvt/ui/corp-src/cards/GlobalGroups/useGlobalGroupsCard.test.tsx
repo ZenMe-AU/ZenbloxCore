@@ -15,7 +15,7 @@ import {
   type UseGlobalGroupsCard,
   type GroupRow,
   type SavedGroup,
-} from "../cards/GlobalGroups/useGlobalGroupsCard";
+} from "./useGlobalGroupsCard";
 
 async function waitFor(assertion: () => void, timeoutMs = 2000) {
   const start = Date.now();
@@ -52,11 +52,11 @@ const { configMocks } = vi.hoisted(() => ({
   configMocks: { azureClientId: "client-id" },
 }));
 
-vi.mock("../auth/msal", () => ({
+vi.mock("../../auth/msal", () => ({
   getMsal: apiMocks.getMsal,
 }));
 
-vi.mock("../api/azureGraph", () => ({
+vi.mock("../../api/azureGraph", () => ({
   listGroups: apiMocks.listGroups,
   getGroupByName: apiMocks.getGroupByName,
   getGroupParents: apiMocks.getGroupParents,
@@ -68,11 +68,11 @@ vi.mock("../api/azureGraph", () => ({
   isGroupMember: apiMocks.isGroupMember,
 }));
 
-vi.mock("../logic/consent", () => ({
+vi.mock("../../logic/consent", () => ({
   isConsentError: apiMocks.isConsentError,
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../../config/azureConfig", () => ({
   get AZURE_CLIENT_ID() {
     return configMocks.azureClientId;
   },

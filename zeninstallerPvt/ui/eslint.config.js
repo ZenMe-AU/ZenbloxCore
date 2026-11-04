@@ -17,7 +17,11 @@ export default defineConfig([
     files: ["**/*.{ts,tsx}"],
     extends: [js.configs.recommended, tseslint.configs.recommended, reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     plugins: { "jsx-a11y": jsxA11y },
-    rules: jsxA11y.configs.recommended.rules,
+    rules: {
+      ...jsxA11y.configs.recommended.rules,
+      // App's default export is wrapped by Application Insights' HOC.
+      "react-refresh/only-export-components": ["error", { allowConstantExport: true, extraHOCs: ["withAITracking"] }],
+    },
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -39,6 +43,23 @@ export default defineConfig([
         {
           selector: "JSXAttribute[name.name='sx'] Property[key.name='fontSize']",
           message: "Use a theme typography variant instead of fontSize in sx.",
+        },
+      ],
+    },
+  },
+  {
+    // A card folder can be added or removed on its own, so it imports the platform, never another card folder.
+    files: ["corp-src/cards/*/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: "^\\.\\./(?!\\.\\./)",
+              message: "Import from the platform (../../components, ../../hooks, ../../session, …), not another card folder.",
+            },
+          ],
         },
       ],
     },

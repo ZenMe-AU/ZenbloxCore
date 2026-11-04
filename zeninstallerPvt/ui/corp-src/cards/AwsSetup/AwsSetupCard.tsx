@@ -17,22 +17,10 @@ import Card from "../../components/Card";
 import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
 import { getIamRoleUrl } from "./consoleUrls";
-import CloudVariableDetail from ".././CloudVariableDetail";
+import CloudVariableDetail from "../../components/CloudVariableDetail";
 import { AWS_VARIABLE_KEYS } from "../../logic/variables";
-import type { UseGithubVariables } from "../../hooks/useGithubVariables";
-import type { SetupStep, UseAwsSetupCard } from "./useAwsSetupCard";
-import type { Account, CardChrome, GhEnv } from "../../types";
-
-type Props = {
-  card: CardChrome;
-  awsSetup: UseAwsSetupCard;
-  account: Account | null;
-  repoName: string;
-  repoFullName: string | null;
-  selectedEnv: GhEnv | null;
-  variables: UseGithubVariables;
-  onAwsValid?: (valid: boolean | null) => void;
-};
+import { useAwsSetupCard, type SetupStep } from "./useAwsSetupCard";
+import { useAwsSession, useGithubSession } from "../../session";
 
 function Intro() {
   return (
@@ -72,7 +60,19 @@ function StepRow({ step }: { step: SetupStep }) {
   );
 }
 
-export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFullName, selectedEnv, variables, onAwsValid }: Props) {
+export default function AwsSetupCard() {
+  const { login: awsLogin } = useAwsSession();
+  const { account, repoName, repoId, repoEnv, selectedEnv, variables } = useGithubSession();
+  const repoFullName = repoEnv.repo.repoFullName;
+  const awsSetup = useAwsSetupCard({
+    githubAccount: account?.login ?? "",
+    githubAccountId: account?.id ?? 0,
+    githubRepo: repoName,
+    githubRepoId: repoId,
+    variableValues: variables.values,
+    awsReady: awsLogin.done,
+    awsAccount: awsLogin.account,
+  });
   const [varExpanded, setVarExpanded] = useState(false);
   const [loadedVars, setLoadedVars] = useState<Record<string, string> | null>(null);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
@@ -126,7 +126,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
   const populate = roleArn ? { [AWS_VARIABLE_KEYS[0]]: roleArn } : undefined;
 
   return (
-    <Card title="AWS setup" action={<Action roleName={roleName} />} intro={<Intro />} {...card}>
+    <Card title="AWS setup" face={awsSetup} action={<Action roleName={roleName} />} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {bannerState !== "none" && (
           <Box
@@ -167,7 +167,6 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 onChange={(e) => setRoleName(e.target.value)}
                 sx={{ minWidth: 280 }}
                 className="corpTechnicalInput"
-                disabled={card.locked}
               />
             </Box>
 
@@ -175,7 +174,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
               <Button
                 variant="contained"
                 onClick={handleCreate}
-                disabled={card.locked || !canCreate}
+                disabled={!canCreate}
                 sx={{
                   py: 1,
                   px: 2.5,
@@ -253,10 +252,8 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
             variables={variables}
             populate={populate}
             title="Connection details"
-            disabled={card.locked}
             onComplete={() => undefined}
             onAutoSaveResult={(result) => setBannerState(result)}
-            onSaved={() => onAwsValid?.(null)}
             githubUrl={githubUrl}
             onLoaded={(saved) => {
               setLoadedVars(saved);

@@ -7,8 +7,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAzureSubscriptionCard, type UseAzureSubscriptionCard } from "../cards/AzureSubscription/useAzureSubscriptionCard";
-import type { AzureAccount } from "../types";
+import { useAzureSubscriptionCard, type UseAzureSubscriptionCard } from "./useAzureSubscriptionCard";
+import type { AzureAccount } from "../../types";
 
 async function waitFor(assertion: () => void, timeoutMs = 1000) {
   const deadline = Date.now() + timeoutMs;
@@ -32,11 +32,11 @@ const { apiMocks } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../api/azureGraph", () => ({
+vi.mock("../../api/azureGraph", () => ({
   listSubscriptions: apiMocks.listSubscriptions,
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../../config/azureConfig", () => ({
   AZURE_CLIENT_ID: "client-id",
 }));
 

@@ -10,14 +10,7 @@ import RepoDetail, { Intro as RepoDetailIntro } from "./RepoDetail";
 import EnvDetail from "./EnvDetail";
 import { getRepoUrl } from "../../logic/github";
 import { TEMPLATE_REPO, VALID_ENVS } from "../../config/githubConfig";
-import type { CardChrome } from "../../types";
-import type { UseRepoCard } from "./useRepoCard";
-
-type Props = {
-  card: CardChrome;
-  githubRepo: UseRepoCard;
-  lockedByPR: boolean;
-};
+import { useGithubSession } from "../../session";
 
 function Intro() {
   return <RepoDetailIntro />;
@@ -32,10 +25,11 @@ function Action({ repoFullName }: { repoFullName: string | null }) {
   return <ViewLink href={getRepoUrl(repoFullName)} />;
 }
 
-export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
-  const { repo, env } = githubRepo;
+export default function RepoCard() {
+  const { repoEnv } = useGithubSession();
+  const { repo, env } = repoEnv;
   return (
-    <Card title="Repository & environment" action={<Action repoFullName={repo.repoFullName} />} intro={<Intro />} {...card}>
+    <Card title="Repository & environment" face={repoEnv} action={<Action repoFullName={repo.repoFullName} />} intro={<Intro />}>
       <RepoDetail
         accounts={repo.accountList}
         selectedAccount={repo.selectedAccount}
@@ -67,7 +61,7 @@ export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
             validEnvs={VALID_ENVS}
             selectedEnv={env.selectedEnv}
             onEnvChange={env.setSelectedEnv}
-            lockedByPR={lockedByPR}
+            lockedByPR={false}
             branchMatchWarning={env.branchMatchWarning}
             branchMatchError={env.branchMatchError}
             loading={env.envLoading}

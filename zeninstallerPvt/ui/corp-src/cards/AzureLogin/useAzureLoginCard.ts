@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import type { CardHook, CardRequirements, CardStatus, LoginHook, AzureAccount } from "../../types";
 import { AZURE_CLIENT_ID } from "../../config/azureConfig";
 import type { AzureTenant } from "../../types";
@@ -57,8 +57,9 @@ export interface UseAzureLoginCard extends UseAzureAccount, CardHook, LoginHook<
 export function useAzureLoginCard({ savedTenantId }: UseAzureLoginCardParams): UseAzureLoginCard {
   const azure = useAzureAccount();
 
-  // The API layer mints its own Microsoft tokens, so it needs to know who it is minting them for.
-  useEffect(() => {
+  // The API layer mints its own Microsoft tokens, so it needs to know who it is minting them for. A layout
+  // effect: this runs in SessionProvider, above the cards, whose own effects would otherwise run first.
+  useLayoutEffect(() => {
     setActiveAzureIdentity(azure.account, savedTenantId);
   }, [azure.account, savedTenantId]);
   // Which saved tenant value we've already tried to auto-apply, so a fresh save can retrigger it once.

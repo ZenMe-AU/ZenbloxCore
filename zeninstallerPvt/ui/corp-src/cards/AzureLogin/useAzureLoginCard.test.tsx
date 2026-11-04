@@ -7,9 +7,9 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { UseAzureAccount } from "../cards/AzureLogin/useAzureAccount";
-import { useAzureLoginCard, type UseAzureLoginCard } from "../cards/AzureLogin/useAzureLoginCard";
-import type { AzureAccount } from "../types";
+import type { UseAzureAccount } from "./useAzureAccount";
+import { useAzureLoginCard, type UseAzureLoginCard } from "./useAzureLoginCard";
+import type { AzureAccount } from "../../types";
 
 const { mockHooks } = vi.hoisted(() => ({
   mockHooks: {
@@ -23,15 +23,15 @@ const { urlMocks } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../cards/AzureLogin/useAzureAccount", () => ({
+vi.mock("./useAzureAccount", () => ({
   useAzureAccount: mockHooks.useAzureAccount,
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../../config/azureConfig", () => ({
   AZURE_CLIENT_ID: "client-id",
 }));
 
-vi.mock("../hooks/useUrlStateManager", () => ({
+vi.mock("../../hooks/useUrlStateManager", () => ({
   INITIAL_URL_PARAMS: {
     has: urlMocks.has,
   },

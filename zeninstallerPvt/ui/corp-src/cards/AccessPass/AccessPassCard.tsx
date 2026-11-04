@@ -5,9 +5,10 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Box, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
-import type { CardChrome, SetupStep } from "../../types";
-import type { UseAccessPassCard } from "./useAccessPassCard";
-import StepRow from "../StepRow";
+import type { SetupStep } from "../../types";
+import { useAccessPassCard } from "./useAccessPassCard";
+import { useAzureSession } from "../../session";
+import StepRow from "../../components/StepRow";
 import { logEvent } from "../../monitor/telemetry";
 import Card from "../../components/Card";
 import CopyRow from "../../components/CopyRow";
@@ -45,10 +46,6 @@ function saveDeliveryConfirmedByUserId(value: Record<string, boolean>) {
   localStorage.setItem(DELIVERY_CONFIRMED_USERS_KEY, JSON.stringify(value));
 }
 
-type Props = {
-  card: CardChrome;
-  accessPass: UseAccessPassCard;
-};
 
 function Intro() {
   return (
@@ -69,7 +66,9 @@ function Action() {
  * this body only ever renders once an Azure account + tenant are already confirmed —
  * unlike the standalone access-pass-src app, no separate sign-in/tenant UI lives here.
  */
-export default function AccessPassCard({ card, accessPass }: Props) {
+export default function AccessPassCard() {
+  const azure = useAzureSession();
+  const accessPass = useAccessPassCard({ azureAccount: azure.account, confirmedTenantId: azure.login.confirmedTenantId });
   const {
     steps,
     result,
@@ -83,7 +82,6 @@ export default function AccessPassCard({ card, accessPass }: Props) {
     reset,
     runForUser,
   } = accessPass;
-  const disabled = card.locked;
 
   const PAGE_SIZE = 200;
   const [creatingUserId, setCreatingUserId] = useState<string | null>(null);
@@ -183,7 +181,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
   const statusUserId = creatingUserId ?? selectedManagerUserId;
 
   return (
-    <Card title="Access pass" action={<Action />} intro={<Intro />} {...card}>
+    <Card title="Access pass" face={accessPass} action={<Action />} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
         {/* Entra user selector */}
         <Box
@@ -278,7 +276,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                       if (!photoIdConfirmed) return;
                                       void handleCreateForUser(user.id);
                                     }}
-                                    disabled={disabled || running || (showingConfirmationForUser && !photoIdConfirmed)}
+                                    disabled={running || (showingConfirmationForUser && !photoIdConfirmed)}
                                     sx={{
                                       py: 0.35,
                                       px: 1.2,
@@ -340,7 +338,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                         if (!photoIdConfirmed) return;
                                         void handleCreateForUser(user.id);
                                       }}
-                                      disabled={disabled || running || !photoIdConfirmed}
+                                      disabled={running || !photoIdConfirmed}
                                       sx={{
                                         py: 0.35,
                                         px: 1.2,

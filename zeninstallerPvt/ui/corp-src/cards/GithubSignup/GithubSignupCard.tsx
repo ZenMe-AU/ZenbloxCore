@@ -6,14 +6,9 @@
 import { Box, Button, TextField } from "@mui/material";
 import Card from "../../components/Card";
 import { GITHUB_SIGNUP_URL } from "../../logic/github";
-import type { CardChrome } from "../../types";
-import type { UseGithubSignupCard } from "./useGithubSignupCard";
-
-type Props = {
-  card: CardChrome;
-  signup: UseGithubSignupCard;
-  onOpenLogin: () => void;
-};
+import { useCards } from "../../hooks/useCards";
+import { useGithubSession } from "../../session";
+import { useGithubSignupCard } from "./useGithubSignupCard";
 
 function Intro() {
   return (
@@ -24,9 +19,13 @@ function Intro() {
   );
 }
 
-export default function GithubSignupCard({ card, signup, onOpenLogin }: Props) {
+export default function GithubSignupCard() {
+  const { login } = useGithubSession();
+  const { openCard } = useCards();
+  const signup = useGithubSignupCard(login.done);
+  const onOpenLogin = () => openCard("github_login");
   return (
-    <Card title="GitHub Sign Up" intro={<Intro />} {...card}>
+    <Card title="GitHub Sign Up" face={{ ...signup, hideFromProgress: true }} intro={<Intro />}>
       <Box sx={{ mb: 2 }}>
       </Box>
       <Box
