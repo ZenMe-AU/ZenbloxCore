@@ -5,16 +5,19 @@
 
 // ── Session-token lifetime ──────────────────────────────────────────────────────
 // Kept short to limit how long the exchanged session credentials remain valid.
-// Non-MFA sessions are refreshed silently near expiry (the long-term keys stay in
-// memory); MFA sessions can't be — each GetSessionToken needs a fresh one-time
-// code — so they lapse and re-prompt.
+// Sessions are refreshed silently near expiry while the long-term keys stay in memory.
 
 export const SESSION_DURATION_SECONDS = 15 * 60;
 export const SESSION_DURATION_MS = SESSION_DURATION_SECONDS * 1000;
 
-// Refresh non-MFA sessions this many ms before expiry so a call never lands on a
+// Refresh sessions this many ms before expiry so a call never lands on a
 // just-expired token.
 export const SESSION_REFRESH_LEAD_MS = 30_000;
+
+// ── Bootstrap role ──────────────────────────────────────────────────────────────
+export const AWS_BOOTSTRAP_ROLE_NAME = "zeninstaller-bootstrap";
+// Shows up in CloudTrail as the assumed-role session name.
+export const AWS_BOOTSTRAP_ROLE_SESSION_NAME = "zeninstaller";
 
 // ── GitHub Actions OIDC federation (AWS side) ───────────────────────────────────
 // Well-known values for registering GitHub Actions as an OIDC identity provider

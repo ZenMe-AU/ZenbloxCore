@@ -38,7 +38,7 @@ function Intro() {
   return (
     <Typography variant="body1" color="text.secondary">
       Create an AWS IAM role that lets GitHub Actions get temporary AWS credentials without storing access keys. The role receives the AWS-managed
-      AdministratorAccess policy, which allows broad access to your AWS account. ZenInstaller saves the role ARN to the selected GitHub environment for
+      ReadOnlyAccess policy, which lets it read, but not change, resources in your AWS account. ZenInstaller saves the role ARN to the selected GitHub environment for
       deployment stages to use.
     </Typography>
   );
@@ -190,7 +190,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                   <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                   <Typography color="warning.main">
-                    This replaces the saved AWS role ARN for this GitHub environment. The role will have AdministratorAccess; if it already exists, its GitHub
+                    This replaces the saved AWS role ARN for this GitHub environment. The role will have ReadOnlyAccess; if it already exists, its GitHub
                     trust policy will be updated.
                   </Typography>
                 </Box>

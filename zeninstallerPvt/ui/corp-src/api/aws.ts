@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { STSClient, GetSessionTokenCommand, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
+import { STSClient, AssumeRoleCommand, GetSessionTokenCommand, GetCallerIdentityCommand } from "@aws-sdk/client-sts";
 import {
   IAMClient,
   ListMFADevicesCommand,
@@ -15,6 +15,8 @@ import {
 } from "@aws-sdk/client-iam";
 import {
   SESSION_DURATION_SECONDS,
+  AWS_BOOTSTRAP_ROLE_NAME,
+  AWS_BOOTSTRAP_ROLE_SESSION_NAME,
   GITHUB_OIDC_URL,
   GITHUB_OIDC_THUMBPRINTS,
   GITHUB_OIDC_AUD_CONDITION_KEY,
@@ -39,14 +41,6 @@ export type AwsCallerIdentity = {
   username: string;
 };
 
-export type AwsMfaDevice = {
-  serialNumber: string;
-  name: string;
-  // true = TOTP (virtual app / hardware token) → GetSessionToken accepts a 6-digit code.
-  // false = FIDO security key (u2f) → console-only, unusable for STS/CLI credentials.
-  usable: boolean;
-};
-
 // Resolves who the given long-term credentials belong to, for a "signed in as …" display.
 export async function getAwsCallerIdentity(accessKeyId: string, secretAccessKey: string): Promise<AwsCallerIdentity> {
   const sts = new STSClient({ region: "us-east-1", credentials: { accessKeyId, secretAccessKey } });
@@ -55,9 +49,48 @@ export async function getAwsCallerIdentity(accessKeyId: string, secretAccessKey:
   return { accountId: Account, arn: Arn, username: Arn.split("/").pop() ?? Arn };
 }
 
-// Lists the user's registered MFA devices. Empty array means no MFA is enrolled.
-// The ARN resource type distinguishes TOTP (arn:…:mfa/<name>, usable via STS) from
-// FIDO security keys (arn:…:u2f/…, console-only). The friendly name is the last segment.
+// Exchanges the access key for short-term credentials by assuming the bootstrap role.
+// AssumeRole (unlike GetSessionToken) works without MFA and its credentials can call IAM.
+export async function getAwsAssumeRoleCredentials(accessKeyId: string, secretAccessKey: string, accountId: string): Promise<AwsSessionCredentials> {
+  const sts = new STSClient({ region: "us-east-1", credentials: { accessKeyId, secretAccessKey } });
+  const { Credentials } = await sts.send(
+    new AssumeRoleCommand({
+      RoleArn: `arn:aws:iam::${accountId}:role/${AWS_BOOTSTRAP_ROLE_NAME}`,
+      RoleSessionName: AWS_BOOTSTRAP_ROLE_SESSION_NAME,
+      DurationSeconds: SESSION_DURATION_SECONDS,
+    })
+  );
+  const { AccessKeyId, SecretAccessKey, SessionToken, Expiration } = Credentials ?? {};
+  if (!AccessKeyId || !SecretAccessKey || !SessionToken) {
+    throw new Error("Failed to obtain temporary credentials from AWS STS");
+  }
+  return {
+    accessKeyId: AccessKeyId,
+    secretAccessKey: SecretAccessKey,
+    sessionToken: SessionToken,
+    expiration: Expiration,
+  };
+}
+
+// ─── GetSessionToken sign-in (deprecated) ───────────────────────────────────────
+/** @deprecated Only used by the MFA sign-in path; sign-in now uses getAwsAssumeRoleCredentials. */
+export type AwsMfaDevice = {
+  serialNumber: string;
+  name: string;
+  // true = TOTP (virtual app / hardware token) → GetSessionToken accepts a 6-digit code.
+  // false = FIDO security key (u2f) → console-only, unusable for STS/CLI credentials.
+  usable: boolean;
+};
+
+/**
+ * @deprecated Sign-in no longer checks for MFA; it always assumes the bootstrap role.
+ *
+ * Lists the user's registered MFA devices. Empty array means no MFA is enrolled.
+ * The ARN resource type distinguishes TOTP (arn:…:mfa/<name>, usable via STS) from
+ * FIDO security keys (arn:…:u2f/…, console-only). The friendly name is the last segment.
+ * 
+ * Needs iam:ListMFADevices on the user itself.
+ */
 export async function getAwsMfaDevices(accessKeyId: string, secretAccessKey: string): Promise<AwsMfaDevice[]> {
   const iam = new IAMClient({ region: "us-east-1", credentials: { accessKeyId, secretAccessKey } });
   const { MFADevices } = await iam.send(new ListMFADevicesCommand({}));
@@ -70,7 +103,13 @@ export async function getAwsMfaDevices(accessKeyId: string, secretAccessKey: str
     });
 }
 
-export async function getAwsSessionCredentials(
+/**
+ * @deprecated Use getAwsAssumeRoleCredentials, which assumes the bootstrap role.
+ *
+ * Exchanges the access key for short-term credentials with GetSessionToken, optionally with a
+ * TOTP code. Credentials obtained without MFA can't call IAM.
+ */
+export async function getAwsSessionTokenCredentials(
   accessKeyId: string,
   secretAccessKey: string,
   mfa?: { serialNumber: string; tokenCode: string }
@@ -218,7 +257,7 @@ export async function createOrUpdateGithubOidcRole({
   }
 
   // Idempotent — safe to call even if the policy is already attached.
-  await iam.send(new AttachRolePolicyCommand({ RoleName: roleName, PolicyArn: "arn:aws:iam::aws:policy/AdministratorAccess" }));
+  await iam.send(new AttachRolePolicyCommand({ RoleName: roleName, PolicyArn: "arn:aws:iam::aws:policy/ReadOnlyAccess" }));
 
   return { roleArn, updated };
 }

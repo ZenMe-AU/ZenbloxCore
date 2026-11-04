@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: IAM user and bootstrap role that ZenInstaller signs in with.
+
+Parameters:
+  UserName:
+    Type: String
+    Default: zeninstaller
+
+Resources:
+  User:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Ref UserName
+      Policies:
+        - PolicyName: ZenInstallerPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: sts:AssumeRole
+                Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/zeninstaller-bootstrap
+
+  AccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref User
+
+  BootstrapRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: zeninstaller-bootstrap # ZenInstaller assumes this exact name.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { AWS: !GetAtt User.Arn }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ZenInstallerSetup
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: iam:CreateOpenIDConnectProvider
+                Resource: !Sub arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+              - Effect: Allow
+                Action: ["iam:CreateRole", "iam:GetRole", "iam:UpdateAssumeRolePolicy"]
+                Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/*
+              - Effect: Allow
+                Action: iam:AttachRolePolicy
+                Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/*
+                Condition:
+                  ArnEquals: { "iam:PolicyARN": "arn:aws:iam::aws:policy/ReadOnlyAccess" }
+
+Outputs:
+  AccessKeyId:
+    Description: Paste into the Access Key ID field of ZenInstaller's AWS login step.
+    Value: !Ref AccessKey
+  SecretAccessKey:
+    Description: Paste into the Secret Access Key field of ZenInstaller's AWS login step.
+    Value: !GetAtt AccessKey.SecretAccessKey
