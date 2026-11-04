@@ -7,6 +7,13 @@ import type { Account, CardChrome, CardHook, CardId, CardStatus, GhEnv, Pipeline
 import type { UseDeploymentPlan } from "./useDeploymentPlan";
 import { getEffectiveStatus, getStageCardId, getStageSummaryText, hasVariableDiff, stageToCardStatus } from "../../logic/stage";
 
+// Registers the pipeline-stage card ids (stage_<dir>) in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    [id: `stage_${string}`]: true;
+  }
+}
+
 export type CorpStageCardModel = {
   key: string;
   card: CardChrome;

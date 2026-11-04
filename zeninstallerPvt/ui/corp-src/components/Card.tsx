@@ -61,11 +61,12 @@ function StatusIcon({
  * locked: Prerequisites unmet - the card still expands, but shows the requirements instead of
  * live content. unavailable: Broken from the start (e.g. missing config), not something to
  * unlock - same muted chrome as `locked` but with a warning icon, and summary/content stay visible.
+ * intro: Text only. Card sets its typography and shows it above the content in every state, so cards never render it themselves.
  */
 type Props = CardChrome & {
   title: string;
   action?: React.ReactNode;
-  lockedIntro?: React.ReactNode;
+  intro?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -86,7 +87,7 @@ export default function Card({
   onToggle,
   onRequirementClick,
   action,
-  lockedIntro,
+  intro,
   children,
 }: Props) {
   const theme = useTheme();
@@ -246,8 +247,8 @@ export default function Card({
       </Box>
 
       {/*
-       * Content - a locked card can show read-only intro copy, then what's missing,
-       * without rendering the unusable interactive content underneath it.
+       * Content - the intro first, then either the card's content or, when locked, what's missing
+       * (without rendering the unusable interactive content underneath it).
        */}
       <Collapse in={expanded}>
         <Box
@@ -256,9 +257,13 @@ export default function Card({
           aria-labelledby={titleId}
           sx={{ borderTop: `1px solid ${colors.contentDivider}`, px: 2.5, py: 2.5 }}
         >
+          {intro && (
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+              {intro}
+            </Typography>
+          )}
           {locked ? (
             <>
-              {lockedIntro && <Box sx={{ mb: 2 }}>{lockedIntro}</Box>}
               <Box
                 sx={{
                   display: "flex",

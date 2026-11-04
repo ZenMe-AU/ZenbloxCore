@@ -6,6 +6,13 @@
 import { useState } from "react";
 import type { CardHook } from "../../types";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    github_signup: true;
+  }
+}
+
 export interface UseGithubSignupCard extends CardHook {
   readonly cardId: "github_signup";
   email: string;

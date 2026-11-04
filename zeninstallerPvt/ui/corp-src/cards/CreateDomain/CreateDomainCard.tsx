@@ -41,10 +41,10 @@ type Props = {
 
 function Intro({ dnsName }: { dnsName: string }) {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       Creates the DNS zone for <b>{dnsName || "your domain"}</b>, adds it to Entra ID as a custom domain, then verifies it and, if you choose, sets it as
       primary.
-    </Typography>
+    </>
   );
 }
 
@@ -132,12 +132,10 @@ export default function CreateDomainCard({
           }
         />
       }
-      lockedIntro={<Intro dnsName={dnsName} />}
+      intro={<Intro dnsName={dnsName} />}
       {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Intro dnsName={dnsName} />
-
         <CloudVariableDetail
           account={githubAccount}
           repo={repoName}

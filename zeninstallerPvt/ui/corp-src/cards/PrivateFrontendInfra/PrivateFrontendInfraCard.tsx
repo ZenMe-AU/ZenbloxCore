@@ -22,9 +22,9 @@ import type { Account, CardChrome, GhEnv } from "../../types";
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       Creates the Azure Storage and Microsoft Entra resources used to host and protect the private ZenInstaller site.
-    </Typography>
+    </>
   );
 }
 
@@ -78,10 +78,8 @@ export default function PrivateFrontendInfraCard({
       : undefined;
 
   return (
-    <Card title="Frontend hosting environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} lockedIntro={<Intro />} {...card}>
+    <Card title="Frontend hosting environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} intro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Intro />
-
         {infra.steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Box>

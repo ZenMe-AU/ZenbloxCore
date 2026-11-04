@@ -92,10 +92,10 @@ type Props = {
 
 export function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       GitHub stores your configuration and settings. New repositories must be cloned from the supported template. GitHub Actions creates Terraform plans for
       review; deployment is applied through the remote terminal. Select a GitHub account and repository to continue.
-    </Typography>
+    </>
   );
 }
 
@@ -139,9 +139,8 @@ export default function RepoDetail({
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-      {/* ── Description + Refresh ── */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Intro />
+      {/* ── Refresh (the description is the card intro) ── */}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
         <RefreshButton
           busy={repoLoading}
           result={refreshResult}

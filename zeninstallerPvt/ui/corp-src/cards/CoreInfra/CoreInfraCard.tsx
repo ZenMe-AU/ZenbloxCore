@@ -38,11 +38,11 @@ type Props = {
 
 function Intro({ containerName }: { containerName: string }) {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
       {containerName}{" "}
       container Terraform uses for state, granting GitHub Actions access to it.
-    </Typography>
+    </>
   );
 }
 
@@ -127,12 +127,10 @@ export default function CoreInfraCard({
     <Card
       title="Terraform state backend"
       action={<Action resourceId={rgExists ? resourceGroupScope(subscriptionId, infra.resourceGroupName) : null} />}
-      lockedIntro={<Intro containerName={containerName} />}
+      intro={<Intro containerName={containerName} />}
       {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Intro containerName={containerName} />
-
         {/* Gating hints */}
         {!azureAccount && (
           <Box role="status" aria-live="polite" sx={{ backgroundColor: "background.default", border: "1px solid", borderColor: "warning.main", borderRadius: 1, px: 2, py: 1.25 }}>

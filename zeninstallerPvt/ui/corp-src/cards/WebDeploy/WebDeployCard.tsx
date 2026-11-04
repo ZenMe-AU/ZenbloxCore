@@ -37,10 +37,10 @@ function SiteLink({ label, color, href }: { label: string; color: string; href: 
 
 function Intro({ storageAccountName }: { storageAccountName: string }) {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       Builds the Zeninstaller frontend in GitHub Actions, then writes the files straight from this browser into the{" "}
       $web container of {storageAccountName || "the site's storage account"}.
-    </Typography>
+    </>
   );
 }
 
@@ -87,12 +87,10 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} />
         ) : undefined
       }
-      lockedIntro={<Intro storageAccountName={storageAccountName} />}
+      intro={<Intro storageAccountName={storageAccountName} />}
       {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Intro storageAccountName={storageAccountName} />
-
         <CloudVariableDetail
           account={githubAccount}
           repo={repoName}

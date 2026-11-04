@@ -55,9 +55,9 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       A simple view of this tenant's Entra security groups — edit, create, or delete groups and manage their nesting directly.
-    </Typography>
+    </>
   );
 }
 
@@ -110,10 +110,9 @@ export default function GlobalGroupsCard({ card, globalGroups }: Props) {
   };
 
   return (
-    <Card title="Global groups" lockedIntro={<Intro />} {...card}>
+    <Card title="Global groups" intro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1 }}>
-          <Intro />
+        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "flex-end", gap: 1 }}>
           <RefreshButton busy={refreshing} result={refreshResult} disabled={disabled || loading} onClick={handleRefresh} />
         </Box>
 

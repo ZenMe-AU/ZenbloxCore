@@ -52,6 +52,13 @@ import { REMOTE_TERMINAL_PROVIDERS } from "../../config/azureConfig";
 import { DEPLOYMENT_TERMINAL_KEYS } from "../../logic/variables";
 import type { Account, AzureConfigHook, AzureTarget, CardHook, CardStatus, SetupStep } from "../../types";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    remote_terminal_infra: true;
+  }
+}
+
 export type RemoteTerminalInfraResult = {
   subscriptionId: string;
   apiUrl: string;

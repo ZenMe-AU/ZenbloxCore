@@ -21,6 +21,13 @@ import { isConsentError } from "../../logic/consent";
 import { createRandomUuid } from "../../logic/randomUuid";
 import type { CardHook, CardRequirements, CardStatus, SetupStep, AzureAccount } from "../../types";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    global_groups: true;
+  }
+}
+
 export type GroupRow = {
   id: string; // Entra group id once created; a "new:<uuid>" placeholder before creation
   groupName: string;

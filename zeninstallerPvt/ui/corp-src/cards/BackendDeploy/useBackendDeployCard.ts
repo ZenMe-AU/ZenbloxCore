@@ -17,6 +17,13 @@ import { BACKEND_VERSION_KEYS } from "../../config/azureConfig";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import type { Account, AzureAccount, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    backend_deploy: true;
+  }
+}
+
 // What the build workflow recorded, as the card reads it back off the Deployments API.
 type BackendBuild = {
   version: string;

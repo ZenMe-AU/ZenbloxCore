@@ -81,7 +81,7 @@ classDiagram
   class Card {
     title
     action?
-    lockedIntro?
+    intro?
     children
   }
   CardHook --> CardChrome : App.cardProps(id) derives
@@ -135,7 +135,8 @@ flowchart LR
     Chev["IconButton chevron (separate toggle)"]
   end
   subgraph Body["Collapse > div role=region aria-labelledby=title"]
-    Locked["Locked: lockedIntro + 'Complete these first' list of requirement buttons"]
+    Intro["intro (body1, text.secondary) - set by Card in every state"]
+    Locked["Locked: 'Complete these first' list of requirement buttons"]
     Unlocked["Unlocked: card children"]
   end
   Header --> Body
@@ -272,7 +273,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-  A[User expands locked card] --> B[Sees lockedIntro + 'Complete these first']
+  A[User expands locked card] --> B[Sees intro + 'Complete these first']
   B --> C[Clicks requirement button]
   C --> D[openCard: add target id to expanded set]
   D --> E[requestAnimationFrame: scrollIntoView smooth, centre]

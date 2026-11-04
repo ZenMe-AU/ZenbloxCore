@@ -12,6 +12,13 @@ import { getWebStorageAccountName } from "../../logic/naming";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import type { Account, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    web_deploy: true;
+  }
+}
+
 // What the build workflow recorded, as the card reads it back off the Deployments API.
 type WebBuild = {
   version: string;

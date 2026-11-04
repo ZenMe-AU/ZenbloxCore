@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Box, Button, TextField, Typography } from "@mui/material";
+import { Box, Button, TextField } from "@mui/material";
 import Card from "../../components/Card";
 import { GITHUB_SIGNUP_URL } from "../../logic/github";
 import type { CardChrome } from "../../types";
@@ -17,18 +17,17 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       Need a GitHub account? Enter your email to open GitHub signup in a new tab with your email prefilled.
       Complete the remaining signup steps yourself on GitHub, then return here to sign in.
-    </Typography>
+    </>
   );
 }
 
 export default function GithubSignupCard({ card, signup, onOpenLogin }: Props) {
   return (
-    <Card title="GitHub Sign Up" lockedIntro={<Intro />} {...card}>
+    <Card title="GitHub Sign Up" intro={<Intro />} {...card}>
       <Box sx={{ mb: 2 }}>
-        <Intro />
       </Box>
       <Box
         component="form"

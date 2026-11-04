@@ -24,6 +24,13 @@ import { logEvent } from "../../monitor/telemetry";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import type { CardHook, CardRequirements, CardStatus, SetupStep, AzureAccount } from "../../types";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    access_pass: true;
+  }
+}
+
 export type AzureSetupResult = {
   accessPassValue: string;
   tenantId: string;

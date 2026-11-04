@@ -36,11 +36,11 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       Create an AWS IAM role that lets GitHub Actions get temporary AWS credentials without storing access keys. The role receives the AWS-managed
       AdministratorAccess policy, which allows broad access to your AWS account. ZenInstaller saves the role ARN to the selected GitHub environment for
       deployment stages to use.
-    </Typography>
+    </>
   );
 }
 
@@ -126,10 +126,8 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
   const populate = roleArn ? { [AWS_VARIABLE_KEYS[0]]: roleArn } : undefined;
 
   return (
-    <Card title="AWS setup" action={<Action roleName={roleName} />} lockedIntro={<Intro />} {...card}>
+    <Card title="AWS setup" action={<Action roleName={roleName} />} intro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Intro />
-
         {bannerState !== "none" && (
           <Box
             role={bannerState === "error" ? "alert" : "status"}

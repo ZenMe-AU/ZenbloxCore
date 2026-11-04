@@ -24,6 +24,13 @@ import { VALID_ENVS } from "../../config/githubConfig";
 import { getFederatedCredential, getImmutableRepoSegment } from "../../logic/naming";
 import { setOidcImmutableSubject } from "../../api";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    azure_app_registration: true;
+  }
+}
+
 export type AzureAppRegistrationResult = { clientId: string; tenantId: string; subscriptionIds: string[] };
 
 // ─── Types ────────────────────────────────────────────────────────────────────

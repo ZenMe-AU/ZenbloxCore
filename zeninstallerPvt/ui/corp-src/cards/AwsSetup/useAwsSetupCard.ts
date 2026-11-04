@@ -11,6 +11,13 @@ import { PIPELINE } from "../../logic/pipeline";
 import { AWS_VARIABLE_KEYS } from "../../logic/variables";
 import type { CardHook, CardStatus } from "../../types";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    aws_setup: true;
+  }
+}
+
 export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
 export type SetupStep = { id: string; label: string; status: StepStatus; detail?: string };
 

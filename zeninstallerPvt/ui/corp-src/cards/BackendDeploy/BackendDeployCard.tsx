@@ -25,10 +25,10 @@ type Props = {
 
 function Intro({ appName }: { appName: string }) {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       Builds the Zeninstaller backend in GitHub Actions, then pushes the package straight from this browser to{" "}
       {appName || "the Function App"}.
-    </Typography>
+    </>
   );
 }
 
@@ -44,12 +44,10 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} />
         ) : undefined
       }
-      lockedIntro={<Intro appName={appName} />}
+      intro={<Intro appName={appName} />}
       {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Intro appName={appName} />
-
         <Box>
           <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Versions</Typography>
           <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>

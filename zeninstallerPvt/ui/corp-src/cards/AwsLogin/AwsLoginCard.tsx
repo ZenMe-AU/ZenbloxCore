@@ -25,7 +25,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       Sign in with your AWS access key in this browser. We never send your long-term AWS access key or secret key to our servers; only short-term AWS session
       credentials are kept in this tab until they expire.
       <>
@@ -43,7 +43,7 @@ function Intro() {
         </ExternalLink>
         . AWS may ask for payment details during signup.
       </>
-    </Typography>
+    </>
   );
 }
 
@@ -76,7 +76,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
   const usableDevices = mfaDevices.filter((d) => d.usable);
 
   return (
-    <Card title="AWS login" action={<Action />} lockedIntro={<Intro />} {...card}>
+    <Card title="AWS login" action={<Action />} intro={<Intro />} {...card}>
       <Box
         component="form"
         // Gives the browser's password manager a real submit to detect, so it can offer to save the key pair.
@@ -86,8 +86,6 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
         }}
         sx={{ display: "flex", flexDirection: "column", gap: 2 }}
       >
-        <Intro />
-
         {!done && (
           <>
             <Box>

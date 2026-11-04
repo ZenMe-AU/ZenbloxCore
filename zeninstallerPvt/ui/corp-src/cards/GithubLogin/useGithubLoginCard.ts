@@ -22,6 +22,13 @@ import {
 } from "../../config/githubConfig";
 import type { CardHook, CardStatus, LoginHook, User } from "../../types";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    github_login: true;
+  }
+}
+
 const AUTH_RECORD_KEY = "zeninstaller_github_auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

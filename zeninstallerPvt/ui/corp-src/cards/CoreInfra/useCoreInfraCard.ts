@@ -39,6 +39,13 @@ import { APP_SCOPES, AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../../config/
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
 import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../../types";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    core_infra: true;
+  }
+}
+
 export type CoreInfraResult = {
   corpName: string;
   subscriptionId: string;

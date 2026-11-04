@@ -36,6 +36,13 @@ import { ensureScopeConsent } from "../../auth/msal";
 import { createResultStorage } from "../../logic/resultStorage";
 import type { AzureConfigHook, AzureTarget, CardHook, CardStatus, SetupStep } from "../../types";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    private_frontend_infra: true;
+  }
+}
+
 export type PrivateFrontendInfraResult = {
   subscriptionId: string;
   siteStorageAccount: string;

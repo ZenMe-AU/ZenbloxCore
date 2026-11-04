@@ -25,10 +25,10 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       Sign in with Azure so we can create the app registration and cloud resources for you. We never store your Azure credentials — sign-in happens directly
       with Microsoft, and only a short-lived access token is used.
-    </Typography>
+    </>
   );
 }
 
@@ -43,7 +43,7 @@ function Action() {
 export default function AzureLoginCard({ card, azureLogin }: Props) {
   if (card.status === "unavailable") {
     return (
-      <Card title="Azure login" lockedIntro={<Intro />} {...card}>
+      <Card title="Azure login" intro={<Intro />} {...card}>
         <ConfigErrorNotice />
       </Card>
     );
@@ -69,10 +69,8 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
   const savedTenantNotInList = !!savedTenantId && manualTenantId === savedTenantId && tenants.length > 0 && !tenants.some((t) => t.tenantId === savedTenantId);
 
   return (
-    <Card title="Azure login" action={<Action />} lockedIntro={<Intro />} {...card}>
+    <Card title="Azure login" action={<Action />} intro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Intro />
-
         {!azureAccount ? (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
             {loggingIn ? (

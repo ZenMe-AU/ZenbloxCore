@@ -38,10 +38,10 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       Pick the subscription to deploy into. This is where the resource group, storage account and DNS zone will be created, and it's saved to GitHub so the
       pipeline uses the same target.
-    </Typography>
+    </>
   );
 }
 
@@ -100,12 +100,10 @@ export default function AzureSubscriptionCard({
     <Card
       title="Choose Azure subscription"
       action={<Action subscriptionId={selectedSubscriptionId} tenantId={azure.confirmedTenantId ?? undefined} />}
-      lockedIntro={<Intro />}
+      intro={<Intro />}
       {...card}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Intro />
-
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
           <Typography color="text.muted">
             Tenant: <Box component="span" sx={{ color: "text.primary" }}>{tenantLabel}</Box>

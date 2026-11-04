@@ -35,7 +35,7 @@ function Action({ repoFullName }: { repoFullName: string | null }) {
 export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
   const { repo, env } = githubRepo;
   return (
-    <Card title="Repository & environment" action={<Action repoFullName={repo.repoFullName} />} lockedIntro={<Intro />} {...card}>
+    <Card title="Repository & environment" action={<Action repoFullName={repo.repoFullName} />} intro={<Intro />} {...card}>
       <RepoDetail
         accounts={repo.accountList}
         selectedAccount={repo.selectedAccount}

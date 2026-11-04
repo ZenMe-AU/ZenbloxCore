@@ -13,6 +13,13 @@ import { INITIAL_URL_PARAMS, type UrlRestoreField } from "../../hooks/useUrlStat
 import { useAzureAccount, type UseAzureAccount } from "./useAzureAccount";
 import { setActiveAzureIdentity } from "../../auth/msal";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    azure_login: true;
+  }
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type UseAzureLoginCardParams = {

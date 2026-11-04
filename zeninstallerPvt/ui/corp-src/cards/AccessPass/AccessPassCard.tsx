@@ -52,10 +52,10 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       Create a Temporary Access Pass for a user managed by your signed-in account. This removes their existing sign-in methods, randomizes their password, and
       issues a one-hour access pass.
-    </Typography>
+    </>
   );
 }
 
@@ -183,10 +183,8 @@ export default function AccessPassCard({ card, accessPass }: Props) {
   const statusUserId = creatingUserId ?? selectedManagerUserId;
 
   return (
-    <Card title="Access pass" action={<Action />} lockedIntro={<Intro />} {...card}>
+    <Card title="Access pass" action={<Action />} intro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-        <Intro />
-
         {/* Entra user selector */}
         <Box
           sx={{

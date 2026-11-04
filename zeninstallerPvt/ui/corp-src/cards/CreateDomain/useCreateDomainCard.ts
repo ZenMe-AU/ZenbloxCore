@@ -27,6 +27,13 @@ import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { AZURE_CLIENT_ID } from "../../config/azureConfig";
 import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../../types";
 
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    create_domain: true;
+  }
+}
+
 export type CreateDomainResult = {
   corpName: string;
   dnsName: string;

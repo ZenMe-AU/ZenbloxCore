@@ -23,9 +23,9 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <>
       Connect your GitHub account so ZenInstaller can create the repository, environment, and secrets needed to deploy Zenblox.
-    </Typography>
+    </>
   );
 }
 
@@ -80,12 +80,8 @@ export default function GithubLoginCard({ card, auth }: Props) {
   };
 
   return (
-    <Card title="GitHub login" action={<Action login={user?.login} />} lockedIntro={<Intro />} {...card}>
+    <Card title="GitHub login" action={<Action login={user?.login} />} intro={<Intro />} {...card}>
       <Box>
-        <Box sx={{ mb: 2 }}>
-          <Intro />
-        </Box>
-
         {/* Mode toggle — hidden once logged in, and when PAT is the only mode there is nothing to pick */}
         {!user && backendAvailable && (
           <Box sx={{ mb: 2 }}>

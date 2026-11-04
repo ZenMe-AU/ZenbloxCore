@@ -10,24 +10,11 @@ export type AzureTenant = { tenantId: string; displayName: string; defaultDomain
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-export type CardId =
-  | "github_signup"
-  | "github_login"
-  | "azure_login"
-  | "repo"
-  | "azure_subscription"
-  | "azure_app_registration"
-  | "core_infra"
-  | "private_frontend_infra"
-  | "remote_terminal_infra"
-  | "backend_deploy"
-  | "web_deploy"
-  | "create_domain"
-  | "access_pass"
-  | "global_groups"
-  | "aws_login"
-  | "aws_setup"
-  | `stage_${string}`;
+// Every card folder registers its own id (see `declare module "../../types"` in its use*Card.ts); this only collects them,
+// so adding or removing a card folder adds or removes its id here.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- filled in by each card folder through declaration merging
+export interface CardIdRegistry {}
+export type CardId = keyof CardIdRegistry;
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped" | "unavailable";
 
 export type CardRequirements = CardId[]; //["github_login","repo"]
