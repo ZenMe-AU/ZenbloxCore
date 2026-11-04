@@ -109,7 +109,6 @@ describe("useGithubLoginCard", () => {
       expect(latest?.account).toBeNull();
       expect(latest?.status).toBe("idle");
       expect(latest?.summary).toBe("Connect your GitHub account");
-      expect(latest?.cardId).toBe("github_login");
       expect(latest?.cardDependencyLabel).toBe("Sign in to GitHub");
     });
 

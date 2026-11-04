@@ -19,17 +19,10 @@ import { isConsentError } from "../../logic/consent";
 import { createResultStorage } from "../../logic/resultStorage";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useRbacCheck, type RbacCheckStatus } from "./useRbacCheck";
-import type { Account, AzureAccount, AzureConfigHook, AzureTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../../types";
+import type { Account, AzureAccount, AzureConfigHook, AzureTarget, CardHook, CardStatus, SetupStep } from "../../types";
 import { VALID_ENVS } from "../../config/githubConfig";
 import { getFederatedCredential, getImmutableRepoSegment } from "../../logic/naming";
 import { setOidcImmutableSubject } from "../../api";
-
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    azure_app_registration: true;
-  }
-}
 
 export type AzureAppRegistrationResult = { clientId: string; tenantId: string; subscriptionIds: string[] };
 
@@ -46,7 +39,6 @@ export interface UseAzureAppRegistrationCardParams extends AzureTarget {
 
 // steps / running / run / reset come from AzureConfigHook.
 export interface UseAzureAppRegistrationCard extends CardHook, AzureConfigHook {
-  readonly cardId: "azure_app_registration";
   azureAccount: AzureAccount | null;
   appName: string;
   setAppName: (name: string) => void;
@@ -63,7 +55,6 @@ export interface UseAzureAppRegistrationCard extends CardHook, AzureConfigHook {
   variablesComplete: boolean; // Both AZURE_APP_KEYS are saved on GitHub — reported by CloudVariableDetail via onVariablesComplete.
   onVariablesComplete: (complete: boolean) => void;
   // Narrowed from CardHook (optional there) — every card provides these.
-  cardRequirements: CardRequirements;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Complete the Azure app registration")
 }
 
@@ -277,7 +268,7 @@ export function useAzureAppRegistrationCard({
   const done = variablesComplete && rbacStatus === "ready" && !planClientIdMismatch;
 
   const azureConfigured = !!AZURE_CLIENT_ID;
-  // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
+  // Assumes prerequisites are met — CardsProvider locks this card (via cardRequirements in index.ts) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
   const status: CardStatus = !azureConfigured
     ? "error"
@@ -299,7 +290,6 @@ export function useAzureAppRegistrationCard({
             : "Create the app registration";
 
   return {
-    cardId: "azure_app_registration" as const,
     azureAccount,
     appName,
     setAppName,
@@ -321,7 +311,6 @@ export function useAzureAppRegistrationCard({
     onVariablesComplete: setVariablesComplete,
     status,
     summary,
-    cardRequirements: ["github_login", "azure_login", "repo", "azure_subscription"],
     cardDependencyLabel: "Complete the Azure app registration",
     done,
   };

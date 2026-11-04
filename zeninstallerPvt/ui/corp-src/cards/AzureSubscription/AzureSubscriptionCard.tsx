@@ -77,7 +77,6 @@ export default function AzureSubscriptionCard() {
 
   return (
     <Card
-      title="Choose Azure subscription"
       face={subscription}
       action={<Action subscriptionId={selectedSubscriptionId} tenantId={azure.confirmedTenantId ?? undefined} />}
       intro={<Intro />}

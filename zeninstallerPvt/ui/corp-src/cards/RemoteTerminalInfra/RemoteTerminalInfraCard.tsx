@@ -76,7 +76,7 @@ export default function RemoteTerminalInfraCard() {
       : undefined;
 
   return (
-    <Card title="Private Zeninstaller Backend Environment" face={infra} action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} intro={<Intro />}>
+    <Card face={infra} action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {infra.steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>

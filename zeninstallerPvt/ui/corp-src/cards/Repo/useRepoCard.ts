@@ -8,13 +8,6 @@ import { useGithubRepo, type UseGithubRepo } from "./useGithubRepo";
 import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
 import { getEnvSettingsUrl } from "../../logic/github";
 
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    repo: true;
-  }
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type UseRepoCardParams = {
@@ -22,7 +15,6 @@ export type UseRepoCardParams = {
 };
 
 export interface UseRepoCard extends CardHook {
-  readonly cardId: "repo";
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
   githubEnvUrl: string | undefined;
   repo: UseGithubRepo;
@@ -75,10 +67,8 @@ export function useRepoCard({ user }: UseRepoCardParams): UseRepoCard {
     env,
     githubEnvUrl,
     // cardHook
-    cardId: "repo" as const,
     status,
     summary,
-    cardRequirements: ["github_login"],
     cardDependencyLabel: isRepoReady ? (isEnvReady ? null : "Choose an environment") : "Select a repository & environment",
     done: isRepoReady && isEnvReady,
   };

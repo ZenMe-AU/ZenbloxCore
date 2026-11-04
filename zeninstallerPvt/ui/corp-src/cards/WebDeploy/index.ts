@@ -6,4 +6,17 @@
 import type { CardModule } from "../../hooks/useCards";
 import WebDeployCard from "./WebDeployCard";
 
-export default { order: 120, Component: WebDeployCard } satisfies CardModule;
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    web_deploy: true;
+  }
+}
+
+export default {
+  id: "web_deploy",
+  title: "Private Zeninstaller Frontend",
+  order: 120,
+  cardRequirements: ["github_login", "repo", "azure_login", "private_frontend_infra"],
+  Component: WebDeployCard,
+} satisfies CardModule;

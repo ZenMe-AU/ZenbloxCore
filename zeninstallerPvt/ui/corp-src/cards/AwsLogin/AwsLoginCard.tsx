@@ -71,7 +71,7 @@ export default function AwsLoginCard() {
   const usableDevices = mfaDevices.filter((d) => d.usable);
 
   return (
-    <Card title="AWS login" face={awsLogin} action={<Action />} intro={<Intro />}>
+    <Card face={awsLogin} action={<Action />} intro={<Intro />}>
       <Box
         component="form"
         // Gives the browser's password manager a real submit to detect, so it can offer to save the key pair.

@@ -52,13 +52,6 @@ import { REMOTE_TERMINAL_PROVIDERS } from "../../config/azureConfig";
 import { DEPLOYMENT_TERMINAL_KEYS } from "../../logic/variables";
 import type { Account, AzureConfigHook, AzureTarget, CardHook, CardStatus, SetupStep } from "../../types";
 
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    remote_terminal_infra: true;
-  }
-}
-
 export type RemoteTerminalInfraResult = {
   subscriptionId: string;
   apiUrl: string;
@@ -83,7 +76,6 @@ export interface UseRemoteTerminalInfraCardParams extends AzureTarget {
 }
 
 export interface UseRemoteTerminalInfraCard extends CardHook, AzureConfigHook {
-  readonly cardId: "remote_terminal_infra";
   location: string;
   setLocation: (loc: string) => void;
   locations: AzureLocation[];
@@ -507,7 +499,6 @@ export function useRemoteTerminalInfraCard({
   const summary = !azureConfigured ? "Unavailable" : done ? "Backend environment ready" : "Set up the backend environment";
 
   return {
-    cardId: "remote_terminal_infra" as const,
     location,
     setLocation,
     locations,
@@ -543,7 +534,6 @@ export function useRemoteTerminalInfraCard({
     appInsightsName,
     hubName: TERMINAL_HUB,
     pipelineAppName,
-    cardRequirements: ["azure_login", "azure_subscription"],
     cardDependencyLabel: "Set up the private zeninstaller backend environment",
   };
 }

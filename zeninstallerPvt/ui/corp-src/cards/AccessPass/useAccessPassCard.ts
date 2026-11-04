@@ -22,14 +22,7 @@ import { generateRandomPassword } from "./password";
 import { createResultStorage } from "../../logic/resultStorage";
 import { logEvent } from "../../monitor/telemetry";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
-import type { CardHook, CardRequirements, CardStatus, SetupStep, AzureAccount } from "../../types";
-
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    access_pass: true;
-  }
-}
+import type { CardHook, CardStatus, SetupStep, AzureAccount } from "../../types";
 
 export type AzureSetupResult = {
   accessPassValue: string;
@@ -65,7 +58,6 @@ export type UseAccessPassCardParams = {
 export type AccessPassResult = { accessPassValue: string; tenantId: string; targetUserId: string; tapMethodId: string };
 
 export interface UseAccessPassCard extends CardHook {
-  readonly cardId: "access_pass";
   managerUsers: EntraUser[];
   selectedManagerUserId: string;
   setSelectedManagerUserId: (id: string) => void;
@@ -79,7 +71,6 @@ export interface UseAccessPassCard extends CardHook {
   runForUser: (targetUserId: string) => Promise<AccessPassResult | null>;
   reset: () => void;
   // Narrowed from CardHook (optional there) — every card provides these.
-  cardRequirements: CardRequirements;
   cardDependencyLabel: string;
 }
 
@@ -303,7 +294,7 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
     saveResult(null);
   }, [resetSteps]);
 
-  // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not.
+  // Assumes prerequisites are met — CardsProvider locks this card (via cardRequirements in index.ts) whenever they're not.
   const status: CardStatus = managerUsersError || managerUsers.length === 0 ? "warning" : result ? "complete" : "idle";
   const summary = result
     ? "Access pass created"
@@ -314,7 +305,6 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
         : "No users available";
 
   return {
-    cardId: "access_pass" as const,
     managerUsers,
     selectedManagerUserId,
     setSelectedManagerUserId,
@@ -329,7 +319,6 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
     reset,
     status,
     summary,
-    cardRequirements: ["azure_login"],
     cardDependencyLabel: "Sign in to Azure",
     done: !!result,
   };

@@ -6,12 +6,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { CardsContext } from "../hooks/useCards";
 import { createResultStorage } from "../logic/resultStorage";
-import type { CardChrome, CardHook, CardId } from "../types";
+import type { CardChrome, CardFace, CardHook, CardId } from "../types";
 
 const EXPANDED_CARDS_KEY = "zeninstaller_corp_expanded_cards";
 const { save: saveExpandedCards, load: loadExpandedCards } = createResultStorage<CardId[]>(EXPANDED_CARDS_KEY);
 
-const sameFace = (a: CardHook | undefined, b: CardHook) =>
+const sameFace = (a: CardFace | undefined, b: CardFace) =>
   !!a &&
   a.title === b.title &&
   a.done === b.done &&
@@ -23,8 +23,8 @@ const sameFace = (a: CardHook | undefined, b: CardHook) =>
 
 export default function CardsProvider({ children }: { children: ReactNode }) {
   // Keyed by id in first-report order; a report that changes nothing keeps the same object, so nothing re-renders.
-  const [faces, setFaces] = useState<Record<string, CardHook>>({});
-  const report = useCallback((face: CardHook) => setFaces((cur) => (sameFace(cur[face.cardId], face) ? cur : { ...cur, [face.cardId]: face })), []);
+  const [faces, setFaces] = useState<Record<string, CardFace>>({});
+  const report = useCallback((face: CardFace) => setFaces((cur) => (sameFace(cur[face.cardId], face) ? cur : { ...cur, [face.cardId]: face })), []);
 
   // A Set, not a single id, so multiple cards can stay expanded at once. Persisted so
   // reloading or navigating back restores what was open.

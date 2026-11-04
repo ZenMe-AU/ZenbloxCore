@@ -36,13 +36,6 @@ import { ensureScopeConsent } from "../../auth/msal";
 import { createResultStorage } from "../../logic/resultStorage";
 import type { AzureConfigHook, AzureTarget, CardHook, CardStatus, SetupStep } from "../../types";
 
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    private_frontend_infra: true;
-  }
-}
-
 export type PrivateFrontendInfraResult = {
   subscriptionId: string;
   siteStorageAccount: string;
@@ -57,7 +50,6 @@ export interface UsePrivateFrontendInfraCardParams extends AzureTarget {
 }
 
 export interface UsePrivateFrontendInfraCard extends CardHook, AzureConfigHook {
-  readonly cardId: "private_frontend_infra";
   location: string;
   setLocation: (loc: string) => void;
   siteStorageAccount: string;
@@ -350,7 +342,6 @@ export function usePrivateFrontendInfraCard({
   const summary = !azureConfigured ? "Unavailable" : done ? "Private environment ready" : "Set up the private environment";
 
   return {
-    cardId: "private_frontend_infra" as const,
     location,
     setLocation,
     siteStorageAccount: webStorageAccountName,
@@ -374,7 +365,6 @@ export function usePrivateFrontendInfraCard({
     resourceGroupName,
     lawName,
     webStorageAccountName,
-    cardRequirements: ["azure_login", "azure_subscription"],
     cardDependencyLabel: "Set up the private environment",
   };
 }

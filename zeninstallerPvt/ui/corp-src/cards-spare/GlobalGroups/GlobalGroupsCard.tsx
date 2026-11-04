@@ -106,7 +106,7 @@ export default function GlobalGroupsCard() {
   };
 
   return (
-    <Card title="Global groups" face={globalGroups} intro={<Intro />}>
+    <Card face={globalGroups} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "flex-end", gap: 1 }}>
           <RefreshButton busy={refreshing} result={refreshResult} disabled={loading} onClick={handleRefresh} />

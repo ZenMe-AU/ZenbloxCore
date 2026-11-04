@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { Account, CardHook, CardId, CardStatus, GhEnv, PipelineConfig, PlanSummary, Stage, StageDefinition } from "../../types";
+import type { Account, CardFace, CardHook, CardId, CardStatus, GhEnv, PipelineConfig, PlanSummary, Stage, StageDefinition } from "../../types";
 import type { UseDeploymentPlan } from "./useDeploymentPlan";
 import { getEffectiveStatus, getStageCardId, getStageSummaryText, hasVariableDiff, stageToCardStatus } from "../../logic/stage";
 
@@ -49,7 +49,7 @@ export function useCorpStageCards({
 }: {
   pipeline: PipelineConfig;
   plan: UseDeploymentPlan;
-  faces: CardHook[];
+  faces: CardFace[];
   repoDone: boolean;
   account: Account | null;
   repoName: string;

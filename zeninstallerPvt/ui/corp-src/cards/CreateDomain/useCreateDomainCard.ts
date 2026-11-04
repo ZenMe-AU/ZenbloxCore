@@ -25,14 +25,7 @@ import { getCoreResourceGroupName, getCoreLogAnalyticsName, DEFAULT_AZURE_LOCATI
 import { createResultStorage } from "../../logic/resultStorage";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { AZURE_CLIENT_ID } from "../../config/azureConfig";
-import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../../types";
-
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    create_domain: true;
-  }
-}
+import type { AzureConfigHook, AzureSpTarget, CardHook, CardStatus, SetupStep } from "../../types";
 
 export type CreateDomainResult = {
   corpName: string;
@@ -53,7 +46,6 @@ export interface UseCreateDomainCardParams extends AzureSpTarget {
 
 // steps / running / run / reset come from AzureConfigHook.
 export interface UseCreateDomainCard extends CardHook, AzureConfigHook {
-  readonly cardId: "create_domain";
   checkingStatus: boolean;
   checkStatusError: string | null;
   location: string;
@@ -76,7 +68,6 @@ export interface UseCreateDomainCard extends CardHook, AzureConfigHook {
   // Domains this tenant has already proved it owns.
   verifiedDomains: VerifiedDomain[];
   // Narrowed from CardHook (optional there) — every card provides these.
-  cardRequirements: CardRequirements;
   cardDependencyLabel: string;
 }
 
@@ -473,13 +464,12 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
 
   const done = domainVerified && (isPrimary || !makePrimary);
   const azureConfigured = !!AZURE_CLIENT_ID;
-  // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
+  // Assumes prerequisites are met — CardsProvider locks this card (via cardRequirements in index.ts) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
   const status: CardStatus = !azureConfigured ? "error" : done ? "complete" : "warning";
   const summary = !azureConfigured ? "Unavailable" : done ? (isPrimary ? "Domain verified and primary" : "Domain verified") : "Set up the corp domain";
 
   return {
-    cardId: "create_domain" as const,
     verifiedDomains,
     checkingStatus,
     checkStatusError,
@@ -506,7 +496,6 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     reset,
     status,
     summary,
-    cardRequirements: ["azure_login", "repo", "azure_subscription", "core_infra"],
     cardDependencyLabel: "Set up the corp domain",
     done,
   };

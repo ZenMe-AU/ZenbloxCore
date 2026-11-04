@@ -6,4 +6,16 @@
 import type { CardModule } from "../../hooks/useCards";
 import StageCards from "./StageCards";
 
-export default { order: 150, Component: StageCards } satisfies CardModule;
+// Registers the group's id, which only config/cardOrder.ts uses. No card reports it, so never list it in cardRequirements.
+declare module "../../types" {
+  interface CardIdRegistry {
+    stages: true;
+  }
+}
+
+export default {
+  id: "stages",
+  title: "Pipeline stages",
+  order: 150,
+  Component: StageCards,
+} satisfies CardModule;

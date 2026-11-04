@@ -19,14 +19,7 @@ import {
 } from "../../api/azureGraph";
 import { isConsentError } from "../../logic/consent";
 import { createRandomUuid } from "../../logic/randomUuid";
-import type { CardHook, CardRequirements, CardStatus, SetupStep, AzureAccount } from "../../types";
-
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    global_groups: true;
-  }
-}
+import type { CardHook, CardStatus, SetupStep, AzureAccount } from "../../types";
 
 export type GroupRow = {
   id: string; // Entra group id once created; a "new:<uuid>" placeholder before creation
@@ -118,7 +111,6 @@ export type UseGlobalGroupsCardParams = {
 };
 
 export interface UseGlobalGroupsCard extends CardHook {
-  readonly cardId: "global_groups";
   rows: GroupRow[];
   savedById: Record<string, SavedGroup>;
   rowResults: Record<string, GroupRowResult>;
@@ -142,7 +134,6 @@ export interface UseGlobalGroupsCard extends CardHook {
   consentRequired: boolean;
   requestGroupsConsent: () => Promise<void>;
   // Narrowed from CardHook (optional there) — every card provides these.
-  cardRequirements: CardRequirements;
   cardDependencyLabel: string;
 }
 
@@ -499,13 +490,12 @@ export function useGlobalGroupsCard({ azureAccount, confirmedTenantId }: UseGlob
 
   const azureConfigured = !!AZURE_CLIENT_ID;
   const hasError = Object.values(rowResults).some((r) => r.status === "error");
-  // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
+  // Assumes prerequisites are met — CardsProvider locks this card (via cardRequirements in index.ts) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
   const status: CardStatus = !azureConfigured ? "error" : hasError ? "error" : done ? "complete" : "warning";
   const summary = !azureConfigured ? "Unavailable" : loading ? "Loading groups..." : `${rows.length} group${rows.length === 1 ? "" : "s"}`;
 
   return {
-    cardId: "global_groups" as const,
     rows,
     savedById,
     rowResults,
@@ -530,7 +520,6 @@ export function useGlobalGroupsCard({ azureAccount, confirmedTenantId }: UseGlob
     requestGroupsConsent,
     status,
     summary,
-    cardRequirements: ["azure_login"],
     cardDependencyLabel: "Sign in to Azure",
     done,
   };

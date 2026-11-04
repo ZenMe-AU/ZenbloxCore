@@ -55,7 +55,7 @@ Responsive behaviour is intrinsic to the grid (3 to 2 to 1 columns as width shri
 
 ### 3.1 Contract
 
-Every card is a folder under `cards/` whose `index.ts` exports `{ order, Component }` (`CardModule` in [useCards.ts](corp-src/hooks/useCards.ts)). App loads every `cards/*/index.ts` with `import.meta.glob` and renders them by `order`, so adding or removing a folder adds or removes its card. A card folder imports only the platform (`components/`, `hooks/`, `session/`, `logic/`, …), never another card folder; ESLint enforces this. A card's own tests live in its folder.
+Every card is a folder under `cards/` whose `index.ts` registers the card's id and exports `{ id, title, order, cardRequirements, Component }` (`CardModule` in [useCards.ts](corp-src/hooks/useCards.ts)). App loads every `cards/*/index.ts` with `import.meta.glob` and renders the ids listed in [config/cardOrder.ts](corp-src/config/cardOrder.ts) first, then the rest by `order`, so adding or removing a folder adds or removes its card. A card folder imports only the platform (`components/`, `hooks/`, `session/`, `logic/`, …), never another card folder; ESLint enforces this. A card's own tests live in its folder. A folder moved to `cards-spare/` is still type-checked, linted and tested, but not loaded; moving it back to `cards/` turns the card on again.
 
 Cards are linked through three channels only:
 
@@ -65,8 +65,15 @@ Cards are linked through three channels only:
 
 ```mermaid
 classDiagram
+  class CardModule {
+    id
+    title
+    order
+    cardRequirements?: CardId[]
+    Component
+  }
   class CardHook {
-    cardId
+    cardId?
     done: boolean
     status: CardStatus
     summary?: string
@@ -86,14 +93,15 @@ classDiagram
     onRequirementClick(id)
   }
   class Card {
-    title
+    title?
     face: CardHook
     action?
     intro?
     children
   }
+  CardModule --> Card : id + title + cardRequirements (CardModuleContext)
   CardHook --> Card : face
-  Card --> CardChrome : reports face + title, CardsProvider.cardProps(face.cardId) derives
+  Card --> CardChrome : reports face + id + title, CardsProvider.cardProps(id) derives
 ```
 
 `CardsProvider.cardProps(id)` is the single place where reported faces become visual chrome:
@@ -220,7 +228,7 @@ flowchart LR
   az --> ap
 ```
 
-Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRequirements`.
+Edges mean "must be complete before". Declared in each card's `index.ts` as `cardRequirements`.
 
 ### 4.2 Catalogue (render order)
 
@@ -244,7 +252,7 @@ Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRe
 
 Notes:
 
-- `global_groups` ([GlobalGroups](corp-src/cards/GlobalGroups)) has a hook and component but no `index.ts`, so App doesn't load it; the equivalent flow is the `c02globalGroups` stage.
+- `global_groups` ([GlobalGroups](corp-src/cards-spare/GlobalGroups)) is parked in `cards-spare/`, so App doesn't load it; the equivalent flow is the `c02globalGroups` stage.
 - Stage definitions live in [logic/pipeline.ts](corp-src/logic/pipeline.ts): `c01subscription`, `c02globalGroups`, `c07userAccounts`, `c20awsentrasso`, `c21awsentrassoP2`, `c25cloudfront`.
 
 ---
@@ -489,7 +497,7 @@ Observed from source review; none of these have been confirmed with assistive te
 | 10 | Low | The page had no overall progress indicator or recommended-next-step cue. | Resolved: the page reports completed tasks out of 20 and provides a button to open the first incomplete, unlocked card. |
 | 11 | Low | Footer Contact and Terms content are placeholders. | Provide content or remove the entry points before release. Keyboard shortcuts help is now implemented. |
 | 12 | Low | Icons are sized via `typography: "caption"` (about 12px), and `IconButton size="small"` targets are about 30px. | Acceptable for WCAG 2.2 AA (24px), but consider larger targets on touch. |
-| 13 | Info | `GlobalGroupsCard` is built and tested but has no `index.ts`, so it isn't loaded. | Remove it, or add an `index.ts` to render it. |
+| 13 | Info | `GlobalGroupsCard` is built and tested but isn't loaded. | Resolved: parked in `cards-spare/` with an `index.ts`; move it to `cards/` to render it. |
 | 14 | Info | Disabled primary buttons in the light scheme (`#cbd5e1` on `#f1f5f9`) are very faint; exempt from contrast rules but hard to see as buttons. | Add a border or lighter-weight outline style. |
 | 15 | Info | Destructive actions (sign-out, end session) are one click with no confirmation. | Consider confirmation where state is lost. |
 

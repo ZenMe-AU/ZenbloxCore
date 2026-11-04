@@ -62,7 +62,7 @@ function Action() {
 
 /*
  * Creates a Microsoft Entra Temporary Access Pass for a user managed by the signed-in
- * account. Locked behind "azure_login" (see cardRequirements on useAccessPassCard), so
+ * account. Locked behind "azure_login" (see cardRequirements in index.ts), so
  * this body only ever renders once an Azure account + tenant are already confirmed —
  * unlike the standalone access-pass-src app, no separate sign-in/tenant UI lives here.
  */
@@ -181,7 +181,7 @@ export default function AccessPassCard() {
   const statusUserId = creatingUserId ?? selectedManagerUserId;
 
   return (
-    <Card title="Access pass" face={accessPass} action={<Action />} intro={<Intro />}>
+    <Card face={accessPass} action={<Action />} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
         {/* Entra user selector */}
         <Box

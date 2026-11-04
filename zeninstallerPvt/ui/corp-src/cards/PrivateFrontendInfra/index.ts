@@ -6,4 +6,17 @@
 import type { CardModule } from "../../hooks/useCards";
 import PrivateFrontendInfraCard from "./PrivateFrontendInfraCard";
 
-export default { order: 110, Component: PrivateFrontendInfraCard } satisfies CardModule;
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    private_frontend_infra: true;
+  }
+}
+
+export default {
+  id: "private_frontend_infra",
+  title: "Frontend hosting environment",
+  order: 110,
+  cardRequirements: ["azure_login", "azure_subscription"],
+  Component: PrivateFrontendInfraCard,
+} satisfies CardModule;

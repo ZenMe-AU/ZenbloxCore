@@ -110,7 +110,6 @@ export default function CoreInfraCard() {
 
   return (
     <Card
-      title="Terraform state backend"
       face={infra}
       action={<Action resourceId={rgExists ? resourceGroupScope(subscriptionId, infra.resourceGroupName) : null} />}
       intro={<Intro containerName={containerName} />}

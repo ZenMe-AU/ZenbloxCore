@@ -66,7 +66,7 @@ export default function PrivateFrontendInfraCard() {
       : undefined;
 
   return (
-    <Card title="Frontend hosting environment" face={infra} action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} intro={<Intro />}>
+    <Card face={infra} action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {infra.steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>

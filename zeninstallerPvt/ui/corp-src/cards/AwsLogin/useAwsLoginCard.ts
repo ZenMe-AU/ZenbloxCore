@@ -10,16 +10,8 @@ import { clearAwsSession, loadAwsTemporarySession, saveAwsTemporarySession } fro
 import { SESSION_DURATION_MS, SESSION_REFRESH_LEAD_MS } from "../../config/awsConfig";
 import type { CardHook, CardStatus, LoginHook } from "../../types";
 
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    aws_login: true;
-  }
-}
-
 export type UseAwsLoginCard = CardHook &
   LoginHook<AwsCallerIdentity> & {
-    readonly cardId: "aws_login";
     accessKeyId: string;
     setAccessKeyId: (value: string) => void;
     secretAccessKey: string;
@@ -143,10 +135,8 @@ export function useAwsLoginCard(): UseAwsLoginCard {
 
   return {
     // cardHook
-    cardId: "aws_login",
     status,
     summary,
-    cardRequirements: [],
     cardDependencyLabel: "Sign in to AWS",
     done: signedIn,
     // loginHook

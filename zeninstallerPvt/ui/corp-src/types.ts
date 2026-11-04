@@ -39,16 +39,22 @@ export type CardChrome = {
 // Card renders for it (status icon + collapsed summary). Card reports it to CardsProvider,
 // so other cards can lock on it without importing it.
 export interface CardHook {
-  readonly cardId: CardId;
-  title?: string; // Added by Card when it reports the face, so nothing else repeats the title.
+  // Card fills these in from the card's module (its index.ts), so a card never hard-codes its name or how it's
+  // wired to other cards, and can be reused under another id. Only a module that renders several cards (Stage)
+  // sets its own.
+  readonly cardId?: CardId;
+  title?: string;
+  cardRequirements?: CardRequirements;
   done: boolean;
   status: CardStatus;
   summary?: string;
-  cardRequirements?: CardRequirements;
   cardDependencyLabel?: string;
   stage?: string;
   hideFromProgress?: boolean; // Not a setup step (e.g. GitHub sign-up), so it isn't counted or offered as the next step.
 }
+
+// A face as Card reports it to CardsProvider, with its id and title filled in.
+export type CardFace = CardHook & { readonly cardId: CardId; title: string };
 
 // ─── Composable hook shapes ───────────────────────────────────────────────────
 export interface LoginHook<TAccount> {

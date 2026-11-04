@@ -6,4 +6,17 @@
 import type { CardModule } from "../../hooks/useCards";
 import RepoCard from "./RepoCard";
 
-export default { order: 30, Component: RepoCard } satisfies CardModule;
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    repo: true;
+  }
+}
+
+export default {
+  id: "repo",
+  title: "Repository & environment",
+  order: 30,
+  cardRequirements: ["github_login"],
+  Component: RepoCard,
+} satisfies CardModule;

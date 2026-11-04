@@ -22,20 +22,12 @@ import {
 } from "../../config/githubConfig";
 import type { CardHook, CardStatus, LoginHook, User } from "../../types";
 
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    github_login: true;
-  }
-}
-
 const AUTH_RECORD_KEY = "zeninstaller_github_auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type GithubAuthRecord = { mode: "direct"; token: string } | { mode: "backend" };
 
 export interface UseGithubLoginCard extends CardHook, LoginHook<User> {
-  readonly cardId: "github_login";
   sessionExpired: boolean;
   redirecting: "login" | "logout" | null;
   status: CardStatus; // "loading" while the auth check is in-flight; "complete" once signed in; "idle" otherwise.
@@ -286,7 +278,6 @@ export function useGithubLoginCard(): UseGithubLoginCard {
 
   return {
     // cardHook
-    cardId: "github_login" as const,
     status,
     summary,
     cardDependencyLabel,

@@ -38,7 +38,7 @@ export default function AzureLoginCard() {
   const { login: azureLogin } = useAzureSession();
   if (azureLogin.status === "unavailable") {
     return (
-      <Card title="Azure login" face={azureLogin} intro={<Intro />}>
+      <Card face={azureLogin} intro={<Intro />}>
         <ConfigErrorNotice />
       </Card>
     );
@@ -64,7 +64,7 @@ export default function AzureLoginCard() {
   const savedTenantNotInList = !!savedTenantId && manualTenantId === savedTenantId && tenants.length > 0 && !tenants.some((t) => t.tenantId === savedTenantId);
 
   return (
-    <Card title="Azure login" face={azureLogin} action={<Action />} intro={<Intro />}>
+    <Card face={azureLogin} action={<Action />} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {!azureAccount ? (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>

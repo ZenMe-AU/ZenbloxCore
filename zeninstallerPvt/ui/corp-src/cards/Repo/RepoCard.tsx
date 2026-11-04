@@ -29,7 +29,7 @@ export default function RepoCard() {
   const { repoEnv } = useGithubSession();
   const { repo, env } = repoEnv;
   return (
-    <Card title="Repository & environment" face={repoEnv} action={<Action repoFullName={repo.repoFullName} />} intro={<Intro />}>
+    <Card face={repoEnv} action={<Action repoFullName={repo.repoFullName} />} intro={<Intro />}>
       <RepoDetail
         accounts={repo.accountList}
         selectedAccount={repo.selectedAccount}

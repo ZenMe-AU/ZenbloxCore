@@ -28,7 +28,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["corp-src/cards/**/*.{ts,tsx}", "corp-src/components/**/*.{ts,tsx}"],
+    files: ["corp-src/cards*/**/*.{ts,tsx}", "corp-src/components/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -49,7 +49,7 @@ export default defineConfig([
   },
   {
     // A card folder can be added or removed on its own, so it imports the platform, never another card folder.
-    files: ["corp-src/cards/*/**/*.{ts,tsx}"],
+    files: ["corp-src/cards*/*/**/*.{ts,tsx}"],
     rules: {
       "no-restricted-imports": [
         "error",

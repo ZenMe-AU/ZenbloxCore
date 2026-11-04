@@ -8,14 +8,7 @@ import { listSubscriptions, type Subscription } from "../../api/azureGraph";
 import { AZURE_CLIENT_ID } from "../../config/azureConfig";
 import { findIgnoreCase } from "../../logic/search";
 import type { UrlRestoreField } from "../../hooks/useUrlStateManager";
-import type { CardHook, CardRequirements, CardStatus, AzureAccount } from "../../types";
-
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    azure_subscription: true;
-  }
-}
+import type { CardHook, CardStatus, AzureAccount } from "../../types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type UseAzureSubscriptionCardParams = {
@@ -26,7 +19,6 @@ export type UseAzureSubscriptionCardParams = {
 };
 
 export interface UseAzureSubscriptionCard extends CardHook {
-  readonly cardId: "azure_subscription";
   subscriptions: Subscription[];
   selectedSubscriptionId: string;
   setSelectedSubscriptionId: (id: string) => void;
@@ -35,7 +27,6 @@ export interface UseAzureSubscriptionCard extends CardHook {
   subscriptionNoAccess: boolean;
   subscriptionLabel?: string; // Display name of the saved (persisted) subscription — also fed to useAzureAppRegistrationCard.
   // Narrowed from CardHook (optional there) — every card provides these.
-  cardRequirements: CardRequirements;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Select a subscription")
   restore: {
     subscription: UrlRestoreField;
@@ -110,7 +101,7 @@ export function useAzureSubscriptionCard({
   const subscriptionLabel = subscriptions.find((s) => s.id === savedSubscriptionId)?.displayName ?? (savedSubscriptionId || undefined);
 
   const azureConfigured = !!AZURE_CLIENT_ID;
-  // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
+  // Assumes prerequisites are met — CardsProvider locks this card (via cardRequirements in index.ts) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
   const status: CardStatus = subscriptionConfirmed ? "complete" : subscriptionDrift || subscriptionNoAccess ? "warning" : "idle";
   const summary = !azureConfigured
@@ -124,7 +115,6 @@ export function useAzureSubscriptionCard({
           : "Select a subscription";
 
   return {
-    cardId: "azure_subscription" as const,
     subscriptions,
     selectedSubscriptionId,
     setSelectedSubscriptionId,
@@ -134,7 +124,6 @@ export function useAzureSubscriptionCard({
     subscriptionLabel,
     status,
     summary,
-    cardRequirements: ["azure_login", "repo"],
     cardDependencyLabel: subscriptionDrift ? "Unsaved Subscription change" : "Select a subscription",
     done: subscriptionConfirmed,
     restore: {

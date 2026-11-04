@@ -6,4 +6,17 @@
 import type { CardModule } from "../../hooks/useCards";
 import AwsSetupCard from "./AwsSetupCard";
 
-export default { order: 140, Component: AwsSetupCard } satisfies CardModule;
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    aws_setup: true;
+  }
+}
+
+export default {
+  id: "aws_setup",
+  title: "AWS setup",
+  order: 140,
+  cardRequirements: ["aws_login", "repo"],
+  Component: AwsSetupCard,
+} satisfies CardModule;

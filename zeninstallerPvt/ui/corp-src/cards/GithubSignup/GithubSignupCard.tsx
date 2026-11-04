@@ -25,7 +25,7 @@ export default function GithubSignupCard() {
   const signup = useGithubSignupCard(login.done);
   const onOpenLogin = () => openCard("github_login");
   return (
-    <Card title="GitHub Sign Up" face={{ ...signup, hideFromProgress: true }} intro={<Intro />}>
+    <Card face={{ ...signup, hideFromProgress: true }} intro={<Intro />}>
       <Box sx={{ mb: 2 }}>
       </Box>
       <Box

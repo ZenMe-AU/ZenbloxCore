@@ -5,7 +5,8 @@
 
 import { Box, Button, LinearProgress, Link, Typography } from "@mui/material";
 import { groupSx } from "./config/cardLayout";
-import { useCards, type CardModule } from "./hooks/useCards";
+import { CARD_ORDER } from "./config/cardOrder";
+import { CardModuleContext, useCards, type CardModule } from "./hooks/useCards";
 import { useUrlRestoreStatus } from "./session";
 import SessionProvider from "./session/SessionProvider";
 import CardsProvider from "./components/CardsProvider";
@@ -21,10 +22,17 @@ import { reactPlugin } from "./monitor/applicationInsights";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
-// Every card folder with an index.ts, in its order: adding or removing a folder adds or removes its card.
+// Every card folder with an index.ts: adding or removing a folder adds or removes its card.
+// Folders parked in cards-spare/ are not loaded. Listed cards first, the rest by their own order.
+const listed = (id: string) => (CARD_ORDER.includes(id) ? CARD_ORDER.indexOf(id) : Infinity);
 const CARDS = Object.entries(import.meta.glob<{ default: CardModule }>("./cards/*/index.ts", { eager: true }))
   .map(([path, card]) => ({ path, ...card.default }))
-  .sort((a, b) => a.order - b.order);
+  .sort((a, b) => listed(a.id) - listed(b.id) || a.order - b.order);
+// Two modules with one id would overwrite each other's face, so fail at startup instead.
+for (const [i, card] of CARDS.entries()) {
+  const first = CARDS.findIndex((other) => other.id === card.id);
+  if (first !== i) throw new Error(`${CARDS[first].path} and ${card.path} both use the card id "${card.id}"`);
+}
 
 function Dashboard() {
   const { faces, cardProps, openCard } = useCards();
@@ -108,8 +116,10 @@ function Dashboard() {
                 />
               </Box>
 
-              {CARDS.map(({ path, Component }) => (
-                <Component key={path} />
+              {CARDS.map(({ path, id, title, cardRequirements, Component }) => (
+                <CardModuleContext key={path} value={{ id, title, cardRequirements }}>
+                  <Component />
+                </CardModuleContext>
               ))}
             </Box>
           </Box>

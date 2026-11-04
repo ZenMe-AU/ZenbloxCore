@@ -11,13 +11,6 @@ import { PIPELINE } from "../../logic/pipeline";
 import { AWS_VARIABLE_KEYS } from "../../logic/variables";
 import type { CardHook, CardStatus } from "../../types";
 
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    aws_setup: true;
-  }
-}
-
 export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
 export type SetupStep = { id: string; label: string; status: StepStatus; detail?: string };
 
@@ -32,7 +25,6 @@ export type UseAwsSetupCardParams = {
 };
 
 export type UseAwsSetupCard = CardHook & {
-  readonly cardId: "aws_setup";
   roleName: string;
   setRoleName: (value: string) => void;
   environments: string[];
@@ -128,7 +120,6 @@ export function useAwsSetupCard({
   const summary = done ? "Connection details already filled in" : awsReady ? "Create the AWS IAM role" : "Set up AWS connection";
 
   return {
-    cardId: "aws_setup",
     roleName,
     setRoleName,
     environments,
@@ -144,7 +135,6 @@ export function useAwsSetupCard({
     resetRoleCreation,
     status,
     summary,
-    cardRequirements: ["aws_login", "repo"],
     cardDependencyLabel: "Set up AWS connection",
     done,
   };

@@ -37,14 +37,7 @@ import { createResultStorage } from "../../logic/resultStorage";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { APP_SCOPES, AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../../config/azureConfig";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
-import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../../types";
-
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    core_infra: true;
-  }
-}
+import type { AzureConfigHook, AzureSpTarget, CardHook, CardStatus, SetupStep } from "../../types";
 
 export type CoreInfraResult = {
   corpName: string;
@@ -64,7 +57,6 @@ export interface UseCoreInfraCardParams extends AzureSpTarget {
 
 // steps / running / run / reset come from AzureConfigHook.
 export interface UseCoreInfraCard extends CardHook, AzureConfigHook {
-  readonly cardId: "core_infra";
   location: string;
   setLocation: (loc: string) => void;
   locations: AzureLocation[];
@@ -83,7 +75,6 @@ export interface UseCoreInfraCard extends CardHook, AzureConfigHook {
   result: CoreInfraResult | null;
   runNonce: number;
   // Narrowed from CardHook (optional there) — every card provides these.
-  cardRequirements: CardRequirements;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Set up Corp infrastructure")
 }
 
@@ -352,7 +343,7 @@ export function useCoreInfraCard({
   }, [resetSteps]);
 
   const azureConfigured = !!AZURE_CLIENT_ID;
-  // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
+  // Assumes prerequisites are met — CardsProvider locks this card (via cardRequirements in index.ts) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
   const status: CardStatus = !azureConfigured ? "error" : done ? "complete" : "warning";
   const summary = !azureConfigured ? "Unavailable" : done ? "Infrastructure ready" : "Set up corp infrastructure";
@@ -363,7 +354,6 @@ export function useCoreInfraCard({
     locations,
     locationsLoading,
     locationsError,
-    cardId: "core_infra" as const,
     steps,
     running,
     done,
@@ -383,7 +373,6 @@ export function useCoreInfraCard({
     containerName: TFSTATE_CONTAINER,
     result,
     runNonce,
-    cardRequirements: ["azure_login", "repo", "azure_subscription", "azure_app_registration"],
     cardDependencyLabel: "Set up Corp infrastructure",
   };
 }

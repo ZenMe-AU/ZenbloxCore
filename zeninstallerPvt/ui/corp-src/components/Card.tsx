@@ -13,8 +13,9 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { alpha, useTheme } from "@mui/material/styles";
-import type { CardHook, CardStatus } from "../types";
-import { useCards, useReportCard } from "../hooks/useCards";
+import { useContext } from "react";
+import type { CardHook, CardId, CardStatus } from "../types";
+import { CardModuleContext, useCards, useReportCard } from "../hooks/useCards";
 import { borderHoverTint, borderTint } from "../config/styles";
 
 const STATUS_LABEL: Record<CardStatus, string> = {
@@ -63,11 +64,12 @@ function StatusIcon({
  * live content. unavailable: Broken from the start (e.g. missing config), not something to
  * unlock - same muted chrome as `locked` but with a warning icon, and summary/content stay visible.
  * intro: Text only. Card sets its typography and shows it above the content in every state, so cards never render it themselves.
- * face: The card's hook (or just its id, status, summary, …). Card reports it with the title so other cards can lock on
- * it, and gets its own chrome (locked, expanded, …) back from CardsProvider by face.cardId.
+ * face: The card's hook (or just its status, summary, …). Card reports it with the id and title so other cards can lock
+ * on it, and gets its own chrome (locked, expanded, …) back from CardsProvider by that id.
+ * title: Comes from the card's index.ts; only a module that renders several cards (Stage) passes its own.
  */
 type Props = {
-  title: string;
+  title?: string;
   face: CardHook;
   action?: React.ReactNode;
   intro?: React.ReactNode;
@@ -77,12 +79,20 @@ type Props = {
 /*
  * Collapses to a compact summary, expands (accordion) to the full card. Unlike
  * StepWrapper, a locked card still expands — it shows what's missing instead of blocking.
- * Owns its own outer id/width, so a card component renders <Card face={…} title="…"> directly,
+ * Owns its own outer id/width, so a card component renders <Card face={…}> directly,
  * no separate wrapping Box.
  */
-export default function Card({ title, face, action, intro, children }: Props) {
-  useReportCard({ ...face, title });
-  const { cardId, summary, status, locked, requirements, expanded, onToggle, onRequirementClick } = useCards().cardProps(face.cardId);
+function requiredId(id: CardId | undefined): CardId {
+  if (!id) throw new Error("Card has no id: render it from a card module (index.ts), or pass face.cardId");
+  return id;
+}
+
+export default function Card({ title: ownTitle, face, action, intro, children }: Props) {
+  const module = useContext(CardModuleContext);
+  const id = requiredId(face.cardId ?? module?.id);
+  const title = ownTitle ?? module?.title ?? id;
+  useReportCard({ ...face, cardId: id, title, cardRequirements: face.cardRequirements ?? module?.cardRequirements });
+  const { cardId, summary, status, locked, requirements, expanded, onToggle, onRequirementClick } = useCards().cardProps(id);
   const theme = useTheme();
   const colors = theme.vars.palette.card;
   /*

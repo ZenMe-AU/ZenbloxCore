@@ -79,7 +79,6 @@ export default function WebDeployCard() {
 
   return (
     <Card
-      title="Private Zeninstaller Frontend"
       face={web}
       action={
         repoFullName ? (

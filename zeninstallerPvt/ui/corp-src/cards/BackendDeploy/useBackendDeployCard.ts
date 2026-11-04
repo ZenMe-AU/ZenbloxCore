@@ -15,14 +15,7 @@ import {
 import { PRIVATE_RESOURCE_GROUP, functionAppFromApiUrl, getFunctionAppName } from "../../logic/naming";
 import { BACKEND_VERSION_KEYS } from "../../config/azureConfig";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
-import type { Account, AzureAccount, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
-
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    backend_deploy: true;
-  }
-}
+import type { Account, AzureAccount, AzureConfigHook, CardHook, CardStatus, GhEnv } from "../../types";
 
 // What the build workflow recorded, as the card reads it back off the Deployments API.
 type BackendBuild = {
@@ -47,7 +40,6 @@ export interface UseBackendDeployCardParams {
 const BUILD_WORKFLOW = "buildBackend.yml";
 
 export interface UseBackendDeployCard extends CardHook, AzureConfigHook {
-  readonly cardId: "backend_deploy";
   appName: string;
   latest: BackendBuild | null;
   deployed: DeployedBackend | null;
@@ -58,7 +50,6 @@ export interface UseBackendDeployCard extends CardHook, AzureConfigHook {
   buildWorkflow: string;
   updateAvailable: boolean;
   error: string | null;
-  cardRequirements: CardRequirements;
   cardDependencyLabel: string;
 }
 
@@ -235,7 +226,6 @@ export function useBackendDeployCard({
   const summary = !ready ? "Unavailable" : done ? `Deployed ${latest?.sha.slice(0, 7)}` : updateAvailable ? "Update available" : "Build the backend";
 
   return {
-    cardId: "backend_deploy" as const,
     appName,
     latest,
     deployed,
@@ -253,7 +243,6 @@ export function useBackendDeployCard({
     summary,
     run,
     reset,
-    cardRequirements: ["github_login", "repo", "azure_login", "remote_terminal_infra"],
     cardDependencyLabel: "Deploy the backend",
   };
 }

@@ -84,17 +84,19 @@ A variable is a contract between cards. Removing the card that writes it does no
 
 ## 5. Channel ③: faces
 
-A card's hook returns a `CardHook` (its face). The card passes it to `<Card>`, which reports it to `CardsProvider` and gets its chrome back.
+A card's hook returns a `CardHook` (its face). The card passes it to `<Card>`, which adds the id, title and requirements from the card's `index.ts`, reports it to `CardsProvider`, and gets its chrome back.
 
 ```mermaid
 sequenceDiagram
+  participant M as index.ts (via App)
   participant H as Card hook (e.g. useCoreInfraCard)
-  participant C as Card (title, face, intro, action)
+  participant C as Card (face, intro, action)
   participant P as CardsProvider
   participant D as Dashboard
 
-  H->>C: face {cardId, done, status, summary, cardRequirements, cardDependencyLabel}
-  C->>P: report({...face, title}), in useLayoutEffect
+  M->>C: CardModuleContext {id, title, cardRequirements}
+  H->>C: face {done, status, summary, cardDependencyLabel}
+  C->>P: report({...face, cardId: id, title, cardRequirements}), in useLayoutEffect
   P-->>C: cardProps(cardId) → {locked, requirements, expanded, status, onToggle, onRequirementClick}
   P-->>D: faces → progress bar and "Next step"
 ```
@@ -113,13 +115,13 @@ Reports run in a layout effect, so a dependent card never flashes unlocked befor
 
 ```text
 cards/CoreInfra/
-├─ index.ts              export default { order: 70, Component: CoreInfraCard } satisfies CardModule
-├─ CoreInfraCard.tsx     reads sessions, calls its hook, renders <Card face title intro action>
-├─ useCoreInfraCard.ts   returns the face; declares its CardId
+├─ index.ts              the card's id, title, order and requirements; registers the id in CardId
+├─ CoreInfraCard.tsx     reads sessions, calls its hook, renders <Card face intro action>
+├─ useCoreInfraCard.ts   returns the face (status, done, requirements, …)
 └─ useCoreInfraCard.test.ts
 ```
 
-The hook file registers the card's id by declaration merging, so `types.ts` only collects ids:
+`index.ts` is the only place that names the card and wires it to other cards. It registers the id by declaration merging, so `types.ts` only collects ids:
 
 ```ts
 declare module "../../types" {
@@ -127,32 +129,70 @@ declare module "../../types" {
     core_infra: true;
   }
 }
+
+export default {
+  id: "core_infra",
+  title: "Terraform state backend",
+  order: 70,
+  cardRequirements: ["azure_login", "repo", "azure_subscription", "azure_app_registration"],
+  Component: CoreInfraCard,
+} satisfies CardModule;
 ```
 
-The card component declares its title (required), intro and action. Its body holds only the card's content:
+App renders each module inside `CardModuleContext`, and `Card` reads its id, title and requirements from there. Neither the hook nor the component repeats them, so the same component could run under another id and title, wired to other cards. The hook only reports state, including `cardDependencyLabel`, which changes with state (e.g. "Sign in to Azure", then "Select a tenant"). The component declares only its intro and action, and its body holds only the card's content:
 
 ```tsx
-<Card title="Terraform state backend" face={coreInfra} intro={<Intro />} action={<Action />}>
+<Card face={coreInfra} intro={<Intro />} action={<Action />}>
   …content…
 </Card>
 ```
 
+The Stage module renders several cards, so each `StageCard` passes its own `cardId` and `cardRequirements` (in the face) and `title`.
+
 ### Adding a card
 
-1. Create `cards/<Name>/` with a hook that returns a `CardHook` and declares its id in `CardIdRegistry`.
-2. Add a component that reads the sessions it needs and renders `<Card face title>`.
-3. Add `index.ts` exporting `{ order, Component }`. App picks it up through `import.meta.glob`, so App needs no change.
+1. Create `cards/<Name>/` with a hook that returns a `CardHook`.
+2. Add a component that reads the sessions it needs and renders `<Card face>`.
+3. Add `index.ts` that registers the id in `CardIdRegistry` and exports `{ id, title, order, cardRequirements, Component }`. App picks it up through `import.meta.glob`, so App needs no change.
 
 ### Removing a card
 
 Delete its folder. Its id leaves `CardId`, so any other card that still lists it in `cardRequirements` becomes a TypeScript error rather than a silent lock. Cards that read its GitHub variables show them as missing.
 
+### Card order
+
+[config/cardOrder.ts](corp-src/config/cardOrder.ts) holds `CARD_ORDER`, a list of the ids from each `index.ts`. Cards on the list come first, in list order. Cards not on the list follow, sorted by their own `order`.
+
+```ts
+export const CARD_ORDER: readonly string[] = ["github_login", "repo", "azure_login", "stages", "access_pass"];
+```
+
+- An id with no card is ignored, so removing or parking a card folder never breaks the list.
+- The Stage folder renders all pipeline-stage cards, which move together under the id `"stages"`. Stage registers that id for this list only; no card reports it, so never list it in `cardRequirements`.
+- An empty list means every card uses its own `order`.
+- The progress bar and "Next step" follow the page order, so they follow the list too.
+
+### Turning a card off
+
+Move its folder to `corp-src/cards-spare/`, and move it back to turn it on again. App only loads `cards/*/index.ts`, so a parked card is not rendered and its hook never runs, but it is still type-checked, linted and tested, so it can be moved back as it is.
+
+A parked card's id stays in `CardId`, so TypeScript does not catch a live card that still requires it. Such a card stays locked, so park only cards that nothing else lists in `cardRequirements`.
+
+Currently parked:
+
+| Card | Why |
+|---|---|
+| GlobalGroups | The `c02globalGroups` stage covers the same flow |
+
 ### Rules
 
 | Rule | Enforced by |
 |---|---|
-| A card folder never imports a sibling card folder | ESLint `no-restricted-imports` on `corp-src/cards/*/**` |
+| A card folder never imports a sibling card folder | ESLint `no-restricted-imports` on `corp-src/cards*/*/**` |
 | A card requires only ids that exist | TypeScript (`CardId = keyof CardIdRegistry`) |
+| A module's `id` is a registered id | TypeScript (`CardModule.id: CardId`) |
+| No two modules share an id | App throws at startup, naming both `index.ts` files |
+| Every `Card` has an id | `Card` throws if it gets none from its module or `face.cardId` |
 | A card's tests live in its folder | `vitest.config.ts` includes `*-src/**/*.test.*` |
 | Contexts and hooks live in `.ts` files, providers and components in `.tsx` files | ESLint `react-refresh/only-export-components` |
 | Foundation cards (GithubLogin, Repo, AzureLogin, AzureSubscription, AwsLogin) stay | `session/` imports them |

@@ -6,4 +6,16 @@
 import type { CardModule } from "../../hooks/useCards";
 import GithubLoginCard from "./GithubLoginCard";
 
-export default { order: 10, Component: GithubLoginCard } satisfies CardModule;
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    github_login: true;
+  }
+}
+
+export default {
+  id: "github_login",
+  title: "GitHub login",
+  order: 10,
+  Component: GithubLoginCard,
+} satisfies CardModule;

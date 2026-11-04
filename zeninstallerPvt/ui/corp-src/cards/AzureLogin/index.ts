@@ -6,4 +6,16 @@
 import type { CardModule } from "../../hooks/useCards";
 import AzureLoginCard from "./AzureLoginCard";
 
-export default { order: 40, Component: AzureLoginCard } satisfies CardModule;
+// Registers this card's id in CardId (types.ts collects every card's id).
+declare module "../../types" {
+  interface CardIdRegistry {
+    azure_login: true;
+  }
+}
+
+export default {
+  id: "azure_login",
+  title: "Azure login",
+  order: 40,
+  Component: AzureLoginCard,
+} satisfies CardModule;

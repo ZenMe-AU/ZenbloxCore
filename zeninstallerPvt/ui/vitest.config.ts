@@ -15,8 +15,9 @@ export default defineConfig({
         },
         test: {
           name: "unit",
-          include: ["*-src/test/**/*.test.{ts,tsx,js,jsx}"],
-          exclude: ["*-src/test/**/*.browser.test.{ts,tsx,js,jsx}"],
+          // Platform tests live in test/, a card's own tests in its folder so they go wherever it goes.
+          include: ["*-src/**/*.test.{ts,tsx,js,jsx}"],
+          exclude: ["*-src/**/*.browser.test.{ts,tsx,js,jsx}"],
           environment: "jsdom",
           setupFiles: ["./vitest.setup.js"],
           globals: true,
@@ -28,7 +29,7 @@ export default defineConfig({
         },
         test: {
           name: "web",
-          include: ["*-src/test/**/*.browser.test.{ts,tsx,js,jsx}"],
+          include: ["*-src/**/*.browser.test.{ts,tsx,js,jsx}"],
           browser: {
             enabled: true,
             provider: playwright(),

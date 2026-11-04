@@ -10,14 +10,7 @@ import { getStaticWebsiteUrl } from "../../api/azureArm";
 import { readDeployedSite, recordDeployedSite, uploadStaticSite, type DeployedSite } from "../../api/azureBlob";
 import { getWebStorageAccountName } from "../../logic/naming";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
-import type { Account, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
-
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    web_deploy: true;
-  }
-}
+import type { Account, AzureConfigHook, CardHook, CardStatus, GhEnv } from "../../types";
 
 // What the build workflow recorded, as the card reads it back off the Deployments API.
 type WebBuild = {
@@ -43,7 +36,6 @@ export interface UseWebDeployCardParams {
 const BUILD_WORKFLOW = "buildFrontend.yml";
 
 export interface UseWebDeployCard extends CardHook, AzureConfigHook {
-  readonly cardId: "web_deploy";
   storageAccountName: string;
   siteUrl: string | null;
   latest: WebBuild | null;
@@ -59,7 +51,6 @@ export interface UseWebDeployCard extends CardHook, AzureConfigHook {
   // Variables whose value no longer matches what the latest build used.
   staleVariables: string[];
   error: string | null;
-  cardRequirements: CardRequirements;
   cardDependencyLabel: string;
 }
 
@@ -237,7 +228,6 @@ export function useWebDeployCard({
           : "Build the frontend";
 
   return {
-    cardId: "web_deploy" as const,
     storageAccountName,
     siteUrl,
     latest,
@@ -258,7 +248,6 @@ export function useWebDeployCard({
     summary,
     run,
     reset,
-    cardRequirements: ["github_login", "repo", "azure_login", "private_frontend_infra"],
     cardDependencyLabel: "Deploy the frontend",
   };
 }

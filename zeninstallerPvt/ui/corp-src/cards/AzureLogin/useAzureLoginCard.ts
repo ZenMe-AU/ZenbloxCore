@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import type { CardHook, CardRequirements, CardStatus, LoginHook, AzureAccount } from "../../types";
+import type { CardHook, CardStatus, LoginHook, AzureAccount } from "../../types";
 import { AZURE_CLIENT_ID } from "../../config/azureConfig";
 import type { AzureTenant } from "../../types";
 import { tenantDisplayName } from "../../logic/tenant";
@@ -13,13 +13,6 @@ import { INITIAL_URL_PARAMS, type UrlRestoreField } from "../../hooks/useUrlStat
 import { useAzureAccount, type UseAzureAccount } from "./useAzureAccount";
 import { setActiveAzureIdentity } from "../../auth/msal";
 
-// Registers this card's id in CardId (types.ts collects every card's id).
-declare module "../../types" {
-  interface CardIdRegistry {
-    azure_login: true;
-  }
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type UseAzureLoginCardParams = {
@@ -27,8 +20,6 @@ export type UseAzureLoginCardParams = {
 };
 
 export interface UseAzureLoginCard extends UseAzureAccount, CardHook, LoginHook<AzureAccount> {
-  readonly cardId: "azure_login";
-  cardRequirements: CardRequirements;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Sign in to Azure")
   summary: string;
 
@@ -101,10 +92,8 @@ export function useAzureLoginCard({ savedTenantId }: UseAzureLoginCardParams): U
   return {
     ...azure,
     // cardHook
-    cardId: "azure_login" as const,
     status,
     summary,
-    cardRequirements: [],
     cardDependencyLabel: azure.account ? "Select a tenant" : "Sign in to Azure",
     done,
 

@@ -107,7 +107,6 @@ export default function CreateDomainCard() {
 
   return (
     <Card
-      title="Core domain"
       face={createDomain}
       action={
         <Action

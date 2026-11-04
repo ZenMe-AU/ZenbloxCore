@@ -75,7 +75,7 @@ export default function GithubLoginCard() {
   };
 
   return (
-    <Card title="GitHub login" face={auth} action={<Action login={user?.login} />} intro={<Intro />}>
+    <Card face={auth} action={<Action login={user?.login} />} intro={<Intro />}>
       <Box>
         {/* Mode toggle — hidden once logged in, and when PAT is the only mode there is nothing to pick */}
         {!user && backendAvailable && (

@@ -43,7 +43,6 @@ export default function BackendDeployCard() {
 
   return (
     <Card
-      title="Private Zeninstaller Backend"
       face={backend}
       action={
         repoFullName ? (

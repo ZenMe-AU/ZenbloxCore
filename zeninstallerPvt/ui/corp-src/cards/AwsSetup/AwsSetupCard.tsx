@@ -126,7 +126,7 @@ export default function AwsSetupCard() {
   const populate = roleArn ? { [AWS_VARIABLE_KEYS[0]]: roleArn } : undefined;
 
   return (
-    <Card title="AWS setup" face={awsSetup} action={<Action roleName={roleName} />} intro={<Intro />}>
+    <Card face={awsSetup} action={<Action roleName={roleName} />} intro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {bannerState !== "none" && (
           <Box

@@ -100,7 +100,6 @@ describe("useAzureLoginCard", () => {
     });
 
     expect(selectTenant).toHaveBeenCalledWith("tenant-1");
-    expect(latest?.cardId).toBe("azure_login");
     expect(latest?.status).toBe("complete");
     expect(latest?.summary).toBe("org@example.com · Tenant One");
     expect(latest?.done).toBe(true);
