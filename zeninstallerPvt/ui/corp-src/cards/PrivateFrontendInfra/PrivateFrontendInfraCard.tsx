@@ -93,7 +93,7 @@ export default function PrivateFrontendInfraCard({
 
   return (
     <Card
-      title="Frontend hosting environment"
+      title="Private hosting environment"
       action={rgUrl ? <ViewLink href={rgUrl} label="Open frontend resource group in Azure" /> : undefined}
       lockedIntro={<Intro />}
       {...card}

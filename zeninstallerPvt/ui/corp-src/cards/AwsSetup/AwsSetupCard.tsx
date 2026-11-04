@@ -38,10 +38,9 @@ type Props = {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      ZenInstaller creates an AWS IAM role that GitHub Actions can use for the environments you select. The trust policy uses GitHub's immutable OIDC subject,
-      which includes numeric organization and repository IDs. GitHub Actions exchanges its OIDC token for temporary AWS credentials, so you don't need to store
-      access keys in GitHub. The role receives the AWS-managed AdministratorAccess policy, which grants broad access to your AWS account. ZenInstaller saves the
-      role ARN to each selected GitHub environment for deployment workflows.
+      ZenInstaller creates an AWS IAM role for GitHub Actions to use in the currently selected GitHub environment. GitHub Actions uses OIDC, a secure sign-in method, to prove which organization, repository, and environment a workflow belongs to. AWS checks that information against the role’s trust rules, then gives matching workflows temporary credentials. This means you don’t need to store AWS access keys in GitHub.
+
+The role has AWS’s AdministratorAccess permission, which gives it broad control over your AWS account. ZenInstaller saves the role’s ARN (its AWS identifier) as the AWS_ROLE_ARN variable in the selected GitHub environment.
     </Typography>
   );
 }

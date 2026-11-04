@@ -212,6 +212,8 @@ test("Reports when connection details fail to auto-save", async ({ page, context
   ]).toEqual(["00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000002"]);
   await page.reload();
   const persistedCard = await expandAzureAppRegistrationCard(page);
+  // The card shows only its locked intro until prerequisites resolve after reload.
+  await expect(persistedCard.locator("#azure-app-registration-connection-details")).toBeAttached({ timeout: 60_000 });
   const persistedInputs = persistedCard.locator('[data-sensitive="true"] input');
   await expect(persistedInputs).toHaveCount(2);
   const persistedIds = await persistedInputs.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value.trim()));
@@ -311,6 +313,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await expectSnapshot(page, appRegistrationCard, testInfo, "end", viewportName);
     await page.reload();
     const persistedCard = await expandAzureAppRegistrationCard(page);
+    await expect(persistedCard.locator("#azure-app-registration-connection-details")).toBeAttached({ timeout: 60_000 });
     const persistedInputs = persistedCard.locator('[data-sensitive="true"] input');
     await expect(persistedInputs).toHaveCount(2);
     const persistedClientIds = await persistedInputs.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value.trim()));

@@ -39,7 +39,7 @@ function SiteLink({ label, color, href }: { label: string; color: string; href: 
 function Intro({ storageAccountName }: { storageAccountName: string }) {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-  GitHub Actions builds the ZenInstaller frontend. ZenInstaller downloads the build and uploads its files from this browser to the<code>$web</code> container in <code>{storageAccountName || "the site's storage account"}</code>. Build and deploy are separate, so you can review a build before publishing it.
+  GitHub Actions builds the ZenInstaller frontend. ZenInstaller downloads the build and uploads its files from this browser to the $web container in {storageAccountName || "the site's storage account"}. Build and deploy are separate, so you can review a build before publishing it.
 </Typography>
   );
 }

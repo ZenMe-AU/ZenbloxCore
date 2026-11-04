@@ -98,7 +98,6 @@ test("Allows manual region entry when Azure region lookup fails", async ({ page,
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
   await expectSuccessfulSteps(card, coreInfraStepLabels("pwtests"));
   const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/zbcore-pwtests-rg"));
-  const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/zbcore-pwtests-rg"));
   expect(resourceGroupWrite?.body).toMatchObject({ location: "westus2" });
   await expectSnapshot(page, card, testInfo, "manual-region-fallback", viewportName);
 });

@@ -26,9 +26,7 @@ type Props = {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Sign in to AWS in this browser with an IAM access key and secret key. ZenInstaller sends them directly to AWS, not to its servers. Only temporary session
-      credentials are kept in this tab until they expire. Use an IAM user allowed to create identity providers and roles. After creating the GitHub Actions role,
-      deactivate and delete these access keys.
+      Sign in to AWS in this browser with an IAM access key and secret key. ZenInstaller sends them directly to AWS, not to its servers. AWS exchanges them for temporary credentials, which stay in this tab and expire automatically.
       <>
         <br />
         Follow the{" "}

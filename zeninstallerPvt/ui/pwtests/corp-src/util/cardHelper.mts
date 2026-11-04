@@ -66,7 +66,7 @@ export async function expandAzureSubscriptionCard(page: Page) {
 
 export async function expandAzureAppRegistrationCard(page: Page) {
   const appRegistrationCard = page.locator("#card-azure_app_registration");
-  const introText = appRegistrationCard.getByText(/Creates an Entra app for GitHub Actions to use when planning Terraform changes/i);
+  const introText = appRegistrationCard.getByText(/Creates a Microsoft Entra app for GitHub Actions to use when previewing Azure changes with Terraform/i);
   if (!(await introText.isVisible())) {
     await expandCard(appRegistrationCard);
   }

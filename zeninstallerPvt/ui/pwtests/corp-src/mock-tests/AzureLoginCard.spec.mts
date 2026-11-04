@@ -108,7 +108,7 @@ async function runHappyPath({ page }: { page: import("@playwright/test").Page },
     await expect(card.getByText("Loading tenants...", { exact: true })).toBeHidden();
     const tenantSelect = card.getByTestId("tenant-select");
     await expect(card.getByRole("combobox", { name: /^Tenant\b/ })).toBeVisible();
-    const tenantHelp = card.getByRole("link", { name: "Show page to get Tenant ID (opens in new tab)", exact: true });
+    const tenantHelp = card.getByRole("link", { name: "Find your Tenant ID in Microsoft Entra (opens in new tab)", exact: true });
     await expect(tenantHelp).toHaveAttribute("href", "https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Overview");
     await expect(tenantHelp).toHaveAttribute("target", "_blank");
     await tenantSelect.click();

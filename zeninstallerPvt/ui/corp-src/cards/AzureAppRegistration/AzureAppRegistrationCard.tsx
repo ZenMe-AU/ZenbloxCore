@@ -36,9 +36,7 @@ type Props = {
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-      Creates an Entra app for GitHub Actions to use when planning Terraform changes. The app gets Reader access to the selected Azure
-      subscription for plans, and its ID is saved to both client ID variables in that GitHub environment. Reader access does not allow deployment; changes are
-      applied separately through the remote terminal.
+      Creates a Microsoft Entra app for GitHub Actions to use when previewing Azure changes with Terraform. The app can view resources in the selected subscription, but it can’t change them. ZenInstaller saves its ID in two settings for the selected GitHub environment. Use the remote terminal to apply changes.
     </Typography>
   );
 }
