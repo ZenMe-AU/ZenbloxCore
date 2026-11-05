@@ -75,7 +75,7 @@ describe("Run Status Update triggers one stage", () => {
 
     expect(apiMocks.triggerWorkflow).toHaveBeenCalledTimes(1);
     const [, , workflowId, , , dir] = apiMocks.triggerWorkflow.mock.calls[0];
-    expect(workflowId).toBe("planStage.yml");
+    expect(workflowId).toBe("plan.yml");
     expect(dir).toBe("CloudFront");
   });
 
@@ -225,12 +225,12 @@ describe("a run belongs to the card that started it", () => {
 });
 
 describe("stage workflow files", () => {
-  // Each stage names its own file; today they all share planStage.yml, which takes the stage as its dir input.
-  it("plans every stage through planStage.yml", () => {
-    expect(PIPELINE.stages.map((s) => s.workflowId)).toEqual(PIPELINE.stages.map(() => "planStage.yml"));
+  // Each stage names its own file; today they all share plan.yml, which takes the stage as its dir input.
+  it("plans every stage through plan.yml", () => {
+    expect(PIPELINE.stages.map((s) => s.workflowId)).toEqual(PIPELINE.stages.map(() => "plan.yml"));
   });
 
-  it("deploys every stage through remoteLogin.yml", () => {
-    expect(PIPELINE.stages.map((s) => s.deployWorkflowId)).toEqual(PIPELINE.stages.map(() => "remoteLogin.yml"));
+  it("deploys every stage through deploy.yml", () => {
+    expect(PIPELINE.stages.map((s) => s.deployWorkflowId)).toEqual(PIPELINE.stages.map(() => "deploy.yml"));
   });
 });

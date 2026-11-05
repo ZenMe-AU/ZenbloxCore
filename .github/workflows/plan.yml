@@ -1,4 +1,4 @@
-name: Plan stage
+name: Plan tf changes
 run-name: Plan ${{ inputs.dir }} @ ${{ inputs.github_env_name }}
 
 on:

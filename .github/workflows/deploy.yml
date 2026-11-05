@@ -1,4 +1,4 @@
-name: Remote Azure Login
+name: Deploy tf changes
 run-name: Priv Apply ${{ inputs.dir }} @ ${{ inputs.github_env_name }}
 
 # Opens a browser terminal for the interactive cloud sign-ins, then applies the plan as the person who just signed in.

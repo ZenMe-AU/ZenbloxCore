@@ -8,9 +8,9 @@ import { GRAPH_PERMISSIONS } from "../config/azureConfig";
 import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, C01_KEYS } from "./variables";
 
 // Plans any one stage; dispatched with the stage's dir.
-const PLAN_STAGE_WORKFLOW = "planStage.yml";
+const PLAN_STAGE_WORKFLOW = "plan.yml";
 // Applies any one planned stage as the person who signs in; dispatched with the stage's dir.
-const DEPLOY_STAGE_WORKFLOW = "remoteLogin.yml";
+const DEPLOY_STAGE_WORKFLOW = "deploy.yml";
 
 export const PIPELINES: Record<string, PipelineConfig> = {
   corpSetup: {

@@ -28,10 +28,10 @@ app.http("triggerActions", {
       // if (workflow_id === "deployChangeset.yml" && (!run_id || !dir)) {
       //   throw new MissingParam();
       // }
-      if (workflow_id === "remoteLogin.yml" && (!session_id || !dir || !plan_run_id)) {
+      if (workflow_id === "deploy.yml" && (!session_id || !dir || !plan_run_id)) {
         throw new MissingParam();
       }
-      if (workflow_id === "planStage.yml" && !dir) {
+      if (workflow_id === "plan.yml" && !dir) {
         throw new MissingParam();
       }
 
