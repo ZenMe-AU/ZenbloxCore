@@ -100,8 +100,8 @@ function StatusBar({ session, colors }: { session: UseRemoteTerminal; colors: Te
       {session.sessionId && (
         <Typography sx={{ typography: "technicalBody", color: colors.muted, ml: "auto" }}>{session.sessionId.slice(0, 8)}</Typography>
       )}
-      {/* Gone once the session is over — the panel stays, but there is nothing left to end. */}
-      {session.status !== "closed" && session.status !== "idle" && (
+      {/* Only while the session is live — after it closes or fails the panel stays, but there is nothing left to end. */}
+      {(session.status === "connected" || IN_PROGRESS.includes(session.status)) && (
             <Button aria-label="End terminal session" onClick={session.stop} size="small" sx={{ ...darkBtnSx(colors), ml: session.sessionId ? 0 : "auto" }}>
           End session
         </Button>
