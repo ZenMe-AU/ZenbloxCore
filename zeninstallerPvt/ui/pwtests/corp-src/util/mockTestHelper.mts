@@ -419,6 +419,9 @@ export async function installMockAzure(page: Page, initialState: Partial<MockAzu
       return json(route, { value: state.subscriptions });
     }
     if (path.endsWith("/tenants") && request.method() === "GET") return json(route, { value: state.tenants });
+    if (/\/providers\/Microsoft.Authorization\/permissions$/i.test(path) && request.method() === "GET") {
+      return json(route, { value: [{ actions: ["*"], notActions: [] }] });
+    }
     if (/\/roleAssignments$/i.test(path) && request.method() === "GET") {
       const scope = path.slice(0, path.toLowerCase().indexOf("/providers/microsoft.authorization/roleassignments"));
       const principalMatch = url.searchParams.get("$filter")?.match(/assignedTo\('([^']+)'\)/i);

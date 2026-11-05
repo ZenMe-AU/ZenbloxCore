@@ -4,7 +4,7 @@
  */
 
 import { useEffect } from "react";
-import { Box, Button, CircularProgress, Link, MenuItem, Select, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Link, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { Account, CardChrome, GhEnv } from "../../types";
@@ -18,7 +18,8 @@ import CloudVariableDetail from "../CloudVariableDetail";
 import Card from "../../components/Card";
 import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
-import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
+import ExternalLink from "../../components/ExternalLink";
+import { AZURE_PIM_ACTIVATION_URL, AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
 
 type Props = {
   card: CardChrome;
@@ -172,6 +173,42 @@ export default function AzureSubscriptionCard({
             </Box>
           )}
         </Box>
+
+        {subscription.installerAccess.status !== "idle" && (
+          <Box sx={{ minWidth: 0 }}>
+            {subscription.installerAccess.status === "checking" ? (
+              <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CircularProgress aria-label="Checking installer subscription access" size={12} />
+                <Typography color="text.muted">Checking your subscription permissions for the Zenblox installer...</Typography>
+              </Box>
+            ) : (
+              <>
+                {subscription.installerAccess.status === "error" ? (
+                  <Box role="alert" sx={{
+                    backgroundColor: "background.default", border: "1px solid", borderColor: "warning.main",
+                    borderRadius: 1, px: 2, py: 1.25, minWidth: 0, overflowWrap: "anywhere",
+                  }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+                      <Typography color="warning.dark">You may not have enough subscription access to complete the installer.</Typography>
+                    </Box>
+                    <Box sx={{ color: "warning.dark" }}>
+                      <Typography sx={{ whiteSpace: "pre-line" }}>{subscription.installerAccess.error}</Typography>
+                      <ExternalLink href={AZURE_PIM_ACTIVATION_URL} label="Activate an Azure resource role in PIM">
+                        Activate eligible roles in PIM and recheck subscription access.
+                      </ExternalLink>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Alert severity="success">Subscription-level installer permissions verified.</Alert>
+                )}
+                <Button variant="contained" sx={{ mt: 1, py: 0.85, px: 2.5 }} onClick={subscription.installerAccess.retry}>
+                  Recheck subscription access
+                </Button>
+              </>
+            )}
+          </Box>
+        )}
 
         {!selectedEnv && (
           <Typography color="warning.main" role="status">

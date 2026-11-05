@@ -99,6 +99,15 @@ After all three steps are successfully submitted:
 
 ## Permissions for installer resource groups
 
+When you select a subscription in **Choose Azure subscription**, the installer automatically checks your subscription-level Azure permissions for
+resource provisioning (storage, monitoring, DNS, Functions and Web PubSub), provider registration, budgets, role assignments, and deletion locks.
+Missing permissions or a failed verification produce a warning, including the missing actions and guidance to obtain **Owner**, or **Contributor +
+User Access Administrator** (or equivalent permissions), at subscription scope. Use **Recheck subscription access** after granting or activating access.
+The warning is advisory: you can still select and save the subscription.
+
+Passing this check is not a guarantee of completing every installer stage. Entra directory roles/admin consent, storage data permissions,
+tenant-root management-group access, AWS/GitHub access, Azure policies, deny assignments, and role-assignment conditions are not verified here.
+
 The Core domain, Terraform state backend, Frontend hosting environment, and Private Zeninstaller Backend Environment cards check your signed-in account's
 effective permissions as soon as your Azure account and subscription are selected, before you click the resource creation button. The button stays
 disabled while access is being checked or is missing. Use **Recheck subscription access** after activating a role or receiving access; changing the
