@@ -282,6 +282,7 @@ async function readSubscriptionPermissions(account: AzureAccount, subscriptionId
   return permissions;
 }
 
+// checks for Contributor access needed for resource group creation
 export async function ensureResourceGroupCreationAccess(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<void> {
   const guidance = `You need Contributor access (or equivalent permissions such as Owner) on the selected subscription ${subscriptionId} to create resource groups.
 Access to an individual resource group is not sufficient. Ask a subscription administrator to grant access in IAM
@@ -295,16 +296,15 @@ or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} then retry.
   throw new Error(guidance);
 }
 
+// checks for Contributor and User Access Admin for the Azure Subscription card
 export async function ensureInstallerSubscriptionAccess(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<void> {
-  const guidance =
-    `You need at least Contributor plus User Access Administrator access (or equivalent permissions).`;
+  const guidance = `You need at least Contributor plus User Access Administrator access (or equivalent permissions).`;
   let permissions: ArmPermission[];
   try {
     permissions = await readSubscriptionPermissions(account, subscriptionId, overrideTenantId);
   } catch (err) {
     throw new Error(`Could not verify installer subscription access. ${guidance} Details: ${err instanceof Error ? err.message : String(err)}`);
   }
-
   const readWrite = (...resources: string[]) => resources.flatMap((resource) => [`${resource}/read`, `${resource}/write`]);
   const providers = new Set([...CORE_INFRA_PROVIDERS, ...DNS_PROVIDERS, ...PRIVATE_FRONTEND_PROVIDERS, ...REMOTE_TERMINAL_PROVIDERS]);
   const requirements = [
@@ -338,11 +338,8 @@ export async function ensureInstallerSubscriptionAccess(account: AzureAccount, s
     ] },
     { label: "Resource deletion locks", actions: readWrite("Microsoft.Authorization/locks") },
   ];
-  const missing = requirements.flatMap(({ label, actions }) => {
-    const denied = actions.filter((action) => !grantsArmAction(permissions, action));
-    return denied.length ? [`${label}: ${denied.join(", ")}`] : [];
-  });
-  if (missing.length) {
+  const missingAccess = requirements.some(({ actions }) => actions.some((action) => !grantsArmAction(permissions, action)));
+  if (missingAccess) {
     throw new Error(`The selected subscription is missing installer permissions.\n${guidance}`);
   }
 }
