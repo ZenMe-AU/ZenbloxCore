@@ -9,6 +9,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseCoreInfraCard } from "./useCoreInfraCard";
 import StepRow from "../StepRow";
+import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
@@ -41,7 +42,8 @@ function Intro({ containerName }: { containerName: string }) {
     <Typography variant="body1" color="text.secondary">
       Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
       {containerName}{" "}
-      container Terraform uses for state, granting GitHub Actions access to it.
+      container Terraform uses for state, granting GitHub Actions access to it. You need Contributor access (or equivalent such as Owner) on the selected
+      subscription to create resource groups. 
     </Typography>
   );
 }
@@ -206,7 +208,7 @@ export default function CoreInfraCard({
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Box>
-              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
+              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources to be created</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
                 <PlainRow label="Resource group" value={resourceGroupName} />
                 <PlainRow label="Log Analytics" value={lawName} />
@@ -242,10 +244,11 @@ export default function CoreInfraCard({
               </Box>
             </Box>
 
+            <ResourceGroupCreationAccess access={infra.creationAccess} />
             <Button
               variant="contained"
               onClick={run}
-              disabled={disabled || running || !location.trim() || editingStorage}
+              disabled={disabled || running || !location.trim() || editingStorage || infra.creationAccess.status !== "ready"}
               sx={{
                 alignSelf: "flex-start",
                 py: 0.85,

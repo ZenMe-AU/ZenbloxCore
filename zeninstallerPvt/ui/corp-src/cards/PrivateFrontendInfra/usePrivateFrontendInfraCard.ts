@@ -10,6 +10,7 @@ import {
   ensureBlobDiagnostics,
   ensureLogAnalyticsWorkspace,
   ensureResourceGroup,
+  ensureResourceGroupCreationAccess,
   resourceGroupExists,
   findStorageAccountGroup,
   storageAccountNameAvailable,
@@ -23,6 +24,7 @@ import {
 import { createSpaAppRegistration, createServicePrincipal, ensureSpaRedirectUri, getExistingApp, getExistingSP } from "../../api/azureGraph";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
+import { useResourceGroupCreationAccess, type ResourceGroupCreationAccess } from "../../hooks/util/useResourceGroupCreationAccess";
 import {
   DEFAULT_AZURE_LOCATION,
   DIAGNOSTIC_SETTING_NAME,
@@ -50,6 +52,7 @@ export interface UsePrivateFrontendInfraCardParams extends AzureTarget {
 }
 
 export interface UsePrivateFrontendInfraCard extends CardHook, AzureConfigHook {
+  creationAccess: ResourceGroupCreationAccess;
   readonly cardId: "private_frontend_infra";
   location: string;
   setLocation: (loc: string) => void;
@@ -88,6 +91,7 @@ export function usePrivateFrontendInfraCard({
   const [locationsError, setLocationsError] = useState<string | null>(null);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const { ensureRegistered } = useProviderRegistration({ azureAccount, subscriptionId, tenantId });
+  const creationAccess = useResourceGroupCreationAccess({ azureAccount, subscriptionId, tenantId });
   const [result, setResult] = useState<PrivateFrontendInfraResult | null>(loadResult);
   const [runNonce, setRunNonce] = useState(0);
 
@@ -211,6 +215,7 @@ export function usePrivateFrontendInfraCard({
 
     setRunning(true);
     const initialSteps: SetupStep[] = [
+      { id: "access", label: "Check subscription Contributor access to create resource groups", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
       { id: "law", label: `Create Log Analytics workspace ${lawName}`, status: "pending" },
@@ -231,6 +236,10 @@ export function usePrivateFrontendInfraCard({
     const mark = (id: string, r: "created" | "exists") => updateStep(id, r === "exists" ? "skipped" : "done", r === "exists" ? "Already exists" : undefined);
 
     try {
+      updateStep("access", "running");
+      await ensureResourceGroupCreationAccess(azureAccount, subscriptionId, tenantId);
+      updateStep("access", "done");
+
       updateStep("providers", "running");
       const providers = await ensureRegistered(PRIVATE_FRONTEND_PROVIDERS);
       updateStep(
@@ -344,6 +353,7 @@ export function usePrivateFrontendInfraCard({
 
   return {
     cardId: "private_frontend_infra" as const,
+    creationAccess,
     location,
     setLocation,
     siteStorageAccount: webStorageAccountName,

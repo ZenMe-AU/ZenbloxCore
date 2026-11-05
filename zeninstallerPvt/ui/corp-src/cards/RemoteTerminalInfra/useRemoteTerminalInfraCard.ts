@@ -12,6 +12,7 @@ import {
   ensureLogAnalyticsWorkspace,
   ensureRbacRoleAtScope,
   ensureResourceGroup,
+  ensureResourceGroupCreationAccess,
   ensureStorageAccount,
   findStorageAccountGroup,
   findFunctionAppGroup,
@@ -33,6 +34,7 @@ import {
 import { createAppRegistration, createServicePrincipal, ensureFederatedCredential, getExistingApp, getExistingSP } from "../../api/azureGraph";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
+import { useResourceGroupCreationAccess, type ResourceGroupCreationAccess } from "../../hooks/util/useResourceGroupCreationAccess";
 import {
   DEFAULT_AZURE_LOCATION,
   PRIVATE_APP_INSIGHTS,
@@ -76,6 +78,7 @@ export interface UseRemoteTerminalInfraCardParams extends AzureTarget {
 }
 
 export interface UseRemoteTerminalInfraCard extends CardHook, AzureConfigHook {
+  creationAccess: ResourceGroupCreationAccess;
   readonly cardId: "remote_terminal_infra";
   location: string;
   setLocation: (loc: string) => void;
@@ -131,6 +134,7 @@ export function useRemoteTerminalInfraCard({
   const [locationsFailed, setLocationsFailed] = useState(false);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const { ensureRegistered } = useProviderRegistration({ azureAccount, subscriptionId, tenantId });
+  const creationAccess = useResourceGroupCreationAccess({ azureAccount, subscriptionId, tenantId });
   const [result, setResult] = useState<RemoteTerminalInfraResult | null>(null);
   const [runNonce, setRunNonce] = useState(0);
   const [storageOverride, setStorageOverride] = useState("");
@@ -319,6 +323,7 @@ export function useRemoteTerminalInfraCard({
 
     setRunning(true);
     const initialSteps: SetupStep[] = [
+      { id: "access", label: "Check subscription Contributor access to create resource groups", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
       { id: "law", label: `Create Log Analytics workspace ${lawName}`, status: "pending" },
@@ -341,6 +346,10 @@ export function useRemoteTerminalInfraCard({
     const mark = (id: string, r: "created" | "exists") => updateStep(id, r === "exists" ? "skipped" : "done", r === "exists" ? "Already exists" : undefined);
 
     try {
+      updateStep("access", "running");
+      await ensureResourceGroupCreationAccess(azureAccount, subscriptionId, tenantId);
+      updateStep("access", "done");
+
       updateStep("providers", "running");
       const providers = await ensureRegistered(REMOTE_TERMINAL_PROVIDERS);
       updateStep(
@@ -501,6 +510,7 @@ export function useRemoteTerminalInfraCard({
 
   return {
     cardId: "remote_terminal_infra" as const,
+    creationAccess,
     location,
     setLocation,
     locations,

@@ -96,3 +96,18 @@ After all three steps are successfully submitted:
 - Your **Azure subscription** (the billing and resource-management boundary for Azure services) is created
 - Your **Microsoft Entra ID tenant** is provisioned
 - You can immediately begin configuring users, groups, applications, and security settings
+
+## Permissions for installer resource groups
+
+The Core domain, Terraform state backend, Frontend hosting environment, and Private Zeninstaller Backend Environment cards check your signed-in account's
+effective permissions as soon as your Azure account and subscription are selected, before you click the resource creation button. The button stays
+disabled while access is being checked or is missing. Use **Recheck subscription access** after activating a role or receiving access; changing the
+account, tenant, or subscription automatically starts a new check. Access is checked again when setup starts.
+You need **Contributor** access on that subscription, or equivalent
+resource-group creation permissions such as **Owner**. Access scoped only to an existing resource group is not sufficient.
+
+If the check fails, ask a subscription administrator to grant access under **Subscription > Access control (IAM)**, or activate an eligible role in
+**Privileged Identity Management (PIM)**, then retry the card. If access cannot be verified, the card stops and shows the verification error.
+
+This check covers resource-group creation only. Role assignments, resource locks, Entra domain/app management, and admin consent still require their
+own additional permissions.

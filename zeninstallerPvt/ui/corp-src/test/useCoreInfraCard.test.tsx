@@ -28,6 +28,7 @@ async function waitFor(assertion: () => void, timeoutMs = 2000) {
 
 const { apiMocks } = vi.hoisted(() => ({
   apiMocks: {
+    ensureResourceGroupCreationAccess: vi.fn(),
     getProviderRegistrationState: vi.fn(),
     registerProvider: vi.fn(),
     ensureResourceGroup: vi.fn(),
@@ -60,6 +61,7 @@ const { configMocks } = vi.hoisted(() => ({
 }));
 
 vi.mock("../api/azureArm", () => ({
+  ensureResourceGroupCreationAccess: apiMocks.ensureResourceGroupCreationAccess,
   getProviderRegistrationState: apiMocks.getProviderRegistrationState,
   registerProvider: apiMocks.registerProvider,
   ensureResourceGroup: apiMocks.ensureResourceGroup,
@@ -127,6 +129,7 @@ describe("useCoreInfraCard", () => {
     localStorage.clear();
     sessionStorage.clear();
     configMocks.azureClientId = "client-id";
+    apiMocks.ensureResourceGroupCreationAccess.mockResolvedValue(undefined);
 
     apiMocks.resourceGroupExists.mockResolvedValue(true);
     apiMocks.ensureScopeConsent.mockResolvedValue(false);

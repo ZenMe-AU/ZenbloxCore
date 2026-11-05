@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ensureResourceGroup,
+  ensureResourceGroupCreationAccess,
   resourceGroupExists,
   ensureLogAnalyticsWorkspace,
   ensureSubscriptionDiagnostics,
@@ -37,6 +38,7 @@ import { createResultStorage } from "../../logic/resultStorage";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { APP_SCOPES, AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../../config/azureConfig";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
+import { useResourceGroupCreationAccess, type ResourceGroupCreationAccess } from "../../hooks/util/useResourceGroupCreationAccess";
 import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../../types";
 
 export type CoreInfraResult = {
@@ -57,6 +59,7 @@ export interface UseCoreInfraCardParams extends AzureSpTarget {
 
 // steps / running / run / reset come from AzureConfigHook.
 export interface UseCoreInfraCard extends CardHook, AzureConfigHook {
+  creationAccess: ResourceGroupCreationAccess;
   readonly cardId: "core_infra";
   location: string;
   setLocation: (loc: string) => void;
@@ -98,6 +101,7 @@ export function useCoreInfraCard({
   const [locationsError, setLocationsError] = useState<string | null>(null);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const { ensureRegistered } = useProviderRegistration({ azureAccount, subscriptionId, tenantId });
+  const creationAccess = useResourceGroupCreationAccess({ azureAccount, subscriptionId, tenantId });
   const [result, setResult] = useState<CoreInfraResult | null>(loadResult);
   const [infraRbacStatus, setInfraRbacStatus] = useState<CoreInfraRbacStatus>("unknown");
   const [provisionedFor, setProvisionedFor] = useState<string | null>(null); // "corpName|subscriptionId"
@@ -215,6 +219,7 @@ export function useCoreInfraCard({
     setRunning(true);
 
     const initialSteps: SetupStep[] = [
+      { id: "access", label: "Check subscription Contributor access to create resource groups", status: "pending" },
       { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
@@ -229,13 +234,18 @@ export function useCoreInfraCard({
     ];
     setSteps(initialSteps);
 
-    let currentStep = "consent";
+    let currentStep = "access";
     let sp: Awaited<ReturnType<typeof getExistingSP>> = null;
     try {
       if (!/^[a-z0-9]{3,24}$/.test(storageAccountName)) {
         currentStep = "storage";
         throw new Error(`"${storageAccountName}" can't be a storage account name (3-24 lowercase letters and digits) — edit it above`);
       }
+      currentStep = "access";
+      updateStep("access", "running");
+      await ensureResourceGroupCreationAccess(azureAccount, subscriptionId, tenantId);
+      updateStep("access", "done");
+
       currentStep = "consent";
       updateStep("consent", "running");
       const promptedGraph = await ensureScopeConsent(azureAccount, [...APP_SCOPES], tenantId);
@@ -351,6 +361,7 @@ export function useCoreInfraCard({
   const summary = !azureConfigured ? "Unavailable" : done ? "Infrastructure ready" : "Set up corp infrastructure";
 
   return {
+    creationAccess,
     location,
     setLocation,
     locations,

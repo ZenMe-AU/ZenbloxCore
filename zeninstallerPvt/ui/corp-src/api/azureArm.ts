@@ -7,6 +7,7 @@ import { getToken } from "../auth/msal";
 import { azFetch as gFetch, ARM } from "./azureFetch";
 import { ARM_SCOPES, BACKEND_VERSION_KEYS, RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
+import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
 import type { AzureAccount } from "../types";
 
 // ── Function App code deployment ──────────────────────────────────────────────
@@ -242,6 +243,37 @@ export async function ensureResourceGroup(
   if (await armGet(token, path)) return "exists";
   await gFetch(token, ARM, path, { method: "PUT", body: JSON.stringify({ location }) });
   return "created";
+}
+
+export async function ensureResourceGroupCreationAccess(account: AzureAccount, subscriptionId: string,overrideTenantId?: string): Promise<void> {
+const guidance = `You need Contributor access (or equivalent permissions such as Owner) on the selected subscription ${subscriptionId} to create resource groups.
+Access to an individual resource group is not sufficient. Ask a subscription administrator to grant access in IAM
+or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} then retry. Select Contributor (or Owner) for the selected subscription.`;
+
+  const action = "Microsoft.Resources/subscriptions/resourceGroups/write";
+  const matches = (pattern: string) =>
+    new RegExp(`^${pattern.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`, "i").test(action);
+
+  try {
+    const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+    let path: string | null = `/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/permissions?api-version=2022-04-01`;
+    while (path) {
+      const page: { value: { actions: string[]; notActions?: string[] }[]; nextLink?: string } = await gFetch(token, ARM, path);
+      if (!page || !Array.isArray(page.value)) throw new Error("Azure returned an invalid subscription permissions response");
+      // NotActions excludes actions from this grant only; another grant can still allow them.
+      if (page.value.some((permission) => permission.actions.some(matches) && !permission.notActions?.some(matches))) return;
+      if (page.nextLink) {
+        const next = new URL(page.nextLink, ARM);
+        if (next.origin !== ARM) throw new Error("Azure returned an unexpected subscription permissions URL");
+        path = `${next.pathname}${next.search}`;
+      } else {
+        path = null;
+      }
+    }
+  } catch (err) {
+    throw new Error(`Could not verify resource-group creation access. ${guidance} Details: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  throw new Error(guidance);
 }
 
 // Read-only existence check — used by live "is infra still operable" checks (no create-on-miss).

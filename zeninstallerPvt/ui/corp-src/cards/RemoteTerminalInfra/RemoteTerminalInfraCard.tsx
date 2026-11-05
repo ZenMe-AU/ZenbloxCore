@@ -8,6 +8,7 @@ import { Box, Button, ButtonBase, Collapse, Typography } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import type { UseRemoteTerminalInfraCard } from "./useRemoteTerminalInfraCard";
 import StepRow from "../StepRow";
+import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
@@ -23,7 +24,8 @@ function Intro() {
   return (
     <Typography variant="body1" color="text.secondary">
       The relay behind the stage-card terminal: Web PubSub, the session table, and the Function App that issues group-scoped tokens. Everything connects by
-      managed identity — no access key is stored.
+      managed identity — no access key is stored. You need Contributor access (or equivalent such as Owner) on the selected subscription to create resource
+      groups. 
     </Typography>
   );
 }
@@ -81,7 +83,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
         {infra.steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Box>
-              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
+              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources to be created</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
                 <PlainRow label="Resource group" value={infra.resourceGroupName} />
                 <PlainRow label="Log Analytics" value={infra.lawName} />
@@ -139,10 +141,11 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
               </Box>
             </Box>
 
+            <ResourceGroupCreationAccess access={infra.creationAccess} />
             <Button
               variant="contained"
               onClick={() => void infra.run()}
-              disabled={infra.running || editingStorage || editingWebPubSub || editingFunctionApp || !infra.location.trim()}
+              disabled={infra.running || editingStorage || editingWebPubSub || editingFunctionApp || !infra.location.trim() || infra.creationAccess.status !== "ready"}
               sx={{
                 alignSelf: "flex-start",
                 py: 0.85,

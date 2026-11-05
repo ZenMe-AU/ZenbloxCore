@@ -6,8 +6,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { ensureScopeConsent, getMsal } from "../../auth/msal";
 import { APP_SCOPES, DNS_PROVIDERS, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_PERMISSIONS } from "../../config/azureConfig";
-import { ensureDnsZone, ensureDnsTxtRecord, ensureResourceGroup, ensureLogAnalyticsWorkspace, findDnsZone, listLocations, type AzureLocation } from "../../api/azureArm";
+import { ensureDnsZone, ensureDnsTxtRecord, ensureResourceGroup, ensureResourceGroupCreationAccess, ensureLogAnalyticsWorkspace, findDnsZone, listLocations, type AzureLocation } from "../../api/azureArm";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
+import { useResourceGroupCreationAccess, type ResourceGroupCreationAccess } from "../../hooks/util/useResourceGroupCreationAccess";
 import {
   getEntraDomain,
   createEntraDomain,
@@ -46,6 +47,7 @@ export interface UseCreateDomainCardParams extends AzureSpTarget {
 
 // steps / running / run / reset come from AzureConfigHook.
 export interface UseCreateDomainCard extends CardHook, AzureConfigHook {
+  creationAccess: ResourceGroupCreationAccess;
   readonly cardId: "create_domain";
   checkingStatus: boolean;
   checkStatusError: string | null;
@@ -84,6 +86,7 @@ const { save: saveResult, load: loadResult } = createResultStorage<CreateDomainR
 export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dnsName, spClientId, tenantId }: UseCreateDomainCardParams): UseCreateDomainCard {
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const { ensureRegistered } = useProviderRegistration({ azureAccount, subscriptionId, tenantId });
+  const creationAccess = useResourceGroupCreationAccess({ azureAccount, subscriptionId, tenantId });
   const [result, setResult] = useState<CreateDomainResult | null>(loadResult);
   const [nameServers, setNameServers] = useState<string[]>(loadResult()?.nameServers ?? []);
   const [domainVerified, setDomainVerified] = useState<boolean>(loadResult()?.domainVerified ?? false);
@@ -256,6 +259,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     setVerifyError(null);
 
     const initialSteps: SetupStep[] = [
+      { id: "access", label: "Check subscription Contributor access to create resource groups", status: "pending" },
       { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
@@ -269,8 +273,12 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     ];
     setSteps(initialSteps);
 
-    let currentStep = "consent";
+    let currentStep = "access";
     try {
+      updateStep("access", "running");
+      await ensureResourceGroupCreationAccess(azureAccount, subscriptionId, tenantId);
+      updateStep("access", "done");
+
       currentStep = "consent";
       updateStep("consent", "running");
       const graphScopes = [...new Set([...DOMAIN_SCOPES, ...GRANT_CONSENT_SCOPES, ...APP_SCOPES])];
@@ -371,7 +379,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
       setRunNonce((n) => n + 1);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
-      if (isConsentError(msg)) {
+      if (currentStep !== "access" && isConsentError(msg)) {
         updateStep(currentStep, "error", "Additional consent required — redirecting to Microsoft...");
         const requestConsent = currentStep === "grant" ? requestGrantConsent : requestDomainConsent;
         await requestConsent().catch(() => updateStep(currentStep, "error", "Consent redirect failed — try again"));
@@ -472,6 +480,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
   const summary = !azureConfigured ? "Unavailable" : done ? (isPrimary ? "Domain verified and primary" : "Domain verified") : "Set up the corp domain";
 
   return {
+    creationAccess,
     cardId: "create_domain" as const,
     verifiedDomains,
     checkingStatus,

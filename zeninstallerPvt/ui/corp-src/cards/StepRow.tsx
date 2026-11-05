@@ -8,6 +8,9 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import { Fragment } from "react";
+import ExternalLink from "../components/ExternalLink";
+import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
 import type { SetupStep } from "../types";
 
 // One row of the progress checklist the AzureConfigHook cards render while run() executes.
@@ -26,13 +29,22 @@ export default function StepRow({ step }: { step: SetupStep }) {
     );
 
   return (
-    <Box sx={{ display: "grid", gridTemplateColumns: "18px 1fr", alignItems: "start", py: 0.5 }}>
+    <Box sx={{ display: "grid", gridTemplateColumns: "18px minmax(0, 1fr)", minWidth: 0, alignItems: "start", py: 0.5 }}>
       <Box sx={{ display: "flex", alignItems: "center", height: "1.2em" }}>{icon}</Box>
-      <Box>
+      <Box sx={{ minWidth: 0, whiteSpace: "normal", overflowWrap: "anywhere", wordBreak: "normal" }}>
         <Typography sx={{ color: (theme) => step.status === "error" ? theme.palette.error.dark : theme.palette.text.secondary }}>{step.label}</Typography>
         {step.detail && (
-          <Typography data-sensitive="true" sx={{ color: (theme) => theme.palette.card.mutedText, mt: 0.25, wordBreak: "break-all" }}>
-            {step.detail}
+          <Typography data-sensitive="true" sx={{ color: (theme) => theme.palette.card.mutedText, mt: 0.25 }}>
+            {step.detail.split(AZURE_PIM_ACTIVATION_URL).map((text, index) => (
+              <Fragment key={index}>
+                {index > 0 && (
+                  <ExternalLink href={AZURE_PIM_ACTIVATION_URL} label="Activate an Azure resource role in PIM">
+                    PIM - My roles - Azure resources
+                  </ExternalLink>
+                )}
+                {text}
+              </Fragment>
+            ))}
           </Typography>
         )}
         {step.progress != null && step.status === "running" && (
