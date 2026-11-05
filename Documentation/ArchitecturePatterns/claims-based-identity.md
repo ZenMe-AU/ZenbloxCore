@@ -14,9 +14,9 @@ Claims mapping centralizes authorization logic but requires careful claim contra
 [Claims-based identity](https://en.wikipedia.org/wiki/Claims-based_identity).
 
 ## Implementation
-Entra group-to-app-role assignments are provisioned in [corpSetup/c21awsentrassoP2/group.tf](../../corpSetup/c21awsentrassoP2/group.tf#L9).
+Entra group-to-app-role assignments are provisioned in [corpSetup/AwsEntraSsoP2/group.tf](../../corpSetup/AwsEntraSsoP2/group.tf#L9).
 
-Custom SAML claims policy and role assertion transformations are defined in [corpSetup/c21awsentrassoP2/policy.tf](../../corpSetup/c21awsentrassoP2/policy.tf#L154) and [corpSetup/c21awsentrassoP2/policy.tf](../../corpSetup/c21awsentrassoP2/policy.tf#L168).
+Custom SAML claims policy and role assertion transformations are defined in [corpSetup/AwsEntraSsoP2/policy.tf](../../corpSetup/AwsEntraSsoP2/policy.tf#L154) and [corpSetup/AwsEntraSsoP2/policy.tf](../../corpSetup/AwsEntraSsoP2/policy.tf#L168).
 
 ## Future enhancements
 - Add contract tests that validate expected claim output against representative users/groups.

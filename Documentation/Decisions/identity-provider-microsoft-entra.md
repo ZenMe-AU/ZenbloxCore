@@ -17,8 +17,8 @@ The repository already provisions Entra app artifacts and validates Entra-issued
 - Negative: runtime coupling to Entra metadata availability and token contract assumptions.
 
 ## Evidence
-- [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L6)
-- [corpSetup/c25cloudfront/source/authGuardLambdaEdge/index.mjs](../../corpSetup/c25cloudfront/source/authGuardLambdaEdge/index.mjs#L9)
+- [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L6)
+- [corpSetup/CloudFront/source/authGuardLambdaEdge/index.mjs](../../corpSetup/CloudFront/source/authGuardLambdaEdge/index.mjs#L9)
 
 ## Related Patterns
 - [OpenID Connect](../ArchitecturePatterns/openid-connect.md)

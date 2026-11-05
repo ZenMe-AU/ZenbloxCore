@@ -218,7 +218,7 @@ export async function createOrUpdateGithubOidcRole({
   }
 
   // Idempotent — safe to call even if the policy is already attached.
-  await iam.send(new AttachRolePolicyCommand({ RoleName: roleName, PolicyArn: "arn:aws:iam::aws:policy/AdministratorAccess" }));
+  await iam.send(new AttachRolePolicyCommand({ RoleName: roleName, PolicyArn: "arn:aws:iam::aws:policy/ReadOnlyAccess" }));
 
   return { roleArn, updated };
 }

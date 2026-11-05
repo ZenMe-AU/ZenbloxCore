@@ -1,0 +1,414 @@
+# DEPRECATED
+name: Plan changes
+#  Compare environment designed state and list required changes
+
+on:
+  workflow_dispatch:
+    inputs:
+      github_env_name:
+        description: "GitHub Environment name"
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  BRANCH: ${{ github.ref_name }}
+  ENV_ARTIFACT_NAME: new-env
+  ENV_NAME: corp.env
+  ENV_PATH: corpSetup/corp.env
+  DEPLOYMENT_CHANGESET_PATH: corpSetup/deploymentChangeset.json
+
+jobs:
+  update-env:
+    permissions:
+      contents: write
+    environment: ${{ inputs.github_env_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write env vars
+        shell: bash
+        run: |
+          mkdir -p $(dirname $ENV_PATH)
+
+          # Write GitHub vars to temp file (these are authoritative)
+          echo '${{ toJSON(vars) }}' | jq -r 'to_entries[] | "\(.key)=\(.value)"' > /tmp/gh_vars.env
+          # key renames: GitHub var name differs from corp.env key name
+          [ -n "${{ vars.AZURE_SUBSCRIPTION_ID }}" ] && echo "SUBSCRIPTION_ID=${{ vars.AZURE_SUBSCRIPTION_ID }}" >> /tmp/gh_vars.env || true
+
+          # Merge: GitHub vars take precedence, preserve keys from existing corp.env that GitHub doesn't set
+          if [ -f "$ENV_PATH" ]; then
+            awk -F= 'FNR==NR{seen[$1]=1; print; next} !seen[$1] && !/^#/ && !/^$/' \
+              /tmp/gh_vars.env "$ENV_PATH" > /tmp/merged.env
+            mv /tmp/merged.env "$ENV_PATH"
+          else
+            mv /tmp/gh_vars.env "$ENV_PATH"
+          fi
+
+      - name: Upload merged env
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ENV_ARTIFACT_NAME }}
+          path: ${{ env.ENV_PATH }}
+
+  plan-changes:
+    needs: update-env
+    environment: ${{ inputs.github_env_name }}
+    if: always()
+    runs-on: ubuntu-latest
+    outputs:
+      azure_ok: ${{ steps.set_outputs.outputs.azure_ok }}
+      aws_ok: ${{ steps.set_outputs.outputs.aws_ok }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        # with:
+        #   ref: ${{ github.ref_name }}
+
+      - name: Download env artifact
+        id: download_env
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ENV_ARTIFACT_NAME }}
+          path: artifacts
+
+      - name: Apply env
+        if: steps.download_env.outcome == 'success'
+        run: |
+          if [ -f artifacts/$ENV_NAME ]; then
+            cp artifacts/$ENV_NAME $ENV_PATH
+          fi
+
+      - name: Install node and pnpm
+        uses: pnpm/setup@v1
+        with:
+          version: 11.22.0
+          runtime: node@^24.22.1
+          cache: true
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.6
+          terraform_wrapper: false
+
+      - name: Azure Login
+        id: az_login
+        if: vars.AZURE_PLAN_CLIENT_ID != '' && vars.AZURE_TENANT_ID != '' && vars.AZURE_SUBSCRIPTION_ID != ''
+        continue-on-error: true
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_PLAN_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: AWS Login
+        id: aws_login
+        if: vars.AWS_ROLE_ARN != ''
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Set outputs
+        id: set_outputs
+        run: |
+          echo "azure_ok=${{ steps.az_login.outcome == 'success' }}" >> $GITHUB_OUTPUT
+          echo "aws_ok=${{ steps.aws_login.outcome == 'success' }}" >> $GITHUB_OUTPUT
+
+      - name: Set Terraform env
+        if: steps.az_login.outcome == 'success'
+        shell: bash
+        run: |
+          echo "ARM_CLIENT_ID=${{ vars.AZURE_PLAN_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "ARM_TENANT_ID=${{ vars.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+          echo "ARM_SUBSCRIPTION_ID=${{ vars.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+          echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
+
+      - name: Run stage c01
+        continue-on-error: true
+        uses: ./.github/actions/update-stage-status
+        with:
+          stage: c01
+          dir: c01subscription
+          needs_azure: true
+          needs_aws: false
+          azure_ok: ${{ steps.az_login.outcome == 'success' }}
+          aws_ok: ${{ steps.aws_login.outcome == 'success' }}
+
+      - name: Run stage c02
+        continue-on-error: true
+        uses: ./.github/actions/update-stage-status
+        with:
+          stage: c02
+          dir: c02globalGroups
+          needs_azure: true
+          needs_aws: false
+          azure_ok: ${{ steps.az_login.outcome == 'success' }}
+          aws_ok: ${{ steps.aws_login.outcome == 'success' }}
+
+      - name: Run stage c05
+        id: run_c05
+        continue-on-error: true
+        uses: ./.github/actions/update-stage-status
+        with:
+          stage: c05
+          dir: c05rootrg
+          needs_azure: true
+          needs_aws: false
+          azure_ok: ${{ steps.az_login.outcome == 'success' }}
+          aws_ok: ${{ steps.aws_login.outcome == 'success' }}
+
+      - name: Capture DNS nameservers
+        id: capture_nameservers
+        if: steps.run_c05.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          NAMESERVERS=$(terraform output -json dns_zone_name_servers \
+            -chdir=corpSetup/c05rootrg 2>/dev/null \
+            | jq -r 'join(",")' || echo "")
+
+          if [ -z "$NAMESERVERS" ]; then
+            echo "DNS zone output not available yet, skipping"
+            exit 0
+          fi
+
+          echo "DNS_NAMESERVERS=$NAMESERVERS"
+
+          # Update corp.env (overwrite existing entry)
+          grep -v "^DNS_NAMESERVERS=" $ENV_PATH > /tmp/env_tmp
+          echo "DNS_NAMESERVERS=$NAMESERVERS" >> /tmp/env_tmp
+          mv /tmp/env_tmp $ENV_PATH
+
+      - name: Re-upload env with nameservers
+        if: steps.capture_nameservers.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ENV_ARTIFACT_NAME }}
+          path: ${{ env.ENV_PATH }}
+          overwrite: true
+
+      - name: Run stage c07
+        continue-on-error: true
+        uses: ./.github/actions/update-stage-status
+        with:
+          stage: c07
+          dir: c07userAccounts
+          needs_azure: true
+          needs_aws: false
+          azure_ok: ${{ steps.az_login.outcome == 'success' }}
+          aws_ok: ${{ steps.aws_login.outcome == 'success' }}
+
+      - name: Run stage c20
+        continue-on-error: true
+        uses: ./.github/actions/update-stage-status
+        with:
+          stage: c20
+          dir: c20awsentrasso
+          needs_azure: true
+          needs_aws: false
+          azure_ok: ${{ steps.az_login.outcome == 'success' }}
+          aws_ok: ${{ steps.aws_login.outcome == 'success' }}
+
+      - name: Run stage c21
+        continue-on-error: true
+        uses: ./.github/actions/update-stage-status
+        with:
+          stage: c21
+          dir: c21awsentrassoP2
+          needs_azure: true
+          needs_aws: true
+          azure_ok: ${{ steps.az_login.outcome == 'success' }}
+          aws_ok: ${{ steps.aws_login.outcome == 'success' }}
+
+      - name: Run stage c25
+        continue-on-error: true
+        uses: ./.github/actions/update-stage-status
+        with:
+          stage: c25
+          dir: c25cloudfront
+          needs_azure: true
+          needs_aws: true
+          azure_ok: ${{ steps.az_login.outcome == 'success' }}
+          aws_ok: ${{ steps.aws_login.outcome == 'success' }}
+
+  commit:
+    permissions:
+      contents: write
+      actions: read
+    needs: plan-changes
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Get artifact list
+        shell: bash
+        run: |
+          set +e
+
+          echo "Fetching artifact list..."
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
+
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          STATUS=$(echo "$RESPONSE" | tail -n1)
+
+          echo "HTTP status: $STATUS"
+
+          echo "$BODY" > /tmp/artifactList.json
+
+          # Validate JSON
+          if ! jq empty /tmp/artifactList.json 2>/dev/null; then
+            echo "Invalid JSON response:"
+            cat /tmp/artifactList.json
+            echo '{"artifacts":[]}' > /tmp/artifactList.json
+            exit 0
+          fi
+
+          # Check API error
+          if jq -e 'has("message")' /tmp/artifactList.json > /dev/null; then
+            echo "GitHub API returned error:"
+            jq '.' /tmp/artifactList.json
+            echo '{"artifacts":[]}' > /tmp/artifactList.json
+            exit 0
+          fi
+
+          echo "Artifact list fetched successfully:"
+          jq '.' /tmp/artifactList.json
+
+      - name: Merge status
+        run: |
+          mkdir -p corpSetup
+          ARTIFACT_LIST=$(cat /tmp/artifactList.json)
+
+          # Load existing deploy fields from committed changeset
+          EXISTING_STAGES="[]"
+          if [ -f "$DEPLOYMENT_CHANGESET_PATH" ]; then
+            EXISTING_STAGES=$(jq '.stages // []' "$DEPLOYMENT_CHANGESET_PATH")
+          fi
+
+          RESULT="[]"
+          DIRS=$(find artifacts -mindepth 1 -name "*-status")
+          for dir in $DIRS; do
+            FILE="$dir/status.json"
+            [ -f "$FILE" ] || continue
+            STAGE_NAME=$(jq -r '.name' "$FILE")
+            PLAN_ID=$(echo "$ARTIFACT_LIST" | jq -r --arg name "${STAGE_NAME}-planJson" '.artifacts[]? | select(.name==$name) | .id')
+            DIST_ID=$(echo "$ARTIFACT_LIST" | jq -r --arg name "${STAGE_NAME}-dist" '.artifacts[]? | select(.name==$name) | .id')
+            PLAN_URL=$(echo "$ARTIFACT_LIST" | jq -r --arg name "${STAGE_NAME}-planJson" '.artifacts[]? | select(.name==$name) | .archive_download_url')
+            DIST_URL=$(echo "$ARTIFACT_LIST" | jq -r --arg name "${STAGE_NAME}-dist" '.artifacts[]? | select(.name==$name) | .archive_download_url')
+            [ -z "$PLAN_ID" ] && PLAN_ID=null
+            [ -z "$DIST_ID" ] && DIST_ID=null
+            [ -z "$PLAN_URL" ] && PLAN_URL=""
+            [ -z "$DIST_URL" ] && DIST_URL=""
+
+            # Carry over deploy fields from previous run
+            EXISTING_DEPLOY=$(echo "$EXISTING_STAGES" | jq \
+              --arg name "$STAGE_NAME" \
+              'map(select(.name==$name)) | first // {} |
+               {
+                 deployStatus:    (.deployStatus    // null),
+                 deployRunId:     (.deployRunId     // null),
+                 deployPlanRunId: (.deployPlanRunId // null),
+                 deployedAt:      (.deployedAt      // null),
+                 deployLogId:     (.deployLogId     // null),
+                 deployLogUrl:    (.deployLogUrl    // null)
+               }')
+
+            UPDATED=$(jq \
+              --argjson plan "$PLAN_ID" \
+              --argjson dist "$DIST_ID" \
+              --arg planUrl "$PLAN_URL" \
+              --arg distUrl "$DIST_URL" \
+              --argjson deploy "$EXISTING_DEPLOY" \
+              '. + {
+                  planJsonId: $plan,
+                  distId: $dist,
+                  planJsonUrl: $planUrl,
+                  distUrl: $distUrl
+              } + $deploy' "$FILE")
+
+            RESULT=$(echo "$RESULT" | jq ". + [ $UPDATED ]")
+          done
+
+          echo "$RESULT" > /tmp/stages.json
+
+          # cloud status
+          LATEST_TS=$(date +%s)
+          # generate cloud status
+          AZURE_CONFIGURED=true
+          AWS_CONFIGURED=true
+
+          AZURE_OK=${{ needs.plan-changes.outputs.azure_ok || 'false' }}
+          AWS_OK=${{ needs.plan-changes.outputs.aws_ok || 'false' }}
+
+          cat <<EOF > /tmp/cloud.json
+          {
+            "azure": { "configured": $AZURE_CONFIGURED, "valid": $AZURE_OK },
+            "aws": { "configured": $AWS_CONFIGURED, "valid": $AWS_OK }
+          }
+          EOF
+
+          # final output
+          ENV_ID=$(echo "$ARTIFACT_LIST" | jq -r --arg name "${{ env.ENV_ARTIFACT_NAME }}" '.artifacts[]? | select(.name==$name) | .id')
+          ENV_URL=$(echo "$ARTIFACT_LIST" | jq -r --arg name "${{ env.ENV_ARTIFACT_NAME }}" '.artifacts[]? | select(.name==$name) | .archive_download_url')
+          [ -z "$ENV_ID" ] && ENV_ID=null
+
+          jq -n \
+            --slurpfile stages /tmp/stages.json \
+            --slurpfile cloud /tmp/cloud.json \
+            --arg updatedAt "$LATEST_TS" \
+            --arg runId "${{ github.run_id }}" \
+            --argjson envId "$ENV_ID" \
+            --arg envUrl "$ENV_URL" \
+            '{
+              runId: $runId,
+              updatedAt: ($updatedAt | tonumber),
+              envId: $envId,
+              envUrl: (if $envUrl == "" then null else $envUrl end),
+              azure: $cloud[0].azure,
+              aws: $cloud[0].aws,
+              stages: $stages[0]
+            }' > $DEPLOYMENT_CHANGESET_PATH
+
+          if [ -f artifacts/${{ env.ENV_ARTIFACT_NAME }}/${{ env.ENV_NAME }} ]; then
+            cp artifacts/${{ env.ENV_ARTIFACT_NAME }}/${{ env.ENV_NAME }} corpSetup/${{ env.ENV_NAME }}
+          fi
+
+      - name: Commit results
+        run: |
+          _NAME="${{ vars.NAME }}"
+          GIT_NAME="${_NAME:+$_NAME }github actions"
+          GIT_EMAIL="${GIT_NAME// /_}@${{ vars.DNS }}"
+          git config user.name "$GIT_NAME"
+          git config user.email "$GIT_EMAIL"
+
+          # commit local changes if any
+          git add corpSetup
+          git diff --cached --quiet || git commit -m "Update status"
+
+          # fetch remote updates > rebase local commits onto remote > push
+          git fetch origin
+          git rebase origin/$BRANCH || {
+            echo "Rebase failed due to conflict"
+            exit 1
+          }
+          git push origin $BRANCH

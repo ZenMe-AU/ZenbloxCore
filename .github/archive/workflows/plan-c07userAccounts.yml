@@ -1,0 +1,74 @@
+# DEPRECATED: use planStage.yml, which plans any stage from its dir input. Kept only for callers that still dispatch this file.
+name: Plan c07userAccounts
+run-name: ${{ github.workflow }} @ ${{ inputs.github_env_name }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      github_env_name:
+        description: "GitHub Environment name"
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  BRANCH: ${{ github.ref_name }}
+  STAGE_DIR: c07userAccounts
+  SETUP_DIR: corpSetup
+  ENV_ARTIFACT: new-env
+  ENV_PATH: corpSetup/corp.env
+  STATUS_FILE: status.json
+  PLAN_FILE: tfplan
+  JSON_PLAN_FILE: plan.json
+  TERRAFORM_VERSION: 1.6.6
+
+jobs:
+  plan:
+    environment: ${{ inputs.github_env_name }}
+    runs-on: ubuntu-latest
+    outputs:
+      azure_signed_in: ${{ steps.plan_stage.outputs.azure_signed_in }}
+      aws_signed_in: ${{ steps.plan_stage.outputs.aws_signed_in }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: plan_stage
+        uses: ./.github/actions/plan-stage
+        with:
+          setup_dir: ${{ env.SETUP_DIR }}
+          dir: ${{ env.STAGE_DIR }}
+          vars_json: ${{ toJSON(vars) }}
+          env_artifact_name: ${{ env.ENV_ARTIFACT }}
+          env_path: ${{ env.ENV_PATH }}
+          stage_status_file: ${{ env.STATUS_FILE }}
+          plan_file: ${{ env.PLAN_FILE }}
+          json_plan_file: ${{ env.JSON_PLAN_FILE }}
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          azure_client_id: ${{ vars.AZURE_PLAN_CLIENT_ID }}
+          azure_tenant_id: ${{ vars.AZURE_TENANT_ID }}
+          azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          aws_role_arn: ${{ vars.AWS_ROLE_ARN }}
+
+  report:
+    permissions:
+      contents: read
+      actions: read
+      deployments: write
+    environment: ${{ inputs.github_env_name }}
+    needs: plan
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/report-plan-result
+        with:
+          dir: ${{ env.STAGE_DIR }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          environment: ${{ inputs.github_env_name }}
+          ref: ${{ env.BRANCH }}
+          env_artifact_name: ${{ env.ENV_ARTIFACT }}
+          env_path: ${{ env.ENV_PATH }}
+          stage_status_file: ${{ env.STATUS_FILE }}
+          azure_signed_in: ${{ needs.plan.outputs.azure_signed_in || 'false' }}
+          aws_signed_in: ${{ needs.plan.outputs.aws_signed_in || 'false' }}

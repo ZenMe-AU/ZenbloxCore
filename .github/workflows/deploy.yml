@@ -1,0 +1,54 @@
+name: Deploy tf changes
+run-name: Priv Apply ${{ inputs.dir }} @ ${{ inputs.github_env_name }}
+
+# Opens a browser terminal for the interactive cloud sign-ins, then applies the plan as the person who just signed in.
+on:
+  workflow_dispatch:
+    inputs:
+      session_id:
+        required: true
+        description: "Terminal session id registered by ZenInstaller"
+      dir:
+        required: true
+        description: "Stage directory the plan was produced for"
+      github_env_name:
+        required: false
+        description: "GitHub Environment name"
+      plan_run_id:
+        required: true
+        description: "The plan run whose tfplan to apply"
+
+permissions:
+  contents: read
+  id-token: write # Required for federated OIDC to mint the Web PubSub token
+  actions: read # Downloading the planned stage from the plan run
+  deployments: write # Recording the result where the card reads it
+
+# Must stay compatible with the version that produced the tfplan.
+env:
+  TERRAFORM_VERSION: 1.6.6
+
+jobs:
+  remote-login:
+    name: Remote login for ${{ inputs.dir || 'the corp environment' }}
+    environment: ${{ inputs.github_env_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/remote-login
+        with:
+          session_id: ${{ inputs.session_id }}
+          webpubsub_endpoint: ${{ vars.WEBPUBSUB_ENDPOINT }}
+          webpubsub_client_id: ${{ vars.WEBPUBSUB_CLIENT_ID }}
+          webpubsub_tenant_id: ${{ vars.WEBPUBSUB_TENANT_ID }}
+          hub_name: ${{ vars.WEBPUBSUB_HUB_NAME || 'terminal' }}
+          session_ttl: "1800"
+          tenant_id: ${{ vars.AZURE_TENANT_ID }}
+          subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
+          dir: ${{ inputs.dir }}
+          plan_run_id: ${{ inputs.plan_run_id }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          environment: ${{ inputs.github_env_name }}
+          ref: ${{ github.ref_name }}
+          terraform_version: ${{ env.TERRAFORM_VERSION }}

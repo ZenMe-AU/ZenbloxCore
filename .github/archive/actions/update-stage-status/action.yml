@@ -1,0 +1,130 @@
+# DEPRECATED
+name: Update Stage Status
+description: Update the status of a stage based on Terraform plan results
+
+inputs:
+  stage:
+    description: "Stage code"
+    required: true
+  dir:
+    description: "Directory name"
+    required: true
+  needs_azure:
+    description: "Whether Azure login is needed"
+    required: false
+    default: "false"
+  needs_aws:
+    description: "Whether AWS login is needed"
+    required: false
+    default: "false"
+  azure_ok:
+    description: "Whether Azure login is expected to succeed"
+    required: false
+    default: "true"
+  aws_ok:
+    description: "Whether AWS login is expected to succeed"
+    required: false
+    default: "true"
+  stage_status_file:
+    description: "Path to stage status file"
+    required: false
+    default: "status.json"
+  binary_plan_file:
+    description: "Path to Terraform plan file"
+    required: false
+    default: "tfplan"
+  json_plan_file:
+    description: "Path to JSON Terraform plan file"
+    required: false
+    default: "plan.json"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run via Node
+      id: run
+      continue-on-error: true
+      if: |
+        (inputs.needs_azure != 'true' || inputs.azure_ok == 'true') &&
+        (inputs.needs_aws != 'true' || inputs.aws_ok == 'true')
+      shell: bash
+      working-directory: corpSetup
+      run: |
+        node initCorpEnvDeploy.js --stage=${{ inputs.stage }} --planOnly
+
+    - name: Convert to JSON
+      if: steps.run.outcome == 'success'
+      shell: bash
+      working-directory: corpSetup/${{ inputs.dir }}
+      run: |
+        if [ -f ${{ inputs.binary_plan_file }} ]; then
+          terraform show -json ${{ inputs.binary_plan_file }} > ${{ inputs.json_plan_file }}
+        fi
+
+    - name: Write status
+      if: always()
+      shell: bash
+      working-directory: corpSetup/${{ inputs.dir }}
+      run: |
+        TS=$(date +%s)
+        STATUS="failed"
+        PLAN_PATH=""
+
+        if [ "${{ steps.run.outcome }}" = "success" ]; then
+          STATUS="success"
+          PLAN_PATH="corpSetup/${{ inputs.dir }}/${{ inputs.json_plan_file }}"
+        fi
+
+        cat <<EOF > ${{ inputs.stage_status_file }}
+        {
+          "runId": "${{ github.run_id }}",
+          "stage": "${{ inputs.stage }}",
+          "name": "${{ inputs.dir }}",
+          "planPath": "$PLAN_PATH",
+          "status": "$STATUS",
+          "timestamp": $TS
+        }
+        EOF
+
+    - name: Upload artifacts (stage status)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        if-no-files-found: ignore
+        name: ${{ inputs.dir }}-status
+        path: corpSetup/${{ inputs.dir }}/${{ inputs.stage_status_file }}
+
+    - name: Upload artifacts (JSON plan)
+      if: steps.run.outcome == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        if-no-files-found: ignore
+        name: ${{ inputs.dir }}-planJson
+        path: corpSetup/${{ inputs.dir }}/${{ inputs.json_plan_file }}
+
+    - name: Upload artifacts (tf plan)
+      if: steps.run.outcome == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        if-no-files-found: ignore
+        name: ${{ inputs.dir }}-tfplan
+        path: corpSetup/${{ inputs.dir }}/${{ inputs.binary_plan_file }}
+
+    # - name: Upload artifacts (dist)
+    #   if: steps.run.outcome == 'success'
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     if-no-files-found: ignore
+    #     name: ${{ inputs.dir }}-dist
+    #     path: |
+    #       corpSetup/${{ inputs.dir }}/**/dist/**
+    #       corpSetup/${{ inputs.dir }}/**/*.zip
+
+    - name: Upload artifacts (pkg)
+      if: steps.run.outcome == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        if-no-files-found: ignore
+        include-hidden-files: true
+        name: ${{ inputs.dir }}-pkg
+        path: corpSetup/${{ inputs.dir }}/

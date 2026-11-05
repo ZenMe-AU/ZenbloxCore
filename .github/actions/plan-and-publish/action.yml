@@ -3,7 +3,7 @@ description: Run one stage's Terraform plan and publish its status, log, and pla
 
 inputs:
   setup_dir:
-    description: "Directory holding the stage directories and initCorpEnvDeploy.js"
+    description: "Directory holding the stage directories, each with its own run.js"
     required: true
   dir:
     description: "Stage directory, relative to setup_dir"
@@ -25,11 +25,9 @@ runs:
       id: plan
       continue-on-error: true
       shell: bash
-      working-directory: ${{ inputs.setup_dir }}
-      env:
-        DIR: ${{ inputs.dir }}
+      working-directory: ${{ inputs.setup_dir }}/${{ inputs.dir }}
       run: |
-        node initCorpEnvDeploy.js --dir="$DIR" --planOnly 2>&1 | tee /tmp/plan_output.txt
+        node run.js --planOnly 2>&1 | tee /tmp/plan_output.txt
 
     - name: Convert the plan to JSON
       if: steps.plan.outcome == 'success'

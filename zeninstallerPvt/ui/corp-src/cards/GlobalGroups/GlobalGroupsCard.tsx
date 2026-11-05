@@ -65,7 +65,7 @@ function Intro() {
  * A lightweight Entra security-groups manager: the list mirrors what actually exists in the
  * tenant. Rows with unsynced edits are tinted and get an amber "pending" status circle, the same
  * not-set/pending/synced vocabulary VariablesCard uses for GitHub variables. "Add default
- * groups" offers the same 5-group template ZBCorpArchitecture/corpSetup's c02globalGroups
+ * groups" offers the same 5-group template ZBCorpArchitecture/corpSetup's GlobalGroups
  * Terraform stage creates, as a starting point.
  */
 export default function GlobalGroupsCard({ card, globalGroups }: Props) {

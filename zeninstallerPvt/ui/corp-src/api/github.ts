@@ -365,10 +365,11 @@ export function createGithubApi(token: string) {
     }
   }
 
-  async function triggerWorkflow(account: Account, repo: string, workflowId: string, githubEnvName: string, ref: string): Promise<void> {
+  async function triggerWorkflow(account: Account, repo: string, workflowId: string, githubEnvName: string, ref: string, dir?: string): Promise<void> {
     const res = await gh(`/repos/${account.login}/${repo}/actions/workflows/${workflowId}/dispatches`, {
       method: "POST",
-      body: JSON.stringify({ ref, inputs: { github_env_name: githubEnvName } }),
+      // dir is left out of the JSON when undefined; workflows without a dir input reject unknown inputs.
+      body: JSON.stringify({ ref, inputs: { github_env_name: githubEnvName, dir } }),
     });
     if (!res.ok) throw new Error(`Failed to trigger workflow: ${res.status}`);
   }

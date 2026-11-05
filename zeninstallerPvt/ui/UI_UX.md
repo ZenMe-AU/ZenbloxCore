@@ -233,8 +233,8 @@ Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRe
 
 Notes:
 
-- `global_groups` ([GlobalGroups](corp-src/cards/GlobalGroups)) has a hook and component but is **not rendered** in `App.tsx`; the equivalent flow is the `c02globalGroups` stage.
-- Stage definitions live in [logic/pipeline.ts](corp-src/logic/pipeline.ts): `c01subscription`, `c02globalGroups`, `c07userAccounts`, `c20awsentrasso`, `c21awsentrassoP2`, `c25cloudfront`.
+- `global_groups` ([GlobalGroups](corp-src/cards/GlobalGroups)) has a hook and component but is **not rendered** in `App.tsx`; the equivalent flow is the `GlobalGroups` stage.
+- Stage definitions live in [logic/pipeline.ts](corp-src/logic/pipeline.ts): `SubscriptionBudget`, `GlobalGroups`, `UserAccounts`, `AwsEntraSso`, `AwsEntraSsoP2`, `CloudFront`.
 
 ---
 
@@ -349,6 +349,7 @@ Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)):
 | `ErrorText` | Error message | `role=alert` |
 | `StatusText` | Progress/success message | `role=status`, `aria-live=polite` |
 | `ConfigErrorNotice` | "Card isn't configured correctly" panel | none (see issues) |
+| `WarningNotice` | Bordered warning panel: icon and message, optional content below | `role=status`, `aria-live=polite` |
 | `ExternalLink` | Inline new-tab link | `aria-label="<label> (opens in new tab)"`, `rel=noopener noreferrer` |
 | `ViewLink` | Outlined "View" button-link, text hidden at `xs` | same new-tab naming; `title=href` |
 | `RefreshButton` | Refresh, then Done / Failed (transient) | `aria-label` tracks text |

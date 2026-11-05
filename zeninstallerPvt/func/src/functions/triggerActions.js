@@ -21,13 +21,17 @@ app.http("triggerActions", {
       if (!ref || !type || !owner || !repo || !workflow_id || !github_env_name) {
         throw new MissingParam();
       }
-      if (workflow_id === "deployPlan.yml" && (!plan_run_id || !dir)) {
+      // not needed for these workflows
+      // if (workflow_id === "deployPlan.yml" && (!plan_run_id || !dir)) {
+      //   throw new MissingParam();
+      // }
+      // if (workflow_id === "deployChangeset.yml" && (!run_id || !dir)) {
+      //   throw new MissingParam();
+      // }
+      if (workflow_id === "deploy.yml" && (!session_id || !dir || !plan_run_id)) {
         throw new MissingParam();
       }
-      if (workflow_id === "deployChangeset.yml" && (!run_id || !dir)) {
-        throw new MissingParam();
-      }
-      if (workflow_id === "remoteLogin.yml" && (!session_id || !dir || !plan_run_id)) {
+      if (workflow_id === "plan.yml" && !dir) {
         throw new MissingParam();
       }
 
