@@ -110,7 +110,8 @@ tenant-root management-group access, AWS/GitHub access, Azure policies, deny ass
 
 The Core domain, Terraform state backend, Frontend hosting environment, and Private Zeninstaller Backend Environment cards check your signed-in account's
 effective permissions as soon as your Azure account and subscription are selected, before you click the resource creation button. The button stays
-disabled while access is being checked or is missing. Use **Recheck subscription access** after activating a role or receiving access; changing the
+disabled while access is being checked or is missing. Access feedback appears above **Resources to be created**, with an outlined warning and a
+**Recheck subscription access** button. Use it after activating a role or receiving access; changing the
 account, tenant, or subscription automatically starts a new check. Access is checked again when setup starts.
 You need **Contributor** access on that subscription, or equivalent
 resource-group creation permissions such as **Owner**. Access scoped only to an existing resource group is not sufficient.

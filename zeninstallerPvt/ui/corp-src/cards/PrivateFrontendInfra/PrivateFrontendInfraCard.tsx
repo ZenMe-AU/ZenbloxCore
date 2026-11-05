@@ -86,6 +86,7 @@ export default function PrivateFrontendInfraCard({
 
         {infra.steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <ResourceGroupCreationAccess access={infra.creationAccess} />
             <Box>
               <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources to be created</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
@@ -123,7 +124,6 @@ export default function PrivateFrontendInfraCard({
               </Box>
             </Box>
 
-            <ResourceGroupCreationAccess access={infra.creationAccess} />
             <Button
               variant="contained"
               onClick={() => void infra.run()}

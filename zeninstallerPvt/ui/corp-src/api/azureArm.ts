@@ -285,7 +285,7 @@ async function readSubscriptionPermissions(account: AzureAccount, subscriptionId
 export async function ensureResourceGroupCreationAccess(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<void> {
   const guidance = `You need Contributor access (or equivalent permissions such as Owner) on the selected subscription ${subscriptionId} to create resource groups.
 Access to an individual resource group is not sufficient. Ask a subscription administrator to grant access in IAM
-or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} then retry. Select Contributor (or Owner) for the selected subscription.`;
+or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} then retry.`;
   try {
     const permissions = await readSubscriptionPermissions(account, subscriptionId, overrideTenantId);
     if (grantsArmAction(permissions, "Microsoft.Resources/subscriptions/resourceGroups/write")) return;

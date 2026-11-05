@@ -58,6 +58,7 @@ describe("resource-group access before creation", () => {
     expect(container.textContent).toContain("Checking subscription Contributor access");
     await act(async () => resolve());
     expect(latest.status).toBe("ready");
+    expect(container.querySelector('[role="status"]')?.textContent).toContain("Subscription access to create resource groups verified.");
     expect(container.querySelector<HTMLButtonElement>('[data-testid="create"]')?.disabled).toBe(false);
   });
 
@@ -66,11 +67,17 @@ describe("resource-group access before creation", () => {
     await render();
     expect(latest.status).toBe("error");
     expect(container.textContent).toContain("You need Contributor access");
+    const warning = container.querySelector('[role="alert"]');
+    const icon = warning?.querySelector('[data-testid="WarningAmberIcon"]');
+    expect(icon?.getAttribute("aria-hidden")).toBe("true");
+    expect(icon?.parentElement?.textContent).toBe("You may not have enough subscription access to create resource groups.");
+    expect(warning?.classList.contains("MuiAlert-root")).toBe(false);
     expect(container.querySelector("a")?.href).toBe(AZURE_PIM_ACTIVATION_URL);
     expect(container.querySelector<HTMLButtonElement>('[data-testid="create"]')?.disabled).toBe(true);
     check.mockResolvedValue(undefined);
     const retry = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Recheck subscription access");
     expect(retry).toBeDefined();
+    expect(retry?.classList.contains("MuiButton-contained")).toBe(true);
     await act(async () => retry!.click());
     expect(latest.status).toBe("ready");
     expect(check).toHaveBeenCalledTimes(2);
