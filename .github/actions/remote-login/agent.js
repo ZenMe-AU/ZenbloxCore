@@ -180,7 +180,7 @@ async function main() {
     runLogin({
       cloud: "aws",
       command: "aws",
-      args: ["login", "--remote"],
+      args: ["login", "--remote", "--no-cli-pager"],
       env: { ...process.env, AWS_DEFAULT_REGION: AWS_REGION },
       onSuccess: () => {
         send({ type: "loginCompleted", cloud: "aws" });
