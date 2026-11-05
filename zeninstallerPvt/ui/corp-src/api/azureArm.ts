@@ -7,7 +7,7 @@ import { getToken } from "../auth/msal";
 import { azFetch as gFetch, ARM } from "./azureFetch";
 import {
   ARM_SCOPES, BACKEND_VERSION_KEYS, RBAC_ROLE_IDS,
-  CORE_INFRA_PROVIDERS, DNS_PROVIDERS, PRIVATE_FRONTEND_PROVIDERS, REMOTE_TERMINAL_PROVIDERS,
+  INSTALLER_SUBSCRIPTION_PERMISSIONS,
 } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
 import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
@@ -305,40 +305,8 @@ export async function ensureInstallerSubscriptionAccess(account: AzureAccount, s
   } catch (err) {
     throw new Error(`Could not verify installer subscription access. ${guidance} Details: ${err instanceof Error ? err.message : String(err)}`);
   }
-  const readWrite = (...resources: string[]) => resources.flatMap((resource) => [`${resource}/read`, `${resource}/write`]);
-  const providers = new Set([...CORE_INFRA_PROVIDERS, ...DNS_PROVIDERS, ...PRIVATE_FRONTEND_PROVIDERS, ...REMOTE_TERMINAL_PROVIDERS]);
-  const requirements = [
-    { label: "Resource groups and provider registration", actions: [
-      ...readWrite("Microsoft.Resources/subscriptions/resourceGroups"),
-      "Microsoft.Resources/subscriptions/providers/read",
-      ...Array.from(providers, (provider) => `${provider}/register/action`),
-    ] },
-    { label: "Storage accounts, containers and tables", actions: [
-      ...readWrite("Microsoft.Storage/storageAccounts", "Microsoft.Storage/storageAccounts/blobServices",
-        "Microsoft.Storage/storageAccounts/blobServices/containers", "Microsoft.Storage/storageAccounts/tableServices/tables"),
-      "Microsoft.Storage/checkNameAvailability/read",
-    ] },
-    { label: "Monitoring and diagnostics", actions: readWrite(
-      "Microsoft.OperationalInsights/workspaces", "Microsoft.Insights/components", "Microsoft.Insights/diagnosticSettings"
-    ) },
-    { label: "DNS zones and records", actions: readWrite(
-      "Microsoft.Network/dnsZones", "Microsoft.Network/dnsZones/TXT", "Microsoft.Network/dnsZones/CNAME"
-    ) },
-    { label: "Function Apps and hosting plans", actions: [
-      ...readWrite("Microsoft.Web/serverfarms", "Microsoft.Web/sites", "Microsoft.Web/sites/config"),
-      "Microsoft.Web/sites/config/list/action", "Microsoft.Web/sites/publish/action", "Microsoft.Web/checkNameAvailability/read",
-    ] },
-    { label: "Web PubSub and hubs", actions: [
-      ...readWrite("Microsoft.SignalRService/webPubSub", "Microsoft.SignalRService/webPubSub/hubs"),
-      "Microsoft.SignalRService/locations/checkNameAvailability/action",
-    ] },
-    { label: "Subscription budgets", actions: readWrite("Microsoft.Consumption/budgets") },
-    { label: "Azure role assignments", actions: [
-      ...readWrite("Microsoft.Authorization/roleAssignments"), "Microsoft.Authorization/roleDefinitions/read",
-    ] },
-    { label: "Resource deletion locks", actions: readWrite("Microsoft.Authorization/locks") },
-  ];
-  const missingAccess = requirements.some(({ actions }) => actions.some((action) => !grantsArmAction(permissions, action)));
+  const missingAccess = Object.values(INSTALLER_SUBSCRIPTION_PERMISSIONS)
+    .some((actions) => actions.some((action) => !grantsArmAction(permissions, action)));
   if (missingAccess) {
     throw new Error(`The selected subscription is missing installer permissions.\n${guidance}`);
   }
