@@ -8,7 +8,7 @@ Stack: React + MUI (`createTheme` with CSS variables), Vite, no router (single p
 
 ## 1. Concept
 
-A single-page, card-based **checklist dashboard**. It contains 20 tracked setup tasks (sign in, pick a repo, create Azure resources, run a Terraform stage) and an optional GitHub signup helper. Cards:
+A single-page, card-based **checklist dashboard**. It contains 23 tracked setup tasks (sign in, pick a repo, create Azure resources, run Terraform stages, and deploy a privileged access workstation) and an optional GitHub signup helper. Cards:
 
 - can be completed **in any order**; a card whose prerequisites are unmet is **locked** and lists what to do first (each item is a link that jumps to the card that resolves it);
 - report their own state (`status` and `summary`), shown on the collapsed face;
@@ -28,7 +28,7 @@ flowchart TB
     subgraph Main["main#main-content (max-width 1280px)"]
       Intro["Intro panel: prerequisites ol + GoDaddy link"]
       subgraph Section["section aria-label: 'Deployment setup progress'"]
-        Progress["Determinate progress bar for 20 setup tasks + next available task"]
+        Progress["Determinate progress bar for 23 setup tasks + next available task"]
         Grid["Card grid: auto-fit, min 360px, gap 12px"]
       end
     end
@@ -43,7 +43,7 @@ flowchart TB
 | Skip link | `Link.visually-hidden.skip-link` in [App.tsx](corp-src/App.tsx) | Revealed on `:focus-visible` by [App.css](corp-src/App.css); targets `#main-content` (`tabIndex=-1`). |
 | Header | [Header.tsx](corp-src/components/Header.tsx) | 28px gradient "ZB" mark, the single page `h1` (`document.title`), and a labelled System/Light/Dark scheme cycle. System honors the browser's reported light or dark preference; unavailable preference detection falls back to dark. MUI persists explicit Light/Dark selections. |
 | Intro | inline in `App.tsx` + [CardIntro](corp-src/components/CardIntro.tsx) | Ordered list of prerequisites (personal email, org/domain name) with a secure `ExternalLink` to GoDaddy. |
-| Progress and card grid | inline in `App.tsx` / `groupSx` in [config/cardLayout.ts](corp-src/config/cardLayout.ts) | One section named "Deployment setup progress" contains a determinate bar for the 20 setup tasks and a next-step button, followed by the auto-fitting grid. The optional GitHub signup helper is rendered in the grid but excluded from task progress. It does not display a numeric completion count or a separate "Deployment steps" heading. Expanded cards span `1 / -1`. |
+| Progress and card grid | inline in `App.tsx` / `groupSx` in [config/cardLayout.ts](corp-src/config/cardLayout.ts) | One section named "Deployment setup progress" contains a determinate bar for the 23 setup tasks and a next-step button, followed by the auto-fitting grid. The optional GitHub signup helper is rendered in the grid but excluded from task progress. It does not display a numeric completion count or a separate "Deployment steps" heading. Expanded cards span `1 / -1`. |
 | Footer | [Footer.tsx](corp-src/components/Footer.tsx) | Shortcut help dialog (`?` opens outside editable fields), contact placeholder, Privacy policy, Terms of use placeholder, and Support documentation; the footer content has no subgroup headings. |
 | Restore toast | [RestoreToast.tsx](corp-src/components/RestoreToast.tsx) | Polite `status` while restoring URL state; dismissible warning when a value cannot be restored. |
 
@@ -173,6 +173,9 @@ flowchart LR
   aws[AWS login]
   awss[AWS setup]
   stages[Stage cards x6]
+  gallery[PAW image gallery]
+  image[PAW golden image]
+  paw[PAW Azure Virtual Desktop]
   ap[Access pass]
 
   gh --> repo
@@ -206,12 +209,16 @@ flowchart LR
   aws --> awss
   repo --> awss
   repo --> stages
+  repo --> gallery
+  core --> gallery
+  gallery --> image
+  image --> paw
   az --> ap
 ```
 
 Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRequirements`.
 
-### 4.2 Catalogue (20 progress tasks; helper rendered after task 1)
+### 4.2 Catalogue (23 progress tasks; helper rendered after task 1)
 
 | # | `cardId` | Title | Requires | Purpose | Source |
 |---|---|---|---|---|---|
@@ -229,8 +236,11 @@ Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRe
 | 11 | `web_deploy` | Private Zeninstaller Frontend | `github_login`, `repo`, `azure_login`, `private_frontend_infra` | Build and upload the frontend | [WebDeploy](corp-src/cards/WebDeploy) |
 | 12 | `aws_login` | AWS login | none | Bootstrap access key, MFA code | [AwsLogin](corp-src/cards/AwsLogin) |
 | 13 | `aws_setup` | AWS setup | `aws_login`, `repo` | Creates IAM role for GitHub OIDC; connection details | [AwsSetup](corp-src/cards/AwsSetup) |
-| 14-19 | `stage_<dir>` | Subscription Budget, Global groups, User accounts, AWS Entra SSO, AWS Entra SSO P2, CloudFront | `repo` (+ per-stage prerequisites inside) | Stage-specific introductory description, Terraform plan, review, deploy through the remote terminal | [Stage](corp-src/cards/Stage) |
-| 20 | `access_pass` | Access pass | `azure_login` | Generates user access pass; copy rows, confirmation checkbox | [AccessPass](corp-src/cards/AccessPass) |
+| 14-19 | `stage_<dir>` | Azure subscription budget, Organisation security groups, User accounts and sign-in, AWS single sign-on with Entra ID, AWS single sign-on with Microsoft Entra ID P2, AWS CloudFront distribution | `repo` (+ per-stage prerequisites inside) | Stage-specific description, Terraform plan and review, then deploy through the remote terminal | [Stage](corp-src/cards/Stage) |
+| 20 | `privavd_gallery` | PAW image gallery | `repo`, `core_infra` | Creates the Azure Compute Gallery and image definition used to publish the privileged access workstation image | [PrivAvdGallery](corp-src/cards/PrivAvdGallery) |
+| 21 | `privavd_image` | PAW golden image | `privavd_gallery` | Builds the Windows 11 privileged access workstation image with Packer and publishes a version to the gallery; the build takes about an hour | [PrivAvdImage](corp-src/cards/PrivAvdImage) |
+| 22 | `privavd_paw` | PAW Azure Virtual Desktop | `privavd_image` | Deploys the Azure Virtual Desktop host pool and session host from the newest replicated image version | [PrivAvdPaw](corp-src/cards/PrivAvdPaw) |
+| 23 | `access_pass` | Access pass | `azure_login` | Generates user access pass; copy rows, confirmation checkbox | [AccessPass](corp-src/cards/AccessPass) |
 
 Notes:
 
@@ -298,8 +308,13 @@ flowchart TD
   RP --> AWL[12. AWS login]
   AWL --> AWS[13. AWS setup]
   RP --> ST[14-19 Stage cards: plan then deploy]
-  AL --> AP[20. Access pass]
+  RP --> PG[20. PAW image gallery]
+  CI --> PG
+  PG --> PI[21. PAW golden image]
+  PI --> PAW[22. PAW Azure Virtual Desktop]
+  AL --> AP[23. Access pass]
   ST --> E([Environment configured])
+  PAW --> E
   AP --> E
   WD --> E
   BE --> E
@@ -445,9 +460,9 @@ ESLint ([eslint.config.js](eslint.config.js)): recommended `jsx-a11y`; `no-restr
 | Colour independence | status always has text (summary, hidden status, pill text), not colour alone |
 | Privacy | opt-in blur for `data-sensitive` content; secrets masked by default |
 | Automated tests | `@axe-core/playwright` scans (collapsed, expanded, locked), card-height/accessibility-name regression, system preference following and explicit mode persistence, footer shortcut dialog checks, and Tab/Enter/Space sweep in [CardAccessibility.spec.mts](pwtests/corp-src/mock-tests/CardAccessibility.spec.mts); 320px expanded-card reflow, forced-colors focus/boundary and reduced-motion emulation |
-| Shortcuts | `?` opens footer help when focus is outside input, textarea, select, and contenteditable controls; Escape closes the modal; other listed keys use native control behavior |
+| Shortcuts | `?` opens footer help and `Shift+C` collapses all expanded cards when focus is outside input, textarea, select, and contenteditable controls; Escape closes the modal; other listed keys use native control behavior |
 
-The footer dialog lists the supported behavior: `?` opens help; Tab/Shift+Tab moves focus; Enter/Space activates a focused button; Enter follows a focused link or runs a focused control's supported action; Escape closes the dialog. The `?` handler ignores Ctrl/Meta/Alt combinations and editable targets.
+The footer dialog lists the supported behavior: `?` opens help; `Shift+C` collapses all expanded cards; Tab/Shift+Tab moves focus; Enter/Space activates a focused button; Enter follows a focused link or runs a focused control's supported action; Escape closes the dialog. The `?` and `Shift+C` handlers ignore Ctrl/Meta/Alt combinations and editable targets.
 
 ### 8.2 Accepted exceptions (documented)
 
@@ -478,7 +493,7 @@ Observed from source review; none of these have been confirmed with assistive te
 | 7 | Low | Card titles use single-line ellipsis, which can hide text visually on touch screens. | Resolved for assistive technology: the full title and summary remain in the toggle's accessible name and in `title` attributes. Visual truncation remains intentional to keep card headers aligned. |
 | 8 | Low | Header "ZB" mark is read as text before the `h1`; the `h1` text is `document.title`, so it depends on `index.html`. | Mark the logo `aria-hidden`; keep the title static in the header or assert it in a test. |
 | 9 | Low | Expanding a card makes it span the full grid width and reflows neighbours, which can shift focus position and context. | Keep the existing scroll-into-view, and consider restoring focus/scroll after toggle. |
-| 10 | Low | The page had no overall progress indicator or recommended-next-step cue. | Resolved: the page reports completed tasks out of 20 and provides a button to open the first incomplete, unlocked card. |
+| 10 | Low | The page had no overall progress indicator or recommended-next-step cue. | Resolved: the page tracks 23 setup tasks and provides a button to open the first incomplete, unlocked card. |
 | 11 | Low | Footer Contact and Terms content are placeholders. | Provide content or remove the entry points before release. Keyboard shortcuts help is now implemented. |
 | 12 | Low | Icons are sized via `typography: "caption"` (about 12px), and `IconButton size="small"` targets are about 30px. | Acceptable for WCAG 2.2 AA (24px), but consider larger targets on touch. |
 | 13 | Info | `GlobalGroupsCard` is built, tested and unused in `App.tsx`. | Remove or render it. |
@@ -502,9 +517,12 @@ Observed from source review; none of these have been confirmed with assistive te
 
 ## 11. Remaining work
 
-- Run representative smoke and accessibility tests in Firefox and Safari/WebKit; current automated browser projects use Chromium only.
-- Investigate Vite's browser bundle warnings for Node modules pulled in by `dotenv` from `corp-src/api/backend.ts` and `corp-src/api/github.ts`. Replace the dependency with a browser-safe `.env` parser or document why the current client bundle is safe in supported browsers.
-- Triage the latest full unit run: 252 tests passed and 3 Access Pass telemetry tests failed because Application Insights is null. The full shared-building-block browser test also has an editor-border assertion mismatch; the isolated clipboard-fallback test passes.
-- Complete manual 200% browser zoom checks at desktop and narrow widths, and verify Windows High Contrast/reduced-motion behavior on a real platform. Playwright emulation and the 320px viewport check do not replace these checks.
-- Complete a representative keyboard-only deployment flow and verify live progress/error announcements with a supported screen reader.
-- Review and address the other open UI findings in section 9, especially tooltip-only information, `StepRow` status announcements, low-visibility disabled actions, and placeholder footer links.
+- [ ] Add or run representative smoke and accessibility tests in Firefox and Safari/WebKit. Both Playwright and Vitest browser projects currently use Chromium only.
+- [ ] Verify the browser bundle impact of the `dotenv` imports in `corp-src/api/backend.ts` and `corp-src/api/github.ts`; replace them with a browser-safe parser or document why the bundled dependency is safe.
+- [ ] Triage the current test-suite failures. The `pnpm test` run on 2026-11-04 reported 42 passed and 219 failed across 28 test files; the output contains widespread `ReferenceError: React is not defined` failures. The earlier Access Pass telemetry and shared-editor-border results are historical and need to be rechecked after the runner failures are understood.
+- [ ] Complete manual 200% browser zoom checks at desktop and narrow widths, and verify Windows High Contrast/reduced-motion behavior on a real platform. Playwright emulation and the 320px viewport check do not replace these checks.
+- [ ] Complete a representative keyboard-only deployment flow and verify live progress/error announcements with a supported screen reader.
+- [ ] Address the source-confirmed accessibility gaps in section 9: tooltip-only variable/plan explanations, `StepRow` state text and progress names, and a role or accessible relationship for `ConfigErrorNotice`. Recheck disabled-button visibility in both color schemes.
+- [ ] Decide whether to render or remove the unused `GlobalGroupsCard`; it remains unrendered in `App.tsx`.
+- [ ] Resolve the footer Contact and Terms placeholders before release, or remove those entry points.
+- [ ] Review the remaining section 9 findings: the header mark's accessible treatment, focus/context after card expansion, touch target sizing, and confirmation for destructive actions that can lose state.

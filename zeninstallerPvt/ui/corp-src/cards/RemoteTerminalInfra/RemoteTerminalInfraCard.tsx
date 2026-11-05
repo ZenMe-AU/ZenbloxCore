@@ -232,22 +232,34 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
           onClick={() => setVarExpanded((expanded) => !expanded)}
           aria-expanded={varExpanded}
           aria-controls="remote-terminal-connection-details"
-          sx={{ width: "100%", display: "flex", alignItems: "center", gap: 1.5, userSelect: "none", py: 0.25 }}
+          disableRipple
+          sx={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            userSelect: "none",
+            py: 0.25,
+            "&:hover .connection-toggle-label, &:focus-visible .connection-toggle-label": { color: "primary.main" },
+            "&:hover .connection-toggle-line, &:focus-visible .connection-toggle-line": { backgroundColor: "primary.main" },
+            "&:hover .connection-toggle-icon, &:focus-visible .connection-toggle-icon": { color: "primary.main" },
+          }}
         >
-          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
-          <Typography color="text.muted" sx={{ whiteSpace: "nowrap" }}>
+          <Box className="connection-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+          <Typography className="connection-toggle-label" color="text.muted" sx={{ whiteSpace: "nowrap", transition: "color 0.2s" }}>
             {varExpanded ? "collapse" : "open to enter connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
+            className="connection-toggle-icon"
             sx={{
               typography: "body2",
               color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
-              transition: "transform 0.2s",
+              transition: "color 0.2s, transform 0.2s",
             }}
             aria-hidden="true"
           />
-          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+          <Box className="connection-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
         </ButtonBase>
 
         {/* unmountOnExit=false keeps draft edits alive while collapsed */}

@@ -35,6 +35,46 @@ for (const stage of stages) {
     expect(unexpectedRequests).toEqual([]);
     await expectSnapshot(page, card, testInfo, `${stage.dir}-dispatch-denied`, getViewportName(testInfo));
   });
+  test(`Groups prerequisites in one dropdown: ${stage.dir}`, async ({ page, context }, testInfo) => {
+    const setup = await prepareCardMocks(page, context);
+    const card = await setup.open(`stage_${stage.dir}`);
+    const toggle = card.locator(`button[aria-controls="${stage.dir}-prerequisites"]`);
+    const prerequisites = card.getByRole("region", { name: "Prerequisites" });
+
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(toggle).toHaveAccessibleName("open prerequisites");
+    await expect(prerequisites).toHaveCount(0);
+    await expectSnapshot(page, card, testInfo, `${stage.dir}-start`, getViewportName(testInfo));
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(toggle).toHaveAccessibleName("collapse");
+    await expect(prerequisites).toBeVisible();
+    await expect(prerequisites.getByText("COMPANY_SHORT_CODE: pwtests", { exact: true })).toBeVisible();
+    await expect(prerequisites.getByText("Azure variables configured", { exact: true })).toHaveCount(0);
+    await expect(prerequisites.getByText("c01 variables configured", { exact: true })).toHaveCount(0);
+    for (const [key, value] of Object.entries({
+      AZURE_CLIENT_ID: "00000000-0000-0000-0000-000000000002",
+      AZURE_PLAN_CLIENT_ID: "00000000-0000-0000-0000-000000000002",
+      AZURE_SUBSCRIPTION_ID: "mock-subscription",
+      AZURE_TENANT_ID: "00000000-0000-0000-0000-000000000001",
+    })) {
+      await expect(prerequisites.getByText(`${key}: ${value}`, { exact: true })).toBeVisible();
+    }
+    if (stage.dir === "c01subscription") {
+      await expect(prerequisites.getByText("CONTACT_EMAILS configured", { exact: true })).toHaveCount(0);
+      await expect(prerequisites.getByLabel("CONTACT_EMAILS:")).toHaveValue("owner@example.com");
+    }
+    if (["c21awsentrassoP2", "c25cloudfront"].includes(stage.dir)) {
+      await expect(prerequisites.getByText("AWS variables configured", { exact: true })).toHaveCount(0);
+      await expect(prerequisites.getByText("AWS_ROLE_ARN: arn:aws:iam::123456789012:role/zeninstaller-github", { exact: true })).toBeVisible();
+    }
+    if (!["c01subscription", "c02globalGroups"].includes(stage.dir)) {
+      await expect(prerequisites.getByText("DNS Domain: pwtests.example.com", { exact: true })).toBeVisible();
+    }
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(prerequisites).toHaveCount(0);
+  });
 }
 
 test("Reports a missing plan artifact without claiming an empty plan", async ({ page, context }, testInfo) => {
@@ -116,7 +156,12 @@ async function prepareStage(
       expect(url.searchParams.get("environment")).toBe("PROD");
       expect(url.searchParams.get("per_page")).toBe("1");
       const task = url.searchParams.get("task") ?? "";
-      expect([...stages.flatMap(({ dir }) => [`plan:${dir}`, `deploy:${dir}`]), "build:backend", "build:frontend"]).toContain(task);
+      const privAvdDirs = ["privavd-gallery", "privavd-image", "privavd-paw"];
+      expect([
+        ...[...stages.map(({ dir }) => dir), ...privAvdDirs].flatMap((dir) => [`plan:${dir}`, `deploy:${dir}`]),
+        "build:backend",
+        "build:frontend",
+      ]).toContain(task);
       state.reportTasks.push(task);
       return replyJson(
         route,

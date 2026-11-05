@@ -4,8 +4,8 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { fetchStageReport, getPlanEnv, triggerWorkflow } from "../../api";
-import type { Account, Branch, GhEnv, PipelineConfig, PlanSummary, Stage, StageReport } from "../../types";
+import { fetchStageReport, getPlanEnv, triggerWorkflow } from "../../api/index.js";
+import type { Account, Branch, GhEnv, PipelineConfig, PlanSummary, Stage, StageReport } from "../../types.js";
 
 interface PollContext {
   attempt: number;

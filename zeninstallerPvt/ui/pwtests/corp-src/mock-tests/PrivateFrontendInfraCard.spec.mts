@@ -32,6 +32,36 @@ test("Derives completion from existing Azure resources and saved variables", asy
   const card = await setup.open("private_frontend_infra");
   await expect(card.locator("h3")).toContainText("Complete");
   await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled();
+  await expect(card.getByRole("progressbar", { name: "Loading variables" })).toHaveCount(0);
+  const detailsToggle = card.locator('button[aria-controls="private-frontend-connection-details"]');
+  const lines = detailsToggle.locator(".connection-toggle-line");
+  const label = detailsToggle.locator(".connection-toggle-label");
+  const icon = detailsToggle.locator(".connection-toggle-icon");
+  const initialLineColors = await lines.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor));
+  const initialLabelColor = await label.evaluate((element) => getComputedStyle(element).color);
+  const initialIconColor = await icon.evaluate((element) => getComputedStyle(element).color);
+  await detailsToggle.hover();
+  await expect.poll(() => lines.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor))).not.toEqual(initialLineColors);
+  await expect.poll(() => label.evaluate((element) => getComputedStyle(element).color)).not.toBe(initialLabelColor);
+  await expect.poll(() => icon.evaluate((element) => getComputedStyle(element).color)).not.toBe(initialIconColor);
+  const initialExpanded = await detailsToggle.getAttribute("aria-expanded");
+  expect(initialExpanded).toMatch(/^(true|false)$/);
+  await detailsToggle.focus();
+  await page.keyboard.press("Enter");
+  const toggledExpanded = initialExpanded === "true" ? "false" : "true";
+  await expect(detailsToggle).toHaveAttribute("aria-expanded", toggledExpanded);
+  if (toggledExpanded === "true") {
+    await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeVisible();
+  } else {
+    await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeHidden();
+  }
+  await page.keyboard.press("Space");
+  await expect(detailsToggle).toHaveAttribute("aria-expanded", initialExpanded!);
+  if (initialExpanded === "true") {
+    await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeVisible();
+  } else {
+    await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeHidden();
+  }
   expect(await page.evaluate(() => localStorage.getItem("zeninstaller_private_env_result"))).toBeNull();
   expect(setup.unexpectedRequests).toEqual([]);
   await expectSnapshot(page, card, testInfo, "existing-environment", getViewportName(testInfo));

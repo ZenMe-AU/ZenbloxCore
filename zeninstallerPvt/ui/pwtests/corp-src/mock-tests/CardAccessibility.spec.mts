@@ -185,6 +185,32 @@ test.describe("Installer accessibility", () => {
     }
   });
 
+  test("Shift+C collapses all expanded cards and ignores editable fields", async ({ page }) => {
+    await page.addInitScript(() => localStorage.removeItem("zeninstaller_corp_expanded_cards"));
+    await page.goto(CORP_URL);
+
+    const githubToggle = page.locator("#card-github_login h3 button");
+    const azureToggle = page.locator("#card-azure_login h3 button");
+    await githubToggle.click();
+    await azureToggle.click();
+    await expect(githubToggle).toHaveAttribute("aria-expanded", "true");
+    await expect(azureToggle).toHaveAttribute("aria-expanded", "true");
+
+    await page.keyboard.press("Shift+C");
+    await expect(githubToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(azureToggle).toHaveAttribute("aria-expanded", "false");
+
+    await githubToggle.click();
+    await page.evaluate(() => {
+      const input = document.createElement("input");
+      input.id = "shortcut-editable-input";
+      document.body.append(input);
+    });
+    await page.locator("#shortcut-editable-input").focus();
+    await page.keyboard.press("Shift+C");
+    await expect(githubToggle).toHaveAttribute("aria-expanded", "true");
+  });
+
   test("expanded Azure Login card has no axe violations", async ({ page }) => {
     await page.goto(CORP_URL);
     await expandAzureLoginCard(page);

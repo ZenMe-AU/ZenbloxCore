@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Button, CircularProgress, Collapse, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
+import { Box, Button, ButtonBase, CircularProgress, Collapse, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import EditIcon from "@mui/icons-material/Edit";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -237,27 +237,42 @@ export default function PrivateFrontendInfraCard({
         </Box>
 
         {/* ── Divider (clickable toggle) ── */}
-        <Box
-          onClick={() => setVarExpanded((e) => !e)}
-          sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer", userSelect: "none", py: 0.25 }}
+        <ButtonBase
+          disableRipple
+          onClick={() => setVarExpanded((expanded) => !expanded)}
+          aria-expanded={varExpanded}
+          aria-controls="private-frontend-connection-details"
+          sx={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            userSelect: "none",
+            py: 0.25,
+            "&:hover .connection-toggle-label, &:focus-visible .connection-toggle-label": { color: "primary.main" },
+            "&:hover .connection-toggle-line, &:focus-visible .connection-toggle-line": { backgroundColor: "primary.main" },
+            "&:hover .connection-toggle-icon, &:focus-visible .connection-toggle-icon": { color: "primary.main" },
+          }}
         >
-          <Box sx={{ flex: 1, height: "1px", background: "divider" }} />
-          <Typography sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap" }}>
+          <Box className="connection-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+          <Typography className="connection-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
             {varExpanded ? "collapse" : "open to enter connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
+            className="connection-toggle-icon"
             sx={{
               typography: "body2",
               color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
-              transition: "transform 0.2s",
+              transition: "color 0.2s, transform 0.2s",
             }}
+            aria-hidden="true"
           />
-          <Box sx={{ flex: 1, height: "1px", background: "divider" }} />
-        </Box>
+          <Box className="connection-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+        </ButtonBase>
 
         {/* unmountOnExit=false keeps draft edits alive while collapsed */}
-        <Collapse in={varExpanded} timeout={300} unmountOnExit={false}>
+        <Collapse id="private-frontend-connection-details" role="region" aria-label="Connection details" in={varExpanded} timeout={300} unmountOnExit={false}>
           <CloudVariableDetail
             account={githubAccount}
             repo={repoName}

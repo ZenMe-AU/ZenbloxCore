@@ -264,6 +264,17 @@ function AppDashboard() {
   useEffect(() => {
     saveExpandedCards(Array.from(expandedIds));
   }, [expandedIds]);
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "c" || !event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.target instanceof HTMLElement && (event.target.isContentEditable || event.target.matches("input, textarea, select") || event.target.closest('[role="dialog"]'))) return;
+      event.preventDefault();
+      setExpandedIds(new Set());
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
   const toggle = (id: CardId) =>
     setExpandedIds((cur) => {
       const next = new Set(cur);

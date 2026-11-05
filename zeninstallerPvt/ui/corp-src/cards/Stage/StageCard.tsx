@@ -4,14 +4,16 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
+import { Box, Button, ButtonBase, CircularProgress, Collapse, IconButton, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import BlockIcon from "@mui/icons-material/Block";
+import ClearIcon from "@mui/icons-material/Clear";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import UndoIcon from "@mui/icons-material/Undo";
 import type {
   Account,
   AzureAccount,
@@ -36,7 +38,7 @@ import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl } from "../../logic/github";
 import { MONO_FONT } from "../../config/styles";
 import Card from "../../components/Card";
-import VariablesCard from "../../components/VariablesCard";
+import FieldLabel from "../../components/FieldLabel";
 import ErrorText from "../../components/ErrorText";
 import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import StatusText from "../../components/StatusText";
@@ -71,6 +73,21 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
       return setCount === prereq.keys.length ? `${prereq.label} configured` : `${prereq.label} (${setCount}/${prereq.keys.length} set)`;
     }
   }
+}
+
+function PrerequisiteStatusIcon({ met, changed }: { met: boolean; changed: boolean }) {
+  if (met && changed) {
+    return (
+      <Tooltip title="Changed since last plan" placement="top" arrow>
+        <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
+      </Tooltip>
+    );
+  }
+  return met ? (
+    <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main", flexShrink: 0 }} />
+  ) : (
+    <RadioButtonUncheckedIcon aria-hidden="true" sx={{ typography: "caption", color: "text.disabled", flexShrink: 0 }} />
+  );
 }
 
 function StageVarEditor({
@@ -130,18 +147,66 @@ function StageVarEditor({
   };
 
   return (
-    <Box sx={{ mt: 0.75 }}>
-      <VariablesCard
-        requiredKeys={prereq.keys}
-        savedValues={savedValues}
-        localValues={localValues}
-        upsertStatuses={upsertStatuses}
-        descriptions={prereq.descriptions}
-        deployedValues={deployedValues}
-        onChange={handleChange}
-        onRevert={handleRevert}
-      />
-      <Box sx={{ mt: 1.5 }}>
+    <>
+      {prereq.keys.map((key) => {
+        const savedValue = savedValues[key] ?? "";
+        const localValue = localValues[key] ?? "";
+        const isDirty = localValue !== savedValue;
+        const upsertStatus = upsertStatuses.find((status) => status.key === key);
+        const isError = upsertStatus?.status === "error";
+        const isDeployedDiff = deployedValues !== undefined && savedValue !== (deployedValues[key] ?? "");
+        const description = prereq.descriptions?.[key];
+
+        return (
+          <Box key={key} sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
+            <PrerequisiteStatusIcon met={!!savedValue.trim()} changed={isDeployedDiff && !isDirty && !isError} />
+            <FieldLabel htmlFor={`variable-${key}`} sx={{ mb: 0, minWidth: { xs: "8.5rem", sm: "11rem" }, flexShrink: 0 }}>
+              {key}:
+            </FieldLabel>
+            <TextField
+              id={`variable-${key}`}
+              className="corpEditor"
+              data-sensitive="true"
+              error={isError}
+              placeholder="not set"
+              value={localValue}
+              onChange={(event) => handleChange(key, event.target.value)}
+              sx={{ flex: 1, minWidth: 0 }}
+              InputProps={{
+                endAdornment: (localValue || isDirty) ? (
+                  <InputAdornment position="end" sx={{ gap: 0 }}>
+                    {localValue && (
+                      <IconButton aria-label={`Clear ${key}`} size="small" onClick={() => handleChange(key, "")} sx={{ p: 0.25 }}>
+                        <ClearIcon sx={{ typography: "caption" }} />
+                      </IconButton>
+                    )}
+                    {isDirty && (
+                      <Tooltip title="Revert to saved value">
+                        <IconButton aria-label={`Revert ${key} to saved value`} size="small" onClick={() => handleRevert(key)} sx={{ p: 0.25 }}>
+                          <UndoIcon sx={{ typography: "caption" }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </InputAdornment>
+                ) : undefined,
+              }}
+            />
+            {description && (
+              <Tooltip title={description} placement="top" arrow>
+                <InfoOutlinedIcon aria-label={`${key} information`} sx={{ typography: "caption", color: "text.secondary", flexShrink: 0 }} />
+              </Tooltip>
+            )}
+            {isDeployedDiff && !isDirty && !isError && (
+              <Tooltip title={`Plan configured: ${deployedValues[key] || "(empty)"}`} placement="top" arrow>
+                <WarningAmberIcon aria-label={`${key} differs from the last plan`} sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
+              </Tooltip>
+            )}
+            {isError && <Typography color="error.main" role="alert">{upsertStatus.error ?? "Update failed"}</Typography>}
+            {upsertStatus?.status === "success" && <Typography role="status" aria-live="polite" color="success.dark">just updated</Typography>}
+          </Box>
+        );
+      })}
+      <Box sx={{ mt: 1 }}>
         <Button
           onClick={handleUpdate}
           disabled={updating || dirtyKeys.length === 0 || !selectedEnv}
@@ -151,7 +216,7 @@ function StageVarEditor({
           {updating ? "Updating..." : dirtyKeys.length > 0 ? `Update ${dirtyKeys.length} variable${dirtyKeys.length !== 1 ? "s" : ""}` : "Update variables"}
         </Button>
       </Box>
-    </Box>
+    </>
   );
 }
 
@@ -282,7 +347,8 @@ export default function StageCard({
   runError,
   azureAccount,
 }: Props) {
-  const [expandedPrereqs, setExpandedPrereqs] = useState<Record<number, boolean>>({});
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
+  const [planOutputOpen, setPlanOutputOpen] = useState(false);
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
   const [planSummary, setPlanSummary] = useState<PlanSummary>({ create: 0, update: 0, delete: 0, replace: 0 });
   const [planLoading, setPlanLoading] = useState(false);
@@ -386,6 +452,13 @@ export default function StageCard({
     await onRunStatusUpdate();
   };
   const hasDetails = stage.status === "success" && !!stage.planJsonId && stage.planJsonUrl !== "";
+  const processStarted =
+    statusUpdateRunning ||
+    deployStarted ||
+    stage.status === "success" ||
+    stage.status === "failed" ||
+    stage.status === "deployed" ||
+    !!stage.deployStatus;
 
   const repoFullName = account && repoName ? `${account.login}/${repoName}` : null;
 
@@ -399,133 +472,109 @@ export default function StageCard({
     <Card title={stageDef.label} action={<Action repoFullName={repoFullName} runId={stage.runId} />} lockedIntro={intro} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {intro}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-          <RunStatusUpdateButton
-            onRun={handleRunStatusUpdate}
-            running={statusUpdateRunning || azurePermissions.granting}
-            countdown={statusUpdateCountdown}
-            disabled={statusUpdateDisabled || azurePermissions.granting}
-          />
-          {(permissionError ?? runError) && <ErrorText>{permissionError ?? runError}</ErrorText>}
-        </Box>
-        {stageDef.prerequisites.length > 0 && (
-          <Box>
-            <Typography
-              variant="sectionLabel"
-              sx={{ mb: 1 }}
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          {stageDef.prerequisites.length > 0 && (
+            <Box>
+            <ButtonBase
+              disableRipple
+              onClick={() => setPrerequisitesOpen((open) => !open)}
+              aria-expanded={prerequisitesOpen}
+              aria-controls={`${stageDef.dir}-prerequisites`}
+              sx={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                userSelect: "none",
+                py: 0.25,
+                "&:hover .prerequisites-toggle-label, &:focus-visible .prerequisites-toggle-label": { color: "primary.main" },
+                "&:hover .prerequisites-toggle-line, &:focus-visible .prerequisites-toggle-line": { backgroundColor: "primary.main" },
+                "&:hover .prerequisites-toggle-icon, &:focus-visible .prerequisites-toggle-icon": { color: "primary.main" },
+              }}
             >
-              Prerequisites
-            </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column" }}>
+              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+              <Typography className="prerequisites-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
+                {prerequisitesOpen ? "hide prerequisites" : "view prerequisites"}
+              </Typography>
+              <KeyboardArrowDownIcon
+                className="prerequisites-toggle-icon"
+                sx={{
+                  typography: "body2",
+                  color: "text.muted",
+                  transform: prerequisitesOpen ? "rotate(180deg)" : "none",
+                  transition: "color 0.2s, transform 0.2s",
+                }}
+                aria-hidden="true"
+              />
+              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+            </ButtonBase>
+            <Collapse in={prerequisitesOpen} timeout={300}>
+              <Box id={`${stageDef.dir}-prerequisites`} role="region" aria-label="Prerequisites" sx={{ display: "flex", flexDirection: "column", mt: 0.5 }}>
+              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>
+                Prerequisites
+              </Typography>
               {stageDef.prerequisites.map((prereq, i) => {
+                if (prereq.type === "varGroup") {
+                  return prereq.keys.map((key) => {
+                    const value = variableValues[key]?.trim() ?? "";
+                    const changed = deployedEnv != null && (variableValues[key] ?? "") !== (deployedEnv[key] ?? "");
+                    return (
+                      <Box key={`${stageDef.dir}-${key}`} sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
+                        <PrerequisiteStatusIcon met={!!value} changed={changed} />
+                        <Typography data-sensitive="true" color={value ? "text.secondary" : "text.muted"} sx={{ wordBreak: "break-all" }}>
+                          {key}: {value || "not set"}
+                        </Typography>
+                      </Box>
+                    );
+                  });
+                }
+
+                if (prereq.type === "stageVar") {
+                  return (
+                    <StageVarEditor
+                      key={`${stageDef.dir}-${i}`}
+                      prereq={prereq}
+                      savedValues={variableValues}
+                      deployedValues={deployedEnv ?? undefined}
+                      account={account}
+                      repo={repoName}
+                      selectedEnv={selectedEnv}
+                      onVariableConfirmed={onVariableConfirmed}
+                    />
+                  );
+                }
+
                 const met = checkPrerequisite(prereq, cardStatus, variableValues);
                 const label = prereqLabel(prereq, variableValues);
-                const isExpandable = prereq.type === "varGroup" || prereq.type === "stageVar";
-                const isOpen = !!expandedPrereqs[i];
-                const prereqHasDeployedDiff =
-                  deployedEnv != null &&
-                  (((prereq.type === "varGroup" || prereq.type === "stageVar") &&
-                    prereq.keys.some((k) => (variableValues[k] ?? "") !== (deployedEnv[k] ?? ""))) ||
-                    (prereq.type === "var" && (variableValues[prereq.key] ?? "") !== (deployedEnv[prereq.key] ?? "")));
+                const changed = prereq.type === "var" && deployedEnv != null && (variableValues[prereq.key] ?? "") !== (deployedEnv[prereq.key] ?? "");
                 return (
                   <Box key={`${stageDef.dir}-${i}`}>
-                    <Box
-                      component={isExpandable ? "button" : "div"}
-                      type={isExpandable ? "button" : undefined}
-                      aria-expanded={isExpandable ? isOpen : undefined}
-                      aria-controls={isExpandable ? `${stageDef.dir}-prerequisite-${i}` : undefined}
-                      onClick={isExpandable ? () => setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] })) : undefined}
-                      sx={{
-                        display: "flex",
-                        width: "100%",
-                        alignItems: "center",
-                        gap: 1,
-                        py: 0.5,
-                        px: isExpandable ? 0.75 : 0,
-                        mx: isExpandable ? -0.75 : 0,
-                        borderRadius: "6px",
-                        border: 0,
-                        backgroundColor: "transparent",
-                        textAlign: "left",
-                        font: "inherit",
-                        cursor: isExpandable ? "pointer" : "default",
-                        userSelect: "none",
-                        "&:hover": isExpandable ? { backgroundColor: "action.hover" } : {},
-                      }}
-                    >
-                      {met && prereqHasDeployedDiff ? (
-                        <Tooltip title="Changed since last plan" placement="top" arrow>
-                          <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
-                        </Tooltip>
-                      ) : met ? (
-                        <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main", flexShrink: 0 }} />
-                      ) : (
-                        <RadioButtonUncheckedIcon aria-hidden="true" sx={{ typography: "caption", color: "text.disabled", flexShrink: 0 }} />
-                      )}
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
+                      <PrerequisiteStatusIcon met={met} changed={changed} />
                       <Typography color={met ? "text.secondary" : "text.muted"} sx={{ flex: 1 }}>{label}</Typography>
-                      {isExpandable &&
-                        (isOpen ? <ExpandLessIcon aria-hidden="true" sx={{ typography: "body2", color: "text.disabled" }} /> : <ExpandMoreIcon aria-hidden="true" sx={{ typography: "body2", color: "text.disabled" }} />)}
                     </Box>
-
-                    {isExpandable && isOpen && (
-                      <Box id={`${stageDef.dir}-prerequisite-${i}`} role="region" aria-label={`${label} details`} sx={{ ml: 2.75, mt: 0.5, mb: 1 }}>
-                        {prereq.type === "varGroup" && (
-                          <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, overflow: "hidden" }}>
-                            {prereq.keys.map((k, ki) => (
-                              <Box
-                                key={k}
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 1.5,
-                                  px: 2,
-                                  py: 0.75,
-                                  borderBottom: ki < prereq.keys.length - 1 ? "1px solid" : "none",
-                                  borderColor: "divider",
-                                  backgroundColor: ki % 2 === 0 ? "background.paper" : "background.default",
-                                }}
-                              >
-                                <Typography
-                                  sx={{
-                                    color: "text.secondary",
-                                    minWidth: "11rem",
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {k}
-                                </Typography>
-                                <Typography
-                                  sx={{
-                                    color: variableValues[k] ? "text.primary" : "text.disabled",
-                                    wordBreak: "break-all",
-                                    flex: 1,
-                                  }}
-                                >
-                                  {variableValues[k] || "not set"}
-                                </Typography>
-                              </Box>
-                            ))}
-                          </Box>
-                        )}
-                        {prereq.type === "stageVar" && (
-                          <StageVarEditor
-                            prereq={prereq}
-                            savedValues={variableValues}
-                            deployedValues={deployedEnv ?? undefined}
-                            account={account}
-                            repo={repoName}
-                            selectedEnv={selectedEnv}
-                            onVariableConfirmed={onVariableConfirmed}
-                          />
-                        )}
-                      </Box>
-                    )}
                   </Box>
                 );
               })}
-            </Box>
+              {processStarted && (
+                <Box sx={{ mt: 1 }}>
+                  <ProcessRetryNotice started={processStarted} />
+                </Box>
+              )}
+              </Box>
+            </Collapse>
           </Box>
-        )}
+          )}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+            <RunStatusUpdateButton
+              onRun={handleRunStatusUpdate}
+              running={statusUpdateRunning || azurePermissions.granting}
+              countdown={statusUpdateCountdown}
+              disabled={statusUpdateDisabled || azurePermissions.granting}
+            />
+            {(permissionError ?? runError) && <ErrorText>{permissionError ?? runError}</ErrorText>}
+          </Box>
+        </Box>
 
         {hasDetails && (
           <StagePlanDetail
@@ -549,7 +598,48 @@ export default function StageCard({
           </Typography>
         )}
 
-        {stage.status === "failed" && stage.planLogId && <FailureLog fetched={planLogFetched} text={planLog?.text ?? null} />}
+        {stage.status === "failed" && stage.planLogId && (
+          <Box>
+            <ButtonBase
+              disableRipple
+              onClick={() => setPlanOutputOpen((open) => !open)}
+              aria-expanded={planOutputOpen}
+              aria-controls={`${stageDef.dir}-plan-output`}
+              sx={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                userSelect: "none",
+                py: 0.25,
+                "&:hover .plan-output-toggle-label, &:focus-visible .plan-output-toggle-label": { color: "primary.main" },
+                "&:hover .plan-output-toggle-line, &:focus-visible .plan-output-toggle-line": { backgroundColor: "primary.main" },
+                "&:hover .plan-output-toggle-icon, &:focus-visible .plan-output-toggle-icon": { color: "primary.main" },
+              }}
+            >
+              <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+              <Typography className="plan-output-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
+                {planOutputOpen ? "hide result" : "view result"}
+              </Typography>
+              <KeyboardArrowDownIcon
+                className="plan-output-toggle-icon"
+                sx={{
+                  typography: "body2",
+                  color: "text.muted",
+                  transform: planOutputOpen ? "rotate(180deg)" : "none",
+                  transition: "color 0.2s, transform 0.2s",
+                }}
+                aria-hidden="true"
+              />
+              <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+            </ButtonBase>
+            <Collapse in={planOutputOpen} timeout={300}>
+              <Box id={`${stageDef.dir}-plan-output`} role="region" aria-label="Plan output">
+                <FailureLog fetched={planLogFetched} text={planLog?.text ?? null} />
+              </Box>
+            </Collapse>
+          </Box>
+        )}
 
         {(stage.deployedAt || stage.deployStatus) && (
           <Box>
@@ -580,16 +670,6 @@ export default function StageCard({
             </Box>
           </Box>
         )}
-        <ProcessRetryNotice
-          started={
-            statusUpdateRunning ||
-            deployStarted ||
-            stage.status === "success" ||
-            stage.status === "failed" ||
-            stage.status === "deployed" ||
-            !!stage.deployStatus
-          }
-        />
       </Box>
     </Card>
   );
