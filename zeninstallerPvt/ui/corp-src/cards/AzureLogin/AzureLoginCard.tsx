@@ -44,8 +44,8 @@ function Action() {
 export default function AzureLoginCard({ card, azureLogin }: Props) {
   if (card.status === "unavailable") {
     return (
-      <Card title="Azure login" lockedIntro={<Intro />} {...card}>
-        <ConfigErrorNotice />
+      <Card title="Azure login" descriptionId="azure-login-config-error" lockedIntro={<Intro />} {...card}>
+        <ConfigErrorNotice id="azure-login-config-error" />
       </Card>
     );
   }

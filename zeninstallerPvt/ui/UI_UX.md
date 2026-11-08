@@ -168,7 +168,7 @@ flowchart LR
   dom[Core domain]
   rt[Remote terminal infra<br/>'Private Zeninstaller Backend Environment']
   be[Private Zeninstaller Backend]
-  fe[Private frontend infra<br/>'Frontend hosting environment']
+  fe[Private frontend infra<br/>'Private hosting environment']
   web[Private Zeninstaller Frontend]
   aws[AWS login]
   awss[AWS setup]
@@ -232,7 +232,7 @@ Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRe
 | 7 | `create_domain` | Core domain | `azure_login`, `repo`, `azure_subscription`, `core_infra` | Creates the corp domain resources | [CreateDomain](corp-src/cards/CreateDomain) |
 | 8 | `remote_terminal_infra` | Private Zeninstaller Backend Environment | `azure_login`, `azure_subscription`, `core_infra` | Provisions relay for the remote terminal; connection details | [RemoteTerminalInfra](corp-src/cards/RemoteTerminalInfra) |
 | 9 | `backend_deploy` | Private Zeninstaller Backend | `github_login`, `repo`, `azure_login`, `remote_terminal_infra` | Build and deploy the Function App backend | [BackendDeploy](corp-src/cards/BackendDeploy) |
-| 10 | `private_frontend_infra` | Frontend hosting environment | `azure_login`, `azure_subscription` | Storage static site / hosting infra | [PrivateFrontendInfra](corp-src/cards/PrivateFrontendInfra) |
+| 10 | `private_frontend_infra` | Private hosting environment | `azure_login`, `azure_subscription` | Storage static site / hosting infra | [PrivateFrontendInfra](corp-src/cards/PrivateFrontendInfra) |
 | 11 | `web_deploy` | Private Zeninstaller Frontend | `github_login`, `repo`, `azure_login`, `private_frontend_infra` | Build and upload the frontend | [WebDeploy](corp-src/cards/WebDeploy) |
 | 12 | `aws_login` | AWS login | none | Bootstrap access key, MFA code | [AwsLogin](corp-src/cards/AwsLogin) |
 | 13 | `aws_setup` | AWS setup | `aws_login`, `repo` | Creates IAM role for GitHub OIDC; connection details | [AwsSetup](corp-src/cards/AwsSetup) |
@@ -365,7 +365,7 @@ Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)):
 | `ErrorText` | Error message | `role=alert` |
 | `StatusText` | Progress/success message | `role=status`, `aria-live=polite` |
 | `ProcessRetryNotice` | Static retry guidance for runnable setup/deployment sections | `role=note`; no live-region behavior |
-| `ConfigErrorNotice` | "Card isn't configured correctly" panel | none (see issues) |
+| `ConfigErrorNotice` | "Card isn't configured correctly" panel | message is referenced by unavailable card title/chevron via `aria-describedby`; no live-region behavior |
 | `ExternalLink` | Inline new-tab link | `aria-label="<label> (opens in new tab)"`, `rel=noopener noreferrer` |
 | `ViewLink` | Outlined "View" button-link, text hidden at `xs` | same new-tab naming; `title=href` |
 | `RefreshButton` | Refresh, then Done / Failed (transient) | `aria-label` tracks text |
@@ -373,7 +373,7 @@ Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)):
 | `CopyRow` | Label + value + Copy; optional masking | value `data-sensitive`; button named "Copy <label>"; Clipboard API with legacy fallback when missing or denied; copied/failure state announced |
 | `VariablesCard` | Editable GitHub variable list | label per input, clear/revert buttons, dirty/error/success row tints |
 | `SecretsCard` | Secret presence/validity list + edit dialog | masked by default, reveal toggle, validation badges |
-| `StepRow` (cards/) | One line of a progress checklist | icon + label + detail + determinate bar |
+| `StepRow` (cards/) | One line of a progress checklist | hidden textual status; named running spinner and determinate progress bar; icon remains decorative |
 
 Runnable process sections show the same retry guidance before and during execution: if one or more steps fail, users can try running the process again once or twice. This is informational only; it does not start automatic retries or promise that a retry will succeed.
 
@@ -386,7 +386,7 @@ Runnable process sections show the same retry guidance before and during executi
 | Secondary action | `variant="outlined"` (Deploy status update, shortcuts, View) |
 | Text field | MUI `TextField` small; class `corpEditor` (monospace, tinted bg, dirty = amber border, error = red) and `corpTechnicalInput` for IDs/keys |
 | Sensitive values | `data-sensitive="true"`; `:root[data-mask-sensitive="true"]` blurs them (opt-in) |
-| Progress | `CircularProgress` size 12-16 with accessible name; `LinearProgress` 4px for step progress |
+| Progress | `CircularProgress` size 12-16 with accessible names; both `StepRow` progress indicators are named |
 | Status pill | bordered box, text label plus colour (plan create/update/delete/replace, `not latest`, `valid`/`invalid`) |
 | Tooltips | variable descriptions (info icon), revert, plan-diff warning icon, `not latest` pill, repo options |
 | Dialogs | Footer shortcuts dialog (open with `?`, close with Escape); secrets edit dialog |
@@ -454,7 +454,7 @@ ESLint ([eslint.config.js](eslint.config.js)): recommended `jsx-a11y`; `no-restr
 | Keyboard | native `button`/`a`/inputs only; title and chevron are separate tab stops; Enter/Space toggle; requirement rows are buttons |
 | Focus | global `:focus-visible` (2px blue + halo) and explicit card focus styles; skip link focus reveal |
 | Names | toggle name = visible title + summary + hidden status ("Locked" wins); icon-only buttons labelled; new-tab links announce "(opens in new tab)"; inputs tied to `FieldLabel` |
-| Status | decorative icons `aria-hidden`; `StatusText` / `ErrorText` give `status` / `alert`; terminal status bar `role=status`; toast `status` |
+| Status | decorative icons `aria-hidden`; `StepRow` status is text; `StatusText` / `ErrorText` give `status` / `alert`; terminal status bar `role=status`; toast `status` |
 | Motion | global `prefers-reduced-motion` reset |
 | Reflow | fluid grid; automated check at 320px |
 | Colour independence | status always has text (summary, hidden status, pill text), not colour alone |
@@ -480,16 +480,16 @@ The UI targets modern evergreen browsers supported by Vite 7, React 19, and MUI 
 
 ## 9. Findings and recommendations
 
-Observed from source review; none of these have been confirmed with assistive technology.
+Source reviewed 2026-11-08; none of these have been confirmed with assistive technology.
 
 | # | Severity | Finding | Recommendation |
 |---|---|---|---|
-| 1 | Medium | Two cards shared the title "Private Zeninstaller Environment" (`remote_terminal_infra`, `private_frontend_infra`); screen-reader and tab users could not tell them apart. | Resolved: titles are now "Private Zeninstaller Backend Environment" and "Frontend hosting environment". |
+| 1 | Medium | Two cards shared the title "Private Zeninstaller Environment" (`remote_terminal_infra`, `private_frontend_infra`); screen-reader and tab users could not tell them apart. | Resolved: titles are now "Private Zeninstaller Backend Environment" and "Private hosting environment". The progress label for the latter remains "Frontend hosting environment". |
 | 2 | Medium | Intro panel and footer panel used `sx={{ background: "background.paper" }}`. | Resolved: both now use `bgcolor: "background.paper"`. |
 | 3 | Medium | Information is tooltip-only on non-focusable elements: variable description (`InfoOutlinedIcon`), the "Changed since last plan" warning icon (also `aria-hidden`), and the `not latest` pill. Keyboard and screen-reader users miss it. | Make triggers focusable with accessible names, or render the text inline / via `aria-describedby`. |
 | 4 | Medium | Status text used `success.main`, `warning.main`, and `error.light`, which fall short of 4.5:1 on white. | Resolved: status summaries and text use dark shades; lighter shades remain on icons, borders and backgrounds. |
-| 5 | Medium | `StepRow` conveys state by icon only (no `aria-hidden`, no text), so progress state is invisible to screen readers. | Add hidden status text per row and a `role=status` summary. |
-| 6 | Low | `ConfigErrorNotice` has no `role`; the message is only exposed when the card is opened. | Add `role="alert"`/`status` or reference it from the summary. |
+| 5 | Medium | `StepRow` state and progress were icon-only/unnamed. | Resolved in source and covered by focused Chromium DOM assertions: each state has hidden text and running indicators are named. Screen-reader announcement behavior remains for manual verification. |
+| 6 | Low | `ConfigErrorNotice` message was not associated with its card controls. | Resolved: unavailable card title and chevron describe the static message through `aria-describedby`; no interruptive live alert is used. Focused Chromium DOM assertion passes. |
 | 7 | Low | Card titles use single-line ellipsis, which can hide text visually on touch screens. | Resolved for assistive technology: the full title and summary remain in the toggle's accessible name and in `title` attributes. Visual truncation remains intentional to keep card headers aligned. |
 | 8 | Low | Header "ZB" mark is read as text before the `h1`; the `h1` text is `document.title`, so it depends on `index.html`. | Mark the logo `aria-hidden`; keep the title static in the header or assert it in a test. |
 | 9 | Low | Expanding a card makes it span the full grid width and reflows neighbours, which can shift focus position and context. | Keep the existing scroll-into-view, and consider restoring focus/scroll after toggle. |
@@ -497,7 +497,7 @@ Observed from source review; none of these have been confirmed with assistive te
 | 11 | Low | Footer Contact and Terms content are placeholders. | Provide content or remove the entry points before release. Keyboard shortcuts help is now implemented. |
 | 12 | Low | Icons are sized via `typography: "caption"` (about 12px), and `IconButton size="small"` targets are about 30px. | Acceptable for WCAG 2.2 AA (24px), but consider larger targets on touch. |
 | 13 | Info | `GlobalGroupsCard` is built, tested and unused in `App.tsx`. | Remove or render it. |
-| 14 | Info | Disabled primary buttons in the light scheme (`#cbd5e1` on `#f1f5f9`) are very faint; exempt from contrast rules but hard to see as buttons. | Add a border or lighter-weight outline style. |
+| 14 | Info | Disabled primary buttons use MUI's theme-provided disabled background and text colors; their visibility in both color schemes has not been reassessed since the button baseline was standardized. | Review the rendered disabled state in both schemes and improve its boundary if it is difficult to identify. |
 | 15 | Info | Destructive actions (sign-out, end session) are one click with no confirmation. | Consider confirmation where state is lost. |
 
 ---

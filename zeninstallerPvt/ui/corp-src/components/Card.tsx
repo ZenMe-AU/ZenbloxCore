@@ -66,6 +66,7 @@ type Props = CardChrome & {
   title: string;
   action?: React.ReactNode;
   lockedIntro?: React.ReactNode;
+  descriptionId?: string;
   children: React.ReactNode;
 };
 
@@ -87,6 +88,7 @@ export default function Card({
   onRequirementClick,
   action,
   lockedIntro,
+  descriptionId,
   children,
 }: Props) {
   const theme = useTheme();
@@ -156,6 +158,7 @@ export default function Card({
             disableRipple
             aria-expanded={expanded}
             aria-controls={contentId}
+            aria-describedby={descriptionId}
             sx={{
               display: "flex",
               width: "100%",
@@ -225,6 +228,7 @@ export default function Card({
             aria-label={`${expanded ? "Collapse" : "Expand"} ${title}`}
             aria-expanded={expanded}
             aria-controls={contentId}
+            aria-describedby={descriptionId}
             sx={{
               color: colors.mutedIcon,
               "&:hover": { color: colors.mutedIconHover },

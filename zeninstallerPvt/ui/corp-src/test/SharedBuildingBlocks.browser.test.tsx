@@ -9,6 +9,8 @@ import { describe, expect, it, vi } from "vitest";
 import { TextField, ThemeProvider } from "@mui/material";
 import Caption from "../components/Caption";
 import CardIntro from "../components/CardIntro";
+import Card from "../components/Card";
+import ConfigErrorNotice from "../components/ConfigErrorNotice";
 import CopyRow from "../components/CopyRow";
 import ErrorText from "../components/ErrorText";
 import ExternalLink from "../components/ExternalLink";
@@ -17,6 +19,7 @@ import RestoreToast from "../components/RestoreToast";
 import SecretsCard from "../components/SecretsCard";
 import StatusText from "../components/StatusText";
 import VariablesCard from "../components/VariablesCard";
+import StepRow from "../cards/StepRow";
 import { getVariableDisplayName } from "../logic/variables";
 import theme from "../theme";
 
@@ -27,6 +30,72 @@ describe("shared UI building blocks", () => {
     expect(theme.colorSchemes.light.palette.background.paper).toBe("#ffffff");
     expect(theme.colorSchemes.dark.palette.background.paper).toBe("#1b2629");
     expect(theme.colorSchemes.dark.palette.text.primary).toBe("#e7edef");
+  });
+
+  it("exposes setup-step states and names progress indicators", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    try {
+      flushSync(() => {
+        root.render(
+          <ThemeProvider theme={theme} defaultMode="light">
+            <StepRow step={{ id: "pending", label: "Pending task", status: "pending" }} />
+            <StepRow step={{ id: "running", label: "Running task", status: "running", progress: 0.4 }} />
+            <StepRow step={{ id: "done", label: "Done task", status: "done" }} />
+            <StepRow step={{ id: "skipped", label: "Skipped task", status: "skipped" }} />
+            <StepRow step={{ id: "error", label: "Failed task", status: "error" }} />
+          </ThemeProvider>
+        );
+      });
+
+      const stepStates = [...container.querySelectorAll<HTMLElement>(".visually-hidden")]
+        .map((element) => element.textContent)
+        .filter((text) => text?.startsWith("Status:"));
+      expect(stepStates).toEqual(["Status: Pending", "Status: Running", "Status: Done", "Status: Skipped", "Status: Error"]);
+      expect(container.querySelector('[role="progressbar"][aria-label="Running: Running task"]')).not.toBeNull();
+      expect(container.querySelector('[role="progressbar"][aria-label="Progress: Running task"]')).not.toBeNull();
+    } finally {
+      flushSync(() => root.unmount());
+      container.remove();
+    }
+  });
+
+  it("associates the unavailable card controls with their configuration explanation", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    try {
+      flushSync(() => {
+        root.render(
+          <ThemeProvider theme={theme} defaultMode="light">
+            <Card
+              cardId="azure_login"
+              title="Azure login"
+              status="unavailable"
+              locked={false}
+              unavailable
+              requirements={[]}
+              expanded={false}
+              onToggle={() => {}}
+              onRequirementClick={() => {}}
+              descriptionId="azure-login-config-error"
+            >
+              <ConfigErrorNotice id="azure-login-config-error" />
+            </Card>
+          </ThemeProvider>
+        );
+      });
+
+      const notice = container.querySelector<HTMLElement>("#azure-login-config-error");
+      expect(notice?.textContent).toContain("This card is unavailable because a required setting is missing or invalid.");
+      expect(container.querySelectorAll('[aria-describedby="azure-login-config-error"]')).toHaveLength(2);
+    } finally {
+      flushSync(() => root.unmount());
+      container.remove();
+    }
   });
 
   it("keeps semantics, link behavior, and editor field states consistent", async () => {

@@ -23,3 +23,11 @@ Styling and accessibility plan: see [CSS_STANDARDISATION.md](CSS_STANDARDISATION
 17. Where provided, card introductions and pipeline-stage descriptions remain available when a card is locked, ahead of its unmet-prerequisite list.
 18. Text buttons use a compact shared MUI baseline (32px minimum height, 0.875rem semibold text, 6px radius, consistent padding); primary, outlined, destructive, and toggle roles retain their distinct states.
 19. `Shift+C` collapses all expanded cards; global shortcuts do not run while focus is in editable controls or the shortcuts dialog.
+20. `StepRow` exposes each state as visually hidden text and names running progress indicators; status icons remain decorative.
+21. Static `ConfigErrorNotice` text is associated with the unavailable card's title and chevron controls through `aria-describedby`; it is not announced as a live alert.
+22. `MONO_FONT` and `refreshBtnSx` remain shared helpers while they have active consumers; section labels use the `fieldLabel` typography variant directly.
+
+## Known accessibility follow-ups
+
+- Variable descriptions and plan-difference explanations are tooltip-only; their current icon triggers are not keyboard-focusable.
+- Manual keyboard-only, screen-reader, 200% zoom, and Windows high-contrast/reduced-motion checks remain outstanding. Automated Chromium checks do not replace these.

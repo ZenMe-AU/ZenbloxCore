@@ -16,7 +16,6 @@ import ViewLink from "../../components/ViewLink";
 import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { getPrivateInstallerAppName } from "../../logic/naming";
 import { resourceGroupScope } from "../../api/azureArm";
-import { labelSx } from "../../config/styles";
 import CloudVariableDetail from "../CloudVariableDetail";
 import { PRIVATE_FRONTEND_KEYS } from "../../logic/variables";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
@@ -103,7 +102,7 @@ export default function PrivateFrontendInfraCard({
 
         {infra.steps.length === 0 && (
           <Box>
-            <Typography sx={{ ...labelSx, mb: 0.75 }}>Resources</Typography>
+            <Typography sx={{ typography: "fieldLabel", mb: 0.75 }}>Resources</Typography>
             <Box sx={{ borderLeft: "2px solid", borderLeftColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
               <PlainRow label="Resource group" value={infra.resourceGroupName} />
               <PlainRow label="Log Analytics" value={infra.lawName} />
