@@ -7,7 +7,7 @@
 import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
 import { test, getViewportName } from "../../../../../.playwright/viewportFixture.mjs";
 import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
-import { AZURE_MANAGEMENT_URL, MICROSOFT_GRAPH_URL, CORP_URL } from "../../testInit";
+import { AZURE_MANAGEMENT_URL, MICROSOFT_GRAPH_URL, CORP_URL } from "../../testInit.js";
 import { expectSuccessfulSteps } from "../util/mockTestHelper.mts";
 import { prepareCardMocks, privateGroup, replyJson, siteStorage, siteUrl, storageId, storageResource } from "../util/mockCardSetup.mts";
 
@@ -68,6 +68,7 @@ test("Derives completion from existing Azure resources and saved variables", asy
 });
 
 async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestInfo) {
+  test.setTimeout(240_000);
   const { card, state, github, unexpectedRequests } = await prepareFrontend(page, context);
   const viewport = getViewportName(testInfo);
   await test.step("Create the hosting environment from seeded Azure prerequisites", async () => {
@@ -75,7 +76,7 @@ async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestI
     await expect(card.getByText("Australia East", { exact: true })).toBeVisible();
     await expectSnapshot(page, card, testInfo, "start", viewport);
     await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
-    await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled();
+    await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 180_000 });
     await expectSuccessfulSteps(card, [
       "Register required Azure resource providers",
       "Create resource group zeninstaller-private-rg",

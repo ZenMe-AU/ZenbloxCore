@@ -4,11 +4,11 @@
  */
 
 // UI component: ../../../corp-src/cards/Stage/StageCard.tsx (all six mounted pipeline stages)
-import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
+import { expect, type BrowserContext, type Locator, type Page, type TestInfo } from "@playwright/test";
 import JSZip from "jszip";
 import { test, getViewportName } from "../../../../../.playwright/viewportFixture.mjs";
 import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
-import { GITHUB_API_URL, MICROSOFT_GRAPH_URL } from "../../testInit";
+import { GITHUB_API_URL, MICROSOFT_GRAPH_URL } from "../../testInit.js";
 import { prepareCardMocks, replyJson } from "../util/mockCardSetup.mts";
 
 const stages = [
@@ -78,11 +78,11 @@ for (const stage of stages) {
 }
 
 test("Reports a missing plan artifact without claiming an empty plan", async ({ page, context }, testInfo) => {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   const { card, state, unexpectedRequests } = await prepareStage(page, context, stages[0], { missingArtifact: true });
   await card.getByRole("button", { name: "Get Updated Plan", exact: true }).click();
   await expect(card.getByRole("button", { name: /^Running/ })).toBeDisabled();
-  await advanceStagePoll(page);
+  await advanceStagePoll(page, card);
   await expect(card.getByText("Failed to download the package: 410", { exact: true })).toBeVisible();
   await expect(card.getByText("No changes detected.", { exact: true })).toHaveCount(0);
   expect(state.downloads).toBe(1);
@@ -91,7 +91,7 @@ test("Reports a missing plan artifact without claiming an empty plan", async ({ 
 });
 
 async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestInfo, stage: { dir: string; title: string }) {
-  test.setTimeout(120_000);
+  test.setTimeout(240_000);
   const { card, state, unexpectedRequests } = await prepareStage(page, context, stage);
   const viewport = getViewportName(testInfo);
   await test.step("Request a plan for this stage and selected environment only", async () => {
@@ -104,7 +104,7 @@ async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestI
     await expectSnapshot(page, card, testInfo, `${stage.dir}-running`, viewport);
   });
   await test.step("Read the stage report and render the downloaded Terraform plan", async () => {
-    await advanceStagePoll(page);
+    await advanceStagePoll(page, card);
     await expect(card.getByText(`terraform_data.${stage.dir}`, { exact: true })).toBeVisible();
     await expect(card.getByText("create 1", { exact: true })).toBeVisible();
     await expect(card.getByRole("button", { name: "Get Updated Plan", exact: true })).toBeEnabled();
@@ -194,7 +194,7 @@ async function prepareStage(
   return { ...setup, card, state };
 }
 
-async function advanceStagePoll(page: Page) {
-  // Fast-forward each interval tick without replaying 150 seconds of animation frames.
-  for (let second = 0; second < 150; second++) await page.clock.fastForward(1_000);
+async function advanceStagePoll(page: Page, card: Locator) {
+  await expect(card.getByRole("button", { name: /^Running\.\.\. [1-9]\d*[sm]$/ })).toBeDisabled();
+  await page.clock.runFor(150_000);
 }

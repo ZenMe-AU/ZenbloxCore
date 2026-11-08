@@ -21,6 +21,7 @@ export async function expandGithubLoginCard(page: Page) {
     await expandCard(githubCard);
   }
   await expect(introText).toBeVisible();
+  await expect(githubCard.locator(".MuiCollapse-root")).toHaveClass(/\bMuiCollapse-entered\b/);
   return githubCard;
 }
 
