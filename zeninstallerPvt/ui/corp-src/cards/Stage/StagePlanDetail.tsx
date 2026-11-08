@@ -107,8 +107,7 @@ export default function StagePlanDetail({
         {behind && <BehindPill planSha={planSha} latestSha={latestSha} />}
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        Create adds resources, update changes existing resources, delete removes resources, and replace recreates a resource and may interrupt service. Review the
-        plan before deploying.
+        Review the planned infrastructure changes below before deploying. Deploy will create, update, replace, or delete resources; replacements may interrupt service.
       </Typography>
       <Box
         sx={{

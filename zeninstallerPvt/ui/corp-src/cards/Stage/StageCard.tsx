@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Box, Button, ButtonBase, CircularProgress, Collapse, IconButton, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -40,7 +40,6 @@ import { MONO_FONT } from "../../config/styles";
 import Card from "../../components/Card";
 import FieldLabel from "../../components/FieldLabel";
 import ErrorText from "../../components/ErrorText";
-import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import StatusText from "../../components/StatusText";
 import StagePlanDetail from "./StagePlanDetail";
 import RemoteTerminal from "./RemoteTerminal";
@@ -222,19 +221,24 @@ function StageVarEditor({
 
 // Shared by the plan and deploy failures — both publish the same kind of single-file log artifact.
 export function FailureLog({ fetched, text }: { fetched: boolean; text: string | null }) {
+  const [expanded, setExpanded] = useState(false);
+  const contentId = useId();
   if (!fetched) return <StatusText>Loading log...</StatusText>;
   if (!text) return null;
   return (
     <Box
+      id={contentId}
       sx={{
         mt: 0.5,
         p: 1.25,
+        pb: 4,
         borderRadius: "6px",
         backgroundColor: "background.default",
         border: "1px solid",
         borderColor: "error.light",
-        maxHeight: "10rem",
-        overflowY: "auto",
+        maxHeight: expanded ? "none" : "10rem",
+        overflowY: expanded ? "visible" : "auto",
+        position: "relative",
       }}
       role="alert"
       aria-live="assertive"
@@ -242,6 +246,27 @@ export function FailureLog({ fetched, text }: { fetched: boolean; text: string |
       <Typography component="pre" color="error.dark" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...MONO_FONT }}>
         {text}
       </Typography>
+      <Tooltip title={expanded ? "Collapse log" : "Expand log"} placement="left" arrow>
+        <IconButton
+          onClick={() => setExpanded((open) => !open)}
+          aria-label={expanded ? "Collapse log" : "Expand log"}
+          aria-expanded={expanded}
+          aria-controls={contentId}
+          size="small"
+          sx={{
+            position: "absolute",
+            right: 4,
+            bottom: 4,
+            backgroundColor: "background.default",
+            "&:hover": { backgroundColor: "action.hover" },
+          }}
+        >
+          <KeyboardArrowDownIcon
+            aria-hidden="true"
+            sx={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}
+          />
+        </IconButton>
+      </Tooltip>
     </Box>
   );
 }
@@ -356,7 +381,6 @@ export default function StageCard({
   const [deployLog, setDeployLog] = useState<{ id: number; text: string | null } | null>(null);
   const [planLog, setPlanLog] = useState<{ id: number; text: string | null } | null>(null);
   const [permissionError, setPermissionError] = useState<string | null>(null);
-  const [deployStarted, setDeployStarted] = useState(false);
 
   // One instance per card. The permissions come straight from this stage's definition, so there
   // is no shared pending flag to leak and no union of every stage's permissions to over-grant.
@@ -380,7 +404,6 @@ export default function StageCard({
     trackDeploy &&
     (async () => {
       if (await remoteTerminal.start()) {
-        setDeployStarted(true);
         await trackDeploy();
       }
     });
@@ -452,14 +475,6 @@ export default function StageCard({
     await onRunStatusUpdate();
   };
   const hasDetails = stage.status === "success" && !!stage.planJsonId && stage.planJsonUrl !== "";
-  const processStarted =
-    statusUpdateRunning ||
-    deployStarted ||
-    stage.status === "success" ||
-    stage.status === "failed" ||
-    stage.status === "deployed" ||
-    !!stage.deployStatus;
-
   const repoFullName = account && repoName ? `${account.login}/${repoName}` : null;
 
   const intro = stageDef.description ? (
@@ -479,6 +494,7 @@ export default function StageCard({
               disableRipple
               onClick={() => setPrerequisitesOpen((open) => !open)}
               aria-expanded={prerequisitesOpen}
+              aria-label={prerequisitesOpen ? "collapse" : "open prerequisites"}
               aria-controls={`${stageDef.dir}-prerequisites`}
               sx={{
                 width: "100%",
@@ -556,11 +572,6 @@ export default function StageCard({
                   </Box>
                 );
               })}
-              {processStarted && (
-                <Box sx={{ mt: 1 }}>
-                  <ProcessRetryNotice started={processStarted} />
-                </Box>
-              )}
               </Box>
             </Collapse>
           </Box>
