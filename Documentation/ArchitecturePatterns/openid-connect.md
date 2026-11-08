@@ -14,9 +14,9 @@ OIDC interoperability is strong, but token validation and cookie transport choic
 [OpenID Connect](https://en.wikipedia.org/wiki/OpenID_Connect).
 
 ## Implementation
-The edge guard resolves issuer metadata and validates JWT signatures and claims in [corpSetup/c25cloudfront/source/authGuardLambdaEdge/index.mjs](../../corpSetup/c25cloudfront/source/authGuardLambdaEdge/index.mjs#L9) and [corpSetup/c25cloudfront/source/authGuardLambdaEdge/index.mjs](../../corpSetup/c25cloudfront/source/authGuardLambdaEdge/index.mjs#L121).
+The edge guard resolves issuer metadata and validates JWT signatures and claims in [corpSetup/CloudFront/source/authGuardLambdaEdge/index.mjs](../../corpSetup/CloudFront/source/authGuardLambdaEdge/index.mjs#L9) and [corpSetup/CloudFront/source/authGuardLambdaEdge/index.mjs](../../corpSetup/CloudFront/source/authGuardLambdaEdge/index.mjs#L121).
 
-The login SPA drives interactive and silent token acquisition in [corpSetup/c25cloudfront/source/loginApp/src/hooks/useAuth.ts](../../corpSetup/c25cloudfront/source/loginApp/src/hooks/useAuth.ts#L24), and redirect enforcement is implemented in [corpSetup/c25cloudfront/source/loginApp/src/pages/LoginGuard.tsx](../../corpSetup/c25cloudfront/source/loginApp/src/pages/LoginGuard.tsx#L19).
+The login SPA drives interactive and silent token acquisition in [corpSetup/CloudFront/source/loginApp/src/hooks/useAuth.ts](../../corpSetup/CloudFront/source/loginApp/src/hooks/useAuth.ts#L24), and redirect enforcement is implemented in [corpSetup/CloudFront/source/loginApp/src/pages/LoginGuard.tsx](../../corpSetup/CloudFront/source/loginApp/src/pages/LoginGuard.tsx#L19).
 
 ## Future enhancements
 - Move token transport toward stronger cookie/session handling where feasible.

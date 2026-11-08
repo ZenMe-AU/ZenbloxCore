@@ -22,11 +22,11 @@
     },
     {
       "name": "authGuardLambdaEdge",
-      "path": "./corpSetup/c25cloudfront/source/authGuardLambdaEdge",
+      "path": "./corpSetup/CloudFront/source/authGuardLambdaEdge",
     },
     {
       "name": "loginApp",
-      "path": "./corpSetup/c25cloudfront/source/loginApp",
+      "path": "./corpSetup/CloudFront/source/loginApp",
     },
     {
       "name": "portal-ui",

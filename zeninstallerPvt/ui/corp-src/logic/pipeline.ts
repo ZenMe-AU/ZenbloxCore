@@ -3,22 +3,25 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { PipelineConfig, StageDefinition } from "../types";
+import type { PipelineConfig } from "../types";
 import { GRAPH_PERMISSIONS } from "../config/azureConfig";
 import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS, C01_KEYS } from "./variables";
 
-type StageSource = Omit<StageDefinition, "workflowId">;
-type PipelineSource = Omit<PipelineConfig, "stages"> & { stages: StageSource[] };
-const DEFINITIONS: Record<string, PipelineSource> = {
+// Plans any one stage; dispatched with the stage's dir.
+const PLAN_STAGE_WORKFLOW = "plan.yml";
+// Applies any one planned stage as the person who signs in; dispatched with the stage's dir.
+const DEPLOY_STAGE_WORKFLOW = "deploy.yml";
+
+export const PIPELINES: Record<string, PipelineConfig> = {
   corpSetup: {
-    workflowId: "planChanges.yml",
-    deployWorkflowId: "remoteLogin.yml",
     label: "ZenInstaller Setup Central Corp Environment",
     templateRepo: "ZenMe-AU/ZenbloxCore",
     validEnvs: ["PROD", "TEST"] as const,
     stages: [
       {
-        dir: "c01subscription",
+        dir: "SubscriptionBudget",
+        workflowId: PLAN_STAGE_WORKFLOW,
+        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "Azure subscription budget",
         description: "Sets a spending budget on the Azure subscription and emails the contacts you list when costs approach it.",
         azurePermissions: [],
@@ -36,7 +39,9 @@ const DEFINITIONS: Record<string, PipelineSource> = {
         ],
       },
       {
-        dir: "c02globalGroups",
+        dir: "GlobalGroups",
+        workflowId: PLAN_STAGE_WORKFLOW,
+        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "Organisation security groups",
         description: "Creates the Microsoft Entra security groups that control who can access the organisation's resources.",
         azurePermissions: [
@@ -51,11 +56,13 @@ const DEFINITIONS: Record<string, PipelineSource> = {
         ],
       },
       /*
-       * c05rootrg was replaced by the Corp Domain Setup + Terraform Setup cards,
+       * RootRg was replaced by the Corp Domain Setup + Terraform Setup cards,
        * which create the same resources directly via ARM/Graph from the browser.
        */
       {
-        dir: "c07userAccounts",
+        dir: "UserAccounts",
+        workflowId: PLAN_STAGE_WORKFLOW,
+        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "User accounts and sign-in",
         description: "Creates the organisation's user accounts and configures how they sign in, including authentication methods.",
         azurePermissions: [
@@ -74,7 +81,9 @@ const DEFINITIONS: Record<string, PipelineSource> = {
         ],
       },
       {
-        dir: "c20awsentrasso",
+        dir: "AwsEntraSso",
+        workflowId: PLAN_STAGE_WORKFLOW,
+        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "AWS single sign-on with Entra ID",
         description: "Registers AWS IAM Identity Center as an Entra application so users can sign in to AWS with their organisation account.",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
@@ -85,7 +94,9 @@ const DEFINITIONS: Record<string, PipelineSource> = {
         ],
       },
       {
-        dir: "c21awsentrassoP2",
+        dir: "AwsEntraSsoP2",
+        workflowId: PLAN_STAGE_WORKFLOW,
+        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "AWS single sign-on with Microsoft Entra ID P2",
         description: "Assigns groups to the AWS application and applies the claims policy, which needs a Microsoft Entra ID P2 licence.",
         azurePermissions: [GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll, GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration],
@@ -97,7 +108,9 @@ const DEFINITIONS: Record<string, PipelineSource> = {
         ],
       },
       {
-        dir: "c25cloudfront",
+        dir: "CloudFront",
+        workflowId: PLAN_STAGE_WORKFLOW,
+        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
         label: "AWS CloudFront distribution",
         description: "Deploys the CloudFront distribution that serves the corporate login app and guards access through Entra authentication.",
         azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
@@ -112,17 +125,6 @@ const DEFINITIONS: Record<string, PipelineSource> = {
   },
   // Add future pipelines here — no other files need to change
 };
-
-function withStageWorkflows(config: PipelineSource): PipelineConfig {
-  return {
-    ...config,
-    stages: config.stages.map((stage) => ({ ...stage, workflowId: `plan-${stage.dir}.yml` })),
-  };
-}
-
-export const PIPELINES: Record<string, PipelineConfig> = Object.fromEntries(
-  Object.entries(DEFINITIONS).map(([name, config]) => [name, withStageWorkflows(config)])
-);
 
 // The only pipeline in use — cards import this directly instead of it being threaded through hooks.
 export const PIPELINE = PIPELINES.corpSetup;

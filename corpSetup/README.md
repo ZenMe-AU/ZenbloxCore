@@ -1,6 +1,6 @@
 # Corporate Environment Deployment Automation
 
-This script (`initCorpEnvDeploy.js`) automates the setup and management of a corporate Azure environment using Terraform and Azure CLI. It supports multi-stage deployment, resource import, and environment variable management for repeatable, auditable infrastructure provisioning.
+Each stage folder's `run.js` automates the setup and management of a corporate Azure environment using Terraform and Azure CLI. It supports multi-stage deployment, resource import, and environment variable management for repeatable, auditable infrastructure provisioning.
 
 ## Prerequisites
 
@@ -8,7 +8,7 @@ This script (`initCorpEnvDeploy.js`) automates the setup and management of a cor
 - Terraform CLI
 - Azure CLI (logged in with sufficient permissions)
 - The `corp.env` file in the same directory, containing at least the `NAME` key (corporate name)
-- All referenced Terraform directories (e.g., `c01subscription`, `c02globalGroups`, `c05rootrg`) must exist and contain valid Terraform code
+- All referenced Terraform directories (e.g., `SubscriptionBudget`, `GlobalGroups`, `RootRg`) must exist and contain valid Terraform code
 
 ## How to Run
 
@@ -22,37 +22,25 @@ This script (`initCorpEnvDeploy.js`) automates the setup and management of a cor
    - Ensure `corp.env` is present and contains required keys (e.g., `NAME`, `DNS`, `SUBSCRIPTION_ID` as needed).
    - Log in to Azure CLI: `az login`
 
-3. **Run the script for a specific stage:**
-
-   Name the stage directory:
+3. **Run a stage** from `corpSetup`, by running that stage folder's `run.js`:
 
    ```sh
-   node initCorpEnvDeploy.js --dir c01subscription
+   node SubscriptionBudget/run.js
    ```
-
-   Or give the `cXX` code and let the script find the directory whose name starts with it:
-
-   ```sh
-   node initCorpEnvDeploy.js --stage c01
-   ```
-
-   The two are equivalent for the stages that exist today. Prefer `--dir`: the directory name is
-   what everything else already uses — the artifacts, the workflow file and the card — so there is
-   no second identifier that can drift out of step with it. `--stage` remains for existing callers.
 
 4. **Auto-approve Terraform apply (optional):**
    ```sh
-   node initCorpEnvDeploy.js --dir c01subscription --auto-approve
+   node SubscriptionBudget/run.js --auto-approve
    ```
 
 5. **Plan without applying:**
    ```sh
-   node initCorpEnvDeploy.js --dir c01subscription --planOnly
+   node SubscriptionBudget/run.js --planOnly
    ```
 
 ## Stages Overview
 
-- ### c01subscription (`--stage c01`)
+- ### SubscriptionBudget
   - **Purpose:**
     - Creates or imports an Azure subscription for the corporate environment.
     - Sets a monthly budget and notification emails.
@@ -69,7 +57,7 @@ This script (`initCorpEnvDeploy.js`) automates the setup and management of a cor
     - Applies Terraform to create or update the subscription and budget.
     - Updates `corp.env` with the new subscription ID if created.
 
-- ### c02globalGroups (`--stage c02`)
+- ### GlobalGroups
   - **Purpose:**
     - Manages Azure AD groups for deployment roles (e.g., ResourceGroupDeployer, LeadDeveloper, DbAdmin-Dev/Test/Prod).
   - **Required `corp.env` parameters:**
@@ -79,7 +67,7 @@ This script (`initCorpEnvDeploy.js`) automates the setup and management of a cor
     - Imports existing groups and role assignments if present.
     - Ensures group memberships and role assignments are tracked in Terraform state.
 
-- ### c05rootrg (`--stage c05`)
+- ### RootRg
   - **Purpose:**
     - Sets up the root resource group, DNS zone, Log Analytics workspace, and diagnostic settings.
   - **Required `corp.env` parameters:**
@@ -90,7 +78,7 @@ This script (`initCorpEnvDeploy.js`) automates the setup and management of a cor
     - Imports existing resources if present (resource group, log analytics, DNS zone, diagnostics).
     - Applies Terraform to create or update these resources.
 
-- ### c11cloudfront (`--stage c11`)
+- ### CloudFront
   - **Purpose:**
     - Deploys and manages the corporate frontend website (login page), Lambda@Edge (authentication), CloudFront CDN, and related Azure/AWS integration resources.
   - **Required `corp.env` parameters:**
@@ -99,13 +87,13 @@ This script (`initCorpEnvDeploy.js`) automates the setup and management of a cor
     - DNS
   - **Prerequisites:**
     1. You must have both AWS and Azure accounts.
-    2. Storage Account exists (requires `c05rootrg` to be completed first).
+    2. Storage Account exists (requires `RootRg` to be completed first).
   - **Actions:**
     - Initializes Terraform backend using the root resource group and storage account.
     - Installs dependencies and builds the SPA frontend and Lambda@Edge function.
     - Runs Terraform apply to deploy all resources.
   - **Notes:**
-    - If the Storage Account is not created, run the c05rootrg stage first.
+    - If the Storage Account is not created, run the RootRg stage first.
     - For AWS-related resources, ensure Terraform/Azure CLI/AWS CLI permissions and credentials are properly configured.
 
 ## Environment Variable Management
@@ -119,12 +107,10 @@ This script (`initCorpEnvDeploy.js`) automates the setup and management of a cor
 
 ## Notes
 
-- Each stage is mapped to a subdirectory (e.g., `c01subscription`) containing the relevant Terraform code.
-- `--dir` is matched against the actual subdirectory listing, so an unknown or out-of-tree value is
-  rejected rather than resolved. `--stage` must be `cXX` and matches the first directory with that prefix.
+- Each stage is a subdirectory (e.g., `SubscriptionBudget`) holding its Terraform code and the `run.js` that imports existing resources, then plans or applies there.
 - The script is idempotent: it will import existing resources into Terraform state if they already exist in Azure.
 - You can customize contact emails and other variables by editing `corp.env` or passing them as Terraform variables.
 
 ---
 
-For more details, review the code and comments in `initCorpEnvDeploy.js` and the Terraform files in each stage directory.
+For more details, review each stage's `run.js` and the Terraform files in each stage directory.

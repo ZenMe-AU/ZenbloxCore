@@ -1,0 +1,62 @@
+# DEPRECATED
+name: Test Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_access_key_id:
+        description: "AWS Access Key ID"
+        required: true
+        type: string
+      aws_secret_access_key:
+        description: "AWS Secret Access Key"
+        required: true
+        type: string
+      aws_session_token:
+        description: "AWS Session Token"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test-aws:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mask AWS credentials
+        run: |
+          echo "::add-mask::${{ inputs.aws_secret_access_key }}"
+          echo "::add-mask::${{ inputs.aws_session_token }}"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ inputs.aws_access_key_id }}
+          aws-secret-access-key: ${{ inputs.aws_secret_access_key }}
+          aws-session-token: ${{ inputs.aws_session_token }}
+          aws-region: us-east-1
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+  test-azure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure login
+        uses: azure/cli@v2
+        # env:
+        #   TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+        #   SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az login --use-device-code
+
+      - name: Verify Azure identity
+        uses: azure/cli@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az account show

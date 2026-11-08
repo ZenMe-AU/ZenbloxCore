@@ -14,9 +14,9 @@ Adapter-style integration enables hybrid operation but increases coupling to bot
 [Adapter pattern](https://en.wikipedia.org/wiki/Adapter_pattern).
 
 ## Implementation
-Certificate requests are created in AWS and validated by DNS records managed in Azure in [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L215), [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L227), and [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L247).
+Certificate requests are created in AWS and validated by DNS records managed in Azure in [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L215), [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L227), and [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L247).
 
-Azure DNS aliases then route traffic to CloudFront endpoints in [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L742).
+Azure DNS aliases then route traffic to CloudFront endpoints in [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L742).
 
 ## Future enhancements
 - Isolate provider-specific logic behind module interfaces to reduce direct coupling.

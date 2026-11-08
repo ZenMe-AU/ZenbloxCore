@@ -1,0 +1,71 @@
+# DEPRECATED
+name: Update Config
+
+on:
+    workflow_dispatch:
+        inputs:
+            patch:
+                description: "JSON patch"
+                required: true
+
+permissions:
+    issues: write
+    contents: read
+
+jobs:
+    update:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Get config issue and body
+              id: config
+              shell: bash
+              run: |
+                  RESPONSE=$(curl -s \
+                  -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                  "https://api.github.com/repos/${{ github.repository }}/issues?state=open&per_page=100")
+
+                  ISSUE=$(echo "$RESPONSE" | jq -c '.[] | select(.title=="config")' | head -n1)
+
+                  NUMBER=$(echo "$ISSUE" | jq -r '.number')
+                  BODY=$(echo "$ISSUE" | jq -r '.body')
+
+                  echo "number=$NUMBER" >> $GITHUB_OUTPUT
+                  echo "body<<EOF" >> $GITHUB_OUTPUT
+                  echo "$BODY" >> $GITHUB_OUTPUT
+                  echo "EOF" >> $GITHUB_OUTPUT
+
+            - name: Merge config
+              id: merge
+              shell: bash
+              run: |
+                  OLD='${{ steps.config.outputs.body }}'
+                  PATCH='${{ github.event.inputs.patch }}'
+
+                  NEW=$(jq -n \
+                      --argjson old "$OLD" \
+                      --argjson patch "$PATCH" \
+                      '
+                      def protected_keys: ["sp_id", "sp_name"];
+
+                      reduce ($patch | to_entries[]) as $item ($old;
+                      if (protected_keys | index($item.key)) then
+                          .
+                      else
+                          .[$item.key] = $item.value
+                      end
+                      )
+                      ')
+
+                  echo "new<<EOF" >> $GITHUB_OUTPUT
+                  echo "$NEW" >> $GITHUB_OUTPUT
+                  echo "EOF" >> $GITHUB_OUTPUT
+
+            - name: Update issue
+              shell: bash
+              run: |
+                  curl -s -X PATCH \
+                      -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                      -H "Accept: application/vnd.github+json" \
+                      https://api.github.com/repos/${{ github.repository }}/issues/${{ steps.config.outputs.number }} \
+                      -d "$(jq -n --arg body '${{ steps.merge.outputs.new }}' '{body: $body}')"

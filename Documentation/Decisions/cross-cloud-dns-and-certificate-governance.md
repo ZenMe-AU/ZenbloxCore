@@ -17,8 +17,8 @@ This preserves existing DNS governance while enabling AWS edge delivery.
 - Negative: introduces cross-provider operational coupling and troubleshooting complexity.
 
 ## Evidence
-- [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L227)
-- [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L742)
+- [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L227)
+- [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L742)
 
 ## Related Patterns
 - [Adapter Pattern](../ArchitecturePatterns/adapter-pattern.md)

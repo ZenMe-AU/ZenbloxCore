@@ -1,4 +1,4 @@
-# The group itself is created by corpSetup/c02globalGroups; this module only grants it access.
+# The group itself is created by corpSetup/GlobalGroups; this module only grants it access.
 data "azuread_group" "paw_login" {
   display_name = var.PAW_GROUP
 }

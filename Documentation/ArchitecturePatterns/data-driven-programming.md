@@ -14,9 +14,9 @@ Input-driven provisioning is flexible, but malformed data can propagate quickly 
 [Data-driven programming](https://en.wikipedia.org/wiki/Data-driven_programming).
 
 ## Implementation
-User and group records are parsed and transformed from CSV into Terraform maps in [corpSetup/c07userAccounts/main.tf](../../corpSetup/c07userAccounts/main.tf#L36) and [corpSetup/c07userAccounts/main.tf](../../corpSetup/c07userAccounts/main.tf#L123).
+User and group records are parsed and transformed from CSV into Terraform maps in [corpSetup/UserAccounts/main.tf](../../corpSetup/UserAccounts/main.tf#L36) and [corpSetup/UserAccounts/main.tf](../../corpSetup/UserAccounts/main.tf#L123).
 
-Provisioning and relationship assignment then materialize resources from these structures in [corpSetup/c07userAccounts/main.tf](../../corpSetup/c07userAccounts/main.tf#L162).
+Provisioning and relationship assignment then materialize resources from these structures in [corpSetup/UserAccounts/main.tf](../../corpSetup/UserAccounts/main.tf#L162).
 
 ## Future enhancements
 - Add explicit schema validation and duplicate detection before plan/apply.

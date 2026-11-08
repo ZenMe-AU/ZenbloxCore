@@ -14,9 +14,9 @@ Retries improve reliability but can mask structural failures if limits and error
 [Retry pattern](https://en.wikipedia.org/wiki/Retry_pattern).
 
 ## Implementation
-Domain verification applies retry behavior in [corpSetup/c01subscription/domain.tf](../../corpSetup/c01subscription/domain.tf#L75).
+Domain verification applies retry behavior in [corpSetup/SubscriptionBudget/domain.tf](../../corpSetup/SubscriptionBudget/domain.tf#L75).
 
-AWS SAML metadata readiness is polled using bounded retries and timeout controls in [corpSetup/c20awsentrasso/wait_metadata_ready.mjs](../../corpSetup/c20awsentrasso/wait_metadata_ready.mjs#L93) and [corpSetup/c20awsentrasso/wait_metadata_ready.mjs](../../corpSetup/c20awsentrasso/wait_metadata_ready.mjs#L123).
+AWS SAML metadata readiness is polled using bounded retries and timeout controls in [corpSetup/AwsEntraSso/wait_metadata_ready.mjs](../../corpSetup/AwsEntraSso/wait_metadata_ready.mjs#L93) and [corpSetup/AwsEntraSso/wait_metadata_ready.mjs](../../corpSetup/AwsEntraSso/wait_metadata_ready.mjs#L123).
 
 ## Future enhancements
 - Add jittered backoff to reduce synchronized retries during parallel operations.

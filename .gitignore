@@ -56,5 +56,5 @@ __azurite_db_table__.json
 __blobstorage__/
 AzuriteConfig
 
-corpSetup/c25cloudfront/source/loginApp/config.js
+corpSetup/CloudFront/source/loginApp/config.js
 **/.vitepress/cache/

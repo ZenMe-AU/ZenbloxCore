@@ -3,20 +3,20 @@
     "workspaces": {
         ".": {
             "entry": [
-                "corpSetup/c*.js"
+                "corpSetup/*/run.js"
             ],
             "project": [
                 "corpSetup/**/*.{js,cjs,mjs}",
                 "util/**/*.{js,cjs,mjs}",
-                "!corpSetup/c20awsentrasso/wait_metadata_ready.mjs",
-                "!corpSetup/c25cloudfront/source/rewriteHeaderLambdaEdge/**",
+                "!corpSetup/AwsEntraSso/wait_metadata_ready.mjs",
+                "!corpSetup/CloudFront/source/rewriteHeaderLambdaEdge/**",
                 "!util/envSetup.cjs"
             ],
             "ignoreBinaries": [
                 "terraform"
             ]
         },
-        "corpSetup/c25cloudfront/source/authGuardLambdaEdge": {
+        "corpSetup/CloudFront/source/authGuardLambdaEdge": {
             "project": [
                 "**/*.{js,mjs,cjs}"
             ],
@@ -24,7 +24,7 @@
                 "./config.mjs"
             ]
         },
-        "corpSetup/c25cloudfront/source/loginApp": {
+        "corpSetup/CloudFront/source/loginApp": {
             "project": [
                 "src/**/*.{ts,tsx,js,jsx}",
                 "!src/App copy.tsx"
