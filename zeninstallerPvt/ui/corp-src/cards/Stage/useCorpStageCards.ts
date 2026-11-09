@@ -59,6 +59,7 @@ export function useCorpStageCards({
   onRequirementClick: (id: CardId) => void;
 }): CorpStageCardModel[] {
   const cardStatus = Object.fromEntries(Object.entries(allCards).map(([id, hook]) => [id, hook.status])) as Record<CardId, CardStatus>;
+  const cardErrorMsg = null;
 
   return pipeline.stages.map((stageDef: StageDefinition) => {
     const stage = plan.stages.find((s) => s.stage === stageDef.dir) ?? {
@@ -121,6 +122,7 @@ export function useCorpStageCards({
       statusUpdateCountdown: run?.countdown ?? 0,
       statusUpdateDisabled: !repoDone || run != null,
       runError: run?.error ?? null,
+      cardErrorMsg,
     };
   });
 }
