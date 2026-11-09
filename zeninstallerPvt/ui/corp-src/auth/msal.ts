@@ -67,6 +67,17 @@ export async function ensureScopeConsent(account: AzureAccount, scopes: string[]
   return true;
 }
 
+// Whether the scopes are already consented, without prompting.
+export async function hasScopeConsent(account: AzureAccount, scopes: string[], overrideTenantId?: string): Promise<boolean> {
+  try {
+    await getToken(account, scopes, overrideTenantId);
+    return true;
+  } catch (err) {
+    if (err instanceof InteractionRequiredAuthError) return false;
+    throw err;
+  }
+}
+
 // ── Tokens ────────────────────────────────────────────────────────────────────
 export async function getToken(account: AzureAccount, scopes: string[], overrideTenantId?: string): Promise<string> {
   const msal = await getMsal();

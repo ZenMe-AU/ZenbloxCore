@@ -25,9 +25,14 @@ import { usePrivateFrontendInfraCard } from "./cards/PrivateFrontendInfra/usePri
 import { useRemoteTerminalInfraCard } from "./cards/RemoteTerminalInfra/useRemoteTerminalInfraCard";
 import { useBackendDeployCard } from "./cards/BackendDeploy/useBackendDeployCard";
 import { useAccessPassCard } from "./cards/AccessPass/useAccessPassCard";
-import { useAwsLoginCard } from "./cards/AwsLogin/useAwsLoginCard";
+// AWS login is unused since the AWS console sign-in stack replaced AWS setup.
+// import { useAwsLoginCard } from "./cards/AwsLogin/useAwsLoginCard";
 import { useWebDeployCard } from "./cards/WebDeploy/useWebDeployCard";
-import { useAwsSetupCard } from "./cards/AwsSetup/useAwsSetupCard";
+import { useAwsSsoCard } from "./cards/AwsSso/useAwsSsoCard";
+import { useAwsSsoStackCard } from "./cards/AwsSsoStack/useAwsSsoStackCard";
+import { isAwsAccountId } from "./config/awsConfig";
+import { AWS_SSO_TITLE } from "./cards/AwsSso/config";
+import { AWS_SSO_STACK_TITLE } from "./cards/AwsSsoStack/config";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -47,8 +52,9 @@ import BackendDeployCard from "./cards/BackendDeploy/BackendDeployCard";
 import WebDeployCard from "./cards/WebDeploy/WebDeployCard";
 import CreateDomainCard from "./cards/CreateDomain/CreateDomainCard";
 import AccessPassCard from "./cards/AccessPass/AccessPassCard";
-import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
-import AwsSetupCard from "./cards/AwsSetup/AwsSetupCard";
+// import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
+import AwsSsoCard from "./cards/AwsSso/AwsSsoCard";
+import AwsSsoStackCard from "./cards/AwsSsoStack/AwsSsoStackCard";
 import StageCard from "./cards/Stage/StageCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
@@ -92,7 +98,8 @@ function AppDashboard() {
     })
   );
 
-  const awsLogin = addCard(useAwsLoginCard());
+  // AWS login is unused since the AWS console sign-in stack replaced AWS setup.
+  // const awsLogin = addCard(useAwsLoginCard());
 
   const azureAccessPass = addCard(
     useAccessPassCard({
@@ -124,15 +131,28 @@ function AppDashboard() {
     })
   );
 
-  const awsSetup = addCard(
-    useAwsSetupCard({
-      githubAccount: githubRepoEnv.repo.selectedAccount?.login ?? "",
-      githubAccountId: githubRepoEnv.repo.selectedAccount?.id ?? 0,
-      githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
-      githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,
-      variableValues: githubVariableValues,
-      awsReady: awsLogin.done,
-      awsAccount: awsLogin.account,
+  // AWS console sign-in: the Entra SAML app, then the CloudFormation stack that trusts it.
+  const azureTenantId = azureLogin.confirmedTenantId || azureLogin.account?.tenantId || null;
+  const awsAccountId = githubVariableValues.AWS_ACCOUNT_ID ?? "";
+  const awsSso = addCard(
+    useAwsSsoCard({
+      azureAccount: azureLogin.account,
+      tenantId: azureTenantId,
+      awsAccountId: isAwsAccountId(awsAccountId) ? awsAccountId : null,
+    })
+  );
+  const githubAccount = githubRepoEnv.repo.selectedAccount;
+  const githubRepoId = typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null;
+  const awsSsoStack = addCard(
+    useAwsSsoStackCard({
+      azureAccount: azureLogin.account,
+      tenantId: azureTenantId,
+      github:
+        githubAccount && githubRepoId !== null
+          ? { org: githubAccount.login, orgId: githubAccount.id, repo: githubRepoEnv.repo.selectedRepo?.name ?? "", repoId: githubRepoId }
+          : null,
+      awsAccountId,
+      roleArn: githubVariableValues.AWS_ROLE_ARN ?? "",
     })
   );
   const infra = addCard(
@@ -317,8 +337,9 @@ function AppDashboard() {
       ["backend_deploy", "Private Zeninstaller Backend"],
       ["private_frontend_infra", "Frontend hosting environment"],
       ["web_deploy", "Private Zeninstaller Frontend"],
-      ["aws_login", "AWS login"],
-      ["aws_setup", "AWS setup"],
+      // ["aws_login", "AWS login"],
+      ["aws_sso", AWS_SSO_TITLE],
+      ["aws_sso_stack", AWS_SSO_STACK_TITLE],
     ] as const).map(([id, title]) => ({
       id,
       title,
@@ -524,16 +545,28 @@ function AppDashboard() {
                 }
               />
 
-              <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} />
+              {/* <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} /> */}
 
-              <AwsSetupCard
-                card={cardProps("aws_setup")}
-                awsSetup={awsSetup}
-                account={githubRepoEnv.repo.selectedAccount}
+              <AwsSsoCard
+                card={cardProps("aws_sso")}
+                awsSso={awsSso}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
                 repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
-                repoFullName={githubRepoEnv.repo.repoFullName}
                 selectedEnv={githubRepoEnv.env.selectedEnv}
                 variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
+              />
+
+              <AwsSsoStackCard
+                card={cardProps("aws_sso_stack")}
+                stack={awsSsoStack}
+                tenantId={azureTenantId}
+                repoExists={githubRepoId !== null}
+                githubAccount={githubRepoEnv.repo.selectedAccount}
+                repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
+                selectedEnv={githubRepoEnv.env.selectedEnv}
+                variables={githubVariables}
+                githubUrl={githubRepoEnv.githubEnvUrl}
               />
 
               {stageCards.map(({ key, ...stageCard }) => (

@@ -16,6 +16,14 @@ export const SESSION_DURATION_MS = SESSION_DURATION_SECONDS * 1000;
 // just-expired token.
 export const SESSION_REFRESH_LEAD_MS = 30_000;
 
+// ── AWS console sign-in (SAML) ──────────────────────────────────────────────────
+export const AWS_SSO_APP_NAME = "AWS Admin Console";
+export const awsSamlProviderName = (tenantId: string) => `zeninstaller-entra-${tenantId}`;
+export const awsConsoleRoleName = (tenantId: string, access: "admin" | "readonly") => `zeninstaller-entra-${access}-${tenantId}`;
+// Its members get the admin role in the console.
+export const AWS_SSO_ADMIN_GROUP = "LeadDeveloper";
+export const isAwsAccountId = (value: string) => /^\d{12}$/.test(value);
+
 // ── GitHub Actions OIDC federation (AWS side) ───────────────────────────────────
 // Well-known values for registering GitHub Actions as an OIDC identity provider
 // in IAM, so workflows can assume a role via `AssumeRoleWithWebIdentity` instead
