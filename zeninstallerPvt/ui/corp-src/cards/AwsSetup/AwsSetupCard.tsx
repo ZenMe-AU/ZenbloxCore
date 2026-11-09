@@ -186,7 +186,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                   <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                   <Typography color="warning.main">
-                    This replaces the saved AWS role ARN for this GitHub environment. The role will have AdministratorAccess; if it already exists, its GitHub
+                    This replaces the saved AWS role ARN for this GitHub environment. The role will have ReadOnlyAccess; if it already exists, its GitHub
                     trust policy will be updated.
                   </Typography>
                 </Box>

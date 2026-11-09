@@ -13,7 +13,7 @@ import { getWorkflowRunUrl } from "../logic/github";
 import Card from "./Card";
 import ErrorText from "./ErrorText";
 import ViewLink from "./ViewLink";
-import EditableNameRow from "../cards/RemoteTerminalInfra/EditableNameRow";
+import { EditableNameRow } from "./ResourceRows";
 import RemoteTerminal from "../cards/Stage/RemoteTerminal";
 import { FailureLog } from "../cards/Stage/StageCard";
 import type { UseGithubVariables } from "../hooks/useGithubVariables";

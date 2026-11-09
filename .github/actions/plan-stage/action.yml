@@ -3,7 +3,7 @@ description: Sign in, publish the merged env, install the toolchain, and run one
 
 inputs:
   setup_dir:
-    description: "Directory holding the stage directories and initCorpEnvDeploy.js"
+    description: "Directory holding the stage directories, each with its own run.js"
     required: true
   dir:
     description: "Stage directory, relative to setup_dir"

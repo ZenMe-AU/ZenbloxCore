@@ -384,7 +384,8 @@ describe("useGithubLoginCard", () => {
       const body = JSON.parse(exchange.mock.calls[0]?.[1]?.body ?? "{}");
       expect(body.code).toBe("abc123");
       expect(body.code_verifier).toBe("the-verifier");
-      expect(body.redirect_uri).toBe("http://localhost");
+      // Must equal what startOAuth sent: the base the app is served from.
+      expect(body.redirect_uri).toBe(new URL(import.meta.env.BASE_URL, window.location.origin).href);
       expect(sessionStorage.getItem("github_access_token")).toBe("gho_exchanged");
       // Both spent, and useless to anyone who finds them later.
       expect(sessionStorage.getItem("github_pkce_verifier")).toBeNull();

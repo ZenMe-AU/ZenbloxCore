@@ -31,7 +31,6 @@ import type {
 import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../../api";
 import { useAzurePermissions } from "../../hooks/util/useAzurePermissions";
 import { useRemoteTerminal } from "./useRemoteTerminal";
-import { PIPELINE } from "../../logic/pipeline";
 import { computePlanSummary, isPlanBehind } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
 import ViewLink from "../../components/ViewLink";
@@ -39,6 +38,7 @@ import { getWorkflowRunUrl } from "../../logic/github";
 import { MONO_FONT } from "../../config/styles";
 import Card from "../../components/Card";
 import FieldLabel from "../../components/FieldLabel";
+import PermissionNotice from "./PermissionNotice";
 import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
 import StagePlanDetail from "./StagePlanDetail";
@@ -380,7 +380,6 @@ export default function StageCard({
   const [planError, setPlanError] = useState<string | null>(null);
   const [deployLog, setDeployLog] = useState<{ id: number; text: string | null } | null>(null);
   const [planLog, setPlanLog] = useState<{ id: number; text: string | null } | null>(null);
-  const [permissionError, setPermissionError] = useState<string | null>(null);
 
   // One instance per card. The permissions come straight from this stage's definition, so there
   // is no shared pending flag to leak and no union of every stage's permissions to over-grant.
@@ -393,7 +392,7 @@ export default function StageCard({
   const remoteTerminal = useRemoteTerminal({
     account,
     repoName,
-    workflowId: PIPELINE.deployWorkflowId,
+    workflowId: stageDef.deployWorkflowId,
     dir: stageDef.dir,
     planRunId: stage.runId,
     selectedEnv,
@@ -462,23 +461,11 @@ export default function StageCard({
   const deployLogFetched = !!stage.deployLogId && deployLog?.id === stage.deployLogId;
   const planLogFetched = !!stage.planLogId && planLog?.id === stage.planLogId;
 
-  // Make sure the pipeline's service principal can do what the run needs before triggering it.
-  const handleRunStatusUpdate = async () => {
-    setPermissionError(null);
-    try {
-      await azurePermissions.ensure();
-    } catch (e) {
-      console.error("Failed to grant Graph permissions:", e);
-      setPermissionError(e instanceof Error ? e.message : "Failed to grant the pipeline's Graph permissions");
-      return;
-    }
-    await onRunStatusUpdate();
-  };
   const hasDetails = stage.status === "success" && !!stage.planJsonId && stage.planJsonUrl !== "";
   const repoFullName = account && repoName ? `${account.login}/${repoName}` : null;
 
   const intro = stageDef.description ? (
-    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+    <Typography variant="body1" color="text.secondary">
       {stageDef.description}
     </Typography>
   ) : undefined;
@@ -578,12 +565,12 @@ export default function StageCard({
           )}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
             <RunStatusUpdateButton
-              onRun={handleRunStatusUpdate}
-              running={statusUpdateRunning || azurePermissions.granting}
+              onRun={onRunStatusUpdate}
+              running={statusUpdateRunning}
               countdown={statusUpdateCountdown}
-              disabled={statusUpdateDisabled || azurePermissions.granting}
+              disabled={statusUpdateDisabled}
             />
-            {(permissionError ?? runError) && <ErrorText>{permissionError ?? runError}</ErrorText>}
+            {runError && <ErrorText>{runError}</ErrorText>}
           </Box>
         </Box>
 
@@ -594,6 +581,16 @@ export default function StageCard({
             loading={planLoading}
             error={planError}
             onDeploy={onDeploy}
+            deployNotice={
+              !azurePermissions.ready && (
+                <PermissionNotice
+                  missing={azurePermissions.missing}
+                  error={azurePermissions.error}
+                  granting={azurePermissions.granting}
+                  onGrant={azurePermissions.grant}
+                />
+              )
+            }
             stagesStale={deployDisabled}
             behind={isPlanBehind(stage, latestSha)}
             planSha={stage.planSha}

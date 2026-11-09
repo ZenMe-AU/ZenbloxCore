@@ -1,6 +1,6 @@
 packages:
-  - corpSetup/c25cloudfront/source/authGuardLambdaEdge
-  - corpSetup/c25cloudfront/source/loginApp
+  - corpSetup/CloudFront/source/authGuardLambdaEdge
+  - corpSetup/CloudFront/source/loginApp
   - selfService/web
   - selfService/backend
   - portal/ui

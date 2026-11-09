@@ -1,0 +1,147 @@
+# DEPRECATED
+name: Deploy stage
+description: Apply one stage's already-planned tfplan and report how it went
+
+# Nothing here is stage-specific: the tfplan carries everything the stage decided at plan time,
+# so this action takes the directory as data rather than existing once per stage.
+# vars and secrets are not readable inside a composite action, so the caller passes what it needs.
+inputs:
+  dir:
+    description: "Stage directory under corpSetup"
+    required: true
+  plan_run_id:
+    description: "The plan run whose tfplan is being applied — not this run"
+    required: true
+  github_token:
+    description: "Token for downloading that run's artifact"
+    required: true
+  azure_client_id:
+    required: false
+    default: ""
+    description: "AZURE_CLIENT_ID — the deploy path signs in with the privileged identity"
+  azure_tenant_id:
+    required: false
+    default: ""
+    description: "AZURE_TENANT_ID"
+  azure_subscription_id:
+    required: false
+    default: ""
+    description: "AZURE_SUBSCRIPTION_ID"
+  aws_role_arn:
+    required: false
+    default: ""
+    description: "AWS_ROLE_ARN"
+  changeset_path:
+    required: true
+    description: "Path to deploymentChangeset.json"
+  plan_file:
+    required: true
+    description: "Binary plan filename inside the artifact — must match what the plan path wrote"
+  terraform_version:
+    required: true
+    description: "Terraform version — must be compatible with the one that produced the plan"
+
+outputs:
+  deploy_status:
+    description: '"success" or "failed"'
+    value: ${{ steps.result.outputs.deploy_status }}
+  log_id:
+    description: "Artifact id of the apply log"
+    value: ${{ steps.upload_log.outputs.artifact-id }}
+  log_url:
+    description: "Download url of the apply log"
+    value: ${{ steps.upload_log.outputs.artifact-url }}
+
+runs:
+  using: composite
+  steps:
+    # Cheapest guard, so it goes first: applying a tfplan the changeset does not vouch for would
+    # deploy something nobody reviewed.
+    - name: Verify the plan run matches the changeset
+      shell: bash
+      env:
+        DIR: ${{ inputs.dir }}
+        PLAN_RUN_ID: ${{ inputs.plan_run_id }}
+        CHANGESET: ${{ inputs.changeset_path }}
+      run: |
+        if [ ! -f "$CHANGESET" ]; then
+          echo "::error::$CHANGESET is missing — plan this stage before deploying it"
+          exit 1
+        fi
+
+        STAGE_RUN_ID=$(jq -r --arg dir "$DIR" '.stages[]? | select(.name==$dir) | .runId // empty' "$CHANGESET")
+        if [ -z "$STAGE_RUN_ID" ]; then
+          echo "::error::'$DIR' has no entry in the changeset — plan it before deploying it"
+          exit 1
+        fi
+        if [ "$STAGE_RUN_ID" != "$PLAN_RUN_ID" ]; then
+          echo "::error::run_id mismatch for '$DIR': changeset has '$STAGE_RUN_ID', input is '$PLAN_RUN_ID'"
+          exit 1
+        fi
+        echo "run_id validated for '$DIR': $STAGE_RUN_ID"
+
+    # Read from the checkout, not the artifact, so nothing has been downloaded yet if this fails.
+    - id: clouds
+      uses: ./.github/actions/read-terraform-providers
+      with:
+        stage_dir: corpSetup/${{ inputs.dir }}
+
+    # Then sign in. Same action the plan path uses, with the privileged identity instead.
+    - uses: ./.github/actions/cloud-login
+      with:
+        needs_azure: ${{ steps.clouds.outputs.needs_azure }}
+        needs_aws: ${{ steps.clouds.outputs.needs_aws }}
+        azure_client_id: ${{ inputs.azure_client_id }}
+        azure_tenant_id: ${{ inputs.azure_tenant_id }}
+        azure_subscription_id: ${{ inputs.azure_subscription_id }}
+        aws_role_arn: ${{ inputs.aws_role_arn }}
+
+    # Between the login and the work: a stage that could not sign in never gets this far.
+    - name: Install Terraform
+      uses: hashicorp/setup-terraform@v4
+      with:
+        terraform_version: ${{ inputs.terraform_version }}
+        terraform_wrapper: false
+
+    - name: Download the planned stage
+      uses: actions/download-artifact@v7
+      with:
+        name: ${{ inputs.dir }}-pkg
+        path: stage
+        run-id: ${{ inputs.plan_run_id }}
+        github-token: ${{ inputs.github_token }}
+
+    # Best-effort by design: a failed apply is the outcome to report, not a reason to skip
+    # reporting it. The log is the only record of why, so it is uploaded either way.
+    - name: Terraform apply
+      id: tf_apply
+      continue-on-error: true
+      working-directory: stage
+      shell: bash
+      env:
+        PLAN_FILE: ${{ inputs.plan_file }}
+      run: |
+        # The artifact round-trip drops the exec bit off the provider binaries.
+        find .terraform/providers -name "terraform-provider-*" -type f -exec chmod +x {} \; 2>/dev/null || true
+        terraform init > /tmp/tf_output.txt 2>&1
+        terraform apply -auto-approve "$PLAN_FILE" >> /tmp/tf_output.txt 2>&1
+
+    - name: Print apply log
+      if: always()
+      shell: bash
+      run: cat /tmp/tf_output.txt || echo "(no apply log — the run stopped before Terraform started)"
+
+    - name: Upload deploy log
+      id: upload_log
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        if-no-files-found: ignore
+        name: ${{ inputs.dir }}-deploy-log
+        path: /tmp/tf_output.txt
+
+    - name: Record the apply outcome
+      id: result
+      if: always()
+      shell: bash
+      run: echo "deploy_status=${{ steps.tf_apply.outcome == 'success' && 'success' || 'failed' }}" >> $GITHUB_OUTPUT

@@ -11,11 +11,11 @@ Static hosting alone does not provide centralized access control and response po
 Edge security controls reduce origin exposure, but can complicate caching and debugging behavior across request phases.
 
 ## Implementation
-CloudFront distribution behaviors bind edge request and response handlers in [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L682) and [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L687).
+CloudFront distribution behaviors bind edge request and response handlers in [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L682) and [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L687).
 
-The request handler validates identity tokens in [corpSetup/c25cloudfront/source/authGuardLambdaEdge/index.mjs](../../corpSetup/c25cloudfront/source/authGuardLambdaEdge/index.mjs#L121), while response hardening and header policy controls are set in [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L779).
+The request handler validates identity tokens in [corpSetup/CloudFront/source/authGuardLambdaEdge/index.mjs](../../corpSetup/CloudFront/source/authGuardLambdaEdge/index.mjs#L121), while response hardening and header policy controls are set in [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L779).
 
-Origin access is constrained through CloudFront-signed access in [corpSetup/c25cloudfront/main.tf](../../corpSetup/c25cloudfront/main.tf#L585).
+Origin access is constrained through CloudFront-signed access in [corpSetup/CloudFront/main.tf](../../corpSetup/CloudFront/main.tf#L585).
 
 ## Future enhancements
 - Add structured edge decision logs for allow/deny outcomes.

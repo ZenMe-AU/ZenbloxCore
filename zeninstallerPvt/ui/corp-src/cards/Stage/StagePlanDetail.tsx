@@ -3,6 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
+import type { ReactNode } from "react";
 import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { ACTION_CONFIG } from "./stageConfig";
@@ -70,6 +71,7 @@ export default function StagePlanDetail({
   loading,
   error,
   onDeploy,
+  deployNotice,
   stagesStale,
   behind,
   planSha,
@@ -80,6 +82,7 @@ export default function StagePlanDetail({
   loading: boolean;
   error: string | null;
   onDeploy?: () => void;
+  deployNotice?: ReactNode; // Shown right above the Deploy button, only while there is one.
   stagesStale?: boolean;
   behind?: boolean;
   planSha?: string;
@@ -109,6 +112,7 @@ export default function StagePlanDetail({
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         Review the planned infrastructure changes below before deploying. Deploy will create, update, replace, or delete resources; replacements may interrupt service.
       </Typography>
+      {onDeploy && deployNotice && <Box sx={{ mb: 1 }}>{deployNotice}</Box>}
       <Box
         sx={{
           display: "flex",

@@ -180,8 +180,7 @@ export function useRemoteTerminal(opts: {
         setStage(message.stage);
         break;
       case "sessionClosed":
-        stoppedRef.current = true;
-        if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+        disconnect(0);
         freezeTerminal();
         setStatus(message.ok ? "closed" : "error");
         setDeviceCode(null);

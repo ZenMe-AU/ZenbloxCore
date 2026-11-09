@@ -11,11 +11,11 @@ Multi-domain infrastructure dependencies require controlled sequencing and state
 Progressive rollout reduces blast radius and improves diagnosability, but increases orchestration complexity and lead time.
 
 ## Implementation
-The stage orchestrator drives sequential execution and shared lifecycle behavior in [corpSetup/initCorpEnvDeploy.js](../../corpSetup/initCorpEnvDeploy.js#L161).
+Each stage runs on its own from its folder's run.js, ending in the same plan-or-apply step, for example [corpSetup/RootRg/run.js](../../corpSetup/RootRg/run.js#L373).
 
-Idempotent imports and state adoption in foundational stages are handled in [corpSetup/c02globalGroups.js](../../corpSetup/c02globalGroups.js#L173) and [corpSetup/c05rootrg.js](../../corpSetup/c05rootrg.js#L179).
+Idempotent imports and state adoption in foundational stages are handled in [corpSetup/GlobalGroups/run.js](../../corpSetup/GlobalGroups/run.js#L173) and [corpSetup/RootRg/run.js](../../corpSetup/RootRg/run.js#L179).
 
-Cross-stage environment output propagation is persisted through [corpSetup/initCorpEnvDeploy.js](../../corpSetup/initCorpEnvDeploy.js#L228).
+Cross-stage environment output propagation is persisted through [corpSetup/SubscriptionBudget/run.js](../../corpSetup/SubscriptionBudget/run.js#L191).
 
 ## Future enhancements
 - Define explicit stage contracts with required inputs and produced outputs.

@@ -4,15 +4,14 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Button, ButtonBase, CircularProgress, Collapse, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
-import CheckIcon from "@mui/icons-material/Check";
-import EditIcon from "@mui/icons-material/Edit";
+import { Box, Button, ButtonBase, Collapse, Typography } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import type { UsePrivateFrontendInfraCard } from "./usePrivateFrontendInfraCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
-import ProcessRetryNotice from "../../components/ProcessRetryNotice";
+import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
+import StatusText from "../../components/StatusText";
 import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { getPrivateInstallerAppName } from "../../logic/naming";
 import { resourceGroupScope } from "../../api/azureArm";
@@ -20,17 +19,6 @@ import CloudVariableDetail from "../CloudVariableDetail";
 import { PRIVATE_FRONTEND_KEYS } from "../../logic/variables";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import type { Account, CardChrome, GhEnv } from "../../types";
-
-function PlainRow({ label, value }: { label: string; value: string }) {
-  return (
-    <Typography sx={{ typography: "technicalBody", color: "text.muted" }}>
-      {label}:{" "}
-      <Box component="span" sx={{ color: "text.primary" }}>
-        {value}
-      </Box>
-    </Typography>
-  );
-}
 
 function Intro() {
   return (
@@ -107,133 +95,73 @@ export default function PrivateFrontendInfraCard({
               <PlainRow label="Resource group" value={infra.resourceGroupName} />
               <PlainRow label="Log Analytics" value={infra.lawName} />
 
-              {/* Global to Azure, so it has to be changeable when another tenant already holds it. */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
-                <Typography sx={{ typography: "technicalBody", color: "text.muted" }}>Site storage account:</Typography>
-                {editingStorage ? (
-                  <>
-                    <TextField
-                      size="small"
-                      value={infra.siteStorageAccount}
-                      onChange={(e) => infra.setSiteStorageAccount(e.target.value)}
-                      error={!!infra.siteStorageError}
-                      helperText={infra.siteStorageError ?? undefined}
-                      sx={{ width: 200 }}
-                      className="corpTechnicalInput"
-                    />
-                    {/* Stays open until the name is one this installation can actually create or reuse. */}
-                    <IconButton
-                      size="small"
-                      disabled={infra.siteStorageChecking}
-                      onClick={() => void infra.checkSiteStorageAccount().then((ok) => ok && setEditingStorage(false))}
-                      sx={{ color: "success.main", p: 0.25 }}
-                    >
-                      {infra.siteStorageChecking ? <CircularProgress size={12} /> : <CheckIcon sx={{ typography: "caption" }} />}
-                    </IconButton>
-                  </>
-                ) : (
-                  <>
-                    <Typography sx={{ typography: "technicalBody", color: "text.primary" }}>{infra.siteStorageAccount}</Typography>
-                    <IconButton
-                      size="small"
-                      onClick={() => setEditingStorage(true)}
-                      sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}
-                    >
-                      <EditIcon sx={{ typography: "caption" }} />
-                    </IconButton>
-                  </>
-                )}
+                {/* Global to Azure, so it has to be changeable when another tenant already holds it. */}
+                <EditableNameRow
+                  label="Site storage account"
+                  value={infra.siteStorageAccount}
+                  onChange={infra.setSiteStorageAccount}
+                  error={infra.siteStorageError}
+                  checking={infra.siteStorageChecking}
+                  check={infra.checkSiteStorageAccount}
+                  editing={editingStorage}
+                  setEditing={setEditingStorage}
+                  width={200}
+                />
+
+                <PlainRow label="Sign-in app registration" value={getPrivateInstallerAppName()} />
+
+                {/* Every resource above lands in this region, so it is chosen before the first run. */}
+                <SelectionRow
+                  label="Location"
+                  name="Azure region"
+                  value={infra.location}
+                  onChange={infra.setLocation}
+                  options={infra.locations.map((l) => ({ value: l.name, label: l.displayName }))}
+                error={infra.locationsError ? "Couldn't load Azure region list — type the region name manually." : null}
+                  loading={infra.locationsLoading}
+                  placeholder="e.g. australiaeast"
+                  editing={editingLocation}
+                  setEditing={setEditingLocation}
+                />
               </Box>
 
-              <PlainRow label="Sign-in app registration" value={getPrivateInstallerAppName()} />
-
-              {/* Every resource above lands in this region, so it is chosen before the first run. */}
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
-                {editingLocation ? (
-                  <>
-                        <Typography sx={{ typography: "technicalBody", color: "text.muted" }}>Location:</Typography>
-                    {infra.locations.length > 0 ? (
-                      <Select
-                        size="small"
-                        value={infra.location}
-                        onChange={(e) => infra.setLocation(e.target.value)}
-                        sx={{ typography: "technicalBody", minWidth: 220, "& .MuiSelect-select": { py: 0.35 } }}
-                      >
-                        {infra.locations.map((l) => (
-                          <MenuItem key={l.name} value={l.name} sx={{ typography: "technicalBody" }}>
-                            {l.displayName}{" "}
-                            <Box component="span" sx={{ color: "text.muted", ml: 0.5 }}>
-                              ({l.name})
-                            </Box>
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    ) : (
-                      <TextField
-                        size="small"
-                        value={infra.location}
-                        onChange={(e) => infra.setLocation(e.target.value)}
-                        placeholder={infra.locationsLoading ? "Loading regions..." : "e.g. australiaeast"}
-                        sx={{ minWidth: 220 }}
-                        className="corpTechnicalInput"
-                      />
-                    )}
-                    {infra.locationsLoading && <CircularProgress size={12} />}
-                    <IconButton size="small" onClick={() => setEditingLocation(false)} sx={{ color: "success.main", p: 0.25 }}>
-                      <CheckIcon sx={{ typography: "caption" }} />
-                    </IconButton>
-                  </>
-                ) : (
-                  <>
-                    <Typography sx={{ typography: "technicalBody", color: "text.muted" }}>
-                      Location:{" "}
-                        <Box component="span" sx={{ color: "text.primary" }}>
-                        {infra.locations.find((l) => l.name === infra.location)?.displayName ?? infra.location}
-                      </Box>
-                    </Typography>
-                    <IconButton
-                      size="small"
-                      onClick={() => setEditingLocation(true)}
-                      sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}
-                    >
-                      <EditIcon sx={{ typography: "caption" }} />
-                    </IconButton>
-                  </>
-                )}
-              </Box>
-            </Box>
+            <Button
+              variant="contained"
+              onClick={() => void infra.run()}
+              disabled={infra.running || editingStorage || !infra.location.trim()}
+              sx={{
+                alignSelf: "flex-start",
+                py: 0.85,
+                px: 2.5,
+              }}
+            >
+              {infra.done ? "Re-run setup" : "Create frontend hosting environment"}
+            </Button>
           </Box>
         )}
 
         {infra.steps.length > 0 && (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid", borderLeftColor: "divider", pl: 1.5 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid", borderColor: "divider", pl: 1.5 }}>
             {infra.steps.map((s) => (
               <StepRow key={s.id} step={s} />
             ))}
-            {infra.running && <Typography sx={{ typography: "caption", color: "text.muted", mt: 0.5 }}>Running...</Typography>}
+            {infra.running && <StatusText>Running...</StatusText>}
+            {!infra.running && (
+              <Button
+                size="small"
+                onClick={infra.reset}
+                sx={{
+                  alignSelf: "flex-start",
+                  mt: 0.5,
+                  color: "text.muted",
+                  "&:hover": { color: "primary.main" },
+                }}
+              >
+                ↩ Start over
+              </Button>
+            )}
           </Box>
         )}
-        <ProcessRetryNotice started={infra.steps.length > 0} />
-
-        <Box>
-          <Button
-            onClick={() => void infra.run()}
-            disabled={infra.running}
-            variant="contained"
-            size="small"
-          >
-            {infra.running ? (
-              <>
-                <CircularProgress size={12} sx={{ mr: 1, color: "primary.light" }} />
-                Creating...
-              </>
-            ) : infra.done ? (
-              "Re-run"
-            ) : (
-              "Create terminal relay"
-            )}
-          </Button>
-        </Box>
 
         {/* ── Divider (clickable toggle) ── */}
         <ButtonBase

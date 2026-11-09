@@ -5,6 +5,7 @@
 
 import { InteractionRequiredAuthError, PublicClientApplication } from "@azure/msal-browser";
 import { AZURE_CLIENT_ID } from "../config/azureConfig";
+import { appUrl } from "../logic/oauth";
 import type { AzureAccount } from "../types";
 
 export const MSA_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad"; // Microsoft consumer tenant (MSA accounts)
@@ -27,7 +28,7 @@ export async function getMsal(): Promise<PublicClientApplication | null> {
       auth: {
         clientId: AZURE_CLIENT_ID,
         authority: LOGIN_AUTHORITY,
-        redirectUri: window.location.origin,
+        redirectUri: appUrl(),
       },
       cache: { cacheLocation: "sessionStorage" },
     });

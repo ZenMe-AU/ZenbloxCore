@@ -1,0 +1,101 @@
+# DEPRECATED
+name: Commit deploy status
+description: Record one stage's deploy result in deploymentChangeset.json and push it
+
+# The mirror of commit-plan-status: that one owns the plan fields and carries the deploy fields
+# forward, this one owns the deploy fields and leaves everything else alone.
+# vars and secrets are not readable inside a composite action, so the caller passes what it needs.
+inputs:
+  dir:
+    description: "Stage directory — also the stage's name in the changeset"
+    required: true
+  branch:
+    description: "Branch to rebase onto and push"
+    required: true
+  deploy_status:
+    description: '"success" or "failed"'
+    required: true
+  plan_run_id:
+    description: "The plan run that produced the applied tfplan"
+    required: true
+  log_id:
+    required: false
+    default: ""
+    description: "Artifact id of the apply log"
+  log_url:
+    required: false
+    default: ""
+    description: "Download url of the apply log"
+  corp_name:
+    required: false
+    default: ""
+    description: "vars.NAME, used in the commit author"
+  dns:
+    required: false
+    default: ""
+    description: "vars.DNS, used in the commit author"
+  changeset_path:
+    required: true
+    description: "Path to deploymentChangeset.json"
+
+runs:
+  using: composite
+  steps:
+    - name: Merge this stage's deploy result into the changeset
+      shell: bash
+      env:
+        DIR: ${{ inputs.dir }}
+        CHANGESET: ${{ inputs.changeset_path }}
+        DEPLOY_STATUS: ${{ inputs.deploy_status }}
+        PLAN_RUN_ID: ${{ inputs.plan_run_id }}
+        LOG_ID: ${{ inputs.log_id }}
+        LOG_URL: ${{ inputs.log_url }}
+      run: |
+        if [ ! -f "$CHANGESET" ]; then
+          echo "::error::$CHANGESET is missing — nothing to record the deploy against"
+          exit 1
+        fi
+
+        # Touch only this stage's deploy fields. Another stage may be planning right now, and its
+        # entry has to come through untouched.
+        jq --arg dir "$DIR" \
+           --arg status "$DEPLOY_STATUS" \
+           --arg deployRunId "${{ github.run_id }}" \
+           --arg deployPlanRunId "$PLAN_RUN_ID" \
+           --argjson deployedAt "$(date +%s)" \
+           --argjson deployLogId "${LOG_ID:-null}" \
+           --arg deployLogUrl "$LOG_URL" \
+           '.stages = [.stages[]? | if .name == $dir then . + {
+              deployStatus: $status,
+              deployRunId: $deployRunId,
+              deployPlanRunId: $deployPlanRunId,
+              deployedAt: $deployedAt,
+              deployLogId: $deployLogId,
+              deployLogUrl: (if $deployLogUrl == "" then null else $deployLogUrl end)
+            } else . end]' "$CHANGESET" > /tmp/updated_changeset.json
+
+        mv /tmp/updated_changeset.json "$CHANGESET"
+
+    - name: Commit and push the changeset
+      shell: bash
+      env:
+        DIR: ${{ inputs.dir }}
+        CORP_NAME: ${{ inputs.corp_name }}
+        DNS: ${{ inputs.dns }}
+        BRANCH: ${{ inputs.branch }}
+        CHANGESET: ${{ inputs.changeset_path }}
+      run: |
+        GIT_NAME="${CORP_NAME:+$CORP_NAME }github actions"
+        git config user.name "$GIT_NAME"
+        git config user.email "${GIT_NAME// /_}@${DNS}"
+
+        git add "$CHANGESET"
+        git diff --cached --quiet || git commit -m "Update deploy status: $DIR"
+
+        # Another stage may have pushed while this one applied, so rebase before pushing.
+        git fetch origin
+        git rebase "origin/$BRANCH" || {
+          echo "::error::Rebase onto origin/$BRANCH failed"
+          exit 1
+        }
+        git push origin "$BRANCH"

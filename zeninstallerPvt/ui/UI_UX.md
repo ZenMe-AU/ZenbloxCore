@@ -146,7 +146,7 @@ Key behaviours:
 - Outer element `id="card-<cardId>"` (test contract and jump-to target).
 - Clicking anywhere in the header toggles the card. The title and chevron are separate labelled, keyboard-operable controls; an expanded-card action stops propagation so it does not collapse the card.
 - Collapsed title and summary each occupy one line and ellipsize, keeping card faces the same height; full text remains in the DOM and accessible name, with a `title` attribute.
-- Both toggles carry `aria-expanded` and `aria-controls`; the chevron has an explicit "Expand/Collapse <title>" label.
+- Both toggles carry `aria-expanded` and `aria-controls`; the chevron has an explicit `Expand/Collapse <title>` label.
 - A locked card still expands, to show its optional read-only introduction and unmet requirements; its live content is not rendered. Pipeline-stage descriptions are shown for both locked and unlocked stages.
 - Ripples are disabled; focus shows a 2px blue outline plus a 3px 12% halo.
 - Width transition 0.25s (suppressed by reduced motion).
@@ -244,8 +244,8 @@ Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRe
 
 Notes:
 
-- `global_groups` ([GlobalGroups](corp-src/cards/GlobalGroups)) has a hook and component but is **not rendered** in `App.tsx`; the equivalent flow is the `c02globalGroups` stage.
-- Stage definitions live in [logic/pipeline.ts](corp-src/logic/pipeline.ts): `c01subscription`, `c02globalGroups`, `c07userAccounts`, `c20awsentrasso`, `c21awsentrassoP2`, `c25cloudfront`.
+- `global_groups` ([GlobalGroups](corp-src/cards/GlobalGroups)) has a hook and component but is **not rendered** in `App.tsx`; the equivalent flow is the `GlobalGroups` stage.
+- Stage definitions live in [logic/pipeline.ts](corp-src/logic/pipeline.ts): `SubscriptionBudget`, `GlobalGroups`, `UserAccounts`, `AwsEntraSso`, `AwsEntraSsoP2`, `CloudFront`.
 
 ---
 
@@ -366,11 +366,12 @@ Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)):
 | `StatusText` | Progress/success message | `role=status`, `aria-live=polite` |
 | `ProcessRetryNotice` | Static retry guidance for runnable setup/deployment sections | `role=note`; no live-region behavior |
 | `ConfigErrorNotice` | "Card isn't configured correctly" panel | message is referenced by unavailable card title/chevron via `aria-describedby`; no live-region behavior |
+| `WarningNotice` | Bordered warning panel: icon and message, optional content below | `role=status`, `aria-live=polite` |
 | `ExternalLink` | Inline new-tab link | `aria-label="<label> (opens in new tab)"`, `rel=noopener noreferrer` |
 | `ViewLink` | Outlined "View" button-link, text hidden at `xs` | same new-tab naming; `title=href` |
 | `RefreshButton` | Refresh, then Done / Failed (transient) | `aria-label` tracks text |
 | `SaveButton` | "Save N variables / Update N secrets" | `aria-label` tracks text; spinner when busy |
-| `CopyRow` | Label + value + Copy; optional masking | value `data-sensitive`; button named "Copy <label>"; Clipboard API with legacy fallback when missing or denied; copied/failure state announced |
+| `CopyRow` | Label + value + Copy; optional masking | value `data-sensitive`; button named `Copy <label>`; Clipboard API with legacy fallback when missing or denied; copied/failure state announced |
 | `VariablesCard` | Editable GitHub variable list | label per input, clear/revert buttons, dirty/error/success row tints |
 | `SecretsCard` | Secret presence/validity list + edit dialog | masked by default, reveal toggle, validation badges |
 | `StepRow` (cards/) | One line of a progress checklist | hidden textual status; named running spinner and determinate progress bar; icon remains decorative |
@@ -390,6 +391,7 @@ Runnable process sections show the same retry guidance before and during executi
 | Status pill | bordered box, text label plus colour (plan create/update/delete/replace, `not latest`, `valid`/`invalid`) |
 | Tooltips | variable descriptions (info icon), revert, plan-diff warning icon, `not latest` pill, repo options |
 | Dialogs | Footer shortcuts dialog (open with `?`, close with Escape); secrets edit dialog |
+| Resources list | `sectionLabel` "Resources" over a 2px `divider` left-bordered column of rows from [components/ResourceRows.tsx](corp-src/components/ResourceRows.tsx): `PlainRow` (label `text.muted`, value `text.primary`, both body1 sans), `EditableNameRow` and `SelectionRow` (options passed in, e.g. the Azure location list; free text when empty); step lists use the same left border. |
 | Dark panel | Remote terminal only (`TERMINAL_COLORS`, Catppuccin-like) |
 
 ---

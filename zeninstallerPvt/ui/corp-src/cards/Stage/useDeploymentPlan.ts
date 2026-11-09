@@ -228,7 +228,7 @@ export function useDeploymentPlan(opts: {
     patchRun(stageKey, { kind: "plan", countdown: 0, retryCount: 0, error: null });
 
     try {
-      await triggerWorkflow(acc, repo, stage.workflowId, env.name, env.name);
+      await triggerWorkflow(acc, repo, stage.workflowId, env.name, env.name, stage.dir);
     } catch (e) {
       console.error("Failed to trigger workflow:", e);
       patchRun(stageKey, { error: "Failed to trigger workflow", countdown: 0 });

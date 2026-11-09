@@ -321,7 +321,6 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
           onClick={() => setVarExpanded((expanded) => !expanded)}
           aria-expanded={varExpanded}
           aria-controls="azure-app-registration-connection-details"
-          disableRipple
           sx={{
             width: "100%",
             display: "flex",

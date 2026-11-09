@@ -1175,7 +1175,7 @@ export async function installGithubOAuthCallback(page: Page) {
     expect(route.request().method()).toBe("POST");
     const body = route.request().postDataJSON() as Record<string, string>;
     expect(body.code).toBe("mock-oauth-code");
-    expect(body.redirect_uri).toBe(new URL(CORP_URL).origin);
+    expect(body.redirect_uri).toBe(CORP_URL);
     expect(body.code_verifier).toMatch(/^[A-Za-z0-9._~-]{43,128}$/);
     exchanges.push(body);
     await route.fulfill({ json: { access_token: "mock-oauth-token" } });

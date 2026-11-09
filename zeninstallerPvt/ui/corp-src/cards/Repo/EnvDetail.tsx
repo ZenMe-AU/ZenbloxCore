@@ -77,7 +77,7 @@ export default function EnvDetail({
 
       {/* Header row */}
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+        <Typography variant="body1" color="text.secondary">
           Pick the environment to configure.{" "}
           <Box component="span">
             {validEnvs.join(", ")}
