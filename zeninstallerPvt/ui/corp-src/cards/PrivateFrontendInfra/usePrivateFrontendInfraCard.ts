@@ -10,7 +10,6 @@ import {
   ensureBlobDiagnostics,
   ensureLogAnalyticsWorkspace,
   ensureResourceGroup,
-  ensureResourceGroupCreationAccess,
   resourceGroupExists,
   findStorageAccountGroup,
   storageAccountNameAvailable,
@@ -24,7 +23,7 @@ import {
 import { createSpaAppRegistration, createServicePrincipal, ensureSpaRedirectUri, getExistingApp, getExistingSP } from "../../api/azureGraph";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
-import { useResourceGroupCreationAccess, type ResourceGroupCreationAccess } from "../../hooks/util/useResourceGroupCreationAccess";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
 import {
   DEFAULT_AZURE_LOCATION,
   DIAGNOSTIC_SETTING_NAME,
@@ -52,7 +51,7 @@ export interface UsePrivateFrontendInfraCardParams extends AzureTarget {
 }
 
 export interface UsePrivateFrontendInfraCard extends CardHook, AzureConfigHook {
-  creationAccess: ResourceGroupCreationAccess;
+  creationAccess: CardResourceAccess;
   readonly cardId: "private_frontend_infra";
   location: string;
   setLocation: (loc: string) => void;
@@ -91,7 +90,6 @@ export function usePrivateFrontendInfraCard({
   const [locationsError, setLocationsError] = useState<string | null>(null);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const { ensureRegistered } = useProviderRegistration({ azureAccount, subscriptionId, tenantId });
-  const creationAccess = useResourceGroupCreationAccess({ azureAccount, subscriptionId, tenantId });
   const [result, setResult] = useState<PrivateFrontendInfraResult | null>(loadResult);
   const [runNonce, setRunNonce] = useState(0);
 
@@ -105,6 +103,10 @@ export function usePrivateFrontendInfraCard({
   const [siteStorageChecking, setSiteStorageChecking] = useState(false);
   const [siteStorageError, setSiteStorageError] = useState<string | null>(null);
   const webStorageAccountName = siteStorageOverride || variableValues.SITE_STORAGE_ACCOUNT || getWebStorageAccountName(subscriptionId);
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, {
+    card: "frontend", resourceGroup: resourceGroupName, workspace: lawName, storageAccount: webStorageAccountName,
+  });
+  const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
 
   const resultMatches = !!result && result.subscriptionId === subscriptionId;
 
@@ -215,7 +217,7 @@ export function usePrivateFrontendInfraCard({
 
     setRunning(true);
     const initialSteps: SetupStep[] = [
-      { id: "access", label: "Check subscription Contributor access to create resource groups", status: "pending" },
+      { id: "access", label: "Check Azure resource access", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
       { id: "law", label: `Create Log Analytics workspace ${lawName}`, status: "pending" },
@@ -237,7 +239,7 @@ export function usePrivateFrontendInfraCard({
 
     try {
       updateStep("access", "running");
-      await ensureResourceGroupCreationAccess(azureAccount, subscriptionId, tenantId);
+      await checkResourceAccess();
       updateStep("access", "done");
 
       updateStep("providers", "running");
@@ -329,6 +331,7 @@ export function usePrivateFrontendInfraCard({
       setRunNonce((n) => n + 1);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      if (/^403 \/subscriptions\//.test(message)) reportAccessFailure(e);
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error", detail: message } : s)));
     } finally {
       setRunning(false);
@@ -339,6 +342,8 @@ export function usePrivateFrontendInfraCard({
     resourceGroupName,
     azureAccount,
     ensureRegistered,
+    checkResourceAccess,
+    reportAccessFailure,
     location,
     setRunning,
     setSteps,

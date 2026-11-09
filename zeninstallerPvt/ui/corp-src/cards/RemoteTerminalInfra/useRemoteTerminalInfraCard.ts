@@ -12,7 +12,6 @@ import {
   ensureLogAnalyticsWorkspace,
   ensureRbacRoleAtScope,
   ensureResourceGroup,
-  ensureResourceGroupCreationAccess,
   ensureStorageAccount,
   findStorageAccountGroup,
   findFunctionAppGroup,
@@ -34,7 +33,7 @@ import {
 import { createAppRegistration, createServicePrincipal, ensureFederatedCredential, getExistingApp, getExistingSP } from "../../api/azureGraph";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
-import { useResourceGroupCreationAccess, type ResourceGroupCreationAccess } from "../../hooks/util/useResourceGroupCreationAccess";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
 import {
   DEFAULT_AZURE_LOCATION,
   PRIVATE_APP_INSIGHTS,
@@ -78,7 +77,7 @@ export interface UseRemoteTerminalInfraCardParams extends AzureTarget {
 }
 
 export interface UseRemoteTerminalInfraCard extends CardHook, AzureConfigHook {
-  creationAccess: ResourceGroupCreationAccess;
+  creationAccess: CardResourceAccess;
   readonly cardId: "remote_terminal_infra";
   location: string;
   setLocation: (loc: string) => void;
@@ -134,7 +133,6 @@ export function useRemoteTerminalInfraCard({
   const [locationsFailed, setLocationsFailed] = useState(false);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const { ensureRegistered } = useProviderRegistration({ azureAccount, subscriptionId, tenantId });
-  const creationAccess = useResourceGroupCreationAccess({ azureAccount, subscriptionId, tenantId });
   const [result, setResult] = useState<RemoteTerminalInfraResult | null>(null);
   const [runNonce, setRunNonce] = useState(0);
   const [storageOverride, setStorageOverride] = useState("");
@@ -156,6 +154,11 @@ export function useRemoteTerminalInfraCard({
   const webPubSubName = webPubSubOverride || savedWebPubSub || getWebPubSubName(subscriptionId);
   const functionAppName = functionAppOverride || functionAppFromApiUrl(variableValues.VITE_API_URL) || getFunctionAppName(subscriptionId);
   const planName = `${functionAppName}-plan`;
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, {
+    card: "backend", resourceGroup: resourceGroupName, workspace: lawName, storageAccount: storageAccountName,
+    appInsights: appInsightsName, webPubSub: webPubSubName, functionApp: functionAppName, servicePlan: planName,
+  });
+  const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
   const pipelineAppName = PRIVATE_PIPELINE_APP;
 
   const resultMatches = !!result && result.subscriptionId === subscriptionId;
@@ -323,7 +326,7 @@ export function useRemoteTerminalInfraCard({
 
     setRunning(true);
     const initialSteps: SetupStep[] = [
-      { id: "access", label: "Check subscription Contributor access to create resource groups", status: "pending" },
+      { id: "access", label: "Check Azure resource access", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
       { id: "law", label: `Create Log Analytics workspace ${lawName}`, status: "pending" },
@@ -347,7 +350,7 @@ export function useRemoteTerminalInfraCard({
 
     try {
       updateStep("access", "running");
-      await ensureResourceGroupCreationAccess(azureAccount, subscriptionId, tenantId);
+      await checkResourceAccess();
       updateStep("access", "done");
 
       updateStep("providers", "running");
@@ -477,6 +480,7 @@ export function useRemoteTerminalInfraCard({
       setRunNonce((n) => n + 1);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      if (/^403 \/subscriptions\//.test(message)) reportAccessFailure(e);
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error", detail: message } : s)));
     } finally {
       setRunning(false);
@@ -486,6 +490,8 @@ export function useRemoteTerminalInfraCard({
     appInsightsName,
     azureAccount,
     ensureRegistered,
+    checkResourceAccess,
+    reportAccessFailure,
     functionAppName,
     lawName,
     location,

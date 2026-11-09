@@ -60,7 +60,9 @@ const { configMocks } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../api/azureArm", () => ({
+vi.mock("../api/azureArm", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../api/azureArm")>(),
+  ensureCardResourceAccess: apiMocks.ensureResourceGroupCreationAccess,
   ensureResourceGroupCreationAccess: apiMocks.ensureResourceGroupCreationAccess,
   getProviderRegistrationState: apiMocks.getProviderRegistrationState,
   registerProvider: apiMocks.registerProvider,
@@ -149,6 +151,24 @@ describe("useCoreInfraCard", () => {
     apiMocks.ensureBlobDiagnostics.mockResolvedValue("created");
     apiMocks.findStorageAccountGroup.mockResolvedValue(null);
     apiMocks.storageAccountNameAvailable.mockResolvedValue(true);
+  });
+
+  it.each(["ARM", "Graph"])("keeps %s authorization failures in the appropriate access surface", async (service) => {
+    let latest: UseCoreInfraCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    await act(async () => {
+      root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />);
+    });
+    expect(latest?.creationAccess.status).toBe("ready");
+    if (service === "ARM") {
+      apiMocks.ensureRbacRoleAtScope.mockRejectedValueOnce(new Error("403 /subscriptions/sub-1/resourceGroups/group/providers/Microsoft.Authorization/roleAssignments/role: AuthorizationFailed"));
+    } else {
+      apiMocks.ensureScopeConsent.mockRejectedValueOnce(new Error("403 /applications/app: Graph permission denied"));
+    }
+    await act(async () => { await latest?.run(); });
+    expect(latest?.creationAccess.status).toBe(service === "ARM" ? "error" : "ready");
+    expect(latest?.steps.some((step) => step.status === "error")).toBe(true);
+    await act(async () => root.unmount());
   });
 
   it("computes resultMatches and resets steps when persisted result no longer matches props", async () => {

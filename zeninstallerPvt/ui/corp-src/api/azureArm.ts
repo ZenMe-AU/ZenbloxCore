@@ -6,11 +6,12 @@
 import { getToken } from "../auth/msal";
 import { azFetch as gFetch, ARM } from "./azureFetch";
 import {
-  ARM_SCOPES, BACKEND_VERSION_KEYS, RBAC_ROLE_IDS,
-  INSTALLER_SUBSCRIPTION_PERMISSIONS,
+  ARM_SCOPES, BACKEND_VERSION_KEYS, RBAC_ROLE_IDS, INSTALLER_SUBSCRIPTION_PERMISSIONS, RESOURCE_PERMISSIONS,
+  CORE_INFRA_PROVIDERS, DNS_PROVIDERS, PRIVATE_FRONTEND_PROVIDERS, REMOTE_TERMINAL_PROVIDERS,
 } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
 import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
+import { TFSTATE_CONTAINER, TERMINAL_DEPLOY_CONTAINER, TERMINAL_SESSION_TABLE, TERMINAL_HUB } from "../logic/naming";
 import type { AzureAccount } from "../types";
 
 // ── Function App code deployment ──────────────────────────────────────────────
@@ -257,15 +258,20 @@ function grantsArmAction(permissions: ArmPermission[], action: string): boolean 
   return permissions.some((permission) => permission.actions.some(matches) && !permission.notActions?.some(matches));
 }
 
-async function readSubscriptionPermissions(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<ArmPermission[]> {
-  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+// Reads the signed-in caller's management grants at a subscription, group, or resource scope.
+export async function readPermissionsAtScope(account: AzureAccount, scope: string, overrideTenantId?: string): Promise<ArmPermission[]> {
+  if (!/^\/subscriptions\/[^/?#]+(?:\/resourceGroups\/[^/?#]+(?:\/providers\/[^?#]+)?)?$/i.test(scope)) {
+    throw new Error(`Invalid Azure management scope: ${scope}`);
+  }
+  // PIM activation/deactivation can leave the previously cached access token stale.
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId, true);
   const permissions: ArmPermission[] = [];
   const visited = new Set<string>();
-  let path: string | null = `/subscriptions/${subscriptionId}/providers/Microsoft.Authorization/permissions?api-version=2022-04-01`;
+  let path: string | null = `${scope}/providers/Microsoft.Authorization/permissions?api-version=2022-04-01`;
   while (path) {
     if (visited.has(path)) throw new Error("Azure returned a looping subscription permissions URL");
     visited.add(path);
-    const page: { value: ArmPermission[]; nextLink?: string } = await gFetch(token, ARM, path);
+    const page: { value: ArmPermission[]; nextLink?: string } = await gFetch(token, ARM, path, { cache: "no-store" });
     if (!page || !Array.isArray(page.value) || page.value.some((permission) =>
       !permission || !Array.isArray(permission.actions) || !permission.actions.every((action) => typeof action === "string") ||
       (permission.notActions !== undefined && (!Array.isArray(permission.notActions) || !permission.notActions.every((action) => typeof action === "string")))
@@ -282,13 +288,177 @@ async function readSubscriptionPermissions(account: AzureAccount, subscriptionId
   return permissions;
 }
 
-// checks for Contributor access needed for resource group creation
+export function formatAzureAccessError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const denied = message.match(/\b(401|403) (\/[^:]+):/);
+  if (!denied) return message;
+  const scope = denied[2].split("?")[0];
+  const action = message.match(/perform action '([^']+)'/)?.[1];
+  return `Azure denied access to ${scope} (HTTP ${denied[1]}).${action ? ` Required action: ${action}.` : ""}
+Ask an administrator for the required access at this scope, or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} and recheck.
+Recent role changes may take time to propagate. If prompted, sign in again.`;
+}
+
+export type ManagementAccessRequirement = { scope: string; actions: readonly string[] };
+
+// Evaluates the authenticated caller's grants, not another principal's role assignments or data access.
+export async function ensureManagementAccess(
+  account: AzureAccount, requirements: readonly ManagementAccessRequirement[], overrideTenantId?: string
+): Promise<void> {
+  const byScope = new Map<string, Set<string>>();
+  for (const { scope, actions } of requirements) {
+    const required = byScope.get(scope) ?? new Set<string>();
+    actions.forEach((action) => required.add(action));
+    byScope.set(scope, required);
+  }
+  const missing: string[] = [];
+  for (const [scope, actions] of byScope) {
+    let permissions: ArmPermission[];
+    try {
+      permissions = await readPermissionsAtScope(account, scope, overrideTenantId);
+    } catch (err) {
+      throw new Error(`Could not verify Azure management access at ${scope}. Details: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    const denied = [...actions].filter((action) => !grantsArmAction(permissions, action));
+    if (denied.length) missing.push(`${scope}: ${denied.join(", ")}`);
+  }
+  if (missing.length) {
+    throw new Error(`Missing Azure management permissions:\n${missing.join("\n")}\nAsk an administrator for equivalent access at the listed scopes, or activate eligible roles in PIM at ${AZURE_PIM_ACTIVATION_URL} and recheck.`);
+  }
+}
+
+export type CardResourceAccessRequest = {
+  card: "core" | "domain" | "frontend" | "backend" | "appRegistration" | "backendDeploy" | "webDeploy";
+  resourceGroup?: string;
+  workspace?: string;
+  storageAccount?: string;
+  dnsZone?: string;
+  appInsights?: string;
+  webPubSub?: string;
+  functionApp?: string;
+  servicePlan?: string;
+};
+
+// Missing resources are checked at their existing parent group; missing groups need subscription access.
+export async function ensureCardResourceAccess(
+  account: AzureAccount, subscriptionId: string, request: CardResourceAccessRequest, overrideTenantId?: string
+): Promise<void> {
+  const sub = subscriptionScope(subscriptionId);
+  const requirements: ManagementAccessRequirement[] = [];
+  const permission = RESOURCE_PERMISSIONS;
+  const roleActions = permission.roleAssignments;
+  const { card, resourceGroup: group } = request;
+  if (card === "appRegistration") {
+    await ensureManagementAccess(account, [{ scope: sub, actions: roleActions }], overrideTenantId);
+    return;
+  }
+  if (!group) throw new Error("A resource group is required to check Azure card access.");
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId, true);
+  const existence = new Map<string, boolean>();
+  const exists = async (scope: string, apiVersion: string) => {
+    if (!existence.has(scope)) existence.set(scope, !!await armGet(token, `${scope}?api-version=${apiVersion}`));
+    return existence.get(scope)!;
+  };
+  const addResource = async (scope: string, api: string, actions: readonly string[], mustExist = false) => {
+    let target = scope;
+    if (!await exists(scope, api)) {
+      if (mustExist) throw new Error(`Azure resource ${scope} does not exist. Run its environment setup card first.`);
+      const group = scope.match(/^\/subscriptions\/[^/]+\/resourceGroups\/[^/]+/i)?.[0];
+      if (!group) throw new Error(`Cannot determine parent resource group for ${scope}`);
+      target = await exists(group, "2021-04-01") ? group : sub;
+      let parent = scope.replace(/\/[^/]+\/[^/]+$/, "");
+      while ((parent.split("/providers/")[1]?.split("/").length ?? 0) >= 3) {
+        if (await exists(parent, api)) {
+          target = parent;
+          break;
+        }
+        parent = parent.replace(/\/[^/]+\/[^/]+$/, "");
+      }
+      if (target === sub) requirements.push({ scope: sub, actions: permission.resourceGroup });
+    }
+    requirements.push({ scope: target, actions });
+  };
+  const rg = resourceGroupScope(subscriptionId, group);
+  if (card !== "backendDeploy" && card !== "webDeploy") {
+    const groupExists = await exists(rg, "2021-04-01");
+    if (!groupExists) {
+      await ensureResourceGroupCreationAccess(account, subscriptionId, overrideTenantId);
+      requirements.push({ scope: sub, actions: ["Microsoft.Resources/subscriptions/resourceGroups/write"] });
+    } else {
+      requirements.push({ scope: rg, actions: ["Microsoft.Resources/subscriptions/resourceGroups/read"] });
+    }
+    if (card === "core") requirements.push({ scope: groupExists ? rg : sub, actions: roleActions });
+    const namespaces = card === "domain" ? DNS_PROVIDERS : card === "core" ? CORE_INFRA_PROVIDERS :
+      card === "frontend" ? PRIVATE_FRONTEND_PROVIDERS : REMOTE_TERMINAL_PROVIDERS;
+    requirements.push({ scope: sub, actions: ["Microsoft.Resources/subscriptions/providers/read"] });
+    for (const namespace of namespaces) {
+      if (await getProviderRegistrationState(account, subscriptionId, namespace, overrideTenantId) !== "Registered") {
+        requirements.push({ scope: sub, actions: [`${namespace}/register/action`] });
+      }
+    }
+  }
+  if (request.workspace) await addResource(`${rg}/providers/Microsoft.OperationalInsights/workspaces/${request.workspace}`, "2022-10-01",
+    permission.workspace);
+  if (request.storageAccount) {
+    const storageGroup = await findStorageAccountGroup(account, subscriptionId, request.storageAccount, overrideTenantId) ?? group;
+    const scope = storageAccountScope(subscriptionId, storageGroup, request.storageAccount);
+    const actions = card === "webDeploy" ? ["Microsoft.Storage/storageAccounts/read"] : [...permission.storageAccount, ...roleActions];
+    if (card !== "webDeploy") {
+      if (card === "core") actions.push(...permission.deletionLocks);
+      if (!await exists(scope, "2023-01-01")) requirements.push({ scope: sub, actions: ["Microsoft.Storage/checkNameAvailability/read"] });
+    }
+    await addResource(scope, "2023-01-01", actions, card === "webDeploy");
+    const blobService = `${scope}/blobServices/default`;
+    if (card === "core" || card === "frontend") {
+      await addResource(blobService, "2023-01-01", [...permission.blobService, ...permission.diagnostics]);
+    }
+    if (card === "core" || card === "backend") {
+      await addResource(`${blobService}/containers/${card === "core" ? TFSTATE_CONTAINER : TERMINAL_DEPLOY_CONTAINER}`,
+        "2023-01-01", permission.blobContainer);
+    }
+    if (card === "backend") await addResource(`${scope}/tableServices/default/tables/${TERMINAL_SESSION_TABLE}`, "2023-01-01", permission.table);
+  }
+  if (card === "core" || card === "frontend") requirements.push({ scope: sub, actions: permission.diagnostics });
+  if (request.dnsZone) {
+    const scope = dnsZoneScope(subscriptionId, group, request.dnsZone);
+    await addResource(scope, "2018-05-01", permission.dnsZone);
+    await addResource(`${scope}/TXT/@`, "2018-05-01", permission.dnsTxt);
+  }
+  if (request.appInsights) await addResource(appInsightsScope(subscriptionId, group, request.appInsights), "2020-02-02", [
+    ...permission.appInsights, ...roleActions,
+  ]);
+  if (request.webPubSub) {
+    const wpsGroup = await findWebPubSubGroup(account, subscriptionId, request.webPubSub, overrideTenantId) ?? group;
+    const scope = webPubSubScope(subscriptionId, wpsGroup, request.webPubSub);
+    if (!await exists(scope, WEBPUBSUB_API)) requirements.push({ scope: sub, actions: ["Microsoft.SignalRService/locations/checkNameAvailability/action"] });
+    await addResource(scope, WEBPUBSUB_API, [...permission.webPubSub, ...roleActions]);
+    await addResource(`${scope}/hubs/${TERMINAL_HUB}`, WEBPUBSUB_API, permission.webPubSubHub);
+  }
+  if (request.functionApp) {
+    const appGroup = await findFunctionAppGroup(account, subscriptionId, request.functionApp, overrideTenantId) ?? group;
+    const scope = `${resourceGroupScope(subscriptionId, appGroup)}/providers/Microsoft.Web/sites/${request.functionApp}`;
+    if (card === "backendDeploy") {
+      await addResource(scope, WEB_API, [
+        "Microsoft.Web/sites/read", ...permission.backendDeployment,
+      ], true);
+      // App settings have a POST-only read API; the existing app establishes this child's scope.
+      requirements.push({ scope: `${scope}/config/appsettings`, actions: permission.functionAppSettings });
+    } else {
+      if (!await exists(scope, WEB_API)) requirements.push({ scope: sub, actions: ["Microsoft.Web/checkNameAvailability/read"] });
+      await addResource(scope, WEB_API, permission.functionApp);
+      if (request.servicePlan) await addResource(servicePlanId(subscriptionId, appGroup, request.servicePlan), WEB_API, permission.servicePlan);
+    }
+  }
+  await ensureManagementAccess(account, requirements, overrideTenantId);
+}
+
+// Checks only the signed-in caller's subscription-level resource-group creation action.
 export async function ensureResourceGroupCreationAccess(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<void> {
   const guidance = `You need Contributor access (or equivalent permissions such as Owner) on the selected subscription ${subscriptionId} to create resource groups.
-Access to an individual resource group is not sufficient. Ask a subscription administrator to grant access in IAM
-or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} then retry.`;
+      Access to an individual resource group is not sufficient. Ask a subscription administrator to grant access in IAM
+      or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} then retry.`;
   try {
-    const permissions = await readSubscriptionPermissions(account, subscriptionId, overrideTenantId);
+    const permissions = await readPermissionsAtScope(account, subscriptionScope(subscriptionId), overrideTenantId);
     if (grantsArmAction(permissions, "Microsoft.Resources/subscriptions/resourceGroups/write")) return;
   } catch (err) {
     throw new Error(`Could not verify resource-group creation access. ${guidance} Details: ${err instanceof Error ? err.message : String(err)}`);
@@ -296,19 +466,19 @@ or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} then retry.
   throw new Error(guidance);
 }
 
-// checks for Contributor and User Access Admin for the Azure Subscription card
+// Checks the configured installer management actions at subscription scope, not literal role names.
 export async function ensureInstallerSubscriptionAccess(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<void> {
   const guidance = `You need at least Contributor plus User Access Administrator access (or equivalent permissions).`;
   let permissions: ArmPermission[];
   try {
-    permissions = await readSubscriptionPermissions(account, subscriptionId, overrideTenantId);
+    permissions = await readPermissionsAtScope(account, subscriptionScope(subscriptionId), overrideTenantId);
   } catch (err) {
     throw new Error(`Could not verify installer subscription access. ${guidance} Details: ${err instanceof Error ? err.message : String(err)}`);
   }
-  const missingAccess = Object.values(INSTALLER_SUBSCRIPTION_PERMISSIONS)
-    .some((actions) => actions.some((action) => !grantsArmAction(permissions, action)));
-  if (missingAccess) {
-    throw new Error(`The selected subscription is missing installer permissions.\n${guidance}`);
+  const missing = Object.values(INSTALLER_SUBSCRIPTION_PERMISSIONS)
+    .flat().filter((action) => !grantsArmAction(permissions, action));
+  if (missing.length) {
+    throw new Error(`The selected subscription is missing installer permissions.\n${guidance}\nMissing actions: ${missing.join(", ")}`);
   }
 }
 
@@ -494,9 +664,29 @@ export async function findDnsZone(
 
 type StorageAccountRow = { id?: string; name?: string; properties?: { primaryEndpoints?: { web?: string } } };
 
+async function findListedResource<T extends { id?: string; name?: string }>(token: string, firstPath: string, name: string): Promise<T | null> {
+  const visited = new Set<string>();
+  let path: string | null = firstPath;
+  while (path) {
+    if (visited.has(path)) throw new Error("Azure returned a looping resource list URL");
+    visited.add(path);
+    const page = await armGet(token, path) as { value?: T[]; nextLink?: string } | null;
+    if (!page) return null;
+    if (!Array.isArray(page.value) || page.value.some((resource) =>
+      typeof resource?.name !== "string" || typeof resource?.id !== "string"
+    )) throw new Error("Azure returned an invalid resource list response");
+    const found = page.value.find((resource) => resource.name?.toLowerCase() === name.toLowerCase());
+    if (found) return found;
+    if (!page.nextLink) return null;
+    const next = new URL(page.nextLink, ARM);
+    if (next.origin !== ARM) throw new Error("Azure returned an unexpected resource list URL");
+    path = `${next.pathname}${next.search}`;
+  }
+  return null;
+}
+
 async function findStorageAccount(token: string, subscriptionId: string, name: string): Promise<StorageAccountRow | null> {
-  const data = await armGet(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Storage/storageAccounts?api-version=2023-01-01`);
-  return ((data as { value?: StorageAccountRow[] } | null)?.value ?? []).find((a) => a.name === name) ?? null;
+  return findListedResource<StorageAccountRow>(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Storage/storageAccounts?api-version=2023-01-01`, name);
 }
 
 // checkNameAvailability never says who holds a name; this is what tells "ours, elsewhere" apart.
@@ -660,14 +850,23 @@ export async function hasRbacRoleAtScope(
 ): Promise<boolean> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
   const roleId = RBAC_ROLE_IDS[roleName];
-  const existing = await gFetch(
-    token,
-    ARM,
-    `${scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${principalId}')`
-  );
-  return !!existing?.value?.some((a: { properties: { roleDefinitionId: string } }) =>
-    a.properties.roleDefinitionId.toLowerCase().endsWith(roleId.toLowerCase())
-  );
+  if (!roleId) throw new Error(`Unknown Azure role: ${roleName}`);
+  const visited = new Set<string>();
+  let path: string | null = `${scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${principalId}')`;
+  while (path) {
+    if (visited.has(path)) throw new Error("Azure returned a looping role assignments URL");
+    visited.add(path);
+    const existing: { value: { properties: { roleDefinitionId: string } }[]; nextLink?: string } = await gFetch(token, ARM, path);
+    if (!existing || !Array.isArray(existing.value) || existing.value.some((assignment) =>
+      typeof assignment?.properties?.roleDefinitionId !== "string"
+    )) throw new Error("Azure returned an invalid role assignments response");
+    if (existing.value.some((assignment) => assignment.properties.roleDefinitionId.toLowerCase().endsWith(`/${roleId.toLowerCase()}`))) return true;
+    if (!existing.nextLink) return false;
+    const next = new URL(existing.nextLink, ARM);
+    if (next.origin !== ARM) throw new Error("Azure returned an unexpected role assignments URL");
+    path = `${next.pathname}${next.search}`;
+  }
+  return false;
 }
 
 export async function ensureRbacRoleAtScope(
@@ -718,8 +917,7 @@ const WEB_API = "2023-12-01";
 
 export async function findWebPubSubGroup(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<string | null> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
-  const data = await armGet(token, `/subscriptions/${subscriptionId}/providers/Microsoft.SignalRService/webPubSub?api-version=${WEBPUBSUB_API}`);
-  const found = ((data as { value?: { id?: string; name?: string }[] } | null)?.value ?? []).find((w) => w.name === name);
+  const found = await findListedResource(token, `/subscriptions/${subscriptionId}/providers/Microsoft.SignalRService/webPubSub?api-version=${WEBPUBSUB_API}`, name);
   return found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1] ?? null;
 }
 
@@ -742,8 +940,7 @@ export async function webPubSubNameAvailable(
 
 export async function findFunctionAppGroup(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<string | null> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
-  const data = await armGet(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Web/sites?api-version=${WEB_API}`);
-  const found = ((data as { value?: { id?: string; name?: string }[] } | null)?.value ?? []).find((s) => s.name === name);
+  const found = await findListedResource(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Web/sites?api-version=${WEB_API}`, name);
   return found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1] ?? null;
 }
 

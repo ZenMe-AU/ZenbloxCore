@@ -169,7 +169,7 @@ export default function CreateDomainCard({
         {/* Planned resources */}
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <ResourceGroupCreationAccess access={createDomain.creationAccess} />
+            <ResourceGroupCreationAccess access={createDomain.creationAccess} resourceAccess />
             <Box>
               <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources to be created</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>

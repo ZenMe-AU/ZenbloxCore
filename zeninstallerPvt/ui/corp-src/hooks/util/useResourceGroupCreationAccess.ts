@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { ensureResourceGroupCreationAccess } from "../../api/azureArm";
+import { ensureResourceGroupCreationAccess, formatAzureAccessError } from "../../api/azureArm";
 import type { AzureAccount, AzureTarget } from "../../types";
 
 export type SubscriptionAccess = {
@@ -37,7 +37,7 @@ export function useSubscriptionAccess(
       try {
         await checkAccess(azureAccount, subscriptionId, tenantId);
       } catch (err) {
-        error = (err instanceof Error ? err.message : String(err)) || "Could not verify subscription access. Recheck subscription access before creating resources.";
+        error = formatAzureAccessError(err) || "Could not verify subscription access. Recheck subscription access before creating resources.";
       }
       if (!cancelled) setResult({ account: azureAccount, subscriptionId, tenantId, checkAccess, attempt, error });
     };

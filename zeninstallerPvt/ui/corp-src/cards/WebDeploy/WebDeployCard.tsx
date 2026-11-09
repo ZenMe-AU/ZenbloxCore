@@ -12,6 +12,7 @@ import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
+import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
 import StatusText from "../../components/StatusText";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import CloudVariableDetail from "../CloudVariableDetail";
@@ -92,6 +93,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro storageAccountName={storageAccountName} />
+        <ResourceGroupCreationAccess access={web.managementAccess} resourceAccess />
 
         <CloudVariableDetail
           account={githubAccount}
@@ -183,7 +185,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           </Button>
           <Button
             onClick={() => void run()}
-            disabled={!updateAvailable || running || building || missingGithubClientId}
+            disabled={!updateAvailable || running || building || missingGithubClientId || web.managementAccess.status !== "ready"}
             variant="contained"
             size="small"
             aria-busy={running}

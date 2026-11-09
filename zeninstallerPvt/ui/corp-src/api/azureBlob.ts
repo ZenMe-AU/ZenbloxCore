@@ -125,3 +125,12 @@ export async function readDeployedSite(account: AzureAccount, accountName: strin
   if (!version || !sha) return null;
   return { version, sha, builtAt: Number(res?.headers.get("x-ms-meta-builtat") ?? 0) };
 }
+
+// Reading verifies container access without a probe write; upload access is enforced by the upload.
+export async function ensureStaticSiteDataReadAccess(account: AzureAccount, accountName: string, overrideTenantId?: string): Promise<void> {
+  try {
+    await blobFetch(account, accountName, `/${WEB_CONTAINER}?restype=container&comp=metadata`, { method: "GET" }, overrideTenantId);
+  } catch (error) {
+    throw new Error(`Could not read the $web container in ${accountName}. Ensure the hosting environment exists and grant or activate Storage Blob Data Contributor (or equivalent data permissions), then recheck. Details: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+  }
+}

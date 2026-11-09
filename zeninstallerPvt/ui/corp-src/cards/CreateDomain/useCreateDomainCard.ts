@@ -6,9 +6,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { ensureScopeConsent, getMsal } from "../../auth/msal";
 import { APP_SCOPES, DNS_PROVIDERS, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_PERMISSIONS } from "../../config/azureConfig";
-import { ensureDnsZone, ensureDnsTxtRecord, ensureResourceGroup, ensureResourceGroupCreationAccess, ensureLogAnalyticsWorkspace, findDnsZone, listLocations, type AzureLocation } from "../../api/azureArm";
+import { ensureDnsZone, ensureDnsTxtRecord, ensureResourceGroup, ensureLogAnalyticsWorkspace, findDnsZone, listLocations, type AzureLocation } from "../../api/azureArm";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
-import { useResourceGroupCreationAccess, type ResourceGroupCreationAccess } from "../../hooks/util/useResourceGroupCreationAccess";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
 import {
   getEntraDomain,
   createEntraDomain,
@@ -47,7 +47,7 @@ export interface UseCreateDomainCardParams extends AzureSpTarget {
 
 // steps / running / run / reset come from AzureConfigHook.
 export interface UseCreateDomainCard extends CardHook, AzureConfigHook {
-  creationAccess: ResourceGroupCreationAccess;
+  creationAccess: CardResourceAccess;
   readonly cardId: "create_domain";
   checkingStatus: boolean;
   checkStatusError: string | null;
@@ -86,7 +86,6 @@ const { save: saveResult, load: loadResult } = createResultStorage<CreateDomainR
 export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dnsName, spClientId, tenantId }: UseCreateDomainCardParams): UseCreateDomainCard {
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const { ensureRegistered } = useProviderRegistration({ azureAccount, subscriptionId, tenantId });
-  const creationAccess = useResourceGroupCreationAccess({ azureAccount, subscriptionId, tenantId });
   const [result, setResult] = useState<CreateDomainResult | null>(loadResult);
   const [nameServers, setNameServers] = useState<string[]>(loadResult()?.nameServers ?? []);
   const [domainVerified, setDomainVerified] = useState<boolean>(loadResult()?.domainVerified ?? false);
@@ -116,6 +115,10 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
 
   const resourceGroupName = getCoreResourceGroupName(corpName);
   const lawName = getCoreLogAnalyticsName(corpName);
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId: corpName && dnsName ? subscriptionId : "", tenantId }, {
+    card: "domain", resourceGroup: resourceGroupName, workspace: lawName, dnsZone: dnsName,
+  });
+  const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
 
   /*
    * Once a subscription is known, check Graph directly for verified+primary status instead of
@@ -259,7 +262,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     setVerifyError(null);
 
     const initialSteps: SetupStep[] = [
-      { id: "access", label: "Check subscription Contributor access to create resource groups", status: "pending" },
+      { id: "access", label: "Check Azure resource access", status: "pending" },
       { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
@@ -276,7 +279,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     let currentStep = "access";
     try {
       updateStep("access", "running");
-      await ensureResourceGroupCreationAccess(azureAccount, subscriptionId, tenantId);
+      await checkResourceAccess();
       updateStep("access", "done");
 
       currentStep = "consent";
@@ -379,6 +382,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
       setRunNonce((n) => n + 1);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
+      if (/^403 \/subscriptions\//.test(msg)) reportAccessFailure(err);
       if (currentStep !== "access" && isConsentError(msg)) {
         updateStep(currentStep, "error", "Additional consent required — redirecting to Microsoft...");
         const requestConsent = currentStep === "grant" ? requestGrantConsent : requestDomainConsent;
@@ -406,6 +410,8 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     requestDomainConsent,
     requestGrantConsent,
     ensureRegistered,
+    checkResourceAccess,
+    reportAccessFailure,
   ]);
 
   // Verifies the domain (if needed) and promotes it to primary — one button drives both.

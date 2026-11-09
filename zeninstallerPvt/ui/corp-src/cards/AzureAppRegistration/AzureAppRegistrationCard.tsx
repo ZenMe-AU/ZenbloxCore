@@ -9,6 +9,7 @@ import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
+import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
 import type { Account, CardChrome, GhEnv } from "../../types";
 import type { UseAzureAppRegistrationCard } from "./useAzureAppRegistrationCard";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
@@ -173,6 +174,9 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
             <Intro />
           </Box>
 
+          <ResourceGroupCreationAccess access={appReg.managementAccess} resourceAccess />
+
+
           {/* Requires the Azure sign-in from the Azure login card */}
           {azureAccount && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
@@ -269,7 +273,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                     <Button
                       variant="contained"
                       onClick={handleRun}
-                      disabled={disabled || !subscriptionId || !appName.trim()}
+                      disabled={disabled || !subscriptionId || !appName.trim() || appReg.managementAccess.status !== "ready"}
                       sx={{
                         py: 0.85,
                         px: 2.5,

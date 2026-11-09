@@ -6,7 +6,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ensureResourceGroup,
-  ensureResourceGroupCreationAccess,
   resourceGroupExists,
   ensureLogAnalyticsWorkspace,
   ensureSubscriptionDiagnostics,
@@ -38,7 +37,7 @@ import { createResultStorage } from "../../logic/resultStorage";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { APP_SCOPES, AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../../config/azureConfig";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
-import { useResourceGroupCreationAccess, type ResourceGroupCreationAccess } from "../../hooks/util/useResourceGroupCreationAccess";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
 import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../../types";
 
 export type CoreInfraResult = {
@@ -59,7 +58,7 @@ export interface UseCoreInfraCardParams extends AzureSpTarget {
 
 // steps / running / run / reset come from AzureConfigHook.
 export interface UseCoreInfraCard extends CardHook, AzureConfigHook {
-  creationAccess: ResourceGroupCreationAccess;
+  creationAccess: CardResourceAccess;
   readonly cardId: "core_infra";
   location: string;
   setLocation: (loc: string) => void;
@@ -101,7 +100,6 @@ export function useCoreInfraCard({
   const [locationsError, setLocationsError] = useState<string | null>(null);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const { ensureRegistered } = useProviderRegistration({ azureAccount, subscriptionId, tenantId });
-  const creationAccess = useResourceGroupCreationAccess({ azureAccount, subscriptionId, tenantId });
   const [result, setResult] = useState<CoreInfraResult | null>(loadResult);
   const [infraRbacStatus, setInfraRbacStatus] = useState<CoreInfraRbacStatus>("unknown");
   const [provisionedFor, setProvisionedFor] = useState<string | null>(null); // "corpName|subscriptionId"
@@ -123,6 +121,10 @@ export function useCoreInfraCard({
   const resourceGroupName = getCoreResourceGroupName(corpName);
   const lawName = getCoreLogAnalyticsName(corpName);
   const storageAccountName = storageOverride || variableValues.TF_STATE_STORAGE_ACCOUNT || getCoreStorageAccountName(corpName);
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId: corpName ? subscriptionId : "", tenantId }, {
+    card: "core", resourceGroup: resourceGroupName, workspace: lawName, storageAccount: storageAccountName,
+  });
+  const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
 
   // Too long or bad characters are visible as you type; too short or taken is only known on confirm.
   const setStorageAccount = useCallback((name: string) => {
@@ -219,7 +221,7 @@ export function useCoreInfraCard({
     setRunning(true);
 
     const initialSteps: SetupStep[] = [
-      { id: "access", label: "Check subscription Contributor access to create resource groups", status: "pending" },
+      { id: "access", label: "Check Azure resource access", status: "pending" },
       { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
@@ -243,7 +245,7 @@ export function useCoreInfraCard({
       }
       currentStep = "access";
       updateStep("access", "running");
-      await ensureResourceGroupCreationAccess(azureAccount, subscriptionId, tenantId);
+      await checkResourceAccess();
       updateStep("access", "done");
 
       currentStep = "consent";
@@ -328,6 +330,7 @@ export function useCoreInfraCard({
       setRunNonce((n) => n + 1);
     } catch (err) {
       updateStep(currentStep, "error", err instanceof Error ? err.message : "Failed");
+      if (err instanceof Error && /^403 \/subscriptions\//.test(err.message)) reportAccessFailure(err);
     } finally {
       setRunning(false);
     }
@@ -345,6 +348,8 @@ export function useCoreInfraCard({
     setRunning,
     updateStep,
     ensureRegistered,
+    checkResourceAccess,
+    reportAccessFailure,
   ]);
 
   const reset = useCallback(() => {

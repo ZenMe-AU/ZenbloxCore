@@ -12,13 +12,13 @@ import { warningMessageIconSx } from "../config/styles";
 import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
 import type { ResourceGroupCreationAccess as Access } from "../hooks/util/useResourceGroupCreationAccess";
 
-export default function ResourceGroupCreationAccess({ access }: { access: Access }) {
+export default function ResourceGroupCreationAccess({ access, resourceAccess = false }: { access: Access; resourceAccess?: boolean }) {
   if (access.status === "idle") return null;
   return (
     <Box sx={{ minWidth: 0 }}>
       {access.status === "checking" ? (
         <Box role="status" aria-live="polite">
-          <StepRow step={{ id: "subscription-access", label: "Checking subscription Contributor access...", status: "running" }} />
+          <StepRow step={{ id: "subscription-access", label: resourceAccess ? "Checking Azure resource access..." : "Checking subscription Contributor access...", status: "running" }} />
         </Box>
       ) : access.status === "error" ? (
         <Box role="alert" sx={{
@@ -27,7 +27,7 @@ export default function ResourceGroupCreationAccess({ access }: { access: Access
         }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
-            <Typography color="warning.dark">You may not have enough subscription access to create resource groups.</Typography>
+            <Typography color="warning.dark">{resourceAccess ? "You may not have enough access to manage this card's Azure resources." : "You may not have enough subscription access to create resource groups."}</Typography>
           </Box>
           <Typography color="warning.dark" sx={{ whiteSpace: "pre-line" }}>
             {access.error?.split(AZURE_PIM_ACTIVATION_URL).map((text, index) => (
@@ -43,11 +43,11 @@ export default function ResourceGroupCreationAccess({ access }: { access: Access
           </Typography>
         </Box>
       ) : (
-        <Alert severity="success" role="status" aria-live="polite">Subscription access to create resource groups verified.</Alert>
+        <Alert severity="success" role="status" aria-live="polite">{resourceAccess ? "Azure reports the required management grants for this card's targets." : "Subscription access to create resource groups verified."}</Alert>
       )}
       {access.status !== "checking" && (
         <Button variant="contained" sx={{ mt: 1, py: 0.85, px: 2.5 }} onClick={access.retry}>
-          Recheck subscription access
+          {resourceAccess ? "Recheck resource access" : "Recheck subscription access"}
         </Button>
       )}
     </Box>

@@ -13,6 +13,7 @@ import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import ErrorText from "../../components/ErrorText";
+import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
 import type { CardChrome } from "../../types";
 
 const when = (unixSeconds: number) => new Date(unixSeconds * 1000).toLocaleString();
@@ -49,6 +50,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro appName={appName} />
+        <ResourceGroupCreationAccess access={backend.managementAccess} resourceAccess />
 
         <Box>
           <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Versions</Typography>
@@ -102,7 +104,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           </Button>
           <Button
             onClick={() => void run()}
-            disabled={!updateAvailable || running || building}
+            disabled={!updateAvailable || running || building || backend.managementAccess.status !== "ready"}
             variant="contained"
             size="small"
             aria-busy={running}
