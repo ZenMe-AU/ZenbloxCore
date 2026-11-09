@@ -156,6 +156,15 @@ export async function createSpaAppRegistration(
 
 // ── Service principal ──────────────────────────────────────────────────────────
 
+// read-only lookup cannot prove write access; Graph authorizes each create, so replace with a safe write check if available.
+export async function ensureServicePrincipalAccess(account: AzureAccount, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, APP_SCOPES, overrideTenantId, true);
+  const data = await gFetch(token, GRAPH, "/servicePrincipals?$top=1&$select=id", { cache: "no-store" });
+  if (!data || !Array.isArray(data.value) || data.value.some((principal: { id?: unknown }) => typeof principal?.id !== "string")) {
+    throw new Error("Microsoft Graph returned an invalid service-principal access response.");
+  }
+}
+
 // A second site means a second origin, so the uri is appended rather than replacing what is registered.
 export async function ensureSpaRedirectUri(account: AzureAccount, appObjectId: string, redirectUri: string, overrideTenantId?: string): Promise<boolean> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);

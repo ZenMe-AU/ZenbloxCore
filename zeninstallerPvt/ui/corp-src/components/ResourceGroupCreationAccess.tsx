@@ -43,12 +43,17 @@ export default function ResourceGroupCreationAccess({ access, resourceAccess = f
           </Typography>
         </Box>
       ) : (
-        <Alert severity="success" role="status" aria-live="polite">{resourceAccess ? "Azure reports the required management grants for this card's targets." : "Subscription access to create resource groups verified."}</Alert>
+        <Alert severity="success" role="status" aria-live="polite">{resourceAccess ? "Azure access checks passed for this card's targets." : "Subscription access to create resource groups verified."}</Alert>
       )}
       {access.status !== "checking" && (
         <Button variant="contained" sx={{ mt: 1, py: 0.85, px: 2.5 }} onClick={access.retry}>
           {resourceAccess ? "Recheck resource access" : "Recheck subscription access"}
         </Button>
+      )}
+      {resourceAccess && (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          Read checks do not guarantee every write or upload will succeed. Role changes may take time to propagate.
+        </Typography>
       )}
     </Box>
   );

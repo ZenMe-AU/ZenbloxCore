@@ -17,7 +17,8 @@ export type ResourceGroupCreationAccess = SubscriptionAccess;
 
 export function useSubscriptionAccess(
   { azureAccount, subscriptionId, tenantId }: AzureTarget,
-  checkAccess: typeof ensureResourceGroupCreationAccess
+  checkAccess: typeof ensureResourceGroupCreationAccess,
+  formatError: (error: unknown) => string = formatAzureAccessError
 ): SubscriptionAccess {
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{
@@ -37,7 +38,7 @@ export function useSubscriptionAccess(
       try {
         await checkAccess(azureAccount, subscriptionId, tenantId);
       } catch (err) {
-        error = formatAzureAccessError(err) || "Could not verify subscription access. Recheck subscription access before creating resources.";
+        error = formatError(err) || "Could not verify subscription access. Recheck subscription access before creating resources.";
       }
       if (!cancelled) setResult({ account: azureAccount, subscriptionId, tenantId, checkAccess, attempt, error });
     };
@@ -45,7 +46,7 @@ export function useSubscriptionAccess(
     return () => {
       cancelled = true;
     };
-  }, [azureAccount, subscriptionId, tenantId, attempt, checkAccess]);
+  }, [azureAccount, subscriptionId, tenantId, attempt, checkAccess, formatError]);
 
   const current =
     result?.account === azureAccount && result?.subscriptionId === subscriptionId && result?.tenantId === tenantId &&
