@@ -14,6 +14,7 @@ import {
   ACCESS_PASS_SCOPES,
   GROUPS_SCOPES,
   ROLE_MANAGEMENT_SCOPES,
+  CLAIMS_POLICY_SCOPES,
 } from "../config/azureConfig";
 import { RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
@@ -665,4 +666,158 @@ export async function ensureRoleEligibility(
     }),
   });
   return "created";
+}
+
+// ── AWS console sign-in (SAML) ─────────────────────────────────────────────────
+// The Entra side of AWS console sign-in; replaces the AwsEntraSso and AwsEntraSsoP2 stages.
+
+const GRAPH_BETA = "https://graph.microsoft.com/beta";
+
+export type AwsSsoApp = { appObjectId: string; spId: string };
+
+export async function findAwsSsoApp(account: AzureAccount, displayName: string, overrideTenantId?: string): Promise<AwsSsoApp | null> {
+  const app = await getExistingApp(account, displayName, overrideTenantId);
+  if (!app) return null;
+  const sp = await getExistingSP(account, app.appId, overrideTenantId);
+  if (!sp) throw new Error(`The ${displayName} app registration has no enterprise app; delete it in Entra and run again`);
+  return { appObjectId: app.id, spId: sp.id };
+}
+
+// From the "AWS Single-Account Access" gallery template, which brings the msiam_access role.
+export async function createAwsSsoApp(account: AzureAccount, displayName: string, overrideTenantId?: string): Promise<AwsSsoApp> {
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
+  const templates = await gFetch(token, GRAPH, "/applicationTemplates?$filter=displayName eq 'AWS Single-Account Access'&$select=id");
+  const templateId = templates.value?.[0]?.id;
+  if (!templateId) throw new Error("The AWS Single-Account Access gallery app was not found");
+  const data = await gFetch(token, GRAPH, `/applicationTemplates/${templateId}/instantiate`, { method: "POST", body: JSON.stringify({ displayName }) });
+  return { appObjectId: data.application.id ?? data.application.objectId, spId: data.servicePrincipal.id ?? data.servicePrincipal.objectId };
+}
+
+// A new app takes a few seconds to replicate, so retry on 404.
+async function afterReplication<T>(call: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await call();
+    } catch (err) {
+      if (attempt === 10 || !(err instanceof Error && err.message.startsWith("404"))) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+    }
+  }
+}
+
+// SAML sign-in, for assigned people only, with AWS's entity id.
+export async function configureAwsSsoApp(account: AzureAccount, app: AwsSsoApp, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
+  await afterReplication(() =>
+    gFetch(token, GRAPH, `/servicePrincipals/${app.spId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ preferredSingleSignOnMode: "saml", appRoleAssignmentRequired: true }),
+    })
+  );
+  await afterReplication(() =>
+    gFetch(token, GRAPH, `/applications/${app.appObjectId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ identifierUris: [`https://signin.aws.amazon.com/saml#${app.appObjectId}`] }),
+    })
+  );
+}
+
+async function sha1Hex(base64: string): Promise<string> {
+  const hash = await crypto.subtle.digest("SHA-1", Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)));
+  return Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// The active SAML signing certificate, base64.
+export async function getAwsSsoSigningCertificate(account: AzureAccount, spId: string, overrideTenantId?: string): Promise<string | null> {
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
+  const sp = await gFetch(token, GRAPH, `/servicePrincipals/${spId}?$select=keyCredentials,preferredTokenSigningKeyThumbprint`);
+  const thumbprint = sp.preferredTokenSigningKeyThumbprint?.toLowerCase();
+  if (!thumbprint) return null;
+  for (const k of sp.keyCredentials ?? []) {
+    if (k.usage === "Verify" && k.key && (await sha1Hex(k.key)) === thumbprint) return k.key;
+  }
+  return null;
+}
+
+export async function addAwsSsoSigningCertificate(account: AzureAccount, spId: string, overrideTenantId?: string): Promise<string> {
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
+  const cert = await gFetch(token, GRAPH, `/servicePrincipals/${spId}/addTokenSigningCertificate`, {
+    method: "POST",
+    body: JSON.stringify({ displayName: "CN=AWS SSO Signing" }),
+  });
+  await gFetch(token, GRAPH, `/servicePrincipals/${spId}`, { method: "PATCH", body: JSON.stringify({ preferredTokenSigningKeyThumbprint: cert.thumbprint }) });
+  return cert.key;
+}
+
+// False if the group was already assigned.
+export async function ensureAwsSsoGroupAssignment(account: AzureAccount, spId: string, groupId: string, overrideTenantId?: string): Promise<boolean> {
+  const token = await getToken(account, APP_SCOPES, overrideTenantId);
+  const sp = await gFetch(token, GRAPH, `/servicePrincipals/${spId}?$select=appRoles`);
+  const role = (sp.appRoles ?? []).find((r: { displayName: string }) => r.displayName === "msiam_access");
+  if (!role) throw new Error("The AWS app has no msiam_access role");
+  const assigned = await gFetch(token, GRAPH, `/servicePrincipals/${spId}/appRoleAssignedTo?$select=principalId,appRoleId`);
+  if ((assigned.value ?? []).some((a: { principalId: string; appRoleId: string }) => a.principalId === groupId && a.appRoleId === role.id)) return false;
+  await gFetch(token, GRAPH, `/servicePrincipals/${spId}/appRoleAssignedTo`, {
+    method: "POST",
+    body: JSON.stringify({ principalId: groupId, resourceId: spId, appRoleId: role.id }),
+  });
+  return true;
+}
+
+// Role claim values: "<role ARN>,<SAML provider ARN>".
+export type AwsSsoRoleClaims = { readOnly: string; admin: string; adminGroupId: string };
+
+const userAttribute = (id: string) => ({ "@odata.type": "#microsoft.graph.sourcedAttribute", id, source: "user", isExtensionAttribute: false });
+const fixedValue = (value: string) => ({ "@odata.type": "#microsoft.graph.valueBasedAttribute", value });
+const samlClaim = (namespace: string, name: string, configurations: { attribute: object; condition?: object }[]) => ({
+  "@odata.type": "#microsoft.graph.customClaim",
+  name,
+  namespace,
+  tokenFormat: ["saml"],
+  samlAttributeNameFormat: null,
+  configurations: configurations.map((c) => ({ condition: null, transformations: [], ...c })),
+});
+const XMLSOAP_CLAIMS = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims";
+const AWS_SAML_ATTRIBUTES = "https://aws.amazon.com/SAML/Attributes";
+
+// Same claims as AwsEntraSsoP2/policy.tf.
+export async function setAwsSsoClaims(account: AzureAccount, spId: string, roles: AwsSsoRoleClaims, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, [...APP_SCOPES, ...CLAIMS_POLICY_SCOPES], overrideTenantId);
+  await gFetch(token, GRAPH_BETA, `/servicePrincipals/${spId}/claimsPolicy`, {
+    method: "PUT",
+    body: JSON.stringify({
+      includeBasicClaimSet: true,
+      includeApplicationIdInIssuer: false,
+      audienceOverride: null,
+      groupFilter: null,
+      claims: [
+        {
+          "@odata.type": "#microsoft.graph.samlNameIdClaim",
+          serviceProviderNameQualifier: null,
+          nameIdFormat: "emailAddress",
+          configurations: [{ condition: null, attribute: userAttribute("userprincipalname"), transformations: [] }],
+        },
+        samlClaim(XMLSOAP_CLAIMS, "givenname", [{ attribute: userAttribute("givenname") }]),
+        samlClaim(XMLSOAP_CLAIMS, "surname", [{ attribute: userAttribute("surname") }]),
+        samlClaim(XMLSOAP_CLAIMS, "emailaddress", [{ attribute: userAttribute("mail") }]),
+        samlClaim(XMLSOAP_CLAIMS, "name", [{ attribute: userAttribute("userprincipalname") }]),
+        samlClaim(AWS_SAML_ATTRIBUTES, "RoleSessionName", [{ attribute: userAttribute("mail") }]),
+        samlClaim(AWS_SAML_ATTRIBUTES, "SessionDuration", [{ attribute: fixedValue("900") }]),
+        samlClaim(AWS_SAML_ATTRIBUTES, "Role", [
+          { attribute: fixedValue(roles.readOnly) },
+          {
+            condition: { "@odata.type": "#microsoft.graph.customClaimCondition", userType: "members", memberOf: [`oid:${roles.adminGroupId}`] },
+            attribute: fixedValue(roles.admin),
+          },
+        ]),
+      ],
+    }),
+  });
+}
+
+// Whether the claims policy already has this Role value.
+export async function hasAwsSsoRoleClaim(account: AzureAccount, spId: string, roleClaim: string, overrideTenantId?: string): Promise<boolean> {
+  const token = await getToken(account, [...APP_SCOPES, ...CLAIMS_POLICY_SCOPES], overrideTenantId);
+  const policy = await gFetch(token, GRAPH_BETA, `/servicePrincipals/${spId}/claimsPolicy`).catch(() => null);
+  return JSON.stringify(policy ?? {}).includes(roleClaim);
 }

@@ -80,33 +80,37 @@ export const PIPELINES: Record<string, PipelineConfig> = {
           { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
         ],
       },
-      {
-        dir: "AwsEntraSso",
-        workflowId: PLAN_STAGE_WORKFLOW,
-        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
-        label: "AWS single sign-on with Entra ID",
-        description: "Registers AWS IAM Identity Center as an Entra application so users can sign in to AWS with their organisation account.",
-        azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
-        prerequisites: [
-          { type: "var", key: "NAME" },
-          { type: "var", key: "DNS" },
-          { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
-        ],
-      },
-      {
-        dir: "AwsEntraSsoP2",
-        workflowId: PLAN_STAGE_WORKFLOW,
-        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
-        label: "AWS single sign-on with Microsoft Entra ID P2",
-        description: "Assigns groups to the AWS application and applies the claims policy, which needs a Microsoft Entra ID P2 licence.",
-        azurePermissions: [GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll, GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration],
-        prerequisites: [
-          { type: "var", key: "NAME" },
-          { type: "var", key: "DNS" },
-          { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
-          { type: "varGroup", keys: AWS_VARIABLE_KEYS, label: "AWS variables configured" },
-        ],
-      },
+      /*
+       * AwsEntraSso and AwsEntraSsoP2 were replaced by the AWS single sign-on and AWS console
+       * sign-in stack cards, which set up the Entra app from the browser and AWS through CloudFormation.
+       */
+      // {
+      //   dir: "AwsEntraSso",
+      //   workflowId: PLAN_STAGE_WORKFLOW,
+      //   deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
+      //   label: "AWS single sign-on with Entra ID",
+      //   description: "Registers AWS IAM Identity Center as an Entra application so users can sign in to AWS with their organisation account.",
+      //   azurePermissions: [GRAPH_PERMISSIONS.ApplicationReadWriteAll],
+      //   prerequisites: [
+      //     { type: "var", key: "NAME" },
+      //     { type: "var", key: "DNS" },
+      //     { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
+      //   ],
+      // },
+      // {
+      //   dir: "AwsEntraSsoP2",
+      //   workflowId: PLAN_STAGE_WORKFLOW,
+      //   deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
+      //   label: "AWS single sign-on with Microsoft Entra ID P2",
+      //   description: "Assigns groups to the AWS application and applies the claims policy, which needs a Microsoft Entra ID P2 licence.",
+      //   azurePermissions: [GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll, GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration],
+      //   prerequisites: [
+      //     { type: "var", key: "NAME" },
+      //     { type: "var", key: "DNS" },
+      //     { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
+      //     { type: "varGroup", keys: AWS_VARIABLE_KEYS, label: "AWS variables configured" },
+      //   ],
+      // },
       {
         dir: "CloudFront",
         workflowId: PLAN_STAGE_WORKFLOW,
