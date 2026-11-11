@@ -23,6 +23,7 @@ export function formatCardResourceAccessError(error: unknown, card: CardResource
     : formatAzureAccessError(error);
 }
 
+// pre-flight warning panel for Azure resource permissions
 export function useCardResourceAccess(
   target: AzureTarget,
   { card, resourceGroup, workspace, storageAccount, dnsZone, appInsights, webPubSub, functionApp, servicePlan }: CardResourceAccessRequest
@@ -62,7 +63,7 @@ export function useCardResourceAccess(
     setFailure(null);
     access.retry();
     if (card === "appRegistration" && azureAccount && subscriptionId) {
-      // shortcut: rechecks Graph reads only; Graph remains authoritative for app/service-principal writes.
+      // rechecks Graph reads only; Graph remains authoritative for app/service-principal writes.
       void ensureServicePrincipalAccess(azureAccount, tenantId).catch(reportFailure);
     }
   };

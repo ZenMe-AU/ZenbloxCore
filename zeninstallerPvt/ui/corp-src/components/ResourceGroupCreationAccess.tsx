@@ -50,11 +50,6 @@ export default function ResourceGroupCreationAccess({ access, resourceAccess = f
           {resourceAccess ? "Recheck resource access" : "Recheck subscription access"}
         </Button>
       )}
-      {resourceAccess && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Read checks do not guarantee every write or upload will succeed. Role changes may take time to propagate.
-        </Typography>
-      )}
     </Box>
   );
 }

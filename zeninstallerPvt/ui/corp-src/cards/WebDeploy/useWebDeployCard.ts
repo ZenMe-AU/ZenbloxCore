@@ -155,6 +155,7 @@ export function useWebDeployCard({
       }
       setError("The build is taking longer than expected — check GitHub Actions.");
     } catch (e) {
+      //TODO: Awan - filter status code for 404
       setError(e instanceof Error ? e.message : "Failed to start the build");
     } finally {
       setBuilding(false);

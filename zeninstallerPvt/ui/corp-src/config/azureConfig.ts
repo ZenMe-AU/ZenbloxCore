@@ -119,7 +119,7 @@ export const PRIVATE_FRONTEND_PROVIDERS = [
 // ── Subscription permission requirements ────────────────────────────
 const readWrite = (...resources: string[]) => resources.flatMap((resource) => [`${resource}/read`, `${resource}/write`]);
 const providers = new Set([...CORE_INFRA_PROVIDERS, ...DNS_PROVIDERS, ...PRIVATE_FRONTEND_PROVIDERS, ...REMOTE_TERMINAL_PROVIDERS]);
-export const INSTALLER_SUBSCRIPTION_PERMISSIONS = {
+export const SUBSCRIPTION_PERMISSIONS = {
   resourceGroupsAndProviders: [
     ...readWrite("Microsoft.Resources/subscriptions/resourceGroups"),
     "Microsoft.Resources/subscriptions/providers/read",
@@ -168,7 +168,7 @@ export const RESOURCE_PERMISSIONS = {
   functionAppSettings: ["Microsoft.Web/sites/config/list/action", "Microsoft.Web/sites/config/write"],
   servicePlan: readWrite("Microsoft.Web/serverfarms"),
   diagnostics: readWrite("Microsoft.Insights/diagnosticSettings"),
-  roleAssignments: INSTALLER_SUBSCRIPTION_PERMISSIONS.roleAssignments,
-  deletionLocks: INSTALLER_SUBSCRIPTION_PERMISSIONS.deletionLocks,
+  roleAssignments: SUBSCRIPTION_PERMISSIONS.roleAssignments,
+  deletionLocks: SUBSCRIPTION_PERMISSIONS.deletionLocks,
   backendDeployment: ["Microsoft.Web/sites/publish/action", "Microsoft.Web/sites/deployments/read"],
 } as const;
