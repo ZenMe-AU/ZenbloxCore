@@ -5,7 +5,7 @@
 
 import type { Account, CardChrome, CardHook, CardId, CardStatus, GhEnv, PipelineConfig, PlanSummary, Stage, StageDefinition } from "../../types";
 import type { UseDeploymentPlan } from "./useDeploymentPlan";
-import { getEffectiveStatus, getStageCardId, getStageSummaryText, hasVariableDiff, stageToCardStatus } from "../../logic/stage";
+import { getEffectiveStatus, getStageCardId, getStageSummaryText, getUnmetPrerequisites, hasVariableDiff, stageToCardStatus } from "../../logic/stage";
 
 export type CorpStageCardModel = {
   key: string;
@@ -86,7 +86,7 @@ export function useCorpStageCards({
     const card: CardChrome = {
       cardId,
       status: locked ? "idle" : stageToCardStatus(effectiveStatus, isStale, plan.stagesLoading),
-      summary: locked ? undefined : getStageSummaryText(stage, summary, plan.stagesLoading, isStale, stageDef.optional),
+      summary: locked ? undefined : run?.error ?? getStageSummaryText(stage, summary, plan.stagesLoading, isStale, stageDef.optional, getUnmetPrerequisites(stageDef.prerequisites, variableValues, cardStatus)),
       locked,
       requirements,
       unavailable: false,

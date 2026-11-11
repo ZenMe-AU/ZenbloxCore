@@ -12,30 +12,30 @@ import { GITHUB_API_URL, MICROSOFT_GRAPH_URL } from "../../testInit.js";
 import { prepareCardMocks, replyJson } from "../util/mockCardSetup.mts";
 
 const stages = [
-  { dir: "c01subscription", title: "Azure subscription budget" },
-  { dir: "c02globalGroups", title: "Organisation security groups" },
-  { dir: "c07userAccounts", title: "User accounts and sign-in" },
-  { dir: "c20awsentrasso", title: "AWS single sign-on with Entra ID" },
-  { dir: "c21awsentrassoP2", title: "AWS single sign-on with Microsoft Entra ID P2" },
-  { dir: "c25cloudfront", title: "AWS CloudFront distribution" },
+  { dir: "SubscriptionBudget", snapshotDir: "c01subscription", title: "Azure subscription budget" },
+  { dir: "GlobalGroups", snapshotDir: "c02globalGroups", title: "Organisation security groups" },
+  { dir: "UserAccounts", snapshotDir: "c07userAccounts", title: "User accounts and sign-in" },
+  { dir: "AwsEntraSso", snapshotDir: "c20awsentrasso", title: "AWS single sign-on with Entra ID" },
+  { dir: "AwsEntraSsoP2", snapshotDir: "c21awsentrassoP2", title: "AWS single sign-on with Microsoft Entra ID P2" },
+  { dir: "CloudFront", snapshotDir: "c25cloudfront", title: "AWS CloudFront distribution" },
 ];
 
 for (const stage of stages) {
-  test(`Happy path: ${stage.dir}`, async ({ page, context }, testInfo) => {
+  test(`Happy path: ${stage.snapshotDir}`, async ({ page, context }, testInfo) => {
     await runHappyPath(page, context, testInfo, stage);
   });
 
-  test(`Reports a workflow permission failure: ${stage.dir}`, async ({ page, context }, testInfo) => {
+  test(`Reports a workflow permission failure: ${stage.snapshotDir}`, async ({ page, context }, testInfo) => {
     const { card, state, unexpectedRequests } = await prepareStage(page, context, stage, { denyDispatch: true });
     await expect(card.getByRole("button", { name: "Get Updated Plan", exact: true })).toBeEnabled();
     await card.getByRole("button", { name: "Get Updated Plan", exact: true }).click();
-    await expect(card.getByText("Failed to trigger workflow", { exact: true })).toBeVisible();
+    await expect(card.getByRole("alert").filter({ hasText: /^Failed to trigger workflow$/ })).toBeVisible();
     expect(state.dispatches).toBe(1);
     expect(state.downloads).toBe(0);
     expect(unexpectedRequests).toEqual([]);
-    await expectSnapshot(page, card, testInfo, `${stage.dir}-dispatch-denied`, getViewportName(testInfo));
+    await expectSnapshot(page, card, testInfo, `${stage.snapshotDir}-dispatch-denied`, getViewportName(testInfo));
   });
-  test(`Groups prerequisites in one dropdown: ${stage.dir}`, async ({ page, context }, testInfo) => {
+  test(`Groups prerequisites in one dropdown: ${stage.snapshotDir}`, async ({ page, context }, testInfo) => {
     const setup = await prepareCardMocks(page, context);
     const card = await setup.open(`stage_${stage.dir}`);
     const toggle = card.locator(`button[aria-controls="${stage.dir}-prerequisites"]`);
@@ -44,7 +44,7 @@ for (const stage of stages) {
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await expect(toggle).toHaveAccessibleName("open prerequisites");
     await expect(prerequisites).toHaveCount(0);
-    await expectSnapshot(page, card, testInfo, `${stage.dir}-start`, getViewportName(testInfo));
+    await expectSnapshot(page, card, testInfo, `${stage.snapshotDir}-start`, getViewportName(testInfo));
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await expect(toggle).toHaveAccessibleName("collapse");
@@ -60,15 +60,15 @@ for (const stage of stages) {
     })) {
       await expect(prerequisites.getByText(`${key}: ${value}`, { exact: true })).toBeVisible();
     }
-    if (stage.dir === "c01subscription") {
+    if (stage.dir === "SubscriptionBudget") {
       await expect(prerequisites.getByText("CONTACT_EMAILS configured", { exact: true })).toHaveCount(0);
       await expect(prerequisites.getByLabel("CONTACT_EMAILS:")).toHaveValue("owner@example.com");
     }
-    if (["c21awsentrassoP2", "c25cloudfront"].includes(stage.dir)) {
+    if (["AwsEntraSsoP2", "CloudFront"].includes(stage.dir)) {
       await expect(prerequisites.getByText("AWS variables configured", { exact: true })).toHaveCount(0);
       await expect(prerequisites.getByText("AWS_ROLE_ARN: arn:aws:iam::123456789012:role/zeninstaller-github", { exact: true })).toBeVisible();
     }
-    if (!["c01subscription", "c02globalGroups"].includes(stage.dir)) {
+    if (!["SubscriptionBudget", "GlobalGroups"].includes(stage.dir)) {
       await expect(prerequisites.getByText("DNS Domain: pwtests.example.com", { exact: true })).toBeVisible();
     }
     await toggle.click();
@@ -90,18 +90,18 @@ test("Reports a missing plan artifact without claiming an empty plan", async ({ 
   await expectSnapshot(page, card, testInfo, "expired-plan", getViewportName(testInfo));
 });
 
-async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestInfo, stage: { dir: string; title: string }) {
+async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestInfo, stage: (typeof stages)[number]) {
   test.setTimeout(240_000);
   const { card, state, unexpectedRequests } = await prepareStage(page, context, stage);
   const viewport = getViewportName(testInfo);
   await test.step("Request a plan for this stage and selected environment only", async () => {
     await expect(card.locator("h3")).toContainText(stage.title);
     await expect(card.getByRole("button", { name: "Get Updated Plan", exact: true })).toBeEnabled();
-    await expectSnapshot(page, card, testInfo, `${stage.dir}-start`, viewport);
+    await expectSnapshot(page, card, testInfo, `${stage.snapshotDir}-start`, viewport);
     await card.getByRole("button", { name: "Get Updated Plan", exact: true }).click();
     await expect(card.getByRole("button", { name: /^Running/ })).toBeDisabled();
     await expect.poll(() => state.dispatches).toBe(1);
-    await expectSnapshot(page, card, testInfo, `${stage.dir}-running`, viewport);
+    await expectSnapshot(page, card, testInfo, `${stage.snapshotDir}-running`, viewport);
   });
   await test.step("Read the stage report and render the downloaded Terraform plan", async () => {
     await advanceStagePoll(page, card);
@@ -112,7 +112,7 @@ async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestI
     expect(state.downloads).toBe(1);
     expect(state.reportTasks).toContain(`plan:${stage.dir}`);
     expect(unexpectedRequests).toEqual([]);
-    await expectSnapshot(page, card, testInfo, `${stage.dir}-end`, viewport);
+    await expectSnapshot(page, card, testInfo, `${stage.snapshotDir}-end`, viewport);
   });
 }
 
@@ -178,8 +178,8 @@ async function prepareStage(
     }
     if (url.pathname.endsWith("/dispatches")) {
       expect(request.method()).toBe("POST");
-      expect(url.pathname).toBe(`/repos/mock-user/${setup.repoName}/actions/workflows/plan-${stage.dir}.yml/dispatches`);
-      expect(request.postDataJSON()).toEqual({ ref: "PROD", inputs: { github_env_name: "PROD" } });
+      expect(url.pathname).toBe(`/repos/mock-user/${setup.repoName}/actions/workflows/plan.yml/dispatches`);
+      expect(request.postDataJSON()).toEqual({ ref: "PROD", inputs: { github_env_name: "PROD", dir: stage.dir } });
       state.dispatches++;
       return options.denyDispatch ? replyJson(route, { message: "Mock workflow denied" }, 403) : route.fulfill({ status: 204 });
     }
@@ -196,5 +196,7 @@ async function prepareStage(
 
 async function advanceStagePoll(page: Page, card: Locator) {
   await expect(card.getByRole("button", { name: /^Running\.\.\. [1-9]\d*[sm]$/ })).toBeDisabled();
-  await page.clock.runFor(150_000);
+  await test.step("Advance the stage polling countdown", async () => {
+    await page.clock.fastForward(151_000);
+  }, { timeout: 60_000 });
 }

@@ -12,6 +12,7 @@ import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
 import StatusText from "../../components/StatusText";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { getPrivateInstallerAppName } from "../../logic/naming";
 import { resourceGroupScope } from "../../api/azureArm";
@@ -89,11 +90,12 @@ export default function PrivateFrontendInfraCard({
         <Intro />
 
         {infra.steps.length === 0 && (
-          <Box>
-            <Typography sx={{ typography: "fieldLabel", mb: 0.75 }}>Resources</Typography>
-            <Box sx={{ borderLeft: "2px solid", borderLeftColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
-              <PlainRow label="Resource group" value={infra.resourceGroupName} />
-              <PlainRow label="Log Analytics" value={infra.lawName} />
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Box>
+              <Typography sx={{ typography: "fieldLabel", mb: 0.75 }}>Resources</Typography>
+              <Box sx={{ borderLeft: "2px solid", borderLeftColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
+                <PlainRow label="Resource group" value={infra.resourceGroupName} />
+                <PlainRow label="Log Analytics" value={infra.lawName} />
 
                 {/* Global to Azure, so it has to be changeable when another tenant already holds it. */}
                 <EditableNameRow
@@ -117,25 +119,22 @@ export default function PrivateFrontendInfraCard({
                   value={infra.location}
                   onChange={infra.setLocation}
                   options={infra.locations.map((l) => ({ value: l.name, label: l.displayName }))}
-                error={infra.locationsError ? "Couldn't load Azure region list — type the region name manually." : null}
+                  error={infra.locationsError ? "Couldn't load Azure region list — type the region name manually." : null}
                   loading={infra.locationsLoading}
                   placeholder="e.g. australiaeast"
                   editing={editingLocation}
                   setEditing={setEditingLocation}
                 />
               </Box>
+            </Box>
 
             <Button
               variant="contained"
               onClick={() => void infra.run()}
               disabled={infra.running || editingStorage || !infra.location.trim()}
-              sx={{
-                alignSelf: "flex-start",
-                py: 0.85,
-                px: 2.5,
-              }}
+              sx={{ alignSelf: "flex-start" }}
             >
-              {infra.done ? "Re-run setup" : "Create frontend hosting environment"}
+              {infra.done ? "Re-run" : "Create frontend hosting environment"}
             </Button>
           </Box>
         )}
@@ -146,6 +145,7 @@ export default function PrivateFrontendInfraCard({
               <StepRow key={s.id} step={s} />
             ))}
             {infra.running && <StatusText>Running...</StatusText>}
+            <ProcessRetryNotice started={infra.steps.length > 0} />
             {!infra.running && (
               <Button
                 size="small"

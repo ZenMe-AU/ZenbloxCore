@@ -2,7 +2,7 @@
 
 Scope: `zeninstallerPvt/ui` only. Paths below are relative to that folder (the old `web/` prefix no longer exists).
 
-Sections 0–6 record the initial audit baseline from 2026-10-07; their counts and source-tree observations are historical, not a current inventory. Progress notes in section 7 supersede baseline findings where work has since been completed. Latest documentation review: 2026-11-08.
+Sections 0–6 record the initial audit baseline from 2026-10-07; their counts and source-tree observations are historical, not a current inventory. Progress notes in section 7 supersede baseline findings where work has since been completed; section 9 and [UI_UX.md](UI_UX.md) track current verification and remaining work. Latest documentation review: 2026-11-11.
 
 ## 0. Audit summary (2026-10-07)
 
@@ -211,7 +211,7 @@ Measured baseline signals: 95 `onClick` handlers (the card header and requiremen
 - **Responsive card layout (2026-10-09).** Card groups use an auto-fitting grid with a 360px minimum column width: columns grow to fill available space, then naturally reduce from three to two to one as the viewport narrows. Expanded cards span the group width. The page remains capped at 1280px for readability.
 - **Test selectors.** Keep the `data-id` and `data-sensitive` attributes and the `card-<id>` ids, since tests and the Playwright suites depend on them. `data-a11y-contrast-exception` is reserved for non-interactive muted card titles.
 - **Bundle and performance.** Moving static styles out of runtime Emotion reduces JS work and style recomputation. Check the bundle size before and after.
-- **Linting and CI (implemented in Step 9).** Recommended `eslint-plugin-jsx-a11y` rules apply to installer TSX; `no-restricted-syntax` blocks raw hex colors, `fontFamily`, and `fontSize` inside JSX `sx` in `cards/` and `components/`; `@axe-core/playwright` scans collapsed, expanded, and locked page states. The scan excludes only the explicitly marked, non-interactive muted-title and status-summary spans from its analysis tree; no axe rules are disabled. Consider Stylelint for the shared CSS separately.
+- **Linting and CI (implemented in Step 9; current exclusion policy).** Recommended `eslint-plugin-jsx-a11y` rules apply to installer TSX; `no-restricted-syntax` blocks raw hex colors, `fontFamily`, and `fontSize` inside JSX `sx` in `cards/` and `components/`; `@axe-core/playwright` scans collapsed, expanded, and locked page states. The scan excludes only explicitly marked, non-interactive muted-title spans from its analysis tree, not status summaries; no axe rules are disabled. Consider Stylelint for the shared CSS separately.
 - **Documentation.** Keep theme tokens, global helper classes, and the explicit muted-title axe contrast exception documented here and mirrored in the installer `README.md`.
 
 ## 7. Step-by-step plan
@@ -378,6 +378,15 @@ Step 8 migrations are complete. Follow-ups are to rerun Azure-dependent mock flo
 - Removed per-action padding, typography, and shadow overrides across login, setup, repository, Access Pass, infrastructure, and stage actions. The PROD/TEST environment selectors and Add group `ButtonBase` control use the compact button typography and dimensions; card-header and prerequisite navigation controls keep their own interaction geometry.
 - Added `ButtonStyles.browser.test.tsx` to assert the computed baseline for contained, outlined, and selected-toggle controls. Icon-only controls retain their existing sizes, touch targets, and semantic hover colors.
 
+### UX and verification follow-up (2026-11-11)
+
+- Expanded card headers retain summaries beside their headings and wrap on narrow screens. Locked summaries use direct prerequisite labels; stage prompts name missing values without a generic prerequisite prefix.
+- Shared `InfoTip` surfaces make variable help, drift/overwrite explanations and stale-plan details keyboard-focusable. Variable descriptions also have stable input relationships. Sensitive tooltip values retain masking markers; touched help/clear/revert targets are at least 24px.
+- The decorative header mark is hidden from assistive technology. Prerequisite and next-step jumps focus the destination heading, ordinary toggles retain focus, and collapse-all moves focus out of closing content. Reduced-motion navigation avoids smooth scrolling.
+- Editor and disabled contained-button overrides now use selected-scheme CSS variables instead of raw default-palette values. The shared link regression follows the existing body1 theme typography. A missing mock-helper import was restored; no unrelated telemetry or product decisions were changed.
+- Verification: 27 focused Chromium Vitest cases, 16 Chromium accessibility cases and 14 opt-in Firefox/WebKit smoke cases pass; UI type checking and scoped component/test lint pass. Desktop/mobile expanded-card captures were inspected without updating snapshot baselines. Unit baseline remains 265 passed / 3 Access Pass null-telemetry failures; `App.tsx` retains its existing Fast Refresh lint finding.
+- Production bundling succeeds but still warns about Node modules imported through `dotenv` and the existing large chunk. Six browser parsing tests establish replacement semantics, not production dependency safety. Parser replacement, actual Safari certification and manual platform/assistive-technology checks remain open. Commands and limits are recorded in [UI_UX.md](UI_UX.md#101-verification-on-2026-11-11).
+
 ## 8. Design decisions (mirrored in `README.md`)
 
 Per the repository `README.md` rules, decisions live in the folder where they apply. This folder's [README.md](README.md) records:
@@ -386,7 +395,7 @@ Per the repository `README.md` rules, decisions live in the folder where they ap
 2. `App.css` holds global, non-component rules only.
 3. Only `sans-serif` and `monospace` are used: `sans-serif` for main UI content and `monospace` for technical values. No other font overrides or web-font downloads.
 4. Text sizes range from 0.75rem to 1rem and target contrast >= 4.5:1, except intentionally muted card titles, which may be below 4.5:1.
-5. Interactive elements are native or MUI-semantic (button, link, input). The card header wrapper is an intentional pointer-toggle exception; title and chevron controls remain keyboard-operable.
+5. Commands use native or MUI-semantic buttons, links and inputs; informational `InfoTip` spans are named and focusable without implying a command. The card header wrapper is an intentional pointer-toggle exception; title and chevron controls remain keyboard-operable.
 6. Test hooks (`id="card-<id>"`, `data-id`, `data-sensitive`, accessible names) are part of the UI contract.
 7. The card header toggles on click, with separate labelled, keyboard-operable title and chevron controls; expanded-card actions do not bubble into the toggle. Disable click ripples and retain a visible keyboard-focus outline.
 8. Card toggle names include visible title/summary text followed by visually hidden status; expanded content is a region labelled by its heading.
@@ -394,6 +403,8 @@ Per the repository `README.md` rules, decisions live in the folder where they ap
 10. New-tab links expose that behavior in their accessible name; links use theme styling and do not rely on underlines for distinction.
 11. Axe runs its default rules; only explicitly marked non-interactive muted-title spans are excluded from analysis for the accepted contrast exception.
 12. Recommended jsx-a11y rules and scoped `sx` style restrictions are enforced by ESLint.
+
+The README also records selected-scheme CSS variables, expanded-header summaries, system colour preference, focus navigation, described help and minimum touched-control targets as product decisions. Its separate test-automation section records opt-in browser projects, consistent base URLs, artifact capture and transition-aware assertions. Dated results and unresolved work belong in [UI_UX.md](UI_UX.md), rather than being presented as permanent design decisions.
 
 These may later be elevated to the repository level if the other UI folders (`portal/ui`, `accessPass/ui`) adopt them.
 
@@ -404,14 +415,15 @@ These may later be elevated to the repository level if the other UI folders (`po
 - [ ] Verify live progress, success, and error announcements with a supported screen reader during real state changes; record the OS, browser, assistive technology, flow, and results.
 - [x] Fix `ConfigErrorNotice`'s light-only white surface so its error text and border have sufficient contrast in both color schemes; verify the rendered contrast in dark and light modes. Done 2026-10-22: surface and border mix from `background.paper`, dark text uses `error.light`. Computed contrast: light text 5.7:1, border 3.2:1; dark text 7.9:1, border 3.6:1. Not checked in a browser.
 - [x] Expose each `StepRow` state in text for assistive technology, and give running progress indicators accessible names. Focused Chromium browser assertions pass; real screen-reader behavior remains part of manual verification.
-- [ ] Make variable-description and changed-since-plan explanations available to keyboard and screen-reader users, not only on hover.
+- [x] Make variable-description and changed-since-plan explanations available on keyboard focus. Shared `InfoTip` surfaces and stable input descriptions are implemented; focused Chromium assertions pass on 2026-11-11. Manual screen-reader validation remains open.
 - [x] Give `ConfigErrorNotice` an accessible relationship or announcement semantics. The unavailable card title and chevron reference its static explanatory message with `aria-describedby`; no live alert is used. Focused Chromium browser assertion passes.
-- [ ] Reassess disabled-button visibility in both color schemes and update the UX inventory to match the current theme styles and the axe test's actual muted-title-only exclusion.
+- [x] Reassess disabled controls in both schemes. Scheme-aware CSS variables fix contained disabled buttons and editor fields that retained default dark-palette colours in light mode. Four disabled-control desktop/mobile cases pass; the UX inventory records the muted-title-only axe exclusion and manual limits.
 - [x] Rerun the focused accessibility Playwright spec after providing its required Azure and GitHub client ID environment values. Passed 11/11 on 2026-10-22; the earlier attempt failed before test initialization.
 - [ ] Verify Windows forced-colors/high-contrast and reduced-motion behavior manually. Automated forced-colors focus/boundary and reduced-motion emulation pass, but do not replace the platform check.
-- [ ] Add or run a representative browser smoke/accessibility matrix for Firefox and Safari/WebKit; current automated browser projects use Chromium only.
-- [ ] Investigate Vite's browser bundle warnings for Node modules imported through `dotenv` in `corp-src/api/backend.ts` and `corp-src/api/github.ts`. Replace this with a browser-safe `.env` parser or document why the current bundle is safe in supported browsers.
+- [x] Add and run opt-in Firefox/WebKit smoke/accessibility projects. All 14 tagged cases pass on Windows on 2026-11-11; full Chromium coverage remains unchanged. This is not shipping Safari certification.
+- [x] Audit Vite warnings from browser `dotenv` imports. Production build externalizes `path`, `os` and `crypto`; six browser tests characterize both providers' file/artifact parsing. See `UI_UX.md` section 10.1.
+- [ ] Select and approve a browser-only parser replacement with equivalent `.env` semantics and no Node imports; keep Node deployment usage unchanged. Passing development-browser parsing tests do not establish production dependency safety.
 - [ ] Rerun the Azure-dependent mock flows when their required authentication and setup state is available. Investigate failures that previously stopped before reaching their target cards, and review desktop/mobile screenshot differences before updating any baselines.
-- [ ] Triage test and lint results. The latest recorded unit run (2026-11-04) had 42 passed and 219 failed across 28 test files, with widespread `ReferenceError: React is not defined`. Earlier Access Pass telemetry failures and the shared-building-block editor-border mismatch predate that run and need rechecking after the runner issue is understood. The last recorded full lint run had 33 errors and 5 warnings; keep unrelated findings distinct from regressions.
+- [ ] Address remaining test/lint findings. On 2026-11-11: unit baseline 265 passed / 3 Access Pass null-telemetry failures; JSX-runner failures did not recur. Focused browser slice 27/27 and Chromium accessibility 16/16 pass; UI type checking passes after a mock-helper import repair. Scoped component/test lint passes, but including `App.tsx` reports its existing Fast Refresh export rule. No new full-repository lint total is claimed.
 - [x] Decide helper status: retain `MONO_FONT` and `refreshBtnSx` because they have active consumers; replace the only `labelSx` use with the `fieldLabel` typography variant and remove the compatibility shim. Retain `borderHoverTint` as shared hover behavior.
 - [ ] Decide whether the footer's Contact and Terms placeholders are acceptable for this release; otherwise provide real content or remove those entry points.

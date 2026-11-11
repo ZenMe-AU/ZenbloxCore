@@ -14,6 +14,7 @@ import BlockIcon from "@mui/icons-material/Block";
 import ClearIcon from "@mui/icons-material/Clear";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import UndoIcon from "@mui/icons-material/Undo";
+import DragHandleIcon from "@mui/icons-material/DragHandle";
 import type {
   Account,
   AzureAccount,
@@ -38,6 +39,7 @@ import { getWorkflowRunUrl } from "../../logic/github";
 import { MONO_FONT } from "../../config/styles";
 import Card from "../../components/Card";
 import FieldLabel from "../../components/FieldLabel";
+import InfoTip from "../../components/InfoTip";
 import PermissionNotice from "./PermissionNotice";
 import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
@@ -77,9 +79,9 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
 function PrerequisiteStatusIcon({ met, changed }: { met: boolean; changed: boolean }) {
   if (met && changed) {
     return (
-      <Tooltip title="Changed since last plan" placement="top" arrow>
+      <InfoTip label="Changed since last plan" description="This value differs from the last plan. Refresh the plan before deploying.">
         <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
-      </Tooltip>
+      </InfoTip>
     );
   }
   return met ? (
@@ -106,6 +108,7 @@ function StageVarEditor({
   selectedEnv: GhEnv | null;
   onVariableConfirmed: (key: string, value: string) => void;
 }) {
+  const descriptionPrefix = useId();
   const [localValues, setLocalValues] = useState<Record<string, string>>(savedValues);
   const [upsertStatuses, setUpsertStatuses] = useState<{ key: string; status: "success" | "error"; error?: string }[]>([]);
   const [updating, setUpdating] = useState(false);
@@ -167,6 +170,7 @@ function StageVarEditor({
               className="corpEditor"
               data-sensitive="true"
               error={isError}
+              inputProps={{ "aria-describedby": description ? `${descriptionPrefix}-${key}` : undefined }}
               placeholder="not set"
               value={localValue}
               onChange={(event) => handleChange(key, event.target.value)}
@@ -175,13 +179,13 @@ function StageVarEditor({
                 endAdornment: (localValue || isDirty) ? (
                   <InputAdornment position="end" sx={{ gap: 0 }}>
                     {localValue && (
-                      <IconButton aria-label={`Clear ${key}`} size="small" onClick={() => handleChange(key, "")} sx={{ p: 0.25 }}>
+                      <IconButton aria-label={`Clear ${key}`} size="small" onClick={() => handleChange(key, "")} sx={{ p: 0.25, minWidth: 24, minHeight: 24 }}>
                         <ClearIcon sx={{ typography: "caption" }} />
                       </IconButton>
                     )}
                     {isDirty && (
                       <Tooltip title="Revert to saved value">
-                        <IconButton aria-label={`Revert ${key} to saved value`} size="small" onClick={() => handleRevert(key)} sx={{ p: 0.25 }}>
+                        <IconButton aria-label={`Revert ${key} to saved value`} size="small" onClick={() => handleRevert(key)} sx={{ p: 0.25, minWidth: 24, minHeight: 24 }}>
                           <UndoIcon sx={{ typography: "caption" }} />
                         </IconButton>
                       </Tooltip>
@@ -191,14 +195,17 @@ function StageVarEditor({
               }}
             />
             {description && (
-              <Tooltip title={description} placement="top" arrow>
-                <InfoOutlinedIcon aria-label={`${key} information`} sx={{ typography: "caption", color: "text.secondary", flexShrink: 0 }} />
-              </Tooltip>
+              <>
+                <Box component="span" id={`${descriptionPrefix}-${key}`} className="visually-hidden">{description}</Box>
+                <InfoTip label={`${key} information`} description={description}>
+                  <InfoOutlinedIcon aria-hidden="true" sx={{ typography: "caption", color: "text.secondary" }} />
+                </InfoTip>
+              </>
             )}
             {isDeployedDiff && !isDirty && !isError && (
-              <Tooltip title={`Plan configured: ${deployedValues[key] || "(empty)"}`} placement="top" arrow>
-                <WarningAmberIcon aria-label={`${key} differs from the last plan`} sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
-              </Tooltip>
+              <InfoTip label={`${key} differs from the last plan`} description={`Plan configured: ${deployedValues[key] || "(empty)"}`} sensitive>
+                <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
+              </InfoTip>
             )}
             {isError && <Typography color="error.main" role="alert">{upsertStatus.error ?? "Update failed"}</Typography>}
             {upsertStatus?.status === "success" && <Typography role="status" aria-live="polite" color="success.dark">just updated</Typography>}
@@ -221,51 +228,119 @@ function StageVarEditor({
 
 // Shared by the plan and deploy failures — both publish the same kind of single-file log artifact.
 export function FailureLog({ fetched, text }: { fetched: boolean; text: string | null }) {
-  const [expanded, setExpanded] = useState(false);
+  const [height, setHeight] = useState<number | null>(null);
+  const [bounds, setBounds] = useState({ min: 160, max: 640 });
+  const drag = useRef<{ pointerId: number; startY: number; startHeight: number } | null>(null);
   const contentId = useId();
+  const currentHeight = Math.min(bounds.max, Math.max(bounds.min, height ?? bounds.min));
+
+  useLayoutEffect(() => {
+    const updateBounds = () => {
+      const min = 10 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+      setBounds({ min, max: Math.max(min, Math.floor(window.innerHeight * 0.8)) });
+    };
+    updateBounds();
+    window.addEventListener("resize", updateBounds);
+    return () => window.removeEventListener("resize", updateBounds);
+  }, []);
+
   if (!fetched) return <StatusText>Loading log...</StatusText>;
   if (!text) return null;
   return (
     <Box
-      id={contentId}
       sx={{
         mt: 0.5,
-        p: 1.25,
-        pb: 4,
         borderRadius: "6px",
         backgroundColor: "background.default",
         border: "1px solid",
         borderColor: "error.light",
-        maxHeight: expanded ? "none" : "10rem",
-        overflowY: expanded ? "visible" : "auto",
-        position: "relative",
+        height: currentHeight,
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
       }}
-      role="alert"
-      aria-live="assertive"
     >
-      <Typography component="pre" color="error.dark" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...MONO_FONT }}>
-        {text}
-      </Typography>
-      <Tooltip title={expanded ? "Collapse log" : "Expand log"} placement="left" arrow>
-        <IconButton
-          onClick={() => setExpanded((open) => !open)}
-          aria-label={expanded ? "Collapse log" : "Expand log"}
-          aria-expanded={expanded}
+      <Box
+        id={contentId}
+        role="alert"
+        aria-live="assertive"
+        aria-label="Failure log output"
+        tabIndex={0}
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          p: 1.25,
+          "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: "-2px" },
+        }}
+      >
+        <Typography component="pre" color="error.dark" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...MONO_FONT }}>
+          {text}
+        </Typography>
+      </Box>
+      <Tooltip title="Resize log output" arrow>
+        <Box
+          role="separator"
+          tabIndex={0}
+          aria-label="Resize log output"
+          aria-orientation="horizontal"
           aria-controls={contentId}
-          size="small"
+          aria-valuemin={bounds.min}
+          aria-valuemax={bounds.max}
+          aria-valuenow={currentHeight}
+          aria-valuetext={`${Math.round(currentHeight)} pixels high`}
+          onPointerDown={(event) => {
+            if (!event.isPrimary || event.button !== 0) return;
+            event.preventDefault();
+            event.currentTarget.focus({ preventScroll: true });
+            event.currentTarget.setPointerCapture(event.pointerId);
+            drag.current = { pointerId: event.pointerId, startY: event.clientY, startHeight: currentHeight };
+          }}
+          onPointerMove={(event) => {
+            if (drag.current?.pointerId !== event.pointerId) return;
+            setHeight(Math.min(bounds.max, Math.max(bounds.min, drag.current.startHeight + event.clientY - drag.current.startY)));
+          }}
+          onPointerUp={(event) => {
+            if (drag.current?.pointerId !== event.pointerId) return;
+            drag.current = null;
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+          }}
+          onPointerCancel={(event) => {
+            if (drag.current?.pointerId === event.pointerId) drag.current = null;
+          }}
+          onLostPointerCapture={(event) => {
+            if (drag.current?.pointerId === event.pointerId) drag.current = null;
+          }}
+          onKeyDown={(event) => {
+            const step = event.shiftKey ? 60 : 20;
+            let nextHeight: number;
+            switch (event.key) {
+              case "ArrowDown": nextHeight = currentHeight + step; break;
+              case "ArrowUp": nextHeight = currentHeight - step; break;
+              case "Home": nextHeight = bounds.min; break;
+              case "End": nextHeight = bounds.max; break;
+              default: return;
+            }
+            event.preventDefault();
+            setHeight(Math.min(bounds.max, Math.max(bounds.min, nextHeight)));
+          }}
           sx={{
-            position: "absolute",
-            right: 4,
-            bottom: 4,
-            backgroundColor: "background.default",
+            height: 24,
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "ns-resize",
+            touchAction: "none",
+            userSelect: "none",
+            color: "text.secondary",
             "&:hover": { backgroundColor: "action.hover" },
+            "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: "-2px" },
           }}
         >
-          <KeyboardArrowDownIcon
-            aria-hidden="true"
-            sx={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}
-          />
-        </IconButton>
+          <DragHandleIcon aria-hidden="true" fontSize="small" />
+        </Box>
       </Tooltip>
     </Box>
   );

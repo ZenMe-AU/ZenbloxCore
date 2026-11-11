@@ -18,7 +18,7 @@ test.describe("Installer accessibility", () => {
     await page.emulateMedia({ colorScheme: "dark" });
   });
 
-  test("collapsed page has no axe violations", async ({ page }) => {
+  test("collapsed page has no axe violations", { tag: "@ux-smoke" }, async ({ page }) => {
     await page.goto(CORP_URL);
     await expectAxeClean(page, "collapsed page");
   });
@@ -65,7 +65,60 @@ test.describe("Installer accessibility", () => {
     await expect(nextStep).toBeVisible();
     await nextStep.click();
     await expect(page.locator("#card-github_login h3 button")).toHaveAttribute("aria-expanded", "true");
+    await expect(page.locator("#card-github_login h3 button")).toBeFocused();
   });
+
+  test("prerequisite jumps focus the destination and preserve the origin", { tag: "@ux-smoke" }, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto(CORP_URL);
+    await expect(page.locator("header h1")).toHaveText(await page.title());
+    await expect(page.locator("header [aria-hidden=true]").filter({ hasText: "ZB" })).toHaveCount(1);
+    const stage = page.locator('[id^="card-stage_"]').first();
+    const origin = stage.locator("h3 button");
+    await origin.focus();
+    await page.keyboard.press("Enter");
+    await expect(origin).toBeFocused();
+    const requirement = stage.getByRole("button", { name: "Select a repository & environment", exact: true });
+    await requirement.focus();
+    await page.keyboard.press("Enter");
+    const destination = page.locator("#card-repo h3 button");
+    await expect(destination).toHaveAttribute("aria-expanded", "true");
+    await expect(destination).toBeFocused();
+    await expect(origin).toHaveAttribute("aria-expanded", "true");
+  });
+
+  test("collapse all returns panel focus to its heading", { tag: "@ux-smoke" }, async ({ page }) => {
+    await page.goto(CORP_URL);
+    const card = page.locator('[id^="card-stage_"]').first();
+    const toggle = card.locator("h3 button");
+    await toggle.click();
+    await card.getByRole("button", { name: "Select a repository & environment", exact: true }).focus();
+    await page.keyboard.press("Shift+C");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(toggle).toBeFocused();
+  });
+
+  for (const width of [1280, 390]) {
+    test(`expanded headers reflow at ${width}px`, { tag: "@ux-smoke" }, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(CORP_URL);
+      const card = page.locator('[id^="card-stage_"]').first();
+      await card.locator("h3 button").click();
+      await expect(card.getByRole("button", { name: "Select a repository & environment", exact: true })).toBeVisible();
+      await expect(card.locator(".MuiCollapse-root").first()).toHaveClass(/MuiCollapse-entered/);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+      const layout = await card.locator("h3 button").evaluate((element) => ({
+        width: element.clientWidth,
+        contentWidth: element.scrollWidth,
+        summary: element.querySelectorAll("span[title]")[1]?.getBoundingClientRect().width,
+      }));
+      expect(layout.contentWidth).toBeLessThanOrEqual(layout.width);
+      expect(layout.summary).toBeGreaterThan(0);
+      const screenshotPath = test.info().outputPath(`expanded-header-${width}.png`);
+      await card.screenshot({ path: screenshotPath });
+      await test.info().attach(`expanded-header-${width}`, { path: screenshotPath, contentType: "image/png" });
+    });
+  }
 
   test("system color scheme follows browser preference and explicit modes persist", async ({ page }) => {
     await page.emulateMedia({ colorScheme: "light" });
@@ -211,13 +264,13 @@ test.describe("Installer accessibility", () => {
     await expect(githubToggle).toHaveAttribute("aria-expanded", "true");
   });
 
-  test("expanded Azure Login card has no axe violations", async ({ page }) => {
+  test("expanded Azure Login card has no axe violations", { tag: "@ux-smoke" }, async ({ page }) => {
     await page.goto(CORP_URL);
     await expandAzureLoginCard(page);
     await expectAxeClean(page, "expanded Azure Login card");
   });
 
-  test("expanded locked card has no axe violations", async ({ page }) => {
+  test("expanded locked card has no axe violations", { tag: "@ux-smoke" }, async ({ page }) => {
     await page.goto(CORP_URL);
     const card = page.locator('[id^="card-stage_"]').first();
     const toggle = card.locator("h3").getByRole("button");

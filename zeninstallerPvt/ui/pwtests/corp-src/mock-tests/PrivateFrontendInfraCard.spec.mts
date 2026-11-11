@@ -17,8 +17,8 @@ test("Happy path", async ({ page, context }, testInfo) => {
 
 test("Does not save connection details after storage configuration fails", async ({ page, context }, testInfo) => {
   const { card, state, github, unexpectedRequests } = await prepareFrontend(page, context, { denyBlob: true });
-  await expect(card.getByRole("button", { name: "Create terminal relay", exact: true })).toBeEnabled();
-  await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
+  await expect(card.getByRole("button", { name: "Create frontend hosting environment", exact: true })).toBeEnabled();
+  await card.getByRole("button", { name: "Create frontend hosting environment", exact: true }).click();
   await expect(card.getByText(/Mock storage configuration denied/)).toBeVisible();
   expect(state.appCreated).toBe(false);
   expect(github.variables.VITE_AZURE_CLIENT_ID).toBeUndefined();
@@ -72,11 +72,11 @@ async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestI
   const { card, state, github, unexpectedRequests } = await prepareFrontend(page, context);
   const viewport = getViewportName(testInfo);
   await test.step("Create the hosting environment from seeded Azure prerequisites", async () => {
-    await expect(card.getByRole("button", { name: "Create terminal relay", exact: true })).toBeEnabled();
+    await expect(card.getByRole("button", { name: "Create frontend hosting environment", exact: true })).toBeEnabled();
     await expect(card.getByText("Australia East", { exact: true })).toBeVisible();
     await expectSnapshot(page, card, testInfo, "start", viewport);
-    await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
-    await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 180_000 });
+    await card.getByRole("button", { name: "Create frontend hosting environment", exact: true }).click();
+    await expect(card.getByRole("button", { name: /Start over/ })).toBeEnabled();
     await expectSuccessfulSteps(card, [
       "Register required Azure resource providers",
       "Create resource group zeninstaller-private-rg",

@@ -4,7 +4,7 @@
  */
 
 import type { ReactNode } from "react";
-import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { ACTION_CONFIG } from "./stageConfig";
 import { getActionType } from "../../logic/stage";
@@ -12,6 +12,7 @@ import type { PlanItem, PlanSummary } from "../../types";
 import { MONO_FONT } from "../../config/styles";
 import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
+import InfoTip from "../../components/InfoTip";
 
 function SummaryPill({ label, count, color }: { label: string; count: number; color: "success" | "warning" | "error" | "info" }) {
   return (
@@ -31,9 +32,9 @@ function SummaryPill({ label, count, color }: { label: string; count: number; co
 }
 
 function BehindPill({ planSha, latestSha }: { planSha?: string; latestSha?: string }) {
-  const detail = planSha && latestSha ? `Planned at ${planSha.slice(0, 7)} \u00b7 the branch is now at ${latestSha.slice(0, 7)}` : "";
+  const detail = planSha && latestSha ? `Planned at ${planSha.slice(0, 7)} \u00b7 the branch is now at ${latestSha.slice(0, 7)}` : "The branch has changed since this plan. Refresh the plan before deploying.";
   return (
-    <Tooltip title={detail} placement="top">
+    <InfoTip label="Plan is not latest" description={detail}>
       <Box
         sx={{
           px: 0.875,
@@ -48,7 +49,7 @@ function BehindPill({ planSha, latestSha }: { planSha?: string; latestSha?: stri
       >
         not latest
       </Box>
-    </Tooltip>
+    </InfoTip>
   );
 }
 

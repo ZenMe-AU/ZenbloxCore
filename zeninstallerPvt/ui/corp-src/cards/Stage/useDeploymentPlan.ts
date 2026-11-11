@@ -103,9 +103,9 @@ export function useDeploymentPlan(opts: {
     const delay = POLL_DELAYS[attempt] ?? POLL_DELAYS[POLL_DELAYS.length - 1];
     stopTicker(stageKey);
     patchRun(stageKey, { kind, countdown: delay });
-    let remaining = delay;
+    const deadline = Date.now() + delay * 1000;
     tickers.current[stageKey] = setInterval(() => {
-      remaining -= 1;
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       patchRun(stageKey, { countdown: remaining });
       if (remaining <= 0) {
         stopTicker(stageKey);

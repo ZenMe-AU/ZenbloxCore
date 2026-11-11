@@ -11,7 +11,7 @@ Stack: React + MUI (`createTheme` with CSS variables), Vite, no router (single p
 A single-page, card-based **checklist dashboard**. It contains 23 tracked setup tasks (sign in, pick a repo, create Azure resources, run Terraform stages, and deploy a privileged access workstation) and an optional GitHub signup helper. Cards:
 
 - can be completed **in any order**; a card whose prerequisites are unmet is **locked** and lists what to do first (each item is a link that jumps to the card that resolves it);
-- report their own state (`status` and `summary`), shown on the collapsed face;
+- report their own state (`status` and `summary`) in both collapsed and expanded headers;
 - are expanded/collapsed independently (not a strict accordion), and the open set is persisted.
 
 There is no wizard or global navigation; a completion summary and next-action cue complement the dependency graph between cards.
@@ -41,7 +41,7 @@ flowchart TB
 | Region | Component | Notes |
 |---|---|---|
 | Skip link | `Link.visually-hidden.skip-link` in [App.tsx](corp-src/App.tsx) | Revealed on `:focus-visible` by [App.css](corp-src/App.css); targets `#main-content` (`tabIndex=-1`). |
-| Header | [Header.tsx](corp-src/components/Header.tsx) | 28px gradient "ZB" mark, the single page `h1` (`document.title`), and a labelled System/Light/Dark scheme cycle. System honors the browser's reported light or dark preference; unavailable preference detection falls back to dark. MUI persists explicit Light/Dark selections. |
+| Header | [Header.tsx](corp-src/components/Header.tsx) | Decorative 28px gradient "ZB" mark (`aria-hidden`), the single page `h1` (`document.title`), and a labelled System/Light/Dark scheme cycle. System honors the browser's reported light or dark preference; unavailable preference detection falls back to dark. MUI persists explicit Light/Dark selections. |
 | Intro | inline in `App.tsx` + [CardIntro](corp-src/components/CardIntro.tsx) | Ordered list of prerequisites (personal email, org/domain name) with a secure `ExternalLink` to GoDaddy. |
 | Progress and card grid | inline in `App.tsx` / `groupSx` in [config/cardLayout.ts](corp-src/config/cardLayout.ts) | One section named "Deployment setup progress" contains a determinate bar for the 23 setup tasks and a next-step button, followed by the auto-fitting grid. The optional GitHub signup helper is rendered in the grid but excluded from task progress. It does not display a numeric completion count or a separate "Deployment steps" heading. Expanded cards span `1 / -1`. |
 | Footer | [Footer.tsx](corp-src/components/Footer.tsx) | Shortcut help dialog (`?` opens outside editable fields), contact placeholder, Privacy policy, Terms of use placeholder, and Support documentation; the footer content has no subgroup headings. |
@@ -105,7 +105,7 @@ classDiagram
 | `error` | Failed | `#fecaca` | outlined `!` (red) | `#dc2626` |
 | `skipped` | Optional, not run | `#f1f5f9` | hollow circle (grey) | `#64748b` |
 | `unavailable` | Misconfigured (missing env var) | divider, muted | warning triangle (grey) | `#64748b` |
-| *locked* (overlay) | Prerequisites unmet | divider, muted bg `#f8fafc` | block glyph (grey) | none shown |
+| *locked* (overlay) | Prerequisites unmet | divider, muted bg `#f8fafc` | block glyph (grey) | muted requirement labels |
 
 The values in this table describe the light scheme. The dark scheme has corresponding status colors in the theme. Locked and unavailable share the same muted chrome; only the glyph differs. An unavailable card still shows its summary (it is the error message) and `ConfigErrorNotice`.
 
@@ -130,7 +130,7 @@ stateDiagram-v2
 flowchart LR
   subgraph Header["Clickable header row (min-height 80px, hover tint = status border colour)"]
     direction LR
-    H3["h3 > ButtonBase (title toggle)<br/>status icon · title and summary (one line, ellipsis) · visually-hidden status"]
+    H3["h3 > ButtonBase (title toggle)<br/>status icon · title and summary · visually-hidden status"]
     Action["optional action (View link / Refresh) - only when expanded and not muted"]
     Chev["IconButton chevron (separate toggle)"]
   end
@@ -146,6 +146,7 @@ Key behaviours:
 - Outer element `id="card-<cardId>"` (test contract and jump-to target).
 - Clicking anywhere in the header toggles the card. The title and chevron are separate labelled, keyboard-operable controls; an expanded-card action stops propagation so it does not collapse the card.
 - Collapsed title and summary each occupy one line and ellipsize, keeping card faces the same height; full text remains in the DOM and accessible name, with a `title` attribute.
+- Expanded headers keep the summary beside the heading and wrap on narrow screens. Locked summaries show direct requirement labels such as "Sign in to AWS"; stage summaries name missing values, for example "Failed: CONTACT_EMAILS not set" or "AWS_ROLE_ARN not set", rather than a generic prerequisite prefix.
 - Both toggles carry `aria-expanded` and `aria-controls`; the chevron has an explicit `Expand/Collapse <title>` label.
 - A locked card still expands, to show its optional read-only introduction and unmet requirements; its live content is not rendered. Pipeline-stage descriptions are shown for both locked and unlocked stages.
 - Ripples are disabled; focus shows a 2px blue outline plus a 3px 12% halo.
@@ -286,7 +287,7 @@ flowchart TD
   A[User expands locked card] --> B[Sees lockedIntro + 'Complete these first']
   B --> C[Clicks requirement button]
   C --> D[openCard: add target id to expanded set]
-  D --> E[requestAnimationFrame: scrollIntoView smooth, centre]
+  D --> E[requestAnimationFrame: focus target heading, scroll card into view]
   E --> F[Target card visible; origin stays open]
 ```
 
@@ -357,11 +358,12 @@ Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)):
 | Component | Role | Semantics |
 |---|---|---|
 | `Card` | Collapsible card shell | h3 + button, region, `aria-expanded/controls` |
-| `Header` / `Footer` | Page chrome | `header`, `footer`, h1 / h2 + h3 |
+| `Header` / `Footer` | Page chrome | `header`, `footer`, h1 / h2 |
 | `RestoreToast` | URL-restore feedback | `role=status` / MUI Alert (`alert`) |
 | `CardIntro` | Intro paragraph (`p`, body2, secondary) | none |
 | `Caption` | Small helper text | `span`, caption |
 | `FieldLabel` | `FormLabel` bound with `htmlFor` | labels inputs |
+| `InfoTip` | Keyboard-focusable informational explanation | named `role=img` span, 24px minimum target, focus-visible outline and MUI described tooltip; sensitive tooltip values retain `data-sensitive` |
 | `ErrorText` | Error message | `role=alert` |
 | `StatusText` | Progress/success message | `role=status`, `aria-live=polite` |
 | `ProcessRetryNotice` | Static retry guidance for runnable setup/deployment sections | `role=note`; no live-region behavior |
@@ -382,14 +384,14 @@ Runnable process sections show the same retry guidance before and during executi
 
 | Pattern | Implementation |
 |---|---|
-| Primary action | `Button variant="contained"` with 135deg blue gradient and shared compact sizing (0.875rem text, 32px minimum height, 4px 12px padding, 6px radius); disabled flattens to `#f1f5f9` / `#cbd5e1` |
+| Primary action | `Button variant="contained"` with 135deg blue gradient and shared compact sizing (0.875rem text, 32px minimum height, 4px 12px padding, 6px radius); disabled removes the gradient and uses selected-scheme `action.disabledBackground` / `text.disabled` tokens |
 | Destructive action | `color="error" variant="contained"` red gradient (sign-out) |
 | Secondary action | `variant="outlined"` (Deploy status update, shortcuts, View) |
 | Text field | MUI `TextField` small; class `corpEditor` (monospace, tinted bg, dirty = amber border, error = red) and `corpTechnicalInput` for IDs/keys |
 | Sensitive values | `data-sensitive="true"`; `:root[data-mask-sensitive="true"]` blurs them (opt-in) |
 | Progress | `CircularProgress` size 12-16 with accessible names; both `StepRow` progress indicators are named |
 | Status pill | bordered box, text label plus colour (plan create/update/delete/replace, `not latest`, `valid`/`invalid`) |
-| Tooltips | variable descriptions (info icon), revert, plan-diff warning icon, `not latest` pill, repo options |
+| Tooltips | variable descriptions, drift/overwrite explanations and `not latest` use focusable named `InfoTip` surfaces; input help also has stable `aria-describedby` relationships. Revert and repo options retain their existing button tooltips. |
 | Dialogs | Footer shortcuts dialog (open with `?`, close with Escape); secrets edit dialog |
 | Resources list | `sectionLabel` "Resources" over a 2px `divider` left-bordered column of rows from [components/ResourceRows.tsx](corp-src/components/ResourceRows.tsx): `PlainRow` (label `text.muted`, value `text.primary`, both body1 sans), `EditableNameRow` and `SelectionRow` (options passed in, e.g. the Azure location list; free text when empty); step lists use the same left border. |
 | Dark panel | Remote terminal only (`TERMINAL_COLORS`, Catppuccin-like) |
@@ -453,9 +455,9 @@ ESLint ([eslint.config.js](eslint.config.js)): recommended `jsx-a11y`; `no-restr
 | Area | Implementation |
 |---|---|
 | Landmarks / headings | skip link, `header`, `main`, `footer`; one `h1`; `h2` "Deployment setup progress" and "Help & information"; cards are `h3`; footer content has no subgroup headings |
-| Keyboard | native `button`/`a`/inputs only; title and chevron are separate tab stops; Enter/Space toggle; requirement rows are buttons |
-| Focus | global `:focus-visible` (2px blue + halo) and explicit card focus styles; skip link focus reveal |
-| Names | toggle name = visible title + summary + hidden status ("Locked" wins); icon-only buttons labelled; new-tab links announce "(opens in new tab)"; inputs tied to `FieldLabel` |
+| Keyboard | native buttons, links and form controls; title and chevron are separate tab stops; Enter/Space toggle; requirement rows are buttons; informational `InfoTip` spans are named and focusable without implying a command |
+| Focus | global `:focus-visible` and explicit card/help focus styles; skip link focus reveal; prerequisite and next-step jumps focus the destination heading, ordinary toggles retain focus, and collapse-all returns focus from closing content to its heading |
+| Names | toggle name = visible title + summary + hidden status ("Locked" wins); icon-only buttons labelled; new-tab links announce "(opens in new tab)"; inputs tied to `FieldLabel`; variable help is referenced by `aria-describedby`; decorative ZB mark is `aria-hidden` and h1 follows `document.title` |
 | Status | decorative icons `aria-hidden`; `StepRow` status is text; `StatusText` / `ErrorText` give `status` / `alert`; terminal status bar `role=status`; toast `status` |
 | Motion | global `prefers-reduced-motion` reset |
 | Reflow | fluid grid; automated check at 320px |
@@ -476,30 +478,30 @@ Manual 200% zoom reflow, keyboard-only end-to-end run, screen-reader announcemen
 
 ### 8.4 Browser support
 
-The UI targets modern evergreen browsers supported by Vite 7, React 19, and MUI 7; Internet Explorer and similarly old browsers are out of scope. Clipboard access falls back to a legacy copy command when the Clipboard API is missing or denied, with failure announced if both methods fail. UUID generation uses `crypto.randomUUID()` when available and otherwise secure `crypto.getRandomValues()`; it fails explicitly if secure randomness is unavailable. `color-mix()` is progressively enhanced for the configuration-error surface, which retains a theme-based background and border without it. Forced-colors mode uses the system `Highlight` color for keyboard focus. Automated browser coverage currently uses Chromium only. Firefox and Safari/WebKit have not been verified.
+The UI targets modern evergreen browsers supported by Vite 7, React 19, and MUI 7; Internet Explorer and similarly old browsers are out of scope. Clipboard access falls back to a legacy copy command when the Clipboard API is missing or denied, with failure announced if both methods fail. UUID generation uses `crypto.randomUUID()` when available and otherwise secure `crypto.getRandomValues()`; it fails explicitly if secure randomness is unavailable. `color-mix()` is progressively enhanced for the configuration-error surface, which retains a theme-based background and border without it. Forced-colors mode uses the system `Highlight` color for keyboard focus. Chromium retains the full existing browser coverage. Opt-in Playwright Firefox/WebKit projects cover tagged unauthenticated accessibility, keyboard-navigation and responsive-header smoke cases. Both engines passed on Windows on 2026-11-11; this is not certification of shipping Safari on macOS/iOS or of authenticated deployment flows.
 
 ---
 
 ## 9. Findings and recommendations
 
-Source reviewed 2026-11-08; none of these have been confirmed with assistive technology.
+Source reviewed 2026-11-11; none of these have been confirmed with assistive technology.
 
 | # | Severity | Finding | Recommendation |
 |---|---|---|---|
 | 1 | Medium | Two cards shared the title "Private Zeninstaller Environment" (`remote_terminal_infra`, `private_frontend_infra`); screen-reader and tab users could not tell them apart. | Resolved: titles are now "Private Zeninstaller Backend Environment" and "Private hosting environment". The progress label for the latter remains "Frontend hosting environment". |
 | 2 | Medium | Intro panel and footer panel used `sx={{ background: "background.paper" }}`. | Resolved: both now use `bgcolor: "background.paper"`. |
-| 3 | Medium | Information is tooltip-only on non-focusable elements: variable description (`InfoOutlinedIcon`), the "Changed since last plan" warning icon (also `aria-hidden`), and the `not latest` pill. Keyboard and screen-reader users miss it. | Make triggers focusable with accessible names, or render the text inline / via `aria-describedby`. |
+| 3 | Medium | Variable/plan explanations were tooltip-only on non-focusable icons and pills. | Resolved in source: shared `InfoTip` provides focusable named triggers, input descriptions have stable `aria-describedby` links, and tooltip values retain sensitive-content markers. Focused Chromium assertions pass; real screen-reader validation remains open. |
 | 4 | Medium | Status text used `success.main`, `warning.main`, and `error.light`, which fall short of 4.5:1 on white. | Resolved: status summaries and text use dark shades; lighter shades remain on icons, borders and backgrounds. |
 | 5 | Medium | `StepRow` state and progress were icon-only/unnamed. | Resolved in source and covered by focused Chromium DOM assertions: each state has hidden text and running indicators are named. Screen-reader announcement behavior remains for manual verification. |
 | 6 | Low | `ConfigErrorNotice` message was not associated with its card controls. | Resolved: unavailable card title and chevron describe the static message through `aria-describedby`; no interruptive live alert is used. Focused Chromium DOM assertion passes. |
-| 7 | Low | Card titles use single-line ellipsis, which can hide text visually on touch screens. | Resolved for assistive technology: the full title and summary remain in the toggle's accessible name and in `title` attributes. Visual truncation remains intentional to keep card headers aligned. |
-| 8 | Low | Header "ZB" mark is read as text before the `h1`; the `h1` text is `document.title`, so it depends on `index.html`. | Mark the logo `aria-hidden`; keep the title static in the header or assert it in a test. |
-| 9 | Low | Expanding a card makes it span the full grid width and reflows neighbours, which can shift focus position and context. | Keep the existing scroll-into-view, and consider restoring focus/scroll after toggle. |
+| 7 | Low | Collapsed card titles use single-line ellipsis, which can hide text visually on touch screens. | Full title and summary remain in the toggle's accessible name and in `title` attributes. Collapsed truncation remains intentional to keep faces aligned; expanded titles and summaries wrap. |
+| 8 | Low | Header "ZB" mark was read before the `h1`. | Resolved: mark is `aria-hidden`; tests assert h1 matches `document.title`. |
+| 9 | Low | Card expansion and prerequisite navigation can shift context. | Improved: normal toggles preserve focus, prerequisite/next-step jumps focus the destination heading, collapse-all cannot hide panel focus, and scrolling respects reduced motion. Keyboard regressions pass; manual end-to-end context checks remain open. |
 | 10 | Low | The page had no overall progress indicator or recommended-next-step cue. | Resolved: the page tracks 23 setup tasks and provides a button to open the first incomplete, unlocked card. |
 | 11 | Low | Footer Contact and Terms content are placeholders. | Provide content or remove the entry points before release. Keyboard shortcuts help is now implemented. |
-| 12 | Low | Icons are sized via `typography: "caption"` (about 12px), and `IconButton size="small"` targets are about 30px. | Acceptable for WCAG 2.2 AA (24px), but consider larger targets on touch. |
+| 12 | Low | Compact icons can have small targets. | New information surfaces and touched variable clear/revert controls have at least 24px targets. A broader touch-target redesign remains deferred. |
 | 13 | Info | `GlobalGroupsCard` is built, tested and unused in `App.tsx`. | Remove or render it. |
-| 14 | Info | Disabled primary buttons use MUI's theme-provided disabled background and text colors; their visibility in both color schemes has not been reassessed since the button baseline was standardized. | Review the rendered disabled state in both schemes and improve its boundary if it is difficult to identify. |
+| 14 | Info | Disabled contained buttons and editor fields used raw default-palette values in the other colour scheme. | Resolved for these overrides: scheme-aware CSS variables now follow the selected mode. Disabled contained/outlined controls pass desktop/mobile checks in light/dark. Disabled controls are not subject to WCAG text-contrast requirements; manual platform checks remain open. |
 | 15 | Info | Destructive actions (sign-out, end session) are one click with no confirmation. | Consider confirmation where state is lost. |
 
 ---
@@ -515,16 +517,38 @@ Source reviewed 2026-11-08; none of these have been confirmed with assistive tec
 | Live integration | [pwtests/corp-src/integration-tests](pwtests/corp-src/integration-tests) (auth set-up projects) |
 | Test hooks (UI contract) | `id="card-<id>"`, `data-id`, `data-sensitive`, accessible names; see README design decision 6 |
 
+### 10.1 Verification on 2026-11-11
+
+- Unit baseline: 265 passed, 3 failed across 25 files. The failures are Access Pass error-path telemetry calls reading `context` from a null Application Insights instance; the historical widespread JSX-runner failure was not reproduced. Telemetry changes are outside this pass.
+- Focused Chromium Vitest slice: 27 passed across `SharedBuildingBlocks.browser.test.tsx`, `ButtonStyles.browser.test.tsx` and `envParsing.browser.test.ts`.
+- Playwright: all 16 Chromium accessibility tests and all 14 opt-in Firefox/WebKit smoke cases passed. Responsive screenshots are test artifacts, not updated snapshot baselines.
+- UI TypeScript check passes after restoring a missing mock-helper import. Scoped component/test lint passes. Lint including `App.tsx` still reports the existing `react-refresh/only-export-components` finding at `AppDashboard`; the UI ESLint configuration does not cover `.mts` tests or the root Playwright configuration.
+- Direct Vite production build succeeds, with Node-module externalization warnings from `dotenv` (`path`, `os`, `crypto`) and the existing large-chunk warning. Both browser API providers parse fetched and zipped configuration in Chromium, including quotes, comments, equals/hash characters, empty values, CRLF and multiline values. This does not establish that the production dependency is browser-safe: replacement remains open, requires equivalent semantics and no Node imports, and must leave deployment-side `dotenv` usage unchanged. No parser dependency was added.
+
+Run the opt-in matrix from this UI folder in PowerShell:
+
+```powershell
+pnpm exec playwright install firefox webkit
+$env:UX_BROWSERS = "1"
+pnpm exec playwright test --config ../../playwright.config.ts --project=ux-firefox --project=ux-webkit
+Remove-Item Env:UX_BROWSERS
+```
+
+`BASE_URL` consistently overrides the test URL and web-server readiness URL/port. Opt-in projects select only `@ux-smoke` tests in `CardAccessibility.spec.mts`; they do not enable live integration workflows or share screenshot baselines across engines.
+
 ---
 
 ## 11. Remaining work
 
-- [ ] Add or run representative smoke and accessibility tests in Firefox and Safari/WebKit. Both Playwright and Vitest browser projects currently use Chromium only.
-- [ ] Verify the browser bundle impact of the `dotenv` imports in `corp-src/api/backend.ts` and `corp-src/api/github.ts`; replace them with a browser-safe parser or document why the bundled dependency is safe.
-- [ ] Triage the current test-suite failures. The `pnpm test` run on 2026-11-04 reported 42 passed and 219 failed across 28 test files; the output contains widespread `ReferenceError: React is not defined` failures. The earlier Access Pass telemetry and shared-editor-border results are historical and need to be rechecked after the runner failures are understood.
+- [x] Add and run representative Firefox/WebKit accessibility and keyboard smoke tests. All 14 opt-in cases pass; actual Safari and authenticated deployment flows remain unverified.
+- [x] Audit browser `dotenv` usage and characterize both API parsing paths. See section 10.1 for build warnings and six passing browser tests.
+- [ ] Replace the Node-oriented browser parser dependency after selecting and approving a compatible browser-only implementation; preserve the characterized `.env` semantics and deployment-side usage.
+- [x] Recheck the test-runner and shared-editor failures. Automatic JSX works; scheme-aware editor tokens and a missing mock-helper import are fixed. See dated results in section 10.1.
+- [ ] Fix the three current Access Pass telemetry error-path failures and triage unrelated lint findings separately.
 - [ ] Complete manual 200% browser zoom checks at desktop and narrow widths, and verify Windows High Contrast/reduced-motion behavior on a real platform. Playwright emulation and the 320px viewport check do not replace these checks.
 - [ ] Complete a representative keyboard-only deployment flow and verify live progress/error announcements with a supported screen reader.
-- [ ] Address the source-confirmed accessibility gaps in section 9: tooltip-only variable/plan explanations, `StepRow` state text and progress names, and a role or accessible relationship for `ConfigErrorNotice`. Recheck disabled-button visibility in both color schemes.
+- [x] Implement focusable variable/plan explanations and input descriptions; retain existing `StepRow` state/progress semantics and `ConfigErrorNotice` relationships. Verify disabled controls in both schemes. Manual assistive-technology validation remains open above.
 - [ ] Decide whether to render or remove the unused `GlobalGroupsCard`; it remains unrendered in `App.tsx`.
 - [ ] Resolve the footer Contact and Terms placeholders before release, or remove those entry points.
-- [ ] Review the remaining section 9 findings: the header mark's accessible treatment, focus/context after card expansion, touch target sizing, and confirmation for destructive actions that can lose state.
+- [x] Hide the decorative header mark from assistive technology and add focus-navigation regressions; ensure touched help/clear/revert targets are at least 24px.
+- [ ] Decide whether broader touch-target changes or confirmations for destructive actions are needed; these product decisions remain deferred.

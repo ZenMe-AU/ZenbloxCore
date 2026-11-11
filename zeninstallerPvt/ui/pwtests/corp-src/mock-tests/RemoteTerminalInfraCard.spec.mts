@@ -4,7 +4,7 @@ import { expect, type BrowserContext, type Page, type TestInfo } from "@playwrig
 import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL } from "../../testInit";
 import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
-import { expectSuccessfulSteps, installMockAzure, installMockGitHub, mockSubscriptionId, mockTenantId } from "../util/mockTestHelper.mts";
+import { expectSuccessfulSteps, installCoreInfraAzureMock, installMockAzure, installMockGitHub, mockSubscriptionId, mockTenantId } from "../util/mockTestHelper.mts";
 import {backendInsights, backendLaw, BackendNames, backendResourceGroup, connectionInput, defaultBackendNames, openConnectionDetails, openRemoteTerminalCard, pipelineAppName, remoteTerminalStepLabels, terminalKeys,
 } from "../util/RemoteTerminalInfraCardHelper.mts";
 import { AZURE_MANAGEMENT_URL, GITHUB_API_URL, MICROSOFT_GRAPH_URL, TEST_REPO_MAIN } from "../../testInit.js";

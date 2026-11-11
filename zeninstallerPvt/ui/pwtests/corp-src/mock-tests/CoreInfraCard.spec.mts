@@ -7,6 +7,7 @@ import { expect, type BrowserContext, type Page } from "@playwright/test";
 import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { AZURE_MANAGEMENT_URL, CORP_URL } from "../../testInit";
 import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
+import { expandCard } from "../util/cardHelper.mts";
 import {
   coreInfraStepLabels,
   expectSuccessfulSteps,
@@ -456,11 +457,9 @@ async function prepareCoreInfraCard(
 async function openCoreInfraCard(card: import("@playwright/test").Locator) {
   const header = card.getByRole("button", { name: /^Terraform state backend/ });
   await expect(header).toBeVisible();
-  if ((await header.getAttribute("aria-expanded")) !== "true") {
-    await header.click();
-  }
-  await expect(header).toHaveAttribute("aria-expanded", "true");
-  await expect(card.getByText("Company short code", { exact: true })).toBeVisible();
+  await expect(header).not.toContainText("Locked", { timeout: 60_000 });
+  await expandCard(card);
+  await expect(card.getByRole("textbox", { name: "COMPANY_SHORT_CODE", exact: true })).toBeVisible();
 }
 
 async function saveCoreCompanyCode(card: import("@playwright/test").Locator) {

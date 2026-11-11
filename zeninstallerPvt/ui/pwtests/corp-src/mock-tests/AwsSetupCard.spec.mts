@@ -53,7 +53,7 @@ async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestI
         },
       ],
     });
-    expect(calls.find((call) => call.get("Action") === "AttachRolePolicy")?.get("PolicyArn")).toBe("arn:aws:iam::aws:policy/AdministratorAccess");
+    expect(calls.find((call) => call.get("Action") === "AttachRolePolicy")?.get("PolicyArn")).toBe("arn:aws:iam::aws:policy/ReadOnlyAccess");
     await expectSnapshot(page, card, testInfo, "role-created", viewport);
   });
   await test.step("Read back the saved environment connection", async () => {

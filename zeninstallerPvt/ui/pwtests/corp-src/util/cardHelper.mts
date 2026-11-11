@@ -6,7 +6,8 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 export async function expandCard(card: Locator) {
-  const toggle = card.locator("h3").getByRole("button");
+  await expect(card).toBeVisible();
+  const toggle = card.locator('button[aria-label][aria-expanded][aria-controls^="card-content-"]');
   await expect(toggle).toHaveAttribute("aria-expanded", /^(true|false)$/);
   if (await toggle.getAttribute("aria-expanded") === "false") await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");

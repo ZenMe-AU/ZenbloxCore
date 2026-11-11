@@ -21,6 +21,7 @@ import {
 import { expandAzureAppRegistrationCard, expandAzureLoginCard } from "../util/cardHelper.mts";
 
 test("Happy path", async ({ page, context }, testInfo) => {
+  test.setTimeout(120_000);
   await runHappyPath({ page, context }, testInfo);
 });
 

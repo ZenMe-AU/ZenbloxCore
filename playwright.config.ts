@@ -17,6 +17,8 @@ const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({
   path: [path.resolve(currentDirectory, ".env"), path.resolve(currentDirectory, "zeninstallerPvt/ui/pwtests/.env")],
 });
+const baseURL = process.env.BASE_URL || "http://localhost:5174/core/";
+const serverPort = new URL(baseURL).port || "5174";
 
 export default defineConfig({
   testDir: currentDirectory,
@@ -60,7 +62,7 @@ export default defineConfig({
   },
 
   use: {
-    baseURL: "http://localhost:5174/core",
+    baseURL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     testIdAttribute: "data-id",
@@ -77,14 +79,22 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
       },
     },
+    ...(process.env.UX_BROWSERS === "1" ? (["firefox", "webkit"] as const).map((browserName) => ({
+      name: `ux-${browserName}`,
+      testMatch: "**/zeninstallerPvt/ui/pwtests/corp-src/mock-tests/CardAccessibility.spec.mts",
+      grep: /@ux-smoke/,
+      retries: 0,
+      workers: 2,
+      use: { browserName, viewport: { width: 1280, height: 900 } },
+    })) : []),
   ],
 
   /**
    * Start the server automatically
    */
   webServer: {
-    command: "pnpm run dev",
-    url: process.env.BASE_URL || "http://localhost:5174/core/",
+    command: `pnpm run dev --port ${serverPort}`,
+    url: baseURL,
     cwd: path.resolve(currentDirectory, "zeninstallerPvt/ui"),
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

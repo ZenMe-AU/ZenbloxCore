@@ -12,6 +12,7 @@ import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
 import StatusText from "../../components/StatusText";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
 import CloudVariableDetail from "../CloudVariableDetail";
@@ -148,13 +149,9 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
               variant="contained"
               onClick={() => void infra.run()}
               disabled={infra.running || editingStorage || editingWebPubSub || editingFunctionApp || !infra.location.trim()}
-              sx={{
-                alignSelf: "flex-start",
-                py: 0.85,
-                px: 2.5,
-              }}
+              sx={{ alignSelf: "flex-start" }}
             >
-              {infra.done ? "Re-run setup" : "Create backend environment"}
+              {infra.done ? "Re-run" : "Create backend environment"}
             </Button>
           </Box>
         )}
@@ -165,6 +162,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
               <StepRow key={s.id} step={s} />
             ))}
             {infra.running && <StatusText>Running...</StatusText>}
+            <ProcessRetryNotice started={infra.steps.length > 0} />
             {!infra.running && (
               <Button
                 size="small"
