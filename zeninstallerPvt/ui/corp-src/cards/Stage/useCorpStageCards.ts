@@ -83,10 +83,28 @@ export function useCorpStageCards({
           },
         ];
     const locked = requirements.length > 0;
+    let cardSummary: string | undefined;
+    if (!locked) {
+      try {
+        cardSummary =
+          run?.error ??
+          getStageSummaryText(
+            stage,
+            summary,
+            plan.stagesLoading,
+            isStale,
+            stageDef.optional,
+            getUnmetPrerequisites(stageDef.prerequisites, variableValues, cardStatus),
+          );
+      } catch (error) {
+        console.error("Failed to build stage card summary:", error);
+        cardSummary = "";
+      }
+    }
     const card: CardChrome = {
       cardId,
       status: locked ? "idle" : stageToCardStatus(effectiveStatus, isStale, plan.stagesLoading),
-      summary: locked ? undefined : run?.error ?? getStageSummaryText(stage, summary, plan.stagesLoading, isStale, stageDef.optional, getUnmetPrerequisites(stageDef.prerequisites, variableValues, cardStatus)),
+      summary: cardSummary,
       locked,
       requirements,
       unavailable: false,
