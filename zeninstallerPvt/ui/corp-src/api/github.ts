@@ -371,6 +371,7 @@ export function createGithubApi(token: string) {
       // dir is left out of the JSON when undefined; workflows without a dir input reject unknown inputs.
       body: JSON.stringify({ ref, inputs: { github_env_name: githubEnvName, dir } }),
     });
+    if (res.status === 404) throw new Error(`Build workflow for ${workflowId} is not found.`);
     if (!res.ok) throw new Error(`Failed to trigger workflow: ${res.status}`);
   }
 

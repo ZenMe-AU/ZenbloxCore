@@ -156,7 +156,9 @@ export function useWebDeployCard({
       setError("The build is taking longer than expected — check GitHub Actions.");
     } catch (e) {
       //TODO: Awan - filter status code for 404
-      setError(e instanceof Error ? e.message : "Failed to start the build");
+      const message = e instanceof Error ? e.message : "Failed to start the build";
+      setError(message === "Failed to trigger workflow: 404" ? `Build workflow for ${BUILD_WORKFLOW} is not found.` : message);
+      // setError(e instanceof Error ? e.message : "Failed to start the build");
     } finally {
       setBuilding(false);
     }
