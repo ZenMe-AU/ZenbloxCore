@@ -1,4 +1,5 @@
 name: Deploy PrivAVD
+run-name: Priv Run PrivAVD/${{ fromJSON('{"initImageGallery":"init.ps1","buildImage":"build.ps1","deployPaw":"deployPAW.ps1"}')[inputs.dir] }} @ ${{ inputs.github_env_name }}
 
 on:
   workflow_dispatch:
@@ -9,7 +10,7 @@ on:
       dir:
         required: true
         type: choice
-        options: [privavd-gallery, privavd-image, privavd-paw]
+        options: [initImageGallery, buildImage, deployPaw]
         description: "PrivAVD stage to run"
       github_env_name:
         required: false
@@ -29,10 +30,6 @@ jobs:
     name: PrivAVD ${{ inputs.dir }}
     environment: ${{ inputs.github_env_name }}
     runs-on: ubuntu-latest
-    # An explicit bash shell runs with -o pipefail, so `pwsh ... | tee` fails when the script does.
-    defaults:
-      run:
-        shell: bash
     env:
       TF_IN_AUTOMATION: "true"
       # Never wait on a prompt; init.ps1 runs a bare `terraform apply`.
@@ -63,7 +60,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Install Packer
-        if: inputs.dir == 'privavd-image'
+        if: inputs.dir == 'buildImage'
         uses: hashicorp/setup-packer@v3
         with:
           version: 1.11.2
@@ -117,11 +114,15 @@ jobs:
           AWS_LOGIN: "false"
 
       # ── Run ─────────────────────────────────────────────────────────────────
+      # *>&1 keeps Write-Host in the log; a throw skips the pipe, so the catch appends its message before failing the step.
       - name: Run the stage script as the signed-in user
         id: script
+        shell: pwsh
         env:
-          SCRIPT: ${{ fromJSON('{"privavd-gallery":"init.ps1","privavd-image":"build.ps1","privavd-paw":"deployPAW.ps1"}')[inputs.dir] }}
-        run: pwsh -NoProfile -File "corpSetup/PrivAVD/$SCRIPT" 2>&1 | tee /tmp/deploy_output.txt
+          SCRIPT: ${{ fromJSON('{"initImageGallery":"init.ps1","buildImage":"build.ps1","deployPaw":"deployPAW.ps1"}')[inputs.dir] }}
+        run: |
+          try { & "corpSetup/PrivAVD/$env:SCRIPT" *>&1 | Tee-Object -FilePath /tmp/deploy_output.txt }
+          catch { "$_" | Tee-Object -FilePath /tmp/deploy_output.txt -Append; throw }
 
       # ── Record ──────────────────────────────────────────────────────────────
       - name: Make sure the log explains itself

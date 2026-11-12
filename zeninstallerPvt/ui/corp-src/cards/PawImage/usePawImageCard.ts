@@ -7,13 +7,13 @@ import { usePrivAvdDeploy, type PrivAvdDeploy, type PrivAvdTarget } from "../../
 import type { CardHook, CardRequirements } from "../../types";
 import { PRIVAVD_IMAGE_DIR, PRIVAVD_IMAGE_TITLE } from "./config";
 
-export interface UsePrivAvdImageCard extends CardHook, PrivAvdDeploy {
+export interface UsePawImageCard extends CardHook, PrivAvdDeploy {
   readonly cardId: "privavd_image";
   cardRequirements: CardRequirements;
   cardDependencyLabel: string;
 }
 
-export function usePrivAvdImageCard(target: PrivAvdTarget): UsePrivAvdImageCard {
+export function usePawImageCard(target: PrivAvdTarget): UsePawImageCard {
   return {
     ...usePrivAvdDeploy({ dir: PRIVAVD_IMAGE_DIR, ...target }),
     cardId: "privavd_image" as const,
