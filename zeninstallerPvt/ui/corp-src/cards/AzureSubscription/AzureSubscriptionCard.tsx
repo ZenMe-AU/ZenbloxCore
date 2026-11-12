@@ -4,7 +4,7 @@
  */
 
 import { useEffect } from "react";
-import { Alert, Box, Button, CircularProgress, Link, MenuItem, Select, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Link, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { Account, CardChrome, GhEnv } from "../../types";
@@ -174,7 +174,7 @@ export default function AzureSubscriptionCard({
           )}
         </Box>
 
-        {subscription.installerAccess.status !== "idle" && (
+        {(subscription.installerAccess.status === "checking" || subscription.installerAccess.status === "error") && (
           <Box sx={{ minWidth: 0 }}>
             {subscription.installerAccess.status === "checking" ? (
               <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -183,25 +183,21 @@ export default function AzureSubscriptionCard({
               </Box>
             ) : (
               <>
-                {subscription.installerAccess.status === "error" ? (
-                  <Box role="alert" sx={{
-                    backgroundColor: "background.default", border: "1px solid", borderColor: "warning.main",
-                    borderRadius: 1, px: 2, py: 1.25, minWidth: 0, overflowWrap: "anywhere",
-                  }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
-                      <Typography color="warning.dark">You may not have enough subscription access to complete the installer.</Typography>
-                    </Box>
-                    <Box sx={{ color: "warning.dark" }}>
-                      <Typography sx={{ whiteSpace: "pre-line" }}>{subscription.installerAccess.error}</Typography>
-                      <ExternalLink href={AZURE_PIM_ACTIVATION_URL} label="Activate an Azure resource role in PIM">
-                        Activate eligible roles in PIM and recheck subscription access.
-                      </ExternalLink>
-                    </Box>
+                <Box role="alert" sx={{
+                  backgroundColor: "background.default", border: "1px solid", borderColor: "warning.main",
+                  borderRadius: 1, px: 2, py: 1.25, minWidth: 0, overflowWrap: "anywhere",
+                }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+                    <Typography color="warning.dark">You may not have enough subscription access to complete the installer.</Typography>
                   </Box>
-                ) : (
-                  <Alert severity="success">Subscription-level installer permissions verified.</Alert>
-                )}
+                  <Box sx={{ color: "warning.dark" }}>
+                    <Typography sx={{ whiteSpace: "pre-line" }}>{subscription.installerAccess.error}</Typography>
+                    <ExternalLink href={AZURE_PIM_ACTIVATION_URL} label="Activate an Azure resource role in PIM">
+                      Activate eligible roles in PIM and recheck subscription access.
+                    </ExternalLink>
+                  </Box>
+                </Box>
                 <Button variant="contained" sx={{ mt: 1, py: 0.85, px: 2.5 }} onClick={subscription.installerAccess.retry}>
                   Recheck subscription access
                 </Button>
