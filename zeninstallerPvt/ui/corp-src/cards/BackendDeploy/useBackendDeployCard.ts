@@ -15,6 +15,7 @@ import {
 import { PRIVATE_RESOURCE_GROUP, functionAppFromApiUrl, getFunctionAppName } from "../../logic/naming";
 import { BACKEND_VERSION_KEYS } from "../../config/azureConfig";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
 import type { Account, AzureAccount, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
 
 // What the build workflow recorded, as the card reads it back off the Deployments API.
@@ -40,6 +41,7 @@ export interface UseBackendDeployCardParams {
 const BUILD_WORKFLOW = "buildBackend.yml";
 
 export interface UseBackendDeployCard extends CardHook, AzureConfigHook {
+  managementAccess: CardResourceAccess;
   readonly cardId: "backend_deploy";
   appName: string;
   latest: BackendBuild | null;
@@ -82,6 +84,10 @@ export function useBackendDeployCard({
 
   // The same name the Backend Environment card created; where it lives is asked of Azure, since it may be reused elsewhere.
   const appName = functionAppFromApiUrl(variableValues.VITE_API_URL) || getFunctionAppName(subscriptionId);
+  const managementAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, {
+    card: "backendDeploy", resourceGroup: PRIVATE_RESOURCE_GROUP, functionApp: appName,
+  });
+  const { check: checkResourceAccess, reportFailure: reportAccessFailure } = managementAccess;
   const findGroup = useCallback(
     async (account: AzureAccount) => (await findFunctionAppGroup(account, subscriptionId, appName, tenantId || undefined)) ?? PRIVATE_RESOURCE_GROUP,
     [subscriptionId, appName, tenantId]
@@ -163,11 +169,15 @@ export function useBackendDeployCard({
     setRunning(true);
     setError(null);
     setSteps([
+      { id: "access", label: "Check Azure resource access", status: "pending" },
       { id: "download", label: "Download the built package", status: "pending" },
       { id: "upload", label: `Upload it to ${appName}`, status: "pending" },
       { id: "deploy", label: "Wait for the Function App to unpack it", status: "pending" },
     ]);
     try {
+      updateStep("access", "running");
+      await checkResourceAccess();
+      updateStep("access", "done");
       updateStep("download", "running");
       const mb = (bytes: number) => (bytes / 1_000_000).toFixed(1);
       const zip = await fetchArtifactZip(githubAccount, repoName, latest.artifactId, (received, total) =>
@@ -208,11 +218,12 @@ export function useBackendDeployCard({
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setError(message);
+      if (/^403\b/.test(message)) reportAccessFailure(e);
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error", detail: message } : s)));
     } finally {
       setRunning(false);
     }
-  }, [azureAccount, githubAccount, repoName, latest, subscriptionId, appName, tenantId, findGroup, readDeployed, setRunning, setSteps, updateStep]);
+  }, [azureAccount, githubAccount, repoName, latest, subscriptionId, appName, tenantId, findGroup, readDeployed, setRunning, setSteps, updateStep, checkResourceAccess, reportAccessFailure]);
 
   const reset = useCallback(() => {
     resetSteps();
@@ -228,6 +239,7 @@ export function useBackendDeployCard({
   const summary = !ready ? "Unavailable" : done ? `Deployed ${latest?.sha.slice(0, 7)}` : updateAvailable ? "Update available" : "Build the backend";
 
   return {
+    managementAccess,
     cardId: "backend_deploy" as const,
     appName,
     latest,

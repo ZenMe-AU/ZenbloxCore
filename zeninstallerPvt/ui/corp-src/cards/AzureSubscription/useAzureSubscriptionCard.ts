@@ -5,6 +5,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { listSubscriptions, type Subscription } from "../../api/azureGraph";
+import { ensureInstallerSubscriptionAccess } from "../../api/azureArm";
+import { useSubscriptionAccess, type SubscriptionAccess } from "../../hooks/util/useResourceGroupCreationAccess";
 import { AZURE_CLIENT_ID } from "../../config/azureConfig";
 import { findIgnoreCase } from "../../logic/search";
 import type { UrlRestoreField } from "../../hooks/useUrlStateManager";
@@ -19,6 +21,7 @@ export type UseAzureSubscriptionCardParams = {
 };
 
 export interface UseAzureSubscriptionCard extends CardHook {
+  installerAccess: SubscriptionAccess;
   readonly cardId: "azure_subscription";
   subscriptions: Subscription[];
   selectedSubscriptionId: string;
@@ -62,6 +65,12 @@ export function useAzureSubscriptionCard({
   const selectedSubscriptionId = picked?.tenant === pickedTenant ? picked.id : "";
 
   const setSelectedSubscriptionId = (id: string) => setPicked({ tenant: pickedTenant, id });
+  const installerAccess = useSubscriptionAccess({
+    azureAccount,
+    subscriptionId: confirmedTenantId === pickedTenant && subscriptions.some((subscription) => subscription.id === selectedSubscriptionId)
+      ? selectedSubscriptionId : "",
+    tenantId: confirmedTenantId ?? undefined,
+  }, ensureInstallerSubscriptionAccess);
 
   // Reload whenever the account or the confirmed tenant changes — the list is per-tenant.
   useEffect(() => {
@@ -105,18 +114,23 @@ export function useAzureSubscriptionCard({
   const azureConfigured = !!AZURE_CLIENT_ID;
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
-  const status: CardStatus = subscriptionConfirmed ? "complete" : subscriptionDrift || subscriptionNoAccess ? "warning" : "idle";
+  const status: CardStatus = installerAccess.status === "error"
+    ? "warning"
+    : subscriptionConfirmed ? "complete" : subscriptionDrift || subscriptionNoAccess ? "warning" : "idle";
   const summary = !azureConfigured
     ? "Unavailable"
-    : subscriptionConfirmed
-      ? (subscriptionLabel ?? "Subscription selected")
-      : subscriptionDrift
-        ? "Unsaved change — save to apply"
-        : subscriptionNoAccess
-          ? "No subscriptions in this tenant"
-          : "Select a subscription";
+    : installerAccess.status === "error"
+      ? "Installer subscription access needs attention"
+      : subscriptionConfirmed
+        ? (subscriptionLabel ?? "Subscription selected")
+        : subscriptionDrift
+          ? "Unsaved change — save to apply"
+          : subscriptionNoAccess
+            ? "No subscriptions in this tenant"
+            : "Select a subscription";
 
   return {
+    installerAccess,
     cardId: "azure_subscription" as const,
     subscriptions,
     selectedSubscriptionId,

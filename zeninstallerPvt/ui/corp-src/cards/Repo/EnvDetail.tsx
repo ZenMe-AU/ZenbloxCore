@@ -79,10 +79,10 @@ export default function EnvDetail({
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography variant="body1" color="text.secondary">
           Pick the environment to configure.{" "}
-          <Box component="span" sx={{ fontWeight: 600 }}>
+          <Box component="span">
             {validEnvs.join(", ")}
           </Box>{" "}
-          are set up separately — everything below applies to the one you pick.
+          are configured independently, with their own settings and deployments. PROD is the live deployment; TEST is for validating changes. Everything below applies only to the environment you select.
         </Typography>
         {!lockedByPR && (
           <RefreshButton
@@ -131,14 +131,17 @@ export default function EnvDetail({
                     display: isSelected || !lockedByPR ? "inline-flex" : "none",
                     alignItems: "center",
                     gap: 0.75,
-                    px: 2,
-                    py: 0.75,
-                    borderRadius: 1,
+                    minHeight: 32,
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: 0.75,
                     border: "1px solid",
                     borderColor: isSelected ? "primary.main" : "divider",
                     backgroundColor: isSelected ? "primary.main" : "background.paper",
                     color: isSelected ? "primary.contrastText" : "text.secondary",
                     fontWeight: isSelected ? 700 : 400,
+                    typography: "button",
+                    lineHeight: 1.25,
                     userSelect: "none",
                     transition: "all 0.15s",
                     "&:hover": !lockedByPR

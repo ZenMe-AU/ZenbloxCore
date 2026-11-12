@@ -14,7 +14,9 @@ import {
   createServicePrincipal,
   ensureFederatedCredential,
   ensureRbacRole,
+  ensureServicePrincipalAccess,
 } from "../../api/azureGraph";
+import { formatCardResourceAccessError, useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
 import { isConsentError } from "../../logic/consent";
 import { createResultStorage } from "../../logic/resultStorage";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
@@ -39,6 +41,7 @@ export interface UseAzureAppRegistrationCardParams extends AzureTarget {
 
 // steps / running / run / reset come from AzureConfigHook.
 export interface UseAzureAppRegistrationCard extends CardHook, AzureConfigHook {
+  managementAccess: CardResourceAccess;
   readonly cardId: "azure_app_registration";
   azureAccount: AzureAccount | null;
   appName: string;
@@ -101,6 +104,8 @@ export function useAzureAppRegistrationCard({
   // from whichever of these is known: the saved GitHub var, a prior successful run, or the tenant
   // the user has picked but not yet confirmed via a run.
   const effectiveTenantId = tenantId || result?.tenantId || manualTenantId.trim() || undefined;
+  const managementAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId: effectiveTenantId }, { card: "appRegistration" });
+  const { check: checkResourceAccess, reportFailure: reportAccessFailure } = managementAccess;
 
   // The app's own save flow always writes AZURE_PLAN_CLIENT_ID equal to AZURE_CLIENT_ID — a saved
   // mismatch means something else touched it (stale value, manual edit), so treat it as drift too.
@@ -162,7 +167,9 @@ export function useAzureAppRegistrationCard({
     const resolvedTenantId = effectiveTenantId ?? azureAccount.tenantId;
 
     const initialSteps: SetupStep[] = [
+      { id: "access", label: "Check subscription access to assign RBAC roles", status: "pending" },
       { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
+      { id: "graph-access", label: "Check Microsoft Graph service-principal access", status: "pending" },
       { id: "app", label: "Create app registration", status: "pending" },
       { id: "sp", label: "Create service principal", status: "pending" },
       { id: "oidc", label: "Link Azure sign-in to this GitHub repository", status: "pending" },
@@ -174,13 +181,27 @@ export function useAzureAppRegistrationCard({
     let appId = "";
     let appObjectId = "";
     let spObjectId = "";
-    let currentStep = "consent";
+    let currentStep = "access";
 
     try {
+      updateStep("access", "running");
+      await checkResourceAccess();
+      updateStep("access", "done");
+
       currentStep = "consent";
       updateStep("consent", "running");
       const promptedGraph = await ensureScopeConsent(azureAccount, [...APP_SCOPES], effectiveTenantId);
       updateStep("consent", promptedGraph ? "done" : "skipped", promptedGraph ? undefined : "Already granted");
+
+      currentStep = "graph-access";
+      updateStep("graph-access", "running");
+      try {
+        await ensureServicePrincipalAccess(azureAccount, effectiveTenantId);
+      } catch (error) {
+        reportAccessFailure(error);
+        throw new Error(formatCardResourceAccessError(error, "appRegistration"), { cause: error });
+      }
+      updateStep("graph-access", "done", "Read-only service-principal access verified; Graph enforces create permission during the operation.");
 
       currentStep = "app";
       updateStep("app", "running");
@@ -242,11 +263,16 @@ export function useAzureAppRegistrationCard({
       setRunNonce((n) => n + 1);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
+      const stepMessage = (currentStep === "sp" || currentStep === "graph-access") && (/\b403\b|Authorization_RequestDenied|Insufficient privileges/i.test(msg))
+        ? formatCardResourceAccessError(err, "appRegistration")
+        : msg;
+      if (currentStep === "sp" && stepMessage !== msg) reportAccessFailure(err);
+      if (currentStep === "rbac" && /^403\b/.test(msg)) reportAccessFailure(err);
       if (isConsentError(msg)) {
         updateStep(currentStep, "error", "Additional consent required — redirecting to Microsoft...");
         await requestAppConsent().catch(() => updateStep(currentStep, "error", "Consent redirect failed — try again"));
       } else {
-        updateStep(currentStep, "error", msg);
+        updateStep(currentStep, "error", stepMessage);
       }
     } finally {
       setRunning(false);
@@ -265,6 +291,8 @@ export function useAzureAppRegistrationCard({
     setRunning,
     updateStep,
     requestAppConsent,
+    checkResourceAccess,
+    reportAccessFailure,
   ]);
 
   const done = variablesComplete && rbacStatus === "ready" && !planClientIdMismatch;
@@ -292,6 +320,7 @@ export function useAzureAppRegistrationCard({
             : "Create the app registration";
 
   return {
+    managementAccess,
     cardId: "azure_app_registration" as const,
     azureAccount,
     appName,

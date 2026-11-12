@@ -1,20 +1,15 @@
 /// <reference types="node" />
 // UI component: ../../../corp-src/cards/BackendDeployCard.tsx
 import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import { expectSuccessfulSteps, prepareExistingBackend } from "../util/mockTestHelper.mts";
 import { backendStepLabels, openBackendCard } from "../util/cardHelper.mts";
 
-test.beforeEach(async ({ page }) => {
-	await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-test.afterEach(async ({ page }, testInfo) => {
-	await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
+  test.skip(process.env.RUN_BACKEND_DEPLOY_INTEGRATION !== "true", "Live backend deployment requires explicit opt-in.");
   await runHappyPath({ page, context }, testInfo);
 });
 

@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $stateFiles = @(
     Get-ChildItem -LiteralPath $PSScriptRoot -Recurse -Force -File |
-    Where-Object { $_.Name -in @("terraform.tfstate", "terraform.tfstate.backup") }
+    Where-Object { $_.Name -like "terraform.tfstate*" }
 )
 
 if ($stateFiles.Count -eq 0) {

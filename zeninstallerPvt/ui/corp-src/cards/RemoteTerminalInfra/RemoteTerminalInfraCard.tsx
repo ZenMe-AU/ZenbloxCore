@@ -8,10 +8,12 @@ import { Box, Button, ButtonBase, Collapse, Typography } from "@mui/material";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import type { UseRemoteTerminalInfraCard } from "./useRemoteTerminalInfraCard";
 import StepRow from "../StepRow";
+import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
 import StatusText from "../../components/StatusText";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import { getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
 import CloudVariableDetail from "../CloudVariableDetail";
@@ -21,9 +23,9 @@ import type { Account, CardChrome, GhEnv } from "../../types";
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
-      The relay behind the stage-card terminal: Web PubSub, the session table, and the Function App that issues group-scoped tokens. Everything connects by
-      managed identity — no access key is stored.
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+      Configure a secure deployment terminal in GitHub that always verifies approval with a human before making a change to the environment.
+      This will configure a web pubsub backend that allows realtime feedback to the browser during deployments.
     </Typography>
   );
 }
@@ -74,14 +76,20 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
       : undefined;
 
   return (
-    <Card title="Private Zeninstaller Backend Environment" action={rgUrl ? <ViewLink href={rgUrl} /> : undefined} lockedIntro={<Intro />} {...card}>
+    <Card
+      title="Private Zeninstaller Backend Environment"
+      action={rgUrl ? <ViewLink href={rgUrl} label="Open backend resource group in Azure" /> : undefined}
+      lockedIntro={<Intro />}
+      {...card}
+    >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro />
 
         {infra.steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <ResourceGroupCreationAccess access={infra.creationAccess} resourceAccess />
             <Box>
-              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
+              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources to be created</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
                 <PlainRow label="Resource group" value={infra.resourceGroupName} />
                 <PlainRow label="Log Analytics" value={infra.lawName} />
@@ -142,14 +150,14 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
             <Button
               variant="contained"
               onClick={() => void infra.run()}
-              disabled={infra.running || editingStorage || editingWebPubSub || editingFunctionApp || !infra.location.trim()}
+              disabled={infra.running || editingStorage || editingWebPubSub || editingFunctionApp || !infra.location.trim() || infra.creationAccess.status !== "ready"}
               sx={{
                 alignSelf: "flex-start",
                 py: 0.85,
                 px: 2.5,
               }}
             >
-              {infra.done ? "Re-run setup" : "Create backend environment"}
+              {infra.done ? "Re-run" : "Create backend environment"}
             </Button>
           </Box>
         )}
@@ -160,6 +168,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
               <StepRow key={s.id} step={s} />
             ))}
             {infra.running && <StatusText>Running...</StatusText>}
+            <ProcessRetryNotice started={infra.steps.length > 0} />
             {!infra.running && (
               <Button
                 size="small"
@@ -183,22 +192,33 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
           onClick={() => setVarExpanded((expanded) => !expanded)}
           aria-expanded={varExpanded}
           aria-controls="remote-terminal-connection-details"
-          sx={{ width: "100%", display: "flex", alignItems: "center", gap: 1.5, userSelect: "none", py: 0.25 }}
+          sx={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            userSelect: "none",
+            py: 0.25,
+            "&:hover .connection-toggle-label, &:focus-visible .connection-toggle-label": { color: "primary.main" },
+            "&:hover .connection-toggle-line, &:focus-visible .connection-toggle-line": { backgroundColor: "primary.main" },
+            "&:hover .connection-toggle-icon, &:focus-visible .connection-toggle-icon": { color: "primary.main" },
+          }}
         >
-          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
-          <Typography color="text.muted" sx={{ whiteSpace: "nowrap" }}>
+          <Box className="connection-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+          <Typography className="connection-toggle-label" color="text.muted" sx={{ whiteSpace: "nowrap", transition: "color 0.2s" }}>
             {varExpanded ? "collapse" : "open to enter connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
+            className="connection-toggle-icon"
             sx={{
               typography: "body2",
               color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
-              transition: "transform 0.2s",
+              transition: "color 0.2s, transform 0.2s",
             }}
             aria-hidden="true"
           />
-          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+          <Box className="connection-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
         </ButtonBase>
 
         {/* unmountOnExit=false keeps draft edits alive while collapsed */}

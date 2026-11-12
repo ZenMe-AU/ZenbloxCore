@@ -28,6 +28,8 @@ async function waitFor(assertion: () => void, timeoutMs = 1500) {
 
 const { apiMocks } = vi.hoisted(() => ({
   apiMocks: {
+    ensureCardResourceAccess: vi.fn(),
+    ensureServicePrincipalAccess: vi.fn(),
     getMsal: vi.fn(),
     ensureScopeConsent: vi.fn(),
     getExistingApp: vi.fn(),
@@ -53,7 +55,13 @@ vi.mock("../api", () => ({
   setOidcImmutableSubject: apiMocks.setOidcImmutableSubject,
 }));
 
+vi.mock("../api/azureArm", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../api/azureArm")>(),
+  ensureCardResourceAccess: apiMocks.ensureCardResourceAccess,
+}));
+
 vi.mock("../api/azureGraph", () => ({
+  ensureServicePrincipalAccess: apiMocks.ensureServicePrincipalAccess,
   getExistingApp: apiMocks.getExistingApp,
   getAppNameByAppId: apiMocks.getAppNameByAppId,
   createAppRegistration: apiMocks.createAppRegistration,
@@ -115,6 +123,8 @@ describe("useAzureAppRegistrationCard", () => {
     sessionStorage.clear();
 
     apiMocks.getExistingApp.mockResolvedValue({ appId: "existing-app", id: "app-obj" });
+    apiMocks.ensureCardResourceAccess.mockReset().mockResolvedValue(undefined);
+    apiMocks.ensureServicePrincipalAccess.mockReset().mockResolvedValue(undefined);
     apiMocks.getAppNameByAppId.mockResolvedValue("Prefilled App");
     apiMocks.createAppRegistration.mockResolvedValue({ appId: "created-app", id: "app-created" });
     apiMocks.getExistingSP.mockResolvedValue({ id: "sp-existing" });
@@ -372,6 +382,64 @@ describe("useAzureAppRegistrationCard", () => {
     await act(async () => {
       root.unmount();
     });
+  });
+
+  it("blocks Graph changes when subscription role-assignment access is missing", async () => {
+    let latest: UseAzureAppRegistrationCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    await act(async () => {
+      root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />);
+    });
+
+    apiMocks.ensureCardResourceAccess.mockRejectedValueOnce(new Error("Missing roleAssignments/write"));
+    await act(async () => { await latest?.run(); });
+    expect(latest?.steps[0]).toMatchObject({ id: "access", status: "error", detail: "Missing roleAssignments/write" });
+    expect(apiMocks.ensureScopeConsent).not.toHaveBeenCalled();
+    expect(apiMocks.createAppRegistration).not.toHaveBeenCalled();
+    expect(apiMocks.ensureFederatedCredential).not.toHaveBeenCalled();
+    expect(apiMocks.ensureRbacRole).not.toHaveBeenCalled();
+    await act(async () => root.unmount());
+  });
+
+  it("checks Graph service-principal access after consent and before creating the app", async () => {
+    let latest: UseAzureAppRegistrationCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    apiMocks.ensureServicePrincipalAccess.mockRejectedValueOnce(new Error("403 /servicePrincipals: Insufficient privileges"));
+    await act(async () => {
+      root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />);
+    });
+    await act(async () => { await latest?.run(); });
+    expect(apiMocks.ensureScopeConsent).toHaveBeenCalledTimes(1);
+    expect(apiMocks.ensureServicePrincipalAccess).toHaveBeenCalledTimes(1);
+    expect(latest?.steps.find((step) => step.id === "graph-access")).toMatchObject({
+      status: "error", detail: expect.stringContaining("Application.ReadWrite.All"),
+    });
+    expect(latest?.managementAccess).toMatchObject({
+      status: "error", error: expect.stringContaining("Application Administrator"),
+    });
+    expect(apiMocks.createAppRegistration).not.toHaveBeenCalled();
+    expect(apiMocks.createServicePrincipal).not.toHaveBeenCalled();
+    apiMocks.ensureServicePrincipalAccess.mockResolvedValueOnce(undefined);
+    await act(async () => latest?.managementAccess.retry());
+    expect(apiMocks.ensureServicePrincipalAccess).toHaveBeenCalledTimes(2);
+    expect(latest?.managementAccess.status).toBe("ready");
+    await act(async () => root.unmount());
+  });
+
+  it("invalidates the success warning when the actual RBAC write is denied", async () => {
+    let latest: UseAzureAppRegistrationCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    apiMocks.ensureRbacRole.mockRejectedValueOnce(new Error("403 /subscriptions/sub/providers/Microsoft.Authorization/roleAssignments/role: AuthorizationFailed"));
+    await act(async () => {
+      root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />);
+    });
+    expect(latest?.managementAccess.status).toBe("ready");
+    await act(async () => { await latest?.run(); });
+    expect(latest?.steps.find((step) => step.id === "rbac")?.status).toBe("error");
+    expect(latest?.managementAccess).toMatchObject({ status: "error", error: expect.stringContaining("Azure denied access") });
+    await act(async () => latest?.managementAccess.retry());
+    expect(latest?.managementAccess.status).toBe("ready");
+    await act(async () => root.unmount());
   });
 
   it("asks for every scope up front, one call per resource, before doing any work", async () => {

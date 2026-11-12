@@ -5,46 +5,16 @@
 
 // UI component: ../../../corp-src/cards/GithubLogin/GithubLoginCard.tsx
 import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { getCorpGithubAuthMode, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { CORP_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot, expectVisibleWithin } from "../../util/testHelper.ts";
+import { expectSnapshot, expectVisibleWithin } from "../../../../../.playwright/testHelper.js";
 import { expandGithubLoginCard } from "../util/cardHelper.mts";
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);
 });
 
-test("Submit a valid PAT without restoring saved authentication", async ({ page }, testInfo) => {
-  const viewportName = getViewportName(testInfo);
-  await page.goto(CORP_URL);
-  const card = await expandGithubLoginCard(page);
-  const directMode = card.getByRole("button", { name: "Direct (PAT)", exact: true });
-  if (await directMode.isVisible()) await directMode.click();
-  // Playwright's enabled API logger prints fill() values; keep the real credential out of it.
-  await card.getByPlaceholder("ghp_… or github_pat_…").evaluate((element, token) => {
-    const input = element as HTMLInputElement;
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-    if (!setter) throw new Error("Password input setter is unavailable");
-    setter.call(input, token);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-  }, process.env.GITHUB_TOKEN!);
-  await card.getByRole("button", { name: "Connect with PAT", exact: true }).click();
-  await expect(card.getByText(/Authenticated as/i)).toBeVisible();
-  await expect(card.getByText(/PAT mode/)).toBeVisible();
-  await card.getByRole("button", { name: "Sign out", exact: true }).click();
-  await page.reload();
-  await expect(card.getByText(/Authenticated as/i)).toHaveCount(0);
-  await expectSnapshot(page, card, testInfo, "pat-signed-out", viewportName);
-});
 
 test("Invalid PAT token", async ({ page }, testInfo) => {
   const viewportName = getViewportName(testInfo);

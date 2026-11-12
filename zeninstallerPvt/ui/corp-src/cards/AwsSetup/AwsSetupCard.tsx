@@ -14,6 +14,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
 import { getIamRoleUrl } from "./consoleUrls";
@@ -36,17 +37,17 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
-      Create an AWS IAM role that lets GitHub Actions get temporary AWS credentials without storing access keys. The role receives the AWS-managed
-      ReadOnlyAccess policy: GitHub Actions only plans, and deploys run as the person who signs in. ZenInstaller saves the role ARN to the selected GitHub environment for
-      deployment stages to use.
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+      ZenInstaller creates an AWS IAM role for GitHub Actions to use in the currently selected GitHub environment. GitHub Actions uses OIDC, a secure sign-in method, to prove which organization, repository, and environment a workflow belongs to. AWS checks that information against the role’s trust rules, then gives matching workflows temporary credentials. This means you don’t need to store AWS access keys in GitHub.
+
+The role has AWS’s ReadOnlyAccess permission, which lets it view AWS resources without changing them. ZenInstaller saves the role’s ARN (its AWS identifier) as the AWS_ROLE_ARN variable in the selected GitHub environment.
     </Typography>
   );
 }
 
 function Action({ roleName }: { roleName: string }) {
   if (!roleName) return null;
-  return <ViewLink href={getIamRoleUrl(roleName)} />;
+  return <ViewLink href={getIamRoleUrl(roleName)} label="Open IAM role in AWS" />;
 }
 
 function StepRow({ step }: { step: SetupStep }) {
@@ -178,11 +179,6 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
                 variant="contained"
                 onClick={handleCreate}
                 disabled={card.locked || !canCreate}
-                sx={{
-                  py: 1,
-                  px: 2.5,
-                  boxShadow: (theme) => `0 2px 8px ${theme.palette.primary.main}33`,
-                }}
               >
                 Create IAM Role
               </Button>
@@ -205,6 +201,7 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
               <StepRow key={s.id} step={s} />
             ))}
             {loading && <Typography role="status" aria-live="polite" color="text.muted" sx={{ mt: 0.5 }}>Running...</Typography>}
+            <ProcessRetryNotice started={steps.length > 0} />
             {!loading && (
               <Button
                 size="small"
@@ -229,21 +226,33 @@ export default function AwsSetupCard({ card, awsSetup, account, repoName, repoFu
           aria-expanded={varExpanded}
           aria-controls="aws-connection-details"
           onClick={() => setVarExpanded((expanded) => !expanded)}
-          sx={{ display: "flex", width: "100%", alignItems: "center", gap: 1.5, userSelect: "none", py: 0.25 }}
+          disableRipple
+          sx={{
+            display: "flex",
+            width: "100%",
+            alignItems: "center",
+            gap: 1.5,
+            userSelect: "none",
+            py: 0.25,
+            "&:hover .connection-toggle-label, &:focus-visible .connection-toggle-label": { color: "primary.main" },
+            "&:hover .connection-toggle-line, &:focus-visible .connection-toggle-line": { backgroundColor: "primary.main" },
+            "&:hover .connection-toggle-icon, &:focus-visible .connection-toggle-icon": { color: "primary.main" },
+          }}
         >
-          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
-          <Typography color="text.muted" sx={{ whiteSpace: "nowrap" }}>
+          <Box className="connection-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+          <Typography className="connection-toggle-label" color="text.muted" sx={{ whiteSpace: "nowrap", transition: "color 0.2s" }}>
             {varExpanded ? "collapse" : "open to enter application connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
+            className="connection-toggle-icon"
             sx={{
               typography: "caption",
               color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
-              transition: "transform 0.2s",
+              transition: "color 0.2s, transform 0.2s",
             }}
           />
-          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+          <Box className="connection-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
         </ButtonBase>
 
         <Collapse id="aws-connection-details" role="region" aria-labelledby="aws-connection-details-toggle" in={varExpanded} timeout={300} unmountOnExit={false}>

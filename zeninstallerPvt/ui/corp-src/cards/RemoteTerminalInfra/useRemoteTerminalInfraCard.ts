@@ -33,6 +33,7 @@ import {
 import { createAppRegistration, createServicePrincipal, ensureFederatedCredential, getExistingApp, getExistingSP } from "../../api/azureGraph";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
 import {
   DEFAULT_AZURE_LOCATION,
   PRIVATE_APP_INSIGHTS,
@@ -76,6 +77,7 @@ export interface UseRemoteTerminalInfraCardParams extends AzureTarget {
 }
 
 export interface UseRemoteTerminalInfraCard extends CardHook, AzureConfigHook {
+  creationAccess: CardResourceAccess;
   readonly cardId: "remote_terminal_infra";
   location: string;
   setLocation: (loc: string) => void;
@@ -152,6 +154,11 @@ export function useRemoteTerminalInfraCard({
   const webPubSubName = webPubSubOverride || savedWebPubSub || getWebPubSubName(subscriptionId);
   const functionAppName = functionAppOverride || functionAppFromApiUrl(variableValues.VITE_API_URL) || getFunctionAppName(subscriptionId);
   const planName = `${functionAppName}-plan`;
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, {
+    card: "backend", resourceGroup: resourceGroupName, workspace: lawName, storageAccount: storageAccountName,
+    appInsights: appInsightsName, webPubSub: webPubSubName, functionApp: functionAppName, servicePlan: planName,
+  });
+  const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
   const pipelineAppName = PRIVATE_PIPELINE_APP;
 
   const resultMatches = !!result && result.subscriptionId === subscriptionId;
@@ -319,6 +326,7 @@ export function useRemoteTerminalInfraCard({
 
     setRunning(true);
     const initialSteps: SetupStep[] = [
+      { id: "access", label: "Check Azure resource access", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
       { id: "law", label: `Create Log Analytics workspace ${lawName}`, status: "pending" },
@@ -341,6 +349,10 @@ export function useRemoteTerminalInfraCard({
     const mark = (id: string, r: "created" | "exists") => updateStep(id, r === "exists" ? "skipped" : "done", r === "exists" ? "Already exists" : undefined);
 
     try {
+      updateStep("access", "running");
+      await checkResourceAccess();
+      updateStep("access", "done");
+
       updateStep("providers", "running");
       const providers = await ensureRegistered(REMOTE_TERMINAL_PROVIDERS);
       updateStep(
@@ -468,6 +480,7 @@ export function useRemoteTerminalInfraCard({
       setRunNonce((n) => n + 1);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      if (/^403 \/subscriptions\//.test(message)) reportAccessFailure(e);
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error", detail: message } : s)));
     } finally {
       setRunning(false);
@@ -477,6 +490,8 @@ export function useRemoteTerminalInfraCard({
     appInsightsName,
     azureAccount,
     ensureRegistered,
+    checkResourceAccess,
+    reportAccessFailure,
     functionAppName,
     lawName,
     location,
@@ -501,6 +516,7 @@ export function useRemoteTerminalInfraCard({
 
   return {
     cardId: "remote_terminal_infra" as const,
+    creationAccess,
     location,
     setLocation,
     locations,

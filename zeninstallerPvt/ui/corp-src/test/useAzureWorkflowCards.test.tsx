@@ -82,7 +82,9 @@ vi.mock("../api/azureGraph", () => ({
   listVerifiedDomains: apiMocks.listVerifiedDomains,
 }));
 
-vi.mock("../api/azureArm", () => ({
+vi.mock("../api/azureArm", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../api/azureArm")>(),
+  ensureCardResourceAccess: vi.fn().mockResolvedValue(undefined),
   ensureResourceGroup: apiMocks.ensureResourceGroup,
   resourceGroupExists: apiMocks.resourceGroupExists,
   ensureLogAnalyticsWorkspace: apiMocks.ensureLogAnalyticsWorkspace,

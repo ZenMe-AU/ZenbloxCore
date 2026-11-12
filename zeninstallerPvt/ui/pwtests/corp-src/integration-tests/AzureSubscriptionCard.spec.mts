@@ -5,15 +5,12 @@
 
 // UI component: ../../../corp-src/cards/AzureSubscriptionCard.tsx
 import { type BrowserContext, expect, type Locator, type Page } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
-import { attachJSCoverage, expectSnapshot, safePathSegment, expectVisibleWithin } from "../../util/testHelper.ts";
+import { expectSnapshot, safePathSegment, expectVisibleWithin } from "../../../../../.playwright/testHelper.js";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
 import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
-
-test.beforeEach(async ({ page }) => { await page.coverage.startJSCoverage({ resetOnNavigation: false }); });
-test.afterEach(async ({ page }, testInfo) => { await attachJSCoverage(page, testInfo); });
 
 // The happy path is the main scenario for this card, showing the expect standard use case.
 test("Happy path", async ({ page, context }, testInfo) => {
@@ -174,7 +171,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await expectVisibleWithin(azureSubscriptionCard.getByRole("button", { name: "Change on Azure login" }), "Button: Change on Azure Login", 5000);
     await expectVisibleWithin(azureSubscriptionCard.getByText(/^Subscription/i,), "Text: Rendering Subscription text", 50000);
     await expect(azureSubscriptionCard.getByText("Loading subscriptions...",),).toBeHidden({ timeout: 60_000, });
-    const subscriptionSelect = azureSubscriptionCard.getByRole("combobox",);
+    const subscriptionSelect = azureSubscriptionCard.getByRole("combobox");
     const noSubscriptionsMessage = azureSubscriptionCard.getByText("This tenant has no subscriptions you can access.", { exact: true, },);
     await expectVisibleWithin(subscriptionSelect.or(noSubscriptionsMessage,), "Subscription selector or empty-state message", 50_000);
 
@@ -270,8 +267,8 @@ export async function openExistingAzureSubscription(page: Page,context: BrowserC
     }
   }
 
-  const tenantVariableInput = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true }).locator("..").locator("..").getByRole("textbox");
-  const subscriptionVariableInput = azureSubscriptionCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true }).locator("..").locator("..").getByRole("textbox");
+  const tenantVariableInput = azureSubscriptionCard.getByRole("textbox", { name: "AZURE_TENANT_ID", exact: true });
+  const subscriptionVariableInput = azureSubscriptionCard.getByRole("textbox", { name: "AZURE_SUBSCRIPTION_ID", exact: true });
   const saveButton = azureSubscriptionCard.getByRole("button", { name: "Save variables" });
   await expect.poll(async () => (await tenantVariableInput.inputValue()).trim(), { timeout: 60_000 }).not.toBe("");
   await expect.poll(async () => (await subscriptionVariableInput.inputValue()).trim(), { timeout: 60_000 }).not.toBe("");

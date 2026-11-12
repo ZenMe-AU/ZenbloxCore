@@ -314,13 +314,17 @@ const theme = createTheme({
   },
   components: {
     MuiButton: {
+      defaultProps: {
+        size: "small",
+      },
       styleOverrides: {
-        root: {
-          borderRadius: 8,
-          fontWeight: 600,
-          fontSize: "1rem",
-          textTransform: "none",
-        },
+        root: ({ theme }) => ({
+          minHeight: 32,
+          padding: "4px 12px",
+          borderRadius: 6,
+          ...theme.typography.button,
+          lineHeight: 1.25,
+        }),
         contained: ({ theme }) => ({
           backgroundImage: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
           "&:hover": {
@@ -328,8 +332,8 @@ const theme = createTheme({
           },
           "&.Mui-disabled": {
             backgroundImage: "none",
-            backgroundColor: theme.palette.action.disabledBackground,
-            color: theme.palette.text.disabled,
+            backgroundColor: theme.vars.palette.action.disabledBackground,
+            color: theme.vars.palette.text.disabled,
           },
         }),
       },
@@ -346,6 +350,20 @@ const theme = createTheme({
         },
       ],
     },
+    MuiToggleButton: {
+      defaultProps: {
+        size: "small",
+      },
+      styleOverrides: {
+        root: ({ theme }) => ({
+          minHeight: 32,
+          padding: "4px 12px",
+          borderRadius: 6,
+          ...theme.typography.button,
+          lineHeight: 1.25,
+        }),
+      },
+    },
     MuiTextField: {
       defaultProps: {
         size: "small",
@@ -355,21 +373,21 @@ const theme = createTheme({
           props: { className: "corpEditor" },
           style: ({ theme }) => ({
             "& .MuiOutlinedInput-root": {
-              backgroundColor: theme.palette.background.default,
-              color: theme.palette.text.primary,
+              backgroundColor: theme.vars.palette.background.default,
+              color: theme.vars.palette.text.primary,
               fontFamily: "monospace",
               fontSize: "1rem",
               borderRadius: "6px",
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: theme.palette.divider },
-              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: theme.palette.divider },
-              "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: theme.palette.primary.main },
+              "& .MuiOutlinedInput-notchedOutline": { borderColor: theme.vars.palette.divider },
+              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: theme.vars.palette.divider },
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: theme.vars.palette.primary.main },
             },
             '&[data-editor-state="dirty"] .MuiOutlinedInput-notchedOutline': { borderColor: "#fbbf24" },
             '&[data-editor-state="error"] .MuiOutlinedInput-root.Mui-error .MuiOutlinedInput-notchedOutline': {
-              borderColor: theme.palette.error.light,
+              borderColor: theme.vars.palette.error.light,
             },
             "& .MuiInputBase-input": { py: "5px", px: "10px" },
-            "& .MuiInputBase-input::placeholder": { color: theme.palette.text.disabled, opacity: 1 },
+            "& .MuiInputBase-input::placeholder": { color: theme.vars.palette.text.disabled, opacity: 1 },
           }),
         },
         {
@@ -387,7 +405,14 @@ const theme = createTheme({
     },
     MuiLink: {
       defaultProps: {
-        underline: "always",
+        underline: "none",
+      },
+      styleOverrides: {
+        root: ({ theme }) => ({
+          ...theme.typography.body1,
+          textDecoration: "none",
+          "&:hover": { textDecoration: "none" },
+        }),
       },
     },
     MuiTypography: {

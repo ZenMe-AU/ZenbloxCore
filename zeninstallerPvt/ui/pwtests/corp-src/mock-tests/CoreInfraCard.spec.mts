@@ -4,9 +4,10 @@
  */
 
 import { expect, type BrowserContext, type Page } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { AZURE_MANAGEMENT_URL, CORP_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
+import { expandCard } from "../util/cardHelper.mts";
 import {
   coreInfraStepLabels,
   expectSuccessfulSteps,
@@ -23,18 +24,63 @@ type CoreInfraMockOptions = {
   includeSecondSubscription?: boolean;
   failRegionLookup?: boolean;
   failFirstResourceGroupPut?: boolean;
+  reusedStorageResourceGroup?: string;
 };
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);
+});
+
+test("Validates storage names and keeps unavailable names in the editor", async ({ page, context }, testInfo) => {
+  const viewportName = getViewportName(testInfo);
+  const { card } = await prepareCoreInfraCard(page, context, viewportName);
+  await saveCoreCompanyCode(card);
+  let available = false;
+  const availabilityNames: string[] = [];
+  await page.route(`${AZURE_MANAGEMENT_URL}/**/checkNameAvailability**`, async (route) => {
+    availabilityNames.push(route.request().postDataJSON().name);
+    await route.fulfill({ json: { nameAvailable: available } });
+  });
+  await card.getByRole("button", { name: "Edit Storage account", exact: true }).click();
+  const storageInput = card.getByRole("textbox", { name: "Storage account", exact: true });
+  const confirm = card.getByRole("button", { name: "Confirm Storage account", exact: true });
+  await expect(card.getByRole("button", { name: "Create core infrastructure", exact: true })).toBeDisabled();
+  await storageInput.fill("UP");
+  await confirm.click();
+  await expect(card.getByText("3-24 characters, lowercase letters and digits only", { exact: true })).toBeVisible();
+  expect(availabilityNames).toEqual([]);
+  await storageInput.fill("zbcorepwtestsstor");
+  await confirm.click();
+  await expect(card.getByText("This name is taken somewhere in Azure — choose a different one", { exact: true })).toBeVisible();
+  await expect(storageInput).toBeVisible();
+  available = true;
+  await confirm.click();
+  await expect(storageInput).toBeHidden();
+  expect(availabilityNames).toEqual(["zbcorepwtestsstor", "zbcorepwtestsstor"]);
+  await expect(card.getByRole("button", { name: "Create core infrastructure", exact: true })).toBeEnabled();
+  await expectSnapshot(page, card, testInfo, "storage-name-availability", viewportName);
+});
+
+test("Reuses a visible storage account in its actual resource group", async ({ page, context }, testInfo) => {
+  const viewportName = getViewportName(testInfo);
+  test.setTimeout(240_000);
+  const { card, prepared, resourceWrites } = await prepareCoreInfraCard(page, context, viewportName, {
+    reusedStorageResourceGroup: "existing-state-rg",
+  });
+  await saveCoreCompanyCode(card);
+  await confirmStorageName(card);
+  await runCoreInfrastructure(card);
+  await expect(card.getByText("Create storage account zbcorepwtestsstor", { exact: true }).locator("../..")).toContainText("Already exists");
+  await expect.poll(() => prepared.github.variables).toMatchObject({
+    TF_STATE_RESOURCE_GROUP: "existing-state-rg",
+    TF_STATE_STORAGE_ACCOUNT: "zbcorepwtestsstor",
+    TF_STATE_CONTAINER: "terraformstate",
+  });
+  const storageWrites = resourceWrites.filter((write) => write.path.includes("/storageaccounts/"));
+  expect(storageWrites.length).toBeGreaterThan(0);
+  expect(storageWrites.every((write) => write.path.includes("/resourcegroups/existing-state-rg/"))).toBe(true);
+  await expectHiddenBackendVariables(card);
+  await expectSnapshot(page, card, testInfo, "existing-storage-group", viewportName);
 });
 
 test("Allows manual region entry when Azure region lookup fails", async ({ page, context }, testInfo) => {
@@ -121,7 +167,7 @@ test("Does not reuse infrastructure status after the subscription target drifts"
   await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.toLowerCase();
-    if (request.method() === "GET" && path.endsWith(`/resourcegroups/zbcore-pwtests-rg`)) {
+    if (request.method() === "GET" && path.endsWith("/resourcegroups/zbcore-pwtests-rg")) {
       return route.fulfill({
         status: 404,
         contentType: "application/json",
@@ -137,7 +183,7 @@ test("Does not reuse infrastructure status after the subscription target drifts"
   await openCoreInfraCard(driftedCard);
   await expect(prepared.github.variables.AZURE_SUBSCRIPTION_ID).toBe(mockSecondSubscriptionId);
   await expect(driftedCard.getByRole("button", { name: "Create core infrastructure" })).toBeEnabled();
-  await expect(driftedCard.getByRole("button", { name: "Re-run setup" })).toHaveCount(0);
+  await expect(driftedCard.getByRole("button", { name: "Re-run" })).toHaveCount(0);
   await expectSnapshot(page, driftedCard, testInfo, "target-drift", viewportName);
 });
 
@@ -195,6 +241,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await saveCoreCompanyCode(card);
     await expect(card.getByRole("button", { name: "Create core infrastructure" })).toBeEnabled();
     await chooseAustraliaEast(card, page);
+    await confirmStorageName(card);
     await expectSnapshot(page, card, testInfo, "not-setup-start", viewportName);
   });
 
@@ -202,10 +249,31 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await runCoreInfrastructure(card);
     await expect(card.getByRole("button", { name: "Start over" })).toBeVisible();
     await expect([...azureMock.createdResources]).toEqual(
-      expect.arrayContaining(["resource-group", "log-analytics", "diagnostics", "blob-diagnostics", "storage-account", "storage-container", "storage-lock"])
+      expect.arrayContaining(["resource-group", "log-analytics", "diagnostics", "storage-account", "storage-container", "storage-lock", "blob-diagnostics"])
     );
+    expect(azureMock.createdResources).not.toContain("app-insights");
     const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/zbcore-pwtests-rg"));
     expect(resourceGroupWrite?.body).toMatchObject({ location: "australiaeast" });
+    const lockWrite = resourceWrites.find((write) => write.path.includes("/providers/microsoft.authorization/locks/"));
+    expect(lockWrite?.body).toMatchObject({ properties: { level: "CanNotDelete" } });
+    const blobDiagnosticsWrite = resourceWrites.find((write) => write.path.includes("/blobservices/default/providers/microsoft.insights/diagnosticsettings/"));
+    expect(blobDiagnosticsWrite?.body).toMatchObject({
+      properties: {
+        workspaceId: expect.stringContaining("/workspaces/zbcore-pwtests-law"),
+        logs: [
+          { category: "StorageWrite", enabled: true },
+          { category: "StorageDelete", enabled: true },
+        ],
+      },
+    });
+    await expect.poll(() => prepared.github.variables).toMatchObject({
+      NAME: companyShortCode,
+      AZURE_SUBSCRIPTION_ID: mockSubscriptionId,
+      TF_STATE_RESOURCE_GROUP: "zbcore-pwtests-rg",
+      TF_STATE_STORAGE_ACCOUNT: "zbcorepwtestsstor",
+      TF_STATE_CONTAINER: "terraformstate",
+    });
+    await expectHiddenBackendVariables(card);
     await expectSnapshot(page, card, testInfo, "provisioned", viewportName);
   });
 
@@ -216,7 +284,10 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await openCoreInfraCard(reloadedCard);
     await expect(reloadedCard.getByText("Resources", { exact: true })).toBeVisible();
     await expect(reloadedCard.getByText("Resource group: zbcore-pwtests-rg", { exact: true })).toBeVisible();
+    await expect(reloadedCard.getByText("zbcorepwtestsstor", { exact: true })).toBeVisible();
     await expect(reloadedCard.getByText("State container: terraformstate", { exact: true })).toBeVisible();
+    await expect(reloadedCard.getByRole("button", { name: "Save variables", exact: true })).toBeDisabled();
+    await expectHiddenBackendVariables(reloadedCard);
     await expectSnapshot(page, reloadedCard, testInfo, "end", viewportName);
   });
 
@@ -227,7 +298,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
       .map(([scope, roles]) => [scope, [...roles].sort()] as const)
       .sort(([left], [right]) => left.localeCompare(right));
     const writesBeforeRerun = resourceWrites.length;
-    await reloadedCard.getByRole("button", { name: "Re-run setup" }).click();
+    await reloadedCard.getByRole("button", { name: "Re-run" }).click();
     await expect(reloadedCard.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
     await expectSuccessfulSteps(reloadedCard, coreInfraStepLabels("pwtests"));
     await expect(reloadedCard.getByText("Already exists", { exact: true }).first()).toBeVisible();
@@ -331,6 +402,7 @@ async function prepareCoreInfraCard(
   }));
 
   const azureMock = await installCoreInfraAzureMock(page);
+  if (options.reusedStorageResourceGroup) azureMock.createdResources.add("storage-account");
   const resourceWrites: Array<{ path: string; body: unknown }> = [];
   let resourceGroupPutAttempts = 0;
   const rootGroupSuffix = `/resourcegroups/zbcore-${companyShortCode}-rg`.toLowerCase();
@@ -339,6 +411,13 @@ async function prepareCoreInfraCard(
     const path = new URL(request.url()).pathname.toLowerCase();
     const method = request.method();
 
+    if (options.reusedStorageResourceGroup && method === "GET" &&
+        path === `/subscriptions/${mockSubscriptionId}/providers/microsoft.storage/storageaccounts`) {
+      return route.fulfill({ json: { value: [{
+        name: "zbcorepwtestsstor",
+        id: `/subscriptions/${mockSubscriptionId}/resourceGroups/${options.reusedStorageResourceGroup}/providers/Microsoft.Storage/storageAccounts/zbcorepwtestsstor`,
+      }] } });
+    }
     if (options.failRegionLookup && method === "GET" && path.endsWith("/locations")) {
       return route.fulfill({
         status: 503,
@@ -378,15 +457,13 @@ async function prepareCoreInfraCard(
 async function openCoreInfraCard(card: import("@playwright/test").Locator) {
   const header = card.getByRole("button", { name: /^Terraform state backend/ });
   await expect(header).toBeVisible();
-  if ((await header.getAttribute("aria-expanded")) !== "true") {
-    await header.click();
-  }
-  await expect(header).toHaveAttribute("aria-expanded", "true");
-  await expect(card.getByText("Company short code", { exact: true })).toBeVisible();
+  await expect(header).not.toContainText("Locked", { timeout: 60_000 });
+  await expandCard(card);
+  await expect(card.getByRole("textbox", { name: "COMPANY_SHORT_CODE", exact: true })).toBeVisible();
 }
 
 async function saveCoreCompanyCode(card: import("@playwright/test").Locator) {
-  const companyInput = card.getByText("COMPANY_SHORT_CODE", { exact: true }).locator("../..").getByRole("textbox");
+  const companyInput = card.getByRole("textbox", { name: "COMPANY_SHORT_CODE", exact: true });
   if (!(await companyInput.inputValue()).trim()) {
     await companyInput.fill("pwtests");
   }
@@ -405,9 +482,24 @@ async function chooseAustraliaEast(card: import("@playwright/test").Locator, pag
 }
 
 async function runCoreInfrastructure(card: import("@playwright/test").Locator) {
-  const setupButton = card.getByRole("button", { name: /^(?:Create core infrastructure|Re-run setup)$/ });
+  const setupButton = card.getByRole("button", { name: /^(?:Create core infrastructure|Re-run)$/ });
   await expect(setupButton).toBeEnabled();
   await setupButton.click();
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
   await expectSuccessfulSteps(card, coreInfraStepLabels("pwtests"));
+}
+
+async function expectHiddenBackendVariables(card: import("@playwright/test").Locator) {
+  for (const key of ["TF_STATE_RESOURCE_GROUP", "TF_STATE_STORAGE_ACCOUNT", "TF_STATE_CONTAINER"]) {
+    await expect(card.getByText(key, { exact: true })).toHaveCount(0);
+  }
+}
+
+async function confirmStorageName(card: import("@playwright/test").Locator) {
+  await card.getByRole("button", { name: "Edit Storage account", exact: true }).click();
+  const input = card.getByRole("textbox", { name: "Storage account", exact: true });
+  await expect(input).toHaveValue("zbcorepwtestsstor");
+  await expect(card.getByRole("button", { name: "Create core infrastructure", exact: true })).toBeDisabled();
+  await card.getByRole("button", { name: "Confirm Storage account", exact: true }).click();
+  await expect(input).toBeHidden();
 }

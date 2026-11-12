@@ -10,8 +10,10 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseCreateDomainCard } from "./useCreateDomainCard";
 import StepRow from "../StepRow";
+import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
 import Card from "../../components/Card";
 import { PlainRow, SelectionRow } from "../../components/ResourceRows";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_DNS_ZONES_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { dnsZoneScope } from "../../api/azureArm";
@@ -43,7 +45,7 @@ function Intro({ dnsName }: { dnsName: string }) {
   return (
     <Typography variant="body1" color="text.secondary">
       Creates the DNS zone for <b>{dnsName || "your domain"}</b>, adds it to Entra ID as a custom domain, then verifies it and, if you choose, sets it as
-      primary.
+      primary. You need Contributor access (or equivalent such as Owner) on the selected subscription to create resource groups. 
     </Typography>
   );
 }
@@ -60,7 +62,12 @@ function PrimaryCheckbox({ checked, disabled, dnsName, onChange }: { checked: bo
 }
 
 function Action({ resourceId }: { resourceId: string | null }) {
-  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_DNS_ZONES_URL} />;
+  return (
+    <ViewLink
+      href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_DNS_ZONES_URL}
+      label={resourceId ? "Open DNS zone in Azure" : "Browse Azure DNS zones"}
+    />
+  );
 }
 
 export default function CreateDomainCard({
@@ -165,11 +172,13 @@ export default function CreateDomainCard({
           </Box>
         )}
         {checkStatusError && <ErrorText>Couldn't check existing setup: {checkStatusError}</ErrorText>}
+
         {/* Planned resources */}
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <ResourceGroupCreationAccess access={createDomain.creationAccess} resourceAccess />
             <Box>
-              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
+              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources to be created</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
                 <PlainRow label="Resource group" value={createDomain.resourceGroupName} />
                 <PlainRow label="Log Analytics" value={createDomain.lawName} />
@@ -197,13 +206,13 @@ export default function CreateDomainCard({
               <Button
                 variant="contained"
                 onClick={run}
-                disabled={disabled || running || !location.trim()}
+                disabled={disabled || running || !location.trim() || createDomain.creationAccess.status !== "ready"}
                 sx={{
                   py: 0.85,
                   px: 2.5,
                 }}
               >
-                {resourcesDone ? "Re-run setup" : "Set up core DNS domain"}
+                {resourcesDone ? "Re-run" : "Set up core DNS domain"}
               </Button>
               {checkingStatus && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
@@ -221,6 +230,7 @@ export default function CreateDomainCard({
               <StepRow key={s.id} step={s} />
             ))}
             {running && <StatusText>Running...</StatusText>}
+            <ProcessRetryNotice started={steps.length > 0} />
             {!running && (
               <Button
                 size="small"

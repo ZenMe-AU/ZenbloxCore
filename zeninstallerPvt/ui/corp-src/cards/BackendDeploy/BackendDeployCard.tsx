@@ -10,9 +10,11 @@ import { warningMessageIconSx } from "../../config/styles";
 import type { UseBackendDeployCard } from "./useBackendDeployCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import ErrorText from "../../components/ErrorText";
+import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
 import type { CardChrome } from "../../types";
 
 const when = (unixSeconds: number) => new Date(unixSeconds * 1000).toLocaleString();
@@ -25,9 +27,12 @@ type Props = {
 
 function Intro({ appName }: { appName: string }) {
   return (
-    <Typography variant="body1" color="text.secondary">
-      Builds the Zeninstaller backend in GitHub Actions, then pushes the package straight from this browser to{" "}
-      {appName || "the Function App"}.
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+      GitHub Actions builds the ZenInstaller backend. ZenInstaller downloads that build and deploys it from this browser to{" "}
+      <Box component="code" sx={{ typography: "body1" }}>
+        {appName || "the Function App"}
+      </Box>
+      . You can check which build is live before deploying an update.
     </Typography>
   );
 }
@@ -41,7 +46,10 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
       action={
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
-          <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} />
+          <ViewLink
+            href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)}
+            label={latest ? "Open latest backend workflow run" : "Open backend workflow in GitHub"}
+          />
         ) : undefined
       }
       lockedIntro={<Intro appName={appName} />}
@@ -49,6 +57,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro appName={appName} />
+        <ResourceGroupCreationAccess access={backend.managementAccess} resourceAccess />
 
         <Box>
           <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Versions</Typography>
@@ -102,7 +111,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           </Button>
           <Button
             onClick={() => void run()}
-            disabled={!updateAvailable || running || building}
+            disabled={!updateAvailable || running || building || backend.managementAccess.status !== "ready"}
             variant="contained"
             size="small"
             aria-busy={running}
@@ -140,6 +149,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
             ))}
           </Box>
         )}
+        <ProcessRetryNotice started={steps.length > 0} />
       </Box>
     </Card>
   );

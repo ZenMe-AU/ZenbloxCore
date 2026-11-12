@@ -1,4 +1,6 @@
-# How to Create a Free AWS Account
+# How to Create an AWS Account
+
+AWS signup screens and account offers can change. Review the current plan and pricing terms during signup. Creating an account does not guarantee that all AWS usage will be free; services you launch can incur charges.
 
 1. Go to [https://aws.amazon.com/](https://aws.amazon.com/)
 
@@ -60,10 +62,9 @@
 
 13. Enter the SMS code into the field and press **Continue**.
 
-14. You should now be logged in and on the home page of your AWS account.
+14. Complete any remaining identity or account-verification prompts shown by AWS. When signup is complete, open the AWS Management Console.
 
 > **Tip:** Save the login page URL so you can access it later.
 >
 > **Tip:** Save your email address and password in a secure place.
->
 > **Tip:** Create a EC2 micro instance and run it for 30 mins, this wil by pass any account verification errors.

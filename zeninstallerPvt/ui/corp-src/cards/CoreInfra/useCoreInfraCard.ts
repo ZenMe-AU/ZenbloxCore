@@ -37,6 +37,7 @@ import { createResultStorage } from "../../logic/resultStorage";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { APP_SCOPES, AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../../config/azureConfig";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
 import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../../types";
 
 export type CoreInfraResult = {
@@ -57,6 +58,7 @@ export interface UseCoreInfraCardParams extends AzureSpTarget {
 
 // steps / running / run / reset come from AzureConfigHook.
 export interface UseCoreInfraCard extends CardHook, AzureConfigHook {
+  creationAccess: CardResourceAccess;
   readonly cardId: "core_infra";
   location: string;
   setLocation: (loc: string) => void;
@@ -119,6 +121,10 @@ export function useCoreInfraCard({
   const resourceGroupName = getCoreResourceGroupName(corpName);
   const lawName = getCoreLogAnalyticsName(corpName);
   const storageAccountName = storageOverride || variableValues.TF_STATE_STORAGE_ACCOUNT || getCoreStorageAccountName(corpName);
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId: corpName ? subscriptionId : "", tenantId }, {
+    card: "core", resourceGroup: resourceGroupName, workspace: lawName, storageAccount: storageAccountName,
+  });
+  const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
 
   // Too long or bad characters are visible as you type; too short or taken is only known on confirm.
   const setStorageAccount = useCallback((name: string) => {
@@ -215,6 +221,7 @@ export function useCoreInfraCard({
     setRunning(true);
 
     const initialSteps: SetupStep[] = [
+      { id: "access", label: "Check Azure resource access", status: "pending" },
       { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
@@ -229,13 +236,18 @@ export function useCoreInfraCard({
     ];
     setSteps(initialSteps);
 
-    let currentStep = "consent";
+    let currentStep = "access";
     let sp: Awaited<ReturnType<typeof getExistingSP>> = null;
     try {
       if (!/^[a-z0-9]{3,24}$/.test(storageAccountName)) {
         currentStep = "storage";
         throw new Error(`"${storageAccountName}" can't be a storage account name (3-24 lowercase letters and digits) — edit it above`);
       }
+      currentStep = "access";
+      updateStep("access", "running");
+      await checkResourceAccess();
+      updateStep("access", "done");
+
       currentStep = "consent";
       updateStep("consent", "running");
       const promptedGraph = await ensureScopeConsent(azureAccount, [...APP_SCOPES], tenantId);
@@ -318,6 +330,7 @@ export function useCoreInfraCard({
       setRunNonce((n) => n + 1);
     } catch (err) {
       updateStep(currentStep, "error", err instanceof Error ? err.message : "Failed");
+      if (err instanceof Error && /^403 \/subscriptions\//.test(err.message)) reportAccessFailure(err);
     } finally {
       setRunning(false);
     }
@@ -335,6 +348,8 @@ export function useCoreInfraCard({
     setRunning,
     updateStep,
     ensureRegistered,
+    checkResourceAccess,
+    reportAccessFailure,
   ]);
 
   const reset = useCallback(() => {
@@ -351,6 +366,7 @@ export function useCoreInfraCard({
   const summary = !azureConfigured ? "Unavailable" : done ? "Infrastructure ready" : "Set up corp infrastructure";
 
   return {
+    creationAccess,
     location,
     setLocation,
     locations,

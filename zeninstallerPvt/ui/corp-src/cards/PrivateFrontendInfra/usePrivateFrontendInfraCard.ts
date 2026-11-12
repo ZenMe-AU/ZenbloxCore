@@ -23,6 +23,7 @@ import {
 import { createSpaAppRegistration, createServicePrincipal, ensureSpaRedirectUri, getExistingApp, getExistingSP } from "../../api/azureGraph";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
 import {
   DEFAULT_AZURE_LOCATION,
   DIAGNOSTIC_SETTING_NAME,
@@ -50,6 +51,7 @@ export interface UsePrivateFrontendInfraCardParams extends AzureTarget {
 }
 
 export interface UsePrivateFrontendInfraCard extends CardHook, AzureConfigHook {
+  creationAccess: CardResourceAccess;
   readonly cardId: "private_frontend_infra";
   location: string;
   setLocation: (loc: string) => void;
@@ -101,6 +103,10 @@ export function usePrivateFrontendInfraCard({
   const [siteStorageChecking, setSiteStorageChecking] = useState(false);
   const [siteStorageError, setSiteStorageError] = useState<string | null>(null);
   const webStorageAccountName = siteStorageOverride || variableValues.SITE_STORAGE_ACCOUNT || getWebStorageAccountName(subscriptionId);
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, {
+    card: "frontend", resourceGroup: resourceGroupName, workspace: lawName, storageAccount: webStorageAccountName,
+  });
+  const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
 
   const resultMatches = !!result && result.subscriptionId === subscriptionId;
 
@@ -211,6 +217,7 @@ export function usePrivateFrontendInfraCard({
 
     setRunning(true);
     const initialSteps: SetupStep[] = [
+      { id: "access", label: "Check Azure resource access", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
       { id: "law", label: `Create Log Analytics workspace ${lawName}`, status: "pending" },
@@ -231,6 +238,10 @@ export function usePrivateFrontendInfraCard({
     const mark = (id: string, r: "created" | "exists") => updateStep(id, r === "exists" ? "skipped" : "done", r === "exists" ? "Already exists" : undefined);
 
     try {
+      updateStep("access", "running");
+      await checkResourceAccess();
+      updateStep("access", "done");
+
       updateStep("providers", "running");
       const providers = await ensureRegistered(PRIVATE_FRONTEND_PROVIDERS);
       updateStep(
@@ -320,6 +331,7 @@ export function usePrivateFrontendInfraCard({
       setRunNonce((n) => n + 1);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      if (/^403 \/subscriptions\//.test(message)) reportAccessFailure(e);
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error", detail: message } : s)));
     } finally {
       setRunning(false);
@@ -330,6 +342,8 @@ export function usePrivateFrontendInfraCard({
     resourceGroupName,
     azureAccount,
     ensureRegistered,
+    checkResourceAccess,
+    reportAccessFailure,
     location,
     setRunning,
     setSteps,
@@ -344,6 +358,7 @@ export function usePrivateFrontendInfraCard({
 
   return {
     cardId: "private_frontend_infra" as const,
+    creationAccess,
     location,
     setLocation,
     siteStorageAccount: webStorageAccountName,

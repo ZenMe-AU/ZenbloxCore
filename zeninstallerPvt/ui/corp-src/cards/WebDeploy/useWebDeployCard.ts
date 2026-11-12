@@ -8,8 +8,9 @@ import JSZip from "jszip";
 import { fetchArtifactZip, fetchStageReport, triggerWorkflow } from "../../api";
 import { getStaticWebsiteUrl } from "../../api/azureArm";
 import { readDeployedSite, recordDeployedSite, uploadStaticSite, type DeployedSite } from "../../api/azureBlob";
-import { getWebStorageAccountName } from "../../logic/naming";
+import { getWebStorageAccountName, PRIVATE_RESOURCE_GROUP } from "../../logic/naming";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
 import type { Account, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
 
 // What the build workflow recorded, as the card reads it back off the Deployments API.
@@ -36,6 +37,7 @@ export interface UseWebDeployCardParams {
 const BUILD_WORKFLOW = "buildFrontend.yml";
 
 export interface UseWebDeployCard extends CardHook, AzureConfigHook {
+  managementAccess: CardResourceAccess;
   readonly cardId: "web_deploy";
   storageAccountName: string;
   siteUrl: string | null;
@@ -83,6 +85,10 @@ export function useWebDeployCard({
   const [error, setError] = useState<string | null>(null);
 
   const storageAccountName = variableValues.SITE_STORAGE_ACCOUNT || getWebStorageAccountName(subscriptionId);
+  const managementAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, {
+    card: "webDeploy", resourceGroup: PRIVATE_RESOURCE_GROUP, storageAccount: storageAccountName,
+  });
+  const { check: checkResourceAccess, reportFailure: reportAccessFailure } = managementAccess;
   const missingGithubClientId = !(variableValues.VITE_GITHUB_CLIENT_ID ?? "").trim();
   const ready = !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv && !missingGithubClientId;
 
@@ -149,7 +155,10 @@ export function useWebDeployCard({
       }
       setError("The build is taking longer than expected — check GitHub Actions.");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start the build");
+      //TODO: Awan - filter status code for 404
+      const message = e instanceof Error ? e.message : "Failed to start the build";
+      setError(message === "Failed to trigger workflow: 404" ? `Build workflow for ${BUILD_WORKFLOW} is not found.` : message);
+      // setError(e instanceof Error ? e.message : "Failed to start the build");
     } finally {
       setBuilding(false);
     }
@@ -164,11 +173,15 @@ export function useWebDeployCard({
     setRunning(true);
     setError(null);
     setSteps([
+      { id: "access", label: "Check Azure resource and storage read access", status: "pending" },
       { id: "download", label: "Download the built site", status: "pending" },
       { id: "unpack", label: "Unpack it", status: "pending" },
       { id: "upload", label: `Upload it to ${storageAccountName}`, status: "pending" },
     ]);
     try {
+      updateStep("access", "running");
+      await checkResourceAccess();
+      updateStep("access", "done", "Storage read checked; upload permission is enforced during upload.");
       updateStep("download", "running");
       const mb = (bytes: number) => (bytes / 1_000_000).toFixed(1);
       const zip = await fetchArtifactZip(githubAccount, repoName, latest.artifactId, (received, total) =>
@@ -198,11 +211,12 @@ export function useWebDeployCard({
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setError(message);
+      if (/^403\b/.test(message)) reportAccessFailure(e);
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error", detail: message } : s)));
     } finally {
       setRunning(false);
     }
-  }, [azureAccount, githubAccount, repoName, latest, storageAccountName, tenantId, readDeployed, setRunning, setSteps, updateStep]);
+  }, [azureAccount, githubAccount, repoName, latest, storageAccountName, tenantId, readDeployed, setRunning, setSteps, updateStep, checkResourceAccess, reportAccessFailure]);
 
   const reset = useCallback(() => {
     resetSteps();
@@ -230,6 +244,7 @@ export function useWebDeployCard({
           : "Build the frontend";
 
   return {
+    managementAccess,
     cardId: "web_deploy" as const,
     storageAccountName,
     siteUrl,

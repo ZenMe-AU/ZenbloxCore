@@ -36,10 +36,11 @@ pwtest-results/
 playwright-report/
 .auth/
 zeninstallerPvt/ui/pwtests/test-results/
+monocart-report/
 
 # Terraform files
 *.tfstate
-terraform.tfstate.backup
+*.tfstate.*
 .terraform.*
 .terraform/
 *.tfplan

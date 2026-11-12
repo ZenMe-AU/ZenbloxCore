@@ -10,7 +10,7 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
  * Shown in place of a card's normal content when a required env var / config
  * value is missing, so the card stays visible instead of silently disappearing.
  */
-export default function ConfigErrorNotice() {
+export default function ConfigErrorNotice({ id }: { id: string }) {
   return (
     <Box
       sx={{
@@ -30,6 +30,7 @@ export default function ConfigErrorNotice() {
     >
       <ErrorOutlineIcon sx={{ typography: "caption", color: "error.main", flexShrink: 0, mt: "1px" }} />
       <Typography
+        id={id}
         sx={(theme) => ({
           typography: "body1",
           color: "error.dark",

@@ -36,6 +36,11 @@ vi.mock("../api/azureGraph", () => ({
   listSubscriptions: apiMocks.listSubscriptions,
 }));
 
+vi.mock("../api/azureArm", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../api/azureArm")>(),
+  ensureInstallerSubscriptionAccess: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("../config/azureConfig", () => ({
   AZURE_CLIENT_ID: "client-id",
 }));

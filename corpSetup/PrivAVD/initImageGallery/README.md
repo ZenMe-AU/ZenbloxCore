@@ -8,8 +8,7 @@ image with Packer. Do not use the Azure CLI directly (`az group create`,
 are the only supported tools, so state stays consistent and reproducible.
 
 ```powershell
-terraform init
-terraform apply
+.\init.ps1   # terraform init with the remote backend, imports, apply
 
 ..\buildImage\build.ps1
 ```
