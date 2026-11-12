@@ -451,6 +451,8 @@ function StageCardContent({
   managementAccess,
 }: Props & { managementAccess?: CardResourceAccess }) {
   const [expandedPrereqs, setExpandedPrereqs] = useState<Record<number, boolean>>({});
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
+  const [planOutputOpen, setPlanOutputOpen] = useState(false);
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
   const [planSummary, setPlanSummary] = useState<PlanSummary>({ create: 0, update: 0, delete: 0, replace: 0 });
   const [planLoading, setPlanLoading] = useState(false);
@@ -645,133 +647,6 @@ function StageCardContent({
                       <PrerequisiteStatusIcon met={met} changed={changed} />
                       <Typography color={met ? "text.secondary" : "text.muted"} sx={{ flex: 1 }}>{label}</Typography>
                     </Box>
-        {managementAccess && (
-          <>
-            <ResourceGroupCreationAccess access={managementAccess} resourceAccess />
-          </>
-        )}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-          <RunStatusUpdateButton
-            onRun={onRunStatusUpdate}
-            running={statusUpdateRunning}
-            countdown={statusUpdateCountdown}
-            disabled={statusUpdateDisabled}
-          />
-          {runError && <ErrorText>{runError}</ErrorText>}
-        </Box>
-
-        {stageDef.prerequisites.length > 0 && (
-          <Box>
-            <Typography
-              variant="sectionLabel"
-              sx={{ mb: 1 }}
-            >
-              Prerequisites
-            </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column" }}>
-              {stageDef.prerequisites.map((prereq, i) => {
-                const met = checkPrerequisite(prereq, cardStatus, variableValues);
-                const label = prereqLabel(prereq, variableValues);
-                const isExpandable = prereq.type === "varGroup" || prereq.type === "stageVar";
-                const isOpen = !!expandedPrereqs[i];
-                const prereqHasDeployedDiff =
-                  deployedEnv != null &&
-                  (((prereq.type === "varGroup" || prereq.type === "stageVar") &&
-                    prereq.keys.some((k) => (variableValues[k] ?? "") !== (deployedEnv[k] ?? ""))) ||
-                    (prereq.type === "var" && (variableValues[prereq.key] ?? "") !== (deployedEnv[prereq.key] ?? "")));
-                return (
-                  <Box key={`${stageDef.dir}-${i}`}>
-                    <Box
-                      component={isExpandable ? "button" : "div"}
-                      type={isExpandable ? "button" : undefined}
-                      aria-expanded={isExpandable ? isOpen : undefined}
-                      aria-controls={isExpandable ? `${stageDef.dir}-prerequisite-${i}` : undefined}
-                      onClick={isExpandable ? () => setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] })) : undefined}
-                      sx={{
-                        display: "flex",
-                        width: "100%",
-                        alignItems: "center",
-                        gap: 1,
-                        py: 0.5,
-                        px: isExpandable ? 0.75 : 0,
-                        mx: isExpandable ? -0.75 : 0,
-                        borderRadius: "6px",
-                        border: 0,
-                        backgroundColor: "transparent",
-                        textAlign: "left",
-                        font: "inherit",
-                        cursor: isExpandable ? "pointer" : "default",
-                        userSelect: "none",
-                        "&:hover": isExpandable ? { backgroundColor: "action.hover" } : {},
-                      }}
-                    >
-                      {met && prereqHasDeployedDiff ? (
-                        <Tooltip title="Changed since last plan" placement="top" arrow>
-                          <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
-                        </Tooltip>
-                      ) : met ? (
-                        <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main", flexShrink: 0 }} />
-                      ) : (
-                        <RadioButtonUncheckedIcon aria-hidden="true" sx={{ typography: "caption", color: "text.disabled", flexShrink: 0 }} />
-                      )}
-                      <Typography color={met ? "text.secondary" : "text.muted"} sx={{ flex: 1 }}>{label}</Typography>
-                      {isExpandable &&
-                        (isOpen ? <ExpandLessIcon aria-hidden="true" sx={{ typography: "body2", color: "text.disabled" }} /> : <ExpandMoreIcon aria-hidden="true" sx={{ typography: "body2", color: "text.disabled" }} />)}
-                    </Box>
-
-                    {isExpandable && isOpen && (
-                      <Box id={`${stageDef.dir}-prerequisite-${i}`} role="region" aria-label={`${label} details`} sx={{ ml: 2.75, mt: 0.5, mb: 1 }}>
-                        {prereq.type === "varGroup" && (
-                          <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, overflow: "hidden" }}>
-                            {prereq.keys.map((k, ki) => (
-                              <Box
-                                key={k}
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 1.5,
-                                  px: 2,
-                                  py: 0.75,
-                                  borderBottom: ki < prereq.keys.length - 1 ? "1px solid" : "none",
-                                  borderColor: "divider",
-                                  backgroundColor: ki % 2 === 0 ? "background.paper" : "background.default",
-                                }}
-                              >
-                                <Typography
-                                  sx={{
-                                    color: "text.secondary",
-                                    minWidth: "11rem",
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {k}
-                                </Typography>
-                                <Typography
-                                  sx={{
-                                    color: variableValues[k] ? "text.primary" : "text.disabled",
-                                    wordBreak: "break-all",
-                                    flex: 1,
-                                  }}
-                                >
-                                  {variableValues[k] || "not set"}
-                                </Typography>
-                              </Box>
-                            ))}
-                          </Box>
-                        )}
-                        {prereq.type === "stageVar" && (
-                          <StageVarEditor
-                            prereq={prereq}
-                            savedValues={variableValues}
-                            deployedValues={deployedEnv ?? undefined}
-                            account={account}
-                            repo={repoName}
-                            selectedEnv={selectedEnv}
-                            onVariableConfirmed={onVariableConfirmed}
-                          />
-                        )}
-                      </Box>
-                    )}
                   </Box>
                 );
               })}
