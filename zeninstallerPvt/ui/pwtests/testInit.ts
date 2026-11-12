@@ -4,7 +4,7 @@
  */
 
 // Has browser viewport and URL configuration
-export const CORP_URL = "http://localhost:5174/core/";
+export const CORP_URL = process.env.BASE_URL || "http://localhost:5174/core/";
 export const BACKEND_URL = "http://localhost:7071";
 
 // Mock test APIs

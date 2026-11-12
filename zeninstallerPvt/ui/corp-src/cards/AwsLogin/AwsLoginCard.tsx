@@ -25,16 +25,16 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
-      Sign in with your AWS access key in this browser. We never send your long-term AWS access key or secret key to our servers; only short-term AWS session
-      credentials are kept in this tab until they expire.
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+      Sign in to AWS in this browser with an IAM access key and secret key. ZenInstaller sends them directly to AWS, not to its servers. AWS exchanges them for temporary credentials, which stay in this tab and expire automatically.
       <>
         <br />
-        You will need to copy the credentials from AWS after&nbsp;
+        Follow the{" "}
         <ExternalLink href={CLOUD_DOCS.aws.bootstrapCredentials} label="AWS setup guide">
-          following the AWS setup guide
+          AWS setup guide
           <OpenInNewIcon aria-hidden="true" sx={{ typography: "caption" }} />
         </ExternalLink>
+        {" "}to create the access keys.
         <br />
         If you do not have an AWS account yet, {" "}
         <ExternalLink href={CLOUD_DOCS.aws.createAccount} label="Create an AWS account">
@@ -48,7 +48,7 @@ function Intro() {
 }
 
 function Action() {
-  return <ViewLink href={getAwsConsoleUrl()} />;
+  return <ViewLink href={getAwsConsoleUrl()} label="Open AWS Console" />;
 }
 
 export default function AwsLoginCard({ card, awsLogin }: Props) {
@@ -219,15 +219,7 @@ export default function AwsLoginCard({ card, awsLogin }: Props) {
               disabled={card.locked || !canSignIn || loggingIn}
               aria-busy={loggingIn}
               startIcon={loggingIn ? <CircularProgress aria-label="Signing in to AWS" size={14} sx={{ color: "inherit" }} /> : undefined}
-              sx={{
-                alignSelf: "flex-start",
-                py: 1,
-                px: 2.5,
-                boxShadow: (theme) => `0 2px 8px ${theme.palette.primary.main}33`,
-                "&:hover": {
-                  boxShadow: (theme) => `0 4px 12px ${theme.palette.primary.main}44`,
-                },
-              }}
+              sx={{ alignSelf: "flex-start" }}
             >
               {loggingIn ? "Signing in..." : needsMfa ? "Verify & sign in" : "Sign in"}
             </Button>

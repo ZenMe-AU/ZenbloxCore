@@ -9,6 +9,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { UseWebDeployCard } from "./useWebDeployCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
@@ -38,10 +39,9 @@ function SiteLink({ label, color, href }: { label: string; color: string; href: 
 
 function Intro({ storageAccountName }: { storageAccountName: string }) {
   return (
-    <Typography variant="body1" color="text.secondary">
-      Builds the Zeninstaller frontend in GitHub Actions, then writes the files straight from this browser into the{" "}
-      $web container of {storageAccountName || "the site's storage account"}.
-    </Typography>
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+  GitHub Actions builds the ZenInstaller frontend. ZenInstaller downloads the build and uploads its files from this browser to the $web container in {storageAccountName || "the site's storage account"}. Build and deploy are separate, so you can review a build before publishing it.
+</Typography>
   );
 }
 
@@ -79,13 +79,17 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
   // Carries this page's query across so the site opens on the same repo and environment.
   const siteLink = siteUrl ? `${siteUrl}/${window.location.search}` : null;
 
+
   return (
     <Card
       title="Private Zeninstaller Frontend"
       action={
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
-          <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} />
+          <ViewLink
+            href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)}
+            label={latest ? "Open latest web workflow run" : "Open web workflow in GitHub"}
+          />
         ) : undefined
       }
       lockedIntro={<Intro storageAccountName={storageAccountName} />}
@@ -234,6 +238,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             {running && <StatusText>Deploying frontend...</StatusText>}
           </Box>
         )}
+        <ProcessRetryNotice started={steps.length > 0} />
       </Box>
     </Card>
   );

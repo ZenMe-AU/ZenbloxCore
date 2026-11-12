@@ -13,6 +13,7 @@ import StepRow from "../StepRow";
 import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
 import Card from "../../components/Card";
 import { PlainRow, SelectionRow } from "../../components/ResourceRows";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_DNS_ZONES_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { dnsZoneScope } from "../../api/azureArm";
@@ -61,7 +62,12 @@ function PrimaryCheckbox({ checked, disabled, dnsName, onChange }: { checked: bo
 }
 
 function Action({ resourceId }: { resourceId: string | null }) {
-  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_DNS_ZONES_URL} />;
+  return (
+    <ViewLink
+      href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_DNS_ZONES_URL}
+      label={resourceId ? "Open DNS zone in Azure" : "Browse Azure DNS zones"}
+    />
+  );
 }
 
 export default function CreateDomainCard({
@@ -166,6 +172,7 @@ export default function CreateDomainCard({
           </Box>
         )}
         {checkStatusError && <ErrorText>Couldn't check existing setup: {checkStatusError}</ErrorText>}
+
         {/* Planned resources */}
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -205,7 +212,7 @@ export default function CreateDomainCard({
                   px: 2.5,
                 }}
               >
-                {resourcesDone ? "Re-run setup" : "Set up core DNS domain"}
+                {resourcesDone ? "Re-run" : "Set up core DNS domain"}
               </Button>
               {checkingStatus && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
@@ -223,6 +230,7 @@ export default function CreateDomainCard({
               <StepRow key={s.id} step={s} />
             ))}
             {running && <StatusText>Running...</StatusText>}
+            <ProcessRetryNotice started={steps.length > 0} />
             {!running && (
               <Button
                 size="small"

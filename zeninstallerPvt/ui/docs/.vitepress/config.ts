@@ -6,13 +6,18 @@
 import { defineConfig } from "vitepress";
 
 const NOT_DOCS = [/^\/core\//, /^\/scripts\//];
+const IGNORE_DEAD_LINKS = [
+  ...NOT_DOCS,
+  /^\.\/Set_up_GitHub_oidc_for_AZURE$/,
+  /^\.\/Set_up_GitHub_oidc_for_AWS$/,
+];
 
 export default defineConfig({
   title: "ZenInstaller Docs",
   description: "ZenInstaller documentation and guides",
   base: "/",
   outDir: "../dist",
-  ignoreDeadLinks: NOT_DOCS,
+  ignoreDeadLinks: IGNORE_DEAD_LINKS,
   vite: {
     server: {
       port: 5173,

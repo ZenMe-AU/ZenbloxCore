@@ -4,7 +4,7 @@ import { expect, type BrowserContext, type Page, type TestInfo } from "@playwrig
 import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL } from "../../testInit";
 import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
-import { expectSuccessfulSteps, installMockAzure, installMockGitHub, mockSubscriptionId, mockTenantId } from "../util/mockTestHelper.mts";
+import { expectSuccessfulSteps, installCoreInfraAzureMock, installMockAzure, installMockGitHub, mockSubscriptionId, mockTenantId } from "../util/mockTestHelper.mts";
 import {backendInsights, backendLaw, BackendNames, backendResourceGroup, connectionInput, defaultBackendNames, openConnectionDetails, openRemoteTerminalCard, pipelineAppName, remoteTerminalStepLabels, terminalKeys,
 } from "../util/RemoteTerminalInfraCardHelper.mts";
 import { AZURE_MANAGEMENT_URL, GITHUB_API_URL, MICROSOFT_GRAPH_URL, TEST_REPO_MAIN } from "../../testInit.js";
@@ -182,7 +182,7 @@ test("Requires authentication before creating backend resources", async ({ page,
 	const unexpectedRequests = await installRelayNetworkGuard(context);
 	await page.goto(CORP_URL);
 	const card = page.locator("#card-remote_terminal_infra");
-	await card.getByRole("button", { name: /^Private Zeninstaller Backend Environment/ }).click();
+	await card.getByText("Private Zeninstaller Backend Environment", { exact: true }).click();
 	await expect(card.getByText("Sign in to Azure", { exact: true })).toBeVisible();
 	await expect(card.getByRole("button", { name: /Create backend environment|Re-run/ })).toHaveCount(0);
 	await expectSnapshot(page, card, testInfo, "authentication-required", viewportName);

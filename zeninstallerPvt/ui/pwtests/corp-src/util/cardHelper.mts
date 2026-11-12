@@ -6,7 +6,8 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 export async function expandCard(card: Locator) {
-  const toggle = card.locator("h3").getByRole("button");
+  await expect(card).toBeVisible();
+  const toggle = card.locator('button[aria-label][aria-expanded][aria-controls^="card-content-"]');
   await expect(toggle).toHaveAttribute("aria-expanded", /^(true|false)$/);
   if (await toggle.getAttribute("aria-expanded") === "false") await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
@@ -21,6 +22,7 @@ export async function expandGithubLoginCard(page: Page) {
     await expandCard(githubCard);
   }
   await expect(introText).toBeVisible();
+  await expect(githubCard.locator(".MuiCollapse-root")).toHaveClass(/\bMuiCollapse-entered\b/);
   return githubCard;
 }
 
@@ -36,7 +38,7 @@ export async function expandGithubSignupCard(page: Page) {
 
 export async function expandAzureLoginCard(page: Page) {
   const azureCard = page.locator("#card-azure_login");
-  const introText = azureCard.getByText(/Sign in with Azure so we can create the app registration and cloud resources for you\./i);
+  const introText = azureCard.getByText(/Sign in with a Microsoft account that can access the Entra tenant you want to configure\./i);
   if (!(await introText.isVisible())) {
     await expandCard(azureCard);
   }
@@ -66,7 +68,7 @@ export async function expandAzureSubscriptionCard(page: Page) {
 
 export async function expandAzureAppRegistrationCard(page: Page) {
   const appRegistrationCard = page.locator("#card-azure_app_registration");
-  const introText = appRegistrationCard.getByText(/Create a Microsoft Entra app registration for GitHub Actions/i);
+  const introText = appRegistrationCard.getByText(/Creates a Microsoft Entra app for GitHub Actions to use when previewing Azure changes with Terraform/i);
   if (!(await introText.isVisible())) {
     await expandCard(appRegistrationCard);
   }

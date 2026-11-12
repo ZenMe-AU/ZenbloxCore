@@ -82,7 +82,7 @@ $applicationGroupName = Get-Setting "APPLICATION_GROUP_NAME" "APPLICATION_GROUP_
 
 Push-Location $scriptDirectory
 try {
-    terraform init -input=false
+    terraform init -input=false @(& (Join-Path $scriptDirectory "..\tfBackend.ps1") -Key "privavd-paw.tfstate")
     if ($LASTEXITCODE -ne 0) {
         throw "terraform init failed with exit code $LASTEXITCODE."
     }

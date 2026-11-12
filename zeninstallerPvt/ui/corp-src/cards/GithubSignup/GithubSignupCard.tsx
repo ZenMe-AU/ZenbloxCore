@@ -17,7 +17,7 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
       Need a GitHub account? Enter your email to open GitHub signup in a new tab with your email prefilled.
       Complete the remaining signup steps yourself on GitHub, then return here to sign in.
     </Typography>
@@ -53,7 +53,7 @@ export default function GithubSignupCard({ card, signup, onOpenLogin }: Props) {
         <Button
           type="submit"
           variant="contained"
-          sx={{ alignSelf: "flex-start", py: 1, px: 2.5 }}
+          sx={{ alignSelf: "flex-start" }}
         >
           Continue to GitHub signup
         </Button>

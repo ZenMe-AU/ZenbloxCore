@@ -7,7 +7,7 @@
 import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
 import { test, getViewportName } from "../../../../../.playwright/viewportFixture.mjs";
 import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
-import { AZURE_MANAGEMENT_URL, MICROSOFT_GRAPH_URL, CORP_URL } from "../../testInit";
+import { AZURE_MANAGEMENT_URL, MICROSOFT_GRAPH_URL, CORP_URL } from "../../testInit.js";
 import { expectSuccessfulSteps } from "../util/mockTestHelper.mts";
 import { prepareCardMocks, privateGroup, replyJson, siteStorage, siteUrl, storageId, storageResource } from "../util/mockCardSetup.mts";
 
@@ -17,8 +17,8 @@ test("Happy path", async ({ page, context }, testInfo) => {
 
 test("Does not save connection details after storage configuration fails", async ({ page, context }, testInfo) => {
   const { card, state, github, unexpectedRequests } = await prepareFrontend(page, context, { denyBlob: true });
-  await expect(card.getByRole("button", { name: "Create terminal relay", exact: true })).toBeEnabled();
-  await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
+  await expect(card.getByRole("button", { name: "Create frontend hosting environment", exact: true })).toBeEnabled();
+  await card.getByRole("button", { name: "Create frontend hosting environment", exact: true }).click();
   await expect(card.getByText(/Mock storage configuration denied/)).toBeVisible();
   expect(state.appCreated).toBe(false);
   expect(github.variables.VITE_AZURE_CLIENT_ID).toBeUndefined();
@@ -32,20 +32,51 @@ test("Derives completion from existing Azure resources and saved variables", asy
   const card = await setup.open("private_frontend_infra");
   await expect(card.locator("h3")).toContainText("Complete");
   await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled();
+  await expect(card.getByRole("progressbar", { name: "Loading variables" })).toHaveCount(0);
+  const detailsToggle = card.locator('button[aria-controls="private-frontend-connection-details"]');
+  const lines = detailsToggle.locator(".connection-toggle-line");
+  const label = detailsToggle.locator(".connection-toggle-label");
+  const icon = detailsToggle.locator(".connection-toggle-icon");
+  const initialLineColors = await lines.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor));
+  const initialLabelColor = await label.evaluate((element) => getComputedStyle(element).color);
+  const initialIconColor = await icon.evaluate((element) => getComputedStyle(element).color);
+  await detailsToggle.hover();
+  await expect.poll(() => lines.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor))).not.toEqual(initialLineColors);
+  await expect.poll(() => label.evaluate((element) => getComputedStyle(element).color)).not.toBe(initialLabelColor);
+  await expect.poll(() => icon.evaluate((element) => getComputedStyle(element).color)).not.toBe(initialIconColor);
+  const initialExpanded = await detailsToggle.getAttribute("aria-expanded");
+  expect(initialExpanded).toMatch(/^(true|false)$/);
+  await detailsToggle.focus();
+  await page.keyboard.press("Enter");
+  const toggledExpanded = initialExpanded === "true" ? "false" : "true";
+  await expect(detailsToggle).toHaveAttribute("aria-expanded", toggledExpanded);
+  if (toggledExpanded === "true") {
+    await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeVisible();
+  } else {
+    await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeHidden();
+  }
+  await page.keyboard.press("Space");
+  await expect(detailsToggle).toHaveAttribute("aria-expanded", initialExpanded!);
+  if (initialExpanded === "true") {
+    await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeVisible();
+  } else {
+    await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeHidden();
+  }
   expect(await page.evaluate(() => localStorage.getItem("zeninstaller_private_env_result"))).toBeNull();
   expect(setup.unexpectedRequests).toEqual([]);
   await expectSnapshot(page, card, testInfo, "existing-environment", getViewportName(testInfo));
 });
 
 async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestInfo) {
+  test.setTimeout(240_000);
   const { card, state, github, unexpectedRequests } = await prepareFrontend(page, context);
   const viewport = getViewportName(testInfo);
   await test.step("Create the hosting environment from seeded Azure prerequisites", async () => {
-    await expect(card.getByRole("button", { name: "Create terminal relay", exact: true })).toBeEnabled();
+    await expect(card.getByRole("button", { name: "Create frontend hosting environment", exact: true })).toBeEnabled();
     await expect(card.getByText("Australia East", { exact: true })).toBeVisible();
     await expectSnapshot(page, card, testInfo, "start", viewport);
-    await card.getByRole("button", { name: "Create terminal relay", exact: true }).click();
-    await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled();
+    await card.getByRole("button", { name: "Create frontend hosting environment", exact: true }).click();
+    await expect(card.getByRole("button", { name: /Start over/ })).toBeEnabled();
     await expectSuccessfulSteps(card, [
       "Register required Azure resource providers",
       "Create resource group zeninstaller-private-rg",

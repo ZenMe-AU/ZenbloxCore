@@ -66,6 +66,7 @@ type Props = CardChrome & {
   title: string;
   action?: React.ReactNode;
   lockedIntro?: React.ReactNode;
+  descriptionId?: string;
   children: React.ReactNode;
 };
 
@@ -87,6 +88,7 @@ export default function Card({
   onRequirementClick,
   action,
   lockedIntro,
+  descriptionId,
   children,
 }: Props) {
   const theme = useTheme();
@@ -100,7 +102,10 @@ export default function Card({
    * Unlike locked, an unavailable card still shows its summary - that IS the
    * "here's what's wrong" message, not a prerequisite result worth hiding.
    */
-  const showSummary = !expanded && !!summary && !locked;
+  const headerSummary = locked
+    ? requirements.map((requirement) => requirement.label).join(", ")
+    : summary;
+  const showSummary = !!headerSummary;
   const titleId = `card-title-${cardId}`;
   const contentId = `card-content-${cardId}`;
 
@@ -131,6 +136,7 @@ export default function Card({
         sx={{
           display: "flex",
           alignItems: "center",
+          flexWrap: expanded ? "wrap" : "nowrap",
           gap: 1.25,
           px: 2,
           py: 1.5,
@@ -150,12 +156,13 @@ export default function Card({
           component="h3"
           id={titleId}
           variant="inherit"
-          sx={{ flex: 1, minWidth: 0, m: 0, fontWeight: "inherit" }}
+          sx={{ flex: expanded ? "1 1 240px" : 1, minWidth: 0, m: 0, fontWeight: "inherit" }}
         >
           <ButtonBase
             disableRipple
             aria-expanded={expanded}
             aria-controls={contentId}
+            aria-describedby={descriptionId}
             sx={{
               display: "flex",
               width: "100%",
@@ -172,7 +179,7 @@ export default function Card({
             }}
           >
             <StatusIcon status={status} locked={locked} iconColors={colors.icon} lockedIconColor={colors.lockedIcon} />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: expanded ? "row" : "column", flexWrap: "wrap", alignItems: expanded ? "baseline" : "stretch", columnGap: 2, rowGap: 0.25 }}>
               <Typography
                 component="span"
                 sx={{
@@ -181,7 +188,8 @@ export default function Card({
                   fontWeight: 600,
                   color: muted ? colors.mutedText : theme.vars.palette.text.primary,
                   letterSpacing: 0,
-                  whiteSpace: "nowrap",
+                  whiteSpace: expanded ? "normal" : "nowrap",
+                  overflowWrap: "anywhere",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                 }}
@@ -196,15 +204,17 @@ export default function Card({
                   sx={{
                     display: "block",
                     typography: "body1",
-                    color: colors.summary[status],
-                    mt: 0.25,
-                    whiteSpace: "nowrap",
+                    color: locked ? colors.mutedText : colors.summary[status],
+                    minWidth: 0,
+                    maxWidth: "100%",
+                    whiteSpace: expanded ? "normal" : "nowrap",
+                    overflowWrap: "anywhere",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                   }}
-                  title={summary}
+                  title={headerSummary}
                 >
-                  {summary}
+                  {headerSummary}
                 </Typography>
               )}
               <Box component="span" className="visually-hidden">
@@ -213,7 +223,7 @@ export default function Card({
             </Box>
           </ButtonBase>
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0, ml: "auto" }}>
           {expanded && !muted && (
             <Box onClick={(e) => e.stopPropagation()} sx={{ display: "flex", alignItems: "center" }}>
               {action}
@@ -225,6 +235,7 @@ export default function Card({
             aria-label={`${expanded ? "Collapse" : "Expand"} ${title}`}
             aria-expanded={expanded}
             aria-controls={contentId}
+            aria-describedby={descriptionId}
             sx={{
               color: colors.mutedIcon,
               "&:hover": { color: colors.mutedIconHover },

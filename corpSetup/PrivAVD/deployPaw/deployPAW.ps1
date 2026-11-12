@@ -120,7 +120,7 @@ Write-Host "Deploying all AVD resources to resource group '$targetResourceGroup'
 
 Push-Location $terraformDirectory
 try {
-    terraform init -input=false
+    terraform init -input=false @(& (Join-Path $scriptDirectory "..\tfBackend.ps1") -Key "privavd-paw.tfstate")
     if ($LASTEXITCODE -ne 0) {
         throw "terraform init failed with exit code $LASTEXITCODE."
     }

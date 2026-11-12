@@ -12,6 +12,7 @@ import StepRow from "../StepRow";
 import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_RESOURCE_GROUPS_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
@@ -39,17 +40,23 @@ type Props = {
 
 function Intro({ containerName }: { containerName: string }) {
   return (
-    <Typography variant="body1" color="text.secondary">
-      Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
-      {containerName}{" "}
-      container Terraform uses for state, granting GitHub Actions access to it. You need Contributor access (or equivalent such as Owner) on the selected
-      subscription to create resource groups. 
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+      Sets up core Azure resources for deployment: a resource group, Log Analytics, Application Insights, and a storage account for Terraform state. Terraform
+      state lives in the{" "}
+      <Box component="code" sx={{ typography: "body1" }}>
+        {containerName}
+      </Box>{" "}container, which GitHub Actions can access to plan and deploy consistently.
     </Typography>
   );
 }
 
 function Action({ resourceId }: { resourceId: string | null }) {
-  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_RESOURCE_GROUPS_URL} />;
+  return (
+    <ViewLink
+      href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_RESOURCE_GROUPS_URL}
+      label={resourceId ? "Open core resource in Azure" : "Browse Azure resource groups"}
+    />
+  );
 }
 
 export default function CoreInfraCard({
@@ -158,6 +165,13 @@ export default function CoreInfraCard({
           variables={variables}
           populate={populate}
           title="Company short code"
+          keyHints={{
+            NAME: (
+              <Typography variant="body2" color="text.secondary">
+                Used to build Azure resource names, for example acme-law and acmepvt.
+              </Typography>
+            ),
+          }}
           githubUrl={githubUrl}
           autoSaveCounter={autoSaveCounter}
         />
@@ -255,7 +269,7 @@ export default function CoreInfraCard({
                 px: 2.5,
               }}
             >
-              {done ? "Re-run setup" : "Create core infrastructure"}
+              {done ? "Re-run" : "Create core infrastructure"}
             </Button>
           </Box>
         )}
@@ -267,6 +281,7 @@ export default function CoreInfraCard({
               <StepRow key={s.id} step={s} />
             ))}
             {running && <StatusText>Running...</StatusText>}
+            <ProcessRetryNotice started={steps.length > 0} />
             {!running && (
               <Button
                 size="small"

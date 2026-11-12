@@ -25,9 +25,10 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
-      Sign in with Azure so we can create the app registration and cloud resources for you. We never store your Azure credentials — sign-in happens directly
-      with Microsoft, and only a short-lived access token is used.
+    <Typography component="p" variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+      Sign in with a Microsoft account that can access the Entra tenant you want to configure. Choose the tenant here, then select an Azure subscription on the
+      next card. ZenInstaller uses your sign-in to create the app registrations and cloud resources you request. Microsoft handles your password; your
+      authentication token stays in this browser session and is not stored on ZenInstaller's servers.
     </Typography>
   );
 }
@@ -37,14 +38,14 @@ function Intro() {
  * App-registration, domain, and terraform cards all reuse the session it establishes.
  */
 function Action() {
-  return <ViewLink href={getEntraOverviewUrl()} />;
+  return <ViewLink href={getEntraOverviewUrl()} label="Open Entra tenant overview" />;
 }
 
 export default function AzureLoginCard({ card, azureLogin }: Props) {
   if (card.status === "unavailable") {
     return (
-      <Card title="Azure login" lockedIntro={<Intro />} {...card}>
-        <ConfigErrorNotice />
+      <Card title="Azure login" descriptionId="azure-login-config-error" lockedIntro={<Intro />} {...card}>
+        <ConfigErrorNotice id="azure-login-config-error" />
       </Card>
     );
   }
@@ -91,11 +92,7 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                 <Button
                   variant="contained"
                   onClick={login}
-                  sx={{
-                    alignSelf: "flex-start",
-                    py: 1,
-                    px: 2.5,
-                  }}
+                  sx={{ alignSelf: "flex-start" }}
                 >
                   Sign in with Azure
                 </Button>
@@ -140,9 +137,9 @@ export default function AzureLoginCard({ card, azureLogin }: Props) {
                 </FieldLabel>
                 {/* Only tells you how to find a tenant to type in, which a pinned tenant makes moot. */}
                 {!tenantPinned && (
-                  <ExternalLink href={CLOUD_DOCS.azure.urlGetTenantId} label="Show page to get Tenant ID">
+                  <ExternalLink href={CLOUD_DOCS.azure.urlGetTenantId} label="Find your Tenant ID in Microsoft Entra">
                     <>
-                      Show page to get Tenant ID <OpenInNewIcon fontSize="inherit" />
+                      Find your Tenant ID in Microsoft Entra <OpenInNewIcon fontSize="inherit" />
                     </>
                   </ExternalLink>
                 )}

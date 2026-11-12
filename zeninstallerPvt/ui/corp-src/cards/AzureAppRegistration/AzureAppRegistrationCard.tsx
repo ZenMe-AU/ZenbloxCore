@@ -15,6 +15,7 @@ import type { UseAzureAppRegistrationCard } from "./useAzureAppRegistrationCard"
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import FieldLabel from "../../components/FieldLabel";
 import StatusText from "../../components/StatusText";
@@ -35,16 +36,19 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
-      Create a Microsoft Entra app registration for GitHub Actions. ZenInstaller configures GitHub OIDC trust for the selected environment, so workflows can sign
-      in without a stored client secret, and grants the app Reader access to the selected Azure subscription for Terraform plans. The app ID is saved to that
-      environment. This does not grant deployment permissions; deployments are applied separately through the remote-terminal flow.
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+      Creates a Microsoft Entra app for GitHub Actions to use when previewing Azure changes with Terraform. The app can view resources in the selected subscription, but it can’t change them. ZenInstaller saves its ID in two settings for the selected GitHub environment. Use the remote terminal to apply changes.
     </Typography>
   );
 }
 
 function Action({ clientId }: { clientId: string }) {
-  return <ViewLink href={clientId ? getAppRegistrationUrl(clientId) : AZURE_APP_REGISTRATIONS_URL} />;
+  return (
+    <ViewLink
+      href={clientId ? getAppRegistrationUrl(clientId) : AZURE_APP_REGISTRATIONS_URL}
+      label={clientId ? "Open app registration in Azure" : "Browse Azure app registrations"}
+    />
+  );
 }
 
 export default function AzureAppRegistrationCard({ card, appReg, githubAccount, repoName, selectedEnv, subscriptionId, variables, githubUrl }: Props) {
@@ -298,6 +302,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                     <StepRow key={s.id} step={s} />
                   ))}
                   {running && <StatusText>Running...</StatusText>}
+                  <ProcessRetryNotice started={steps.length > 0} />
                   {!running && (
                     <Button
                       size="small"
@@ -324,22 +329,33 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
           onClick={() => setVarExpanded((expanded) => !expanded)}
           aria-expanded={varExpanded}
           aria-controls="azure-app-registration-connection-details"
-          sx={{ width: "100%", display: "flex", alignItems: "center", gap: 1.5, userSelect: "none", py: 0.25 }}
+          sx={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            userSelect: "none",
+            py: 0.25,
+            "&:hover .connection-toggle-label, &:focus-visible .connection-toggle-label": { color: "primary.main" },
+            "&:hover .connection-toggle-line, &:focus-visible .connection-toggle-line": { backgroundColor: "primary.main" },
+            "&:hover .connection-toggle-icon, &:focus-visible .connection-toggle-icon": { color: "primary.main" },
+          }}
         >
-          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
-          <Typography color="text.muted" sx={{ whiteSpace: "nowrap" }}>
+          <Box className="connection-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+          <Typography className="connection-toggle-label" color="text.muted" sx={{ whiteSpace: "nowrap", transition: "color 0.2s" }}>
             {varExpanded ? "collapse" : "open to enter application connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
+            className="connection-toggle-icon"
             sx={{
               typography: "caption",
               color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
-              transition: "transform 0.2s",
+              transition: "color 0.2s, transform 0.2s",
             }}
             aria-hidden="true"
           />
-          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+          <Box className="connection-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
         </ButtonBase>
 
         {/* ── Variable editor (unmountOnExit=false keeps in-progress draft edits and auto-save state alive while collapsed) ── */}

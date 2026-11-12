@@ -91,6 +91,10 @@ export async function prepareCardMocks(
     })
   );
   await page.route(`${GITHUB_API_URL}/**/deployments?*`, (route) => replyJson(route, []));
+  await page.route(`https://${siteStorage}.blob.core.windows.net/$web?restype=container&comp=metadata`, (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    return route.fulfill({ status: 404 });
+  });
   await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
     const path = new URL(route.request().url()).pathname.toLowerCase();
     if (route.request().method() !== "GET") return route.fallback();

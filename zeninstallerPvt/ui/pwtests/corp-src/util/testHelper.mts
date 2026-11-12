@@ -60,12 +60,12 @@ export async function createNewRepo(page: Page, card: Locator, reponame: string)
   await expect(cloneOption).toBeHidden();
   await expect(repoInput).toHaveAttribute("aria-expanded", "false");
   await expectVisibleWithin(card.getByText("Clone from template"), "Clone from template", 500);
-  await expect(card.getByRole("button", { name: "Clone Repository" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Clone Repository", exact: true })).toBeVisible();
   await expect(card.getByRole("switch", { name: "Private" })).toBeChecked();
   await expect(card.getByRole("switch", { name: "Clone all branches" })).not.toBeChecked();
   await expect(card.getByRole("switch", { name: "Create environments" })).toBeChecked();
   await expect(card.getByText(/Pick the environment to configure/i)).toHaveCount(0);
-  await card.getByRole("button", { name: "Clone Repository" }).click();
+  await card.getByRole("button", { name: "Clone Repository", exact: true }).click();
   await expectVisibleWithin(card.getByText("Pick the environment to configure."), "Text: Pick the environment to configure", 500_000);
 }
 

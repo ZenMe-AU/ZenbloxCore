@@ -69,6 +69,8 @@ export default function Footer() {
           <Box component="dl" sx={{ display: "grid", gridTemplateColumns: "max-content minmax(0, 1fr)", columnGap: 2, rowGap: 1, m: 0 }}>
             <Typography component="dt" sx={{ fontWeight: 600 }}><Box component="kbd">?</Box></Typography>
             <Typography component="dd" sx={{ m: 0 }}>Open this shortcuts dialog, unless focus is in an editable field.</Typography>
+            <Typography component="dt" sx={{ fontWeight: 600 }}><Box component="kbd">Shift+C</Box></Typography>
+            <Typography component="dd" sx={{ m: 0 }}>Collapse all expanded cards, unless focus is in an editable field.</Typography>
             <Typography component="dt" sx={{ fontWeight: 600 }}><Box component="kbd">Tab / Shift+Tab</Box></Typography>
             <Typography component="dd" sx={{ m: 0 }}>Move focus forward or backward between controls.</Typography>
             <Typography component="dt" sx={{ fontWeight: 600 }}><Box component="kbd">Enter / Space</Box></Typography>
