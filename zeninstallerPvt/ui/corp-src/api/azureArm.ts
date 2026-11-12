@@ -258,9 +258,10 @@ function grantsArmAction(permissions: ArmPermission[], action: string): boolean 
   return permissions.some((permission) => permission.actions.some(matches) && !permission.notActions?.some(matches));
 }
 
-// Reads the signed-in caller's management grants at a subscription, group, or resource scope.
+// Reads the signed-in caller's management grants at a management group, subscription, group, or resource scope.
 export async function readPermissionsAtScope(account: AzureAccount, scope: string, overrideTenantId?: string): Promise<ArmPermission[]> {
-  if (!/^\/subscriptions\/[^/?#]+(?:\/resourceGroups\/[^/?#]+(?:\/providers\/[^?#]+)?)?$/i.test(scope)) {
+  if (!/^\/subscriptions\/[^/?#]+(?:\/resourceGroups\/[^/?#]+(?:\/providers\/[^?#]+)?)?$/i.test(scope) &&
+      !/^\/providers\/Microsoft\.Management\/managementGroups\/[^/?#]+$/i.test(scope)) {
     throw new Error(`Invalid Azure management scope: ${scope}`);
   }
   // PIM activation/deactivation can leave the previously cached access token stale.
@@ -326,7 +327,7 @@ export async function ensureManagementAccess(account: AzureAccount, requirements
 }
 
 export type CardResourceAccessRequest = {
-  card: "core" | "domain" | "frontend" | "backend" | "appRegistration" | "backendDeploy" | "webDeploy";
+  card: "core" | "domain" | "frontend" | "backend" | "appRegistration" | "backendDeploy" | "webDeploy" | "subscriptionBudget" | "globalGroups";
   resourceGroup?: string;
   workspace?: string;
   storageAccount?: string;
@@ -457,6 +458,18 @@ export async function ensureCardResourceAccess(
 ): Promise<void> {
   const sub = subscriptionScope(subscriptionId);
   const { card, resourceGroup: group } = request;
+  if (card === "subscriptionBudget") {
+    await ensureManagementAccess(account, [{
+      scope: sub, actions: [...SUBSCRIPTION_PERMISSIONS.budgets, "Microsoft.Consumption/budgets/delete"],
+    }], overrideTenantId);
+    return;
+  }
+  if (card === "globalGroups") {
+    const root = `/providers/Microsoft.Management/managementGroups/${overrideTenantId || account.tenantId}`;
+    const actions = [...RESOURCE_PERMISSIONS.roleAssignments, "Microsoft.Authorization/roleAssignments/delete"];
+    await ensureManagementAccess(account, [{ scope: sub, actions }, { scope: root, actions }], overrideTenantId);
+    return;
+  }
   if (card === "appRegistration") {
     await ensureManagementAccess(account, [{ scope: sub, actions: RESOURCE_PERMISSIONS.roleAssignments }], overrideTenantId);
     return;

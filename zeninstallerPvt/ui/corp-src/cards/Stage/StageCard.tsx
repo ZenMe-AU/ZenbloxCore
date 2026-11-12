@@ -28,6 +28,7 @@ import type {
 } from "../../types";
 import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../../api";
 import { useAzurePermissions } from "../../hooks/util/useAzurePermissions";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
 import { useRemoteTerminal } from "./useRemoteTerminal";
 import { computePlanSummary, isPlanBehind } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
@@ -41,6 +42,7 @@ import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
 import StagePlanDetail from "./StagePlanDetail";
 import RemoteTerminal from "./RemoteTerminal";
+import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
 
 function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, CardStatus>, variableValues: Record<string, string>): boolean {
   switch (prereq.type) {
@@ -263,7 +265,7 @@ function Action({ repoFullName, runId }: { repoFullName: string | null; runId?: 
   return <ViewLink href={getWorkflowRunUrl(repoFullName, runId)} />;
 }
 
-export default function StageCard({
+function StageCardContent({
   card,
   stageDef,
   stage,
@@ -284,7 +286,8 @@ export default function StageCard({
   statusUpdateDisabled,
   runError,
   azureAccount,
-}: Props) {
+  managementAccess,
+}: Props & { managementAccess?: CardResourceAccess }) {
   const [expandedPrereqs, setExpandedPrereqs] = useState<Record<number, boolean>>({});
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
   const [planSummary, setPlanSummary] = useState<PlanSummary>({ create: 0, update: 0, delete: 0, replace: 0 });
@@ -314,6 +317,15 @@ export default function StageCard({
   const onDeploy =
     trackDeploy &&
     (async () => {
+      if (managementAccess) {
+        if (managementAccess.status !== "ready") return;
+        try {
+          await managementAccess.check();
+        } catch {
+          // The access hook displays the verification failure and offers a recheck.
+          return;
+        }
+      }
       if (await remoteTerminal.start()) await trackDeploy();
     });
 
@@ -385,6 +397,11 @@ export default function StageCard({
     <Card title={stageDef.label} action={<Action repoFullName={repoFullName} runId={stage.runId} />} lockedIntro={intro} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {intro}
+        {managementAccess && (
+          <>
+            <ResourceGroupCreationAccess access={managementAccess} resourceAccess />
+          </>
+        )}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
           <RunStatusUpdateButton
             onRun={onRunStatusUpdate}
@@ -531,7 +548,7 @@ export default function StageCard({
                 />
               )
             }
-            stagesStale={deployDisabled}
+            stagesStale={deployDisabled || (managementAccess != null && managementAccess.status !== "ready")}
             behind={isPlanBehind(stage, latestSha)}
             planSha={stage.planSha}
             latestSha={latestSha}
@@ -580,4 +597,19 @@ export default function StageCard({
       </Box>
     </Card>
   );
+}
+
+function ArmStageCard({ resourceCard, ...props }: Props & { resourceCard: "subscriptionBudget" | "globalGroups" }) {
+  const managementAccess = useCardResourceAccess({
+    azureAccount: props.azureAccount,
+    subscriptionId: props.variableValues.AZURE_SUBSCRIPTION_ID ?? "",
+    tenantId: props.variableValues.AZURE_TENANT_ID || undefined,
+  }, { card: resourceCard });
+  return <StageCardContent {...props} managementAccess={managementAccess} />;
+}
+
+export default function StageCard(props: Props) {
+  if (props.stageDef.dir === "SubscriptionBudget") return <ArmStageCard {...props} resourceCard="subscriptionBudget" />;
+  if (props.stageDef.dir === "GlobalGroups") return <ArmStageCard {...props} resourceCard="globalGroups" />;
+  return <StageCardContent {...props} />;
 }
