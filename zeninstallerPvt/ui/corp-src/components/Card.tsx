@@ -267,7 +267,7 @@ export default function Card({
           aria-labelledby={titleId}
           sx={{ borderTop: `1px solid ${colors.contentDivider}`, px: 2.5, py: 2.5 }}
         >
-          {locked ? (
+          {locked ? (// TODO: Extract this section to detect and render locked state consistently across cards
             <>
               {lockedIntro && <Box sx={{ mb: 2 }}>{lockedIntro}</Box>}
               <Box

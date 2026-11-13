@@ -88,13 +88,15 @@ export function getUnmetPrerequisites(prerequisites: Prerequisite[], variableVal
 }
 
 export function getStageSummaryText(stage: Stage, summary: PlanSummary | undefined, loading: boolean, stale: boolean, optional?: boolean, unmetPrerequisites: string[] = []): string {
-  if (stale) return "Status update required";
-  if (loading) return "Loading status...";
-  if (isNoChanges(summary)) return "No changes";
   const effectiveStatus = getEffectiveStatus(stage, summary, optional);
+  // Check prerequisites first
   if (effectiveStatus !== "deployed" && effectiveStatus !== "skipped" && unmetPrerequisites.length > 0) {
     return `${effectiveStatus === "failed" ? "Failed: " : ""}${unmetPrerequisites.join(", ")} not set`;
   }
+  // Check if stale
+  if (stale) return "Status update required";
+  if (loading) return "Loading status...";
+  if (isNoChanges(summary)) return "No changes";
   if (effectiveStatus === "success" && stage.runId && stage.deployPlanRunId === stage.runId) {
     if (stage.deployStatus === "failed") return "Failed: Deployment failed; check the GitHub Actions run";
     if (stage.deployStatus === "cancelled") return "Deployment cancelled; retry deployment";
