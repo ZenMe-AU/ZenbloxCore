@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { Box, Button, ButtonBase, CircularProgress, Collapse, IconButton, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
+import { Box, Button, ButtonBase, CircularProgress, Collapse, Divider, IconButton, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -32,7 +32,7 @@ import type {
 import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../../api";
 import { useAzurePermissions } from "../../hooks/util/useAzurePermissions";
 import { useRemoteTerminal } from "./useRemoteTerminal";
-import { computePlanSummary, isPlanBehind } from "../../logic/stage";
+import { assessPrerequisites, computePlanSummary, isPlanBehind, type PrerequisiteAssessment } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl } from "../../logic/github";
@@ -361,11 +361,13 @@ function RunStatusUpdateButton({
   running,
   countdown,
   disabled,
+  label = "Get Updated Plan",
 }: {
   onRun: () => Promise<void>;
   running: boolean;
   countdown: number;
   disabled: boolean;
+  label?: string;
 }) {
   return (
     <Button
@@ -391,7 +393,7 @@ function RunStatusUpdateButton({
           Running... {countdown >= 60 ? `${Math.ceil(countdown / 60)}m` : `${countdown}s`}
         </>
       ) : (
-        "Get Updated Plan"
+        label
       )}
     </Button>
   );
@@ -401,6 +403,7 @@ type Props = {
   card: CardChrome;
   stageDef: StageDefinition;
   stage: Stage;
+  prerequisiteAssessment?: PrerequisiteAssessment;
   latestSha?: string;
   deployDisabled: boolean;
   deployedEnv: Record<string, string> | null;
@@ -429,6 +432,7 @@ export default function StageCard({
   card,
   stageDef,
   stage,
+  prerequisiteAssessment,
   latestSha,
   deployDisabled,
   deployedEnv,
@@ -487,21 +491,19 @@ export default function StageCard({
     onPlanSummaryRef.current = onPlanSummary;
   });
 
-  const prevRepoName = useRef(repoName);
-  const lastPlanFetchKey = useRef<string | null>(null);
+  // Scope async results to the current report so a late fetch cannot restore an older plan.
   useEffect(() => {
-    if (!stage.planJsonId || stage.status !== "success" || !account) {
-      prevRepoName.current = repoName;
-      return;
-    }
-    if (repoName !== prevRepoName.current) return;
-    const key = `${account.id}_${repoName}_${stage.planJsonId}`;
-    if (key === lastPlanFetchKey.current) return;
-    lastPlanFetchKey.current = key;
-    prevRepoName.current = repoName;
-    const t = setTimeout(() => setPlanLoading(true), 0);
+    if (!stage.planJsonId || stage.status !== "success" || !account || statusUpdateRunning) return;
+    let active = true;
+    const t = setTimeout(() => {
+      setPlanLoading(true);
+      // Remove the previous report while its replacement is being fetched.
+      setPlanItems([]);
+      setPlanError(null);
+    }, 0);
     fetchPlan(stage.planJsonId, account, repoName)
       .then((data) => {
+        if (!active) return;
         const fetched: PlanItem[] = data.resource_changes || [];
         const s = computePlanSummary(fetched);
         setPlanItems(fetched);
@@ -509,13 +511,18 @@ export default function StageCard({
         setPlanError(null);
         onPlanSummaryRef.current?.(s);
       })
-      .catch((err: Error) => setPlanError(err.message))
+      .catch((err: Error) => {
+        if (active) setPlanError(err.message);
+      })
       .finally(() => {
         clearTimeout(t);
-        setPlanLoading(false);
+        if (active) setPlanLoading(false);
       });
-    return () => clearTimeout(t);
-  }, [stage.planJsonId, stage.status, account, repoName]);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+  }, [stage.planJsonId, stage.runId, stage.status, account, repoName, selectedEnv?.id, statusUpdateRunning]);
 
   useEffect(() => {
     const id = stage.deployLogId;
@@ -536,6 +543,10 @@ export default function StageCard({
   const deployLogFetched = !!stage.deployLogId && deployLog?.id === stage.deployLogId;
   const planLogFetched = !!stage.planLogId && planLog?.id === stage.planLogId;
 
+  // Keep plan and deployment controls gated by the same live prerequisite state as the summary.
+  const prerequisites = prerequisiteAssessment ?? assessPrerequisites(stageDef.prerequisites, variableValues, cardStatus, deployedEnv);
+  const prerequisitesMet = !prerequisites.blocked;
+  const canRefreshPrerequisites = prerequisites.changed.length > 0 && prerequisites.missing.length === 0 && prerequisites.incomplete.length === 0;
   const hasDetails = stage.status === "success" && !!stage.planJsonId && stage.planJsonUrl !== "";
   const repoFullName = account && repoName ? `${account.login}/${repoName}` : null;
 
@@ -638,91 +649,110 @@ export default function StageCard({
             </Collapse>
           </Box>
           )}
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-            <RunStatusUpdateButton
-              onRun={onRunStatusUpdate}
-              running={statusUpdateRunning}
-              countdown={statusUpdateCountdown}
-              disabled={statusUpdateDisabled}
-            />
-            {runError && <ErrorText>{runError}</ErrorText>}
-          </Box>
+          {canRefreshPrerequisites && (
+            <Box role="group" aria-label="Refresh changed prerequisites" sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <RunStatusUpdateButton
+                label="Refresh plan"
+                onRun={onRunStatusUpdate}
+                running={statusUpdateRunning}
+                countdown={statusUpdateCountdown}
+                disabled={statusUpdateDisabled}
+              />
+              {runError && <ErrorText>{runError}</ErrorText>}
+            </Box>
+          )}
         </Box>
 
-        {hasDetails && (
-          <StagePlanDetail
-            items={planItems}
-            summary={planSummary}
-            loading={planLoading}
-            error={planError}
-            onDeploy={onDeploy}
-            deployNotice={
-              !azurePermissions.ready && (
-                <PermissionNotice
-                  missing={azurePermissions.missing}
-                  error={azurePermissions.error}
-                  granting={azurePermissions.granting}
-                  onGrant={azurePermissions.grant}
-                />
-              )
-            }
-            stagesStale={deployDisabled}
-            behind={isPlanBehind(stage, latestSha)}
-            planSha={stage.planSha}
-            latestSha={latestSha}
-          />
+        {prerequisitesMet && stageDef.prerequisites.length > 0 && <Divider role="separator" />}
+
+        {prerequisitesMet && (
+          <Box component="section" aria-label="Plan" sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <RunStatusUpdateButton
+                onRun={onRunStatusUpdate}
+                running={statusUpdateRunning}
+                countdown={statusUpdateCountdown}
+                disabled={statusUpdateDisabled}
+              />
+              {runError && <ErrorText>{runError}</ErrorText>}
+            </Box>
+
+            {hasDetails && (
+              <StagePlanDetail
+                items={planItems}
+                summary={planSummary}
+                loading={planLoading}
+                error={planError}
+                onDeploy={!deployDisabled ? onDeploy : undefined}
+                deployNotice={
+                  !azurePermissions.ready && (
+                    <PermissionNotice
+                      missing={azurePermissions.missing}
+                      error={azurePermissions.error}
+                      granting={azurePermissions.granting}
+                      onGrant={azurePermissions.grant}
+                    />
+                  )
+                }
+                stagesStale={deployDisabled}
+                behind={isPlanBehind(stage, latestSha)}
+                planSha={stage.planSha}
+                latestSha={latestSha}
+              />
+            )}
+
+            {!hasDetails && stage.status !== "pending" && (
+              <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
+                No plan is available for this stage. Check the GitHub Actions run for errors, then create a new plan.
+              </Typography>
+            )}
+
+            {stage.status === "failed" && stage.planLogId && (
+              <Box>
+                <ButtonBase
+                  disableRipple
+                  onClick={() => setPlanOutputOpen((open) => !open)}
+                  aria-expanded={planOutputOpen}
+                  aria-controls={`${stageDef.dir}-plan-output`}
+                  sx={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    userSelect: "none",
+                    py: 0.25,
+                    "&:hover .plan-output-toggle-label, &:focus-visible .plan-output-toggle-label": { color: "primary.main" },
+                    "&:hover .plan-output-toggle-line, &:focus-visible .plan-output-toggle-line": { backgroundColor: "primary.main" },
+                    "&:hover .plan-output-toggle-icon, &:focus-visible .plan-output-toggle-icon": { color: "primary.main" },
+                  }}
+                >
+                  <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+                  <Typography className="plan-output-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
+                    {planOutputOpen ? "hide result" : "view result"}
+                  </Typography>
+                  <KeyboardArrowDownIcon
+                    className="plan-output-toggle-icon"
+                    sx={{
+                      typography: "body2",
+                      color: "text.muted",
+                      transform: planOutputOpen ? "rotate(180deg)" : "none",
+                      transition: "color 0.2s, transform 0.2s",
+                    }}
+                    aria-hidden="true"
+                  />
+                  <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+                </ButtonBase>
+                <Collapse in={planOutputOpen} timeout={300}>
+                  <Box id={`${stageDef.dir}-plan-output`} role="region" aria-label="Plan output">
+                    <FailureLog fetched={planLogFetched} text={planLog?.text ?? null} />
+                  </Box>
+                </Collapse>
+              </Box>
+            )}
+          </Box>
         )}
 
         <RemoteTerminal session={remoteTerminal} />
-
-        {!hasDetails && stage.status !== "pending" && (
-          <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
-            No plan is available for this stage. Check the GitHub Actions run for errors, then create a new plan.
-          </Typography>
-        )}
-
-        {stage.status === "failed" && stage.planLogId && (
-          <Box>
-            <ButtonBase
-              disableRipple
-              onClick={() => setPlanOutputOpen((open) => !open)}
-              aria-expanded={planOutputOpen}
-              aria-controls={`${stageDef.dir}-plan-output`}
-              sx={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                userSelect: "none",
-                py: 0.25,
-                "&:hover .plan-output-toggle-label, &:focus-visible .plan-output-toggle-label": { color: "primary.main" },
-                "&:hover .plan-output-toggle-line, &:focus-visible .plan-output-toggle-line": { backgroundColor: "primary.main" },
-                "&:hover .plan-output-toggle-icon, &:focus-visible .plan-output-toggle-icon": { color: "primary.main" },
-              }}
-            >
-              <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-              <Typography className="plan-output-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
-                {planOutputOpen ? "hide result" : "view result"}
-              </Typography>
-              <KeyboardArrowDownIcon
-                className="plan-output-toggle-icon"
-                sx={{
-                  typography: "body2",
-                  color: "text.muted",
-                  transform: planOutputOpen ? "rotate(180deg)" : "none",
-                  transition: "color 0.2s, transform 0.2s",
-                }}
-                aria-hidden="true"
-              />
-              <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-            </ButtonBase>
-            <Collapse in={planOutputOpen} timeout={300}>
-              <Box id={`${stageDef.dir}-plan-output`} role="region" aria-label="Plan output">
-                <FailureLog fetched={planLogFetched} text={planLog?.text ?? null} />
-              </Box>
-            </Collapse>
-          </Box>
-        )}
 
         {(stage.deployedAt || stage.deployStatus) && (
           <Box>

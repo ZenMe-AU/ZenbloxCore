@@ -12,7 +12,11 @@ import { readBlobWithProgress, type DownloadProgress } from "../logic/download";
 const GH = "https://api.github.com";
 
 function decodeContent(encoded: string): string {
-  return atob(encoded.replace(/\n/g, ""));
+  // GitHub's content field is Base64-encoded. atob returns those bytes as a binary string,
+  // so decode the bytes as UTF-8 before parsing to preserve non-ASCII environment values.
+  const binary = atob(encoded.replace(/\n/g, ""));
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 // ─── Standalone — used before provider is set (initial login check) ───────────

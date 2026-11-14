@@ -185,13 +185,16 @@ export default function AzureSubscriptionCard({
         )}
 
         {/* Save AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID to the env's GitHub variables */}
+        {/* Save the tenant/subscription and preserve pending edits across refreshes within this selection. */}
         <CloudVariableDetail
+          key={JSON.stringify([githubAccount?.id, repoName, selectedEnv?.name])}
           account={githubAccount}
           repo={repoName}
           envName={selectedEnv?.name ?? null}
           keys={AZURE_TARGET_KEYS}
           variables={variables}
           populate={populate}
+          preserveDirtyOnSync
           hiddenKeys={["VITE_AZURE_TENANT_ID"]}
           title="Saved to GitHub"
           githubUrl={githubUrl}

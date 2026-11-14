@@ -69,7 +69,7 @@ export function getEffectiveStatus(stage: Stage, summary?: PlanSummary, isOption
   // The deploy records its plan run whatever the outcome, so the status has to be checked too —
   // a failed or cancelled apply must stay "success" and keep offering Deploy.
   if (stage.deployStatus === "success" && stage.deployPlanRunId && stage.runId && stage.deployPlanRunId === stage.runId) return "deployed";
-  if (isNoChanges(summary)) return "deployed";
+  if (stage.status === "success" && isNoChanges(summary)) return "deployed";
   if (isOptional && stage.status === "pending") return "skipped";
   return stage.status;
 }
@@ -79,24 +79,59 @@ export function isPlanBehind(stage: Stage, latestSha?: string): boolean {
   return !!stage.planSha && !!latestSha && stage.planSha !== latestSha;
 }
 
-export function getUnmetPrerequisites(prerequisites: Prerequisite[], variableValues: Record<string, string>, cardStatus: Record<CardId, CardStatus>): string[] {
-  return prerequisites.flatMap((prerequisite) => {
-    if (prerequisite.type === "card") return cardStatus[prerequisite.cardId] === "complete" ? [] : [prerequisite.cardId];
+export type PrerequisiteAssessment = {
+  missing: string[];
+  incomplete: string[];
+  changed: string[];
+  blocked: boolean;
+  summary: string;
+};
+
+export function assessPrerequisites(
+  prerequisites: Prerequisite[],
+  variableValues: Record<string, string>,
+  cardStatus: Record<CardId, CardStatus>,
+  planEnv: Record<string, string> | null = null,
+): PrerequisiteAssessment {
+  // Keep edited plan inputs distinct from missing inputs: edits can refresh a plan, but cannot deploy it.
+  const missing = new Set<string>();
+  const incomplete = new Set<string>();
+  const changed = new Set<string>();
+  for (const prerequisite of prerequisites) {
+    if (prerequisite.type === "card") {
+      if (cardStatus[prerequisite.cardId] !== "complete") incomplete.add(prerequisite.cardId);
+      continue;
+    }
     const keys = prerequisite.type === "var" ? [prerequisite.key] : prerequisite.keys;
-    return keys.filter((key) => !variableValues[key]?.trim()).map(getVariableDisplayName);
-  });
+    for (const key of keys) {
+      const label = getVariableDisplayName(key);
+      if (!variableValues[key]?.trim()) missing.add(label);
+      else if (planEnv != null && variableValues[key] !== (planEnv[key] ?? "")) changed.add(label);
+    }
+  }
+  const parts = [
+    missing.size > 0 ? `${[...missing].join(", ")} not set` : "",
+    incomplete.size > 0 ? `${[...incomplete].map((id) => id.replaceAll("_", " ")).join(", ")} not complete` : "",
+    changed.size > 0 ? `${[...changed].join(", ")} changed since last plan` : "",
+  ].filter(Boolean);
+  return { missing: [...missing], incomplete: [...incomplete], changed: [...changed], blocked: parts.length > 0, summary: parts.join("; ") };
+}
+
+export function getUnmetPrerequisites(prerequisites: Prerequisite[], variableValues: Record<string, string>, cardStatus: Record<CardId, CardStatus>): string[] {
+  const { missing, incomplete } = assessPrerequisites(prerequisites, variableValues, cardStatus);
+  return [...missing, ...incomplete];
 }
 
 export function getStageSummaryText(stage: Stage, summary: PlanSummary | undefined, loading: boolean, stale: boolean, optional?: boolean, unmetPrerequisites: string[] = []): string {
   const effectiveStatus = getEffectiveStatus(stage, summary, optional);
   // Check prerequisites first
-  if (effectiveStatus !== "deployed" && effectiveStatus !== "skipped" && unmetPrerequisites.length > 0) {
-    return `${effectiveStatus === "failed" ? "Failed: " : ""}${unmetPrerequisites.join(", ")} not set`;
+  if (unmetPrerequisites.length > 0) {
+    return `${unmetPrerequisites.join(", ")} not set`; // Name the fixable blocker instead of repeating an earlier plan failure.
   }
   // Check if stale
   if (stale) return "Status update required";
   if (loading) return "Loading status...";
-  if (isNoChanges(summary)) return "No changes";
+  if (stage.status === "success" && isNoChanges(summary)) return "No changes";
   if (effectiveStatus === "success" && stage.runId && stage.deployPlanRunId === stage.runId) {
     if (stage.deployStatus === "failed") return "Failed: Deployment failed; check the GitHub Actions run";
     if (stage.deployStatus === "cancelled") return "Deployment cancelled; retry deployment";
@@ -105,20 +140,21 @@ export function getStageSummaryText(stage: Stage, summary: PlanSummary | undefin
     {
       deployed: "Deployed",
       success: "Ready to deploy",
-      failed: "Failed: Plan failed; check the GitHub Actions run",
+      failed: "Plan failed; check the GitHub Actions run", // The message identifies the failure without a redundant "Failed:" prefix.
       pending: "Not yet executed",
       skipped: "Skipped",
     } as Record<StageStatus, string>
   )[effectiveStatus];
 }
 
-export function stageToCardStatus(effectiveStatus: StageStatus, isStale: boolean, isLoading: boolean): CardStatus {
+export function stageToCardStatus(effectiveStatus: StageStatus, isStale: boolean, isLoading: boolean, hasUnmetPrerequisites = false): CardStatus { // Include blockers in the card's warning decision.
+  if (hasUnmetPrerequisites) return "warning";
   if (isStale) return "idle";
   if (isLoading) return "loading";
   if (effectiveStatus === "deployed") return "complete";
-  if (effectiveStatus === "success") return "warning";
-  if (effectiveStatus === "failed") return "error";
-  if (effectiveStatus === "skipped") return "skipped";
+  if (effectiveStatus === "skipped") return "skipped"; // Optional skipped stages are not actionable warnings.
+  if (effectiveStatus === "failed") return "error"; // Keep failed plans red when no outstanding prerequisite takes precedence.
+  if (effectiveStatus === "success") return "warning"; // A successful plan awaiting deployment remains an orange warning.
   return "idle";
 }
 

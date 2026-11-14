@@ -97,7 +97,7 @@ export const PIPELINES: Record<string, PipelineConfig> = {
         dir: "AwsEntraSsoP2",
         workflowId: PLAN_STAGE_WORKFLOW,
         deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
-        label: "AWS single sign-on with Microsoft Entra ID P2",
+        label: "AWS single sign-on with Entra ID P2",
         description: "Connects the Entra AWS app to AWS with a SAML identity provider and administrator/read-only IAM roles, assigns the LeadDeveloper group, and maps the claims AWS uses to select a role.",
         azurePermissions: [GRAPH_PERMISSIONS.AppRoleAssignmentReadWriteAll, GRAPH_PERMISSIONS.PolicyReadWriteApplicationConfiguration],
         prerequisites: [

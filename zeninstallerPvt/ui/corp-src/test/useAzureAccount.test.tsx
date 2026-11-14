@@ -459,6 +459,8 @@ describe("useAzureAccount", () => {
   });
 
   it("automatically selects the first available tenant for an MSA account", async () => {
+    // An MSA tenant is prefilled here, but ARM access still requires explicit confirmation.
+    localStorage.setItem("zeninstaller_azure_result", JSON.stringify({ tenantId: "tenant-1" }));
     const account = {
       username: "personal@example.com",
       tenantId: "msa-tenant",
@@ -509,7 +511,7 @@ describe("useAzureAccount", () => {
     ]);
 
     expect(latest?.manualTenantId).toBe("tenant-1");
-    expect(latest?.confirmedTenantId).toBe("tenant-1");
+    expect(latest?.confirmedTenantId).toBe("");
     expect(latest?.tenantsLoaded).toBe(true);
 
     await act(async () => {
@@ -574,6 +576,55 @@ describe("useAzureAccount", () => {
     expect(latest?.manualTenantId).toBe("tenant-2");
     expect(latest?.confirmedTenantId).toBe("tenant-2");
     expect(latest?.tenantIdError).toBeNull();
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("does not let a late startup token probe overwrite a selected tenant", async () => {
+    // Hold startup token acquisition until after the user selects another tenant.
+    const account = {
+      username: "org@example.com",
+      tenantId: "tenant-1",
+      homeAccountId: "home",
+      environment: "login.microsoftonline.com",
+      localAccountId: "local",
+      tenantProfiles: new Map([["tenant-1", {}], ["tenant-2", {}]]) as AzureAccount["tenantProfiles"],
+    } as AzureAccount;
+    const msal = {
+      handleRedirectPromise: vi.fn().mockResolvedValue(null),
+      getAllAccounts: vi.fn().mockReturnValue([account]),
+      loginRedirect: vi.fn().mockResolvedValue(undefined),
+      acquireTokenSilent: vi.fn().mockResolvedValue(undefined),
+      acquireTokenRedirect: vi.fn().mockResolvedValue(undefined),
+      clearCache: vi.fn().mockResolvedValue(undefined),
+    };
+    let resolveStartupProbe!: (value: string) => void;
+    const startupProbe = new Promise<string>((resolve) => {
+      resolveStartupProbe = resolve;
+    });
+
+    apiMocks.getMsal.mockResolvedValue(msal);
+    apiMocks.getToken.mockImplementationOnce(() => startupProbe);
+
+    let latest: UseAzureAccount | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(<HookHarness onUpdate={(value) => { latest = value; }} />);
+    });
+
+    await waitFor(() => expect(latest?.account?.username).toBe("org@example.com"));
+    await act(async () => {
+      latest?.selectTenant("tenant-2");
+    });
+    await waitFor(() => expect(latest?.confirmedTenantId).toBe("tenant-2"));
+
+    await act(async () => {
+      resolveStartupProbe("arm-token");
+    });
+    await waitFor(() => expect(latest?.confirmedTenantId).toBe("tenant-2"));
 
     await act(async () => {
       root.unmount();
@@ -1009,7 +1060,7 @@ describe("useAzureAccount", () => {
     });
   });
 
-  it("MSA auto-select does not override a manualTenantId already restored from a saved session", async () => {
+  it("prefills an MSA tenant from the app result without confirming it automatically", async () => {
     localStorage.setItem("zeninstaller_azure_result", JSON.stringify({ tenantId: "tenant-2" }));
 
     const account = {
@@ -1056,7 +1107,9 @@ describe("useAzureAccount", () => {
     // The saved tenant (not availableTenants[0] === "tenant-1") must stick — auto-select only
     // fires when manualTenantId is still blank.
     expect(latest?.manualTenantId).not.toBe("tenant-1");
-    expect(apiMocks.getToken).toHaveBeenCalledWith(account, ["arm.scope"], "tenant-2");
+    // The app-result tenant initializes the picker but is not a confirmed ARM tenant.
+    expect(apiMocks.getToken).toHaveBeenCalledWith(account, ["arm.scope"], undefined);
+    expect(latest?.confirmedTenantId).toBe("");
 
     await act(async () => {
       root.unmount();

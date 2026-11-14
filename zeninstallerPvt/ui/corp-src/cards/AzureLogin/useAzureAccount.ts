@@ -109,12 +109,11 @@ export function useAzureAccount(): UseAzureAccount {
     if (account) void loadTenants(account);
   }, [account, loadTenants]);
 
-  // Auto-select the first tenant when the account is MSA and nothing is pre-filled.
+  // Pre-fill the first MSA tenant without treating it as user confirmation.
   useEffect(() => {
     if (!account || account.tenantId !== MSA_TENANT) return;
     if (manualTenantId || availableTenants.length === 0) return;
     setManualTenantId(availableTenants[0]);
-    setConfirmedTenantId(availableTenants[0]);
   }, [account, availableTenants]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // On mount: handle redirect callback OR restore existing session
@@ -135,7 +134,8 @@ export function useAzureAccount(): UseAzureAccount {
           try {
             await getToken(acc, ARM_SCOPES, tenant);
             if (tenant) sessionStorage.removeItem(SESSION_KEY);
-            if (!cancelled) setConfirmedTenantId(tenant ?? "");
+            // A late startup probe must not replace a tenant the user has since confirmed.
+            if (!cancelled) setConfirmedTenantId((current) => current ?? (tenant ?? ""));
           } catch (err) {
             // ARM consent not yet granted — redirect for ARM
             const msg = err instanceof Error ? err.message : "";
@@ -150,11 +150,12 @@ export function useAzureAccount(): UseAzureAccount {
 
         const msaTenant = (acc: AzureAccount) => (acc.tenantId === MSA_TENANT ? (azureResult.load()?.tenantId ?? undefined) : undefined);
 
+    // Only a saved selection is confirmed on startup; an app-result tenant is a prefill.
         if (result?.account) {
           setAccount(result.account);
           const tenant = savedTenant ?? msaTenant(result.account);
           if (tenant) setManualTenantId(tenant);
-          await tryConfirmArm(result.account, tenant);
+          await tryConfirmArm(result.account, savedTenant ?? undefined);
         } else {
           const accounts = msal.getAllAccounts();
           if (accounts.length > 0) {
@@ -164,7 +165,7 @@ export function useAzureAccount(): UseAzureAccount {
             setAccount(acc);
             const tenant = savedTenant ?? msaTenant(acc);
             if (tenant) setManualTenantId(tenant);
-            await tryConfirmArm(acc, tenant);
+            await tryConfirmArm(acc, savedTenant ?? undefined);
           }
         }
       } catch (err) {

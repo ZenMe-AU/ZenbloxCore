@@ -121,6 +121,32 @@ test("Switching tenants resets subscription list", async ({ page, context }, tes
   await expectSnapshot(page, result.azureSubscriptionCard, testInfo, "tenant-switch-subscription", viewportName);
 });
 
+test("Refreshing GitHub variables preserves a pending subscription selection", async ({ page, context }, testInfo) => {
+  const viewportName = getViewportName(testInfo);
+  const result = await prepareMockAzureSubscription(page, context, `mock-subscription-refresh-${viewportName.toLowerCase()}`, {
+    initialVariables: savedAzureVariables,
+    initialAzureState: {
+      subscriptions: [
+        { subscriptionId: mockSubscriptionId, displayName: "Mock subscription", tenantId: mockTenantId, state: "Enabled" },
+        { subscriptionId: mockSecondSubscriptionId, displayName: "Mock second subscription", tenantId: mockTenantId, state: "Enabled" },
+      ],
+    },
+  });
+  await result.azureSubscriptionCard.getByRole("combobox").click();
+  await page.getByRole("option", { name: /Mock second subscription/ }).click();
+  await expect(result.subscriptionVariableInput).toHaveValue(mockSecondSubscriptionId);
+
+  result.github.variables.AZURE_SUBSCRIPTION_ID = "changed-on-github";
+  await result.azureSubscriptionCard.getByRole("button", { name: "Refresh" }).click();
+  await expect(result.azureSubscriptionCard.getByRole("button", { name: "Done" })).toBeVisible();
+  await expect(result.subscriptionVariableInput).toHaveValue(mockSecondSubscriptionId);
+  const saveButton = result.azureSubscriptionCard.getByRole("button", { name: "Save 1 variable" });
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
+  await expect.poll(() => result.github.variables.AZURE_SUBSCRIPTION_ID).toBe(mockSecondSubscriptionId);
+  await expect(result.azureSubscriptionCard.getByText("Unsaved change — save to apply.", { exact: true })).toHaveCount(0);
+});
+
 test("Failed variable writes allow retry", async ({ page, context }, testInfo) => {
   const viewportName = getViewportName(testInfo);
   const result = await prepareMockAzureSubscription(page, context, `mock-subscription-save-error-${viewportName.toLowerCase()}`);

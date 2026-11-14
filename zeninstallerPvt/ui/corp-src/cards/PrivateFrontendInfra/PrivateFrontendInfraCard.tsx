@@ -134,7 +134,7 @@ export default function PrivateFrontendInfraCard({
               disabled={infra.running || editingStorage || !infra.location.trim()}
               sx={{ alignSelf: "flex-start" }}
             >
-              {infra.done ? "Re-run" : "Create frontend hosting environment"}
+              {infra.done ? "Re-run" : "Create private hosting environment"}
             </Button>
           </Box>
         )}

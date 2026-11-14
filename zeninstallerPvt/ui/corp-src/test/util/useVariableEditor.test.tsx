@@ -66,6 +66,31 @@ describe("useVariableEditor", () => {
     apiMocks.deleteVariable.mockResolvedValue(undefined);
   });
 
+  it("preserves a pending populated value when saved variables arrive later", async () => {
+    let latest: ReturnType<typeof useVariableEditor> | null = null;
+    const root = createRoot(document.createElement("div"));
+    const onUpdate = (value: ReturnType<typeof useVariableEditor>) => { latest = value; };
+    const render = (savedValues: Record<string, string>) => root.render(
+      <HookHarness
+        onUpdate={onUpdate}
+        keys={["AZURE_SUBSCRIPTION_ID"]}
+        savedValues={savedValues}
+        populate={{ AZURE_SUBSCRIPTION_ID: "selected-subscription" }}
+        preserveDirtyOnSync
+        account={{ login: "org-one", type: "Organization", id: 101 }}
+        repo="repo-one"
+        envName="prod"
+      />
+    );
+
+    await act(async () => { render({}); });
+    await act(async () => { render({ AZURE_SUBSCRIPTION_ID: "saved-subscription" }); });
+
+    expect(latest?.localValues.AZURE_SUBSCRIPTION_ID).toBe("selected-subscription");
+    expect(latest?.dirtyKeys).toEqual(["AZURE_SUBSCRIPTION_ID"]);
+    await act(async () => { root.unmount(); });
+  });
+
   it("tracks edits and saves new and existing variables", async () => {
     let latest: ReturnType<typeof useVariableEditor> | null = null;
     const root = createRoot(document.createElement("div"));

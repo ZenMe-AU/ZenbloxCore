@@ -160,6 +160,8 @@ export function useDeploymentPlan(opts: {
         }
 
         if (nothingReported) {
+          // Clear summaries tied to reports that are no longer available.
+          setStageSummariesState({});
           setStages(pipe.stages.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
           setHasPlan(false);
           return;
@@ -176,21 +178,28 @@ export function useDeploymentPlan(opts: {
           getPlanEnv(acc, repo, envId).then(setDeployedEnv).catch(console.error);
         }
 
-        setStages(
-          pipe.stages.map(({ dir }) => {
-            const { plan, deploy } = byKey.get(dir) ?? { plan: null, deploy: null };
-            if (!plan && !deploy) return { stage: dir, status: "pending" as const };
-            // The plan deployment owns the plan fields, the deploy one owns the deploy fields.
-            // planSha is named explicitly so the deploy report's own sha cannot overwrite it.
-            return { ...plan?.stage, ...deploy?.stage, stage: dir, planSha: plan?.sha } as Stage;
-          })
-        );
+        const nextStages = pipe.stages.map(({ dir }) => {
+          const { plan, deploy } = byKey.get(dir) ?? { plan: null, deploy: null };
+          if (!plan && !deploy) return { stage: dir, status: "pending" as const };
+          // The plan deployment owns the plan fields, the deploy one owns the deploy fields.
+          // planSha is named explicitly so the deploy report's own sha cannot overwrite it.
+          return { ...plan?.stage, ...deploy?.stage, stage: dir, planSha: plan?.sha } as Stage;
+        });
+        const previousStages = stagesRef.current;
+        // Keep plan-derived summaries only for the same successful report; a newer report makes them stale.
+        setStageSummariesState((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => {
+          const before = previousStages.find((stage) => stage.stage === key);
+          const after = nextStages.find((stage) => stage.stage === key);
+          return after?.status === "success" && before?.runId === after.runId && before?.planJsonId === after.planJsonId && before?.planSha === after.planSha;
+        })));
+        setStages(nextStages);
         setHasPlan(true);
       })
       .catch((e) => {
         console.error("Failed to load the stage reports:", e);
         if (!poll) setStagesLoading(false);
         if (poll) patchRun(poll.stageKey, { countdown: 0, error: "Could not read the stage reports" });
+        setStageSummariesState({});
         setStages(pipe.stages.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
         setHasPlan(false);
       });
@@ -224,6 +233,12 @@ export function useDeploymentPlan(opts: {
     const env = selectedEnvRef.current;
     const stage = pipelineRef.current.stages.find((s) => s.dir === stageKey);
     if (!acc || !repo || !envReadyRef.current || !env || !stage) return;
+    // Starting a new plan invalidates any local summary from the previous run.
+    setStageSummariesState((previous) => {
+      const next = { ...previous };
+      delete next[stageKey];
+      return next;
+    });
     const triggerTime = Date.now();
     patchRun(stageKey, { kind: "plan", countdown: 0, retryCount: 0, error: null });
 

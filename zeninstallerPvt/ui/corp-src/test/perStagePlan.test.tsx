@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { PIPELINE } from "../logic/pipeline";
-import { getStageSummaryText, getUnmetPrerequisites } from "../logic/stage";
+import { assessPrerequisites, getEffectiveStatus, getStageSummaryText, getUnmetPrerequisites, stageToCardStatus } from "../logic/stage"; // Exercise the stage summary and warning-state decisions.
 import type { Account, Branch, CardId, CardStatus, GhEnv, Stage } from "../types";
 
 const apiMocks = vi.hoisted(() => ({
@@ -18,6 +18,7 @@ const apiMocks = vi.hoisted(() => ({
 vi.mock("../api", () => apiMocks);
 
 const { useDeploymentPlan } = await import("../cards/Stage/useDeploymentPlan");
+const { useCorpStageCards } = await import("../cards/Stage/useCorpStageCards");
 type Plan = ReturnType<typeof useDeploymentPlan>;
 
 const ACCOUNT = { login: "org-one", type: "Organization", id: 1 } as Account;
@@ -35,28 +36,39 @@ describe("stage header status", () => {
     ], { AZURE_CLIENT_ID: "configured-value", CONTACT_EMAILS: "  " }, {} as Record<CardId, CardStatus>);
     expect(missing).toEqual(["COMPANY_SHORT_CODE", "AZURE_TENANT_ID", "CONTACT_EMAILS", "azure_login"]);
     expect(getStageSummaryText(stage, undefined, false, false, false, missing))
-      .toBe("Failed: COMPANY_SHORT_CODE, AZURE_TENANT_ID, CONTACT_EMAILS, azure_login not set");
+      .toBe("COMPANY_SHORT_CODE, AZURE_TENANT_ID, CONTACT_EMAILS, azure_login not set"); // Missing inputs remain the actionable status.
     expect(getUnmetPrerequisites([{ type: "card", cardId: "azure_login" }], {}, { azure_login: "complete" } as Record<CardId, CardStatus>)).toEqual([]);
   });
 
   it("provides a useful fallback when the plan fails with prerequisites met", () => {
-    expect(getStageSummaryText(stage, undefined, false, false)).toBe("Failed: Plan failed; check the GitHub Actions run");
+    expect(getStageSummaryText(stage, undefined, false, false)).toBe("Plan failed; check the GitHub Actions run"); // No redundant leading "Failed:" label.
+  });
+
+  it("treats empty prerequisites as ready and whitespace-only group values as missing", () => {
+    // Empty requirement sets are ready, while whitespace-only values remain actionable blockers.
+    expect(getUnmetPrerequisites([], {}, {} as Record<CardId, CardStatus>)).toEqual([]);
+    expect(getUnmetPrerequisites(
+      [{ type: "varGroup", keys: ["AZURE_CLIENT_ID", "AZURE_TENANT_ID"], label: "Azure" }],
+      { AZURE_CLIENT_ID: "configured", AZURE_TENANT_ID: "   " },
+      {} as Record<CardId, CardStatus>
+    )).toEqual(["AZURE_TENANT_ID"]);
   });
 
   it("shows unmet prerequisites before a plan is run without claiming failure", () => {
     expect(getStageSummaryText({ ...stage, status: "pending" }, undefined, false, false, false, ["CONTACT_EMAILS"]))
       .toBe("CONTACT_EMAILS not set");
     expect(getStageSummaryText(stage, undefined, false, false, false, ["CONTACT_EMAILS"]))
-      .toBe("Failed: CONTACT_EMAILS not set");
+      .toBe("CONTACT_EMAILS not set");
     expect(getStageSummaryText({ ...stage, status: "pending" }, undefined, false, false, false, ["AWS_ROLE_ARN"]))
       .toBe("AWS_ROLE_ARN not set");
   });
 
-  it("keeps loading, updating, completed, and skipped statuses ahead of prerequisite hints", () => {
-    expect(getStageSummaryText(stage, undefined, true, false, false, ["CONTACT_EMAILS"])).toBe("Loading status...");
-    expect(getStageSummaryText(stage, undefined, false, true, false, ["CONTACT_EMAILS"])).toBe("Status update required");
-    expect(getStageSummaryText(stage, { create: 0, update: 0, delete: 0, replace: 0 }, false, false, false, ["CONTACT_EMAILS"])).toBe("No changes");
-    expect(getStageSummaryText({ ...stage, status: "pending" }, undefined, false, false, true, ["CONTACT_EMAILS"])).toBe("Skipped");
+  it("keeps prerequisite hints ahead of loading, stale, completed and skipped statuses", () => {
+    expect(getStageSummaryText(stage, undefined, true, false, false, ["CONTACT_EMAILS"])).toBe("CONTACT_EMAILS not set"); // The fixable blocker outranks a loading spinner.
+    expect(getStageSummaryText(stage, undefined, false, true, false, ["CONTACT_EMAILS"])).toBe("CONTACT_EMAILS not set"); // ...and a stale-status reminder.
+    expect(getStageSummaryText(stage, { create: 0, update: 0, delete: 0, replace: 0 }, false, false, false, ["CONTACT_EMAILS"])).toBe("CONTACT_EMAILS not set");
+    expect(getStageSummaryText({ ...stage, status: "pending" }, undefined, false, false, true, ["CONTACT_EMAILS"])).toBe("CONTACT_EMAILS not set");
+    expect(getStageSummaryText({ ...stage, status: "success", runId: "1", deployPlanRunId: "1", deployStatus: "success" }, undefined, false, false, false, ["CONTACT_EMAILS"])).toBe("CONTACT_EMAILS not set");
   });
 
   it("distinguishes a failed deployment of the current plan from an older deployment", () => {
@@ -65,6 +77,40 @@ describe("stage header status", () => {
     expect(getStageSummaryText({ ...planned, deployPlanRunId: "old" }, undefined, false, false)).toBe("Ready to deploy");
     expect(getStageSummaryText({ ...planned, deployStatus: "cancelled" }, undefined, false, false)).toBe("Deployment cancelled; retry deployment");
     expect(getStageSummaryText({ ...planned, deployStatus: "success" }, undefined, false, false)).toBe("Deployed");
+  });
+
+  it("uses red error status for failed plans and orange warning for unmet prerequisites", () => { // Keep the two states visually distinct.
+    expect(stageToCardStatus("failed", false, false)).toBe("error"); // A failed plan with no blockers stays red.
+    expect(stageToCardStatus("pending", false, false, true)).toBe("warning"); // An unmet prerequisite also uses orange warning.
+    expect(stageToCardStatus("failed", false, false, true)).toBe("warning"); // Outstanding prerequisites take priority over the failed-plan state.
+    expect(stageToCardStatus("pending", true, false, true)).toBe("warning");
+    expect(stageToCardStatus("deployed", false, false, true)).toBe("warning");
+    expect(stageToCardStatus("skipped", false, true, true)).toBe("warning");
+  }); // End the failed-plan and unmet-prerequisite warning cases.
+
+  it("assesses missing, incomplete and changed prerequisites without leaking values", () => {
+    const prerequisites = [
+      { type: "var" as const, key: "NAME" },
+      { type: "varGroup" as const, keys: ["NAME", "AZURE_TENANT_ID"], label: "Azure" },
+      { type: "stageVar" as const, keys: ["CONTACT_EMAILS"], label: "Budget" },
+      { type: "card" as const, cardId: "azure_login" as CardId },
+    ];
+    const values = { NAME: "new-company", AZURE_TENANT_ID: "   ", CONTACT_EMAILS: "owner@example.com" };
+    const snapshot = { NAME: "old-company", AZURE_TENANT_ID: "old-tenant", CONTACT_EMAILS: "owner@example.com" };
+    expect(assessPrerequisites(prerequisites, values, {} as Record<CardId, CardStatus>, snapshot)).toEqual({
+      missing: ["AZURE_TENANT_ID"], incomplete: ["azure_login"], changed: ["COMPANY_SHORT_CODE"], blocked: true,
+      summary: "AZURE_TENANT_ID not set; azure login not complete; COMPANY_SHORT_CODE changed since last plan",
+    });
+    expect(assessPrerequisites(prerequisites, values, {} as Record<CardId, CardStatus>).changed).toEqual([]);
+    expect(assessPrerequisites([], {}, {} as Record<CardId, CardStatus>).blocked).toBe(false);
+  });
+
+  it("does not let an old empty summary mask a failed or pending plan", () => {
+    const empty = { create: 0, update: 0, delete: 0, replace: 0 };
+    expect(getEffectiveStatus(stage, empty)).toBe("failed");
+    expect(getStageSummaryText(stage, empty, false, false)).toBe("Plan failed; check the GitHub Actions run");
+    expect(getEffectiveStatus({ ...stage, status: "pending" }, empty)).toBe("pending");
+    expect(getStageSummaryText({ ...stage, status: "success" }, empty, false, false)).toBe("No changes");
   });
 });
 
@@ -111,7 +157,107 @@ async function mount() {
   return () => latest!;
 }
 
+async function mountModel(planOverrides: Partial<Plan> = {}, variableValues: Record<string, string> = {}) {
+  let latest: ReturnType<typeof useCorpStageCards> = [];
+  const plan: Plan = {
+    stages: [{ stage: "SubscriptionBudget", status: "success", runId: "current" }],
+    stageSummaries: {}, hasPlan: true, stagesLoading: false, runs: {}, deployedEnv: null,
+    onRun: vi.fn().mockResolvedValue(undefined), deployStage: vi.fn().mockResolvedValue(undefined), setStageSummary: vi.fn(),
+    ...planOverrides,
+  };
+  root = createRoot(document.createElement("div"));
+  function Harness() {
+    latest = useCorpStageCards({
+      pipeline: { ...PIPELINE, stages: [{ ...PIPELINE.stages[0], prerequisites: [{ type: "stageVar", keys: ["CONTACT_EMAILS"], label: "Budget" }] }] },
+      plan, allCards: {}, repoDone: true, expandedIds: new Set(), account: ACCOUNT, repoName: "repo-one", selectedEnv: ENV,
+      variableValues, onVariableConfirmed: vi.fn(), onToggle: vi.fn(), onRequirementClick: vi.fn(),
+    });
+    return null;
+  }
+  await act(async () => root!.render(<Harness />));
+  return { model: latest[0], plan };
+}
+
+describe("stage card prerequisite model", () => {
+  it("puts current blockers ahead of run errors and historical completion", async () => {
+    const { model, plan } = await mountModel({
+      stages: [{ stage: "SubscriptionBudget", status: "success", runId: "current", deployPlanRunId: "current", deployStatus: "success" }],
+      runs: { SubscriptionBudget: { kind: "plan", countdown: 0, retryCount: 0, error: "Old run error" } },
+    });
+    expect(model.card.summary).toBe("CONTACT_EMAILS not set");
+    expect(model.card.status).toBe("warning");
+    expect(model.prerequisiteAssessment.blocked).toBe(true);
+    expect(model.statusUpdateDisabled).toBe(true);
+    expect(model.trackDeploy).toBeUndefined();
+    await model.onRunStatusUpdate();
+    expect(plan.onRun).not.toHaveBeenCalled();
+  });
+
+  it("keeps changed inputs blocked but allows a prerequisite-level refresh", async () => {
+    const { model, plan } = await mountModel({ deployedEnv: { CONTACT_EMAILS: "old@example.com" } }, { CONTACT_EMAILS: "new@example.com" });
+    expect(model.card.summary).toBe("CONTACT_EMAILS changed since last plan");
+    expect(model.card.status).toBe("warning");
+    expect(model.prerequisiteAssessment.blocked).toBe(true);
+    expect(model.deployDisabled).toBe(true);
+    expect(model.trackDeploy).toBeUndefined();
+    expect(model.statusUpdateDisabled).toBe(false);
+    await model.onRunStatusUpdate();
+    expect(plan.onRun).toHaveBeenCalledWith("SubscriptionBudget");
+  });
+
+  it("makes failed attempts retryable without presenting them as active", async () => {
+    const { model, plan } = await mountModel({
+      runs: { SubscriptionBudget: { kind: "plan", countdown: 0, retryCount: 0, error: "Failed to trigger workflow" } },
+    }, { CONTACT_EMAILS: "owner@example.com" });
+    expect(model.card.summary).toBe("Failed to trigger workflow");
+    expect(model.card.status).toBe("warning");
+    expect(model.statusUpdateRunning).toBe(false);
+    expect(model.statusUpdateDisabled).toBe(false);
+    await model.onRunStatusUpdate();
+    expect(plan.onRun).toHaveBeenCalledOnce();
+  });
+
+  it("does not dispatch another refresh while one is already running", async () => {
+    const { model, plan } = await mountModel({
+      runs: { SubscriptionBudget: { kind: "plan", countdown: 10, retryCount: 0, error: null } },
+    }, { CONTACT_EMAILS: "owner@example.com" });
+    expect(model.card.summary).toBe("Plan running...");
+    expect(model.statusUpdateDisabled).toBe(true);
+    await model.onRunStatusUpdate();
+    expect(plan.onRun).not.toHaveBeenCalled();
+  });
+});
+
 describe("Run Status Update triggers one stage", () => {
+  it("clears only the refreshed stage's prior summary", async () => {
+    const plan = await mount();
+    const empty = { create: 0, update: 0, delete: 0, replace: 0 };
+    await act(async () => {
+      plan().setStageSummary("SubscriptionBudget", empty);
+      plan().setStageSummary("GlobalGroups", empty);
+    });
+    await act(async () => plan().onRun("SubscriptionBudget"));
+    expect(plan().stageSummaries.SubscriptionBudget).toBeUndefined();
+    expect(plan().stageSummaries.GlobalGroups).toEqual(empty);
+  });
+
+  it("invalidates another stage's summary when its report identity changes", async () => {
+    reportFor("SubscriptionBudget", "plan", { stage: "SubscriptionBudget", status: "success", runId: "old", planJsonId: 1 });
+    const plan = await mount();
+    await act(async () => plan().setStageSummary("SubscriptionBudget", { create: 0, update: 0, delete: 0, replace: 0 }));
+    vi.useFakeTimers();
+    try {
+      await act(async () => plan().onRun("GlobalGroups"));
+      reportFor("SubscriptionBudget", "plan", { stage: "SubscriptionBudget", status: "success", runId: "new", planJsonId: 2 });
+      reportFor("GlobalGroups", "plan", { stage: "GlobalGroups", status: "success", runId: "groups" }, Date.now() + 150_000);
+      await act(async () => vi.advanceTimersByTimeAsync(151_000));
+      expect(plan().stages.find((stage) => stage.stage === "SubscriptionBudget")?.runId).toBe("new");
+      expect(plan().stageSummaries.SubscriptionBudget).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("dispatches the shared stage workflow with that stage's dir", async () => {
     const plan = await mount();
 

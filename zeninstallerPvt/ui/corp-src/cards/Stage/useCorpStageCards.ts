@@ -5,13 +5,14 @@
 
 import type { Account, CardChrome, CardHook, CardId, CardStatus, GhEnv, PipelineConfig, PlanSummary, Stage, StageDefinition } from "../../types";
 import type { UseDeploymentPlan } from "./useDeploymentPlan";
-import { getEffectiveStatus, getStageCardId, getStageSummaryText, getUnmetPrerequisites, hasVariableDiff, stageToCardStatus } from "../../logic/stage";
+import { assessPrerequisites, getEffectiveStatus, getStageCardId, getStageSummaryText, stageToCardStatus, type PrerequisiteAssessment } from "../../logic/stage";
 
 export type CorpStageCardModel = {
   key: string;
   card: CardChrome;
   stageDef: StageDefinition;
   stage: Stage;
+  prerequisiteAssessment: PrerequisiteAssessment;
   deployDisabled: boolean;
   deployedEnv: Record<string, string> | null;
   variableValues: Record<string, string>;
@@ -68,11 +69,13 @@ export function useCorpStageCards({
     };
     const summary = plan.stageSummaries[stageDef.dir];
     const effectiveStatus = getEffectiveStatus(stage, summary, stageDef.optional);
-    const varsMismatch = plan.deployedEnv != null && hasVariableDiff(stageDef.prerequisites, variableValues, plan.deployedEnv);
+    const prerequisiteAssessment = assessPrerequisites(stageDef.prerequisites, variableValues, cardStatus, plan.deployedEnv);
     // This stage's own run, if it has one — a run on another card must not grey this one out.
     const run = plan.runs[stageDef.dir];
-    const isStale = run != null;
-    const deployDisabled = isStale || varsMismatch;
+    // Failed dispatches are retryable; only an active run is stale, and changed inputs can still be refreshed.
+    const isStale = run != null && run.error == null;
+    const inputsMissing = prerequisiteAssessment.missing.length > 0 || prerequisiteAssessment.incomplete.length > 0;
+    const deployDisabled = !repoDone || isStale || prerequisiteAssessment.blocked || !!run?.error;
     const cardId = getStageCardId(stageDef.dir);
     const requirements = repoDone
       ? []
@@ -86,16 +89,11 @@ export function useCorpStageCards({
     let cardSummary: string | undefined;
     if (!locked) {
       try {
-        cardSummary =
-          run?.error ??
-          getStageSummaryText(
-            stage,
-            summary,
-            plan.stagesLoading,
-            isStale,
-            stageDef.optional,
-            getUnmetPrerequisites(stageDef.prerequisites, variableValues, cardStatus),
-          );
+        cardSummary = prerequisiteAssessment.blocked
+          ? prerequisiteAssessment.summary
+          : run?.error ?? (isStale
+            ? run.kind === "deploy" ? "Deployment running..." : "Plan running..."
+            : getStageSummaryText(stage, summary, plan.stagesLoading, false, stageDef.optional));
       } catch (error) {
         console.error("Failed to build stage card summary:", error);
         cardSummary = "";
@@ -103,7 +101,7 @@ export function useCorpStageCards({
     }
     const card: CardChrome = {
       cardId,
-      status: locked ? "idle" : stageToCardStatus(effectiveStatus, isStale, plan.stagesLoading),
+      status: locked ? "idle" : run?.error ? "warning" : stageToCardStatus(effectiveStatus, isStale, plan.stagesLoading, prerequisiteAssessment.blocked), // Retryable dispatch errors stay orange; reported plan failures are red.
       summary: cardSummary,
       locked,
       requirements,
@@ -113,7 +111,7 @@ export function useCorpStageCards({
       onRequirementClick,
     };
     const trackDeploy =
-      effectiveStatus === "success" && stage.runId && selectedEnv
+      !deployDisabled && effectiveStatus === "success" && stage.runId && selectedEnv
         ? async () => {
             await plan.deployStage(stageDef.dir);
           }
@@ -124,6 +122,7 @@ export function useCorpStageCards({
       card,
       stageDef,
       stage,
+      prerequisiteAssessment,
       latestSha: plan.latestSha,
       deployDisabled,
       deployedEnv: plan.deployedEnv,
@@ -135,10 +134,12 @@ export function useCorpStageCards({
       onVariableConfirmed,
       trackDeploy,
       onPlanSummary: (s) => plan.setStageSummary(stageDef.dir, s),
-      onRunStatusUpdate: () => plan.onRun(stageDef.dir),
-      statusUpdateRunning: run != null && run.error == null,
+      onRunStatusUpdate: async () => {
+        if (repoDone && !inputsMissing && !isStale) await plan.onRun(stageDef.dir);
+      },
+      statusUpdateRunning: isStale,
       statusUpdateCountdown: run?.countdown ?? 0,
-      statusUpdateDisabled: !repoDone || run != null,
+      statusUpdateDisabled: !repoDone || inputsMissing || isStale,
       runError: run?.error ?? null,
       cardErrorMsg,
     };
