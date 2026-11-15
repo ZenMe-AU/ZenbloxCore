@@ -774,7 +774,7 @@ function StageCardContent({
   );
 }
 
-function ArmStageCard({ resourceCard, ...props }: Props & { resourceCard: "subscriptionBudget" | "globalGroups" }) {
+function ArmStageCard({ resourceCard, ...props }: Props & { resourceCard: "subscriptionBudget" }) {
   const managementAccess = useCardResourceAccess({
     azureAccount: props.azureAccount,
     subscriptionId: props.variableValues.AZURE_SUBSCRIPTION_ID ?? "",
@@ -785,6 +785,5 @@ function ArmStageCard({ resourceCard, ...props }: Props & { resourceCard: "subsc
 
 export default function StageCard(props: Props) {
   if (props.stageDef.dir === "SubscriptionBudget") return <ArmStageCard {...props} resourceCard="subscriptionBudget" />;
-  if (props.stageDef.dir === "GlobalGroups") return <ArmStageCard {...props} resourceCard="globalGroups" />;
   return <StageCardContent {...props} />;
 }

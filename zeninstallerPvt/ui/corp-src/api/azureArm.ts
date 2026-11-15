@@ -10,6 +10,7 @@ import {
   CORE_INFRA_PROVIDERS, DNS_PROVIDERS, PRIVATE_FRONTEND_PROVIDERS, REMOTE_TERMINAL_PROVIDERS,
 } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
+import { createRandomUuid } from "../logic/randomUuid";
 import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
 import { TFSTATE_CONTAINER, TERMINAL_DEPLOY_CONTAINER, TERMINAL_SESSION_TABLE, TERMINAL_HUB } from "../logic/naming";
 import type { AzureAccount } from "../types";
@@ -327,7 +328,7 @@ export async function ensureManagementAccess(account: AzureAccount, requirements
 }
 
 export type CardResourceAccessRequest = {
-  card: "core" | "domain" | "frontend" | "backend" | "appRegistration" | "backendDeploy" | "webDeploy" | "subscriptionBudget" | "globalGroups";
+  card: "core" | "domain" | "frontend" | "backend" | "appRegistration" | "backendDeploy" | "webDeploy" | "subscriptionBudget" | "adminUsers";
   resourceGroup?: string;
   workspace?: string;
   storageAccount?: string;
@@ -464,9 +465,9 @@ export async function ensureCardResourceAccess(
     }], overrideTenantId);
     return;
   }
-  if (card === "globalGroups") {
+  if (card === "adminUsers") {
     const root = `/providers/Microsoft.Management/managementGroups/${overrideTenantId || account.tenantId}`;
-    const actions = [...RESOURCE_PERMISSIONS.roleAssignments, "Microsoft.Authorization/roleAssignments/delete"];
+    const actions = [...RESOURCE_PERMISSIONS.roleAssignments];
     await ensureManagementAccess(account, [{ scope: sub, actions }, { scope: root, actions }], overrideTenantId);
     return;
   }
@@ -933,6 +934,46 @@ export async function ensureRbacRoleAtScope(
         roleDefinitionId: `/providers/Microsoft.Authorization/roleDefinitions/${roleId}`,
         principalId,
         principalType,
+      },
+    }),
+  });
+  return "created";
+}
+
+// PIM for Azure resources: the principal is eligible and activates the role when needed. Needs Entra ID P2.
+export async function ensureRbacRoleEligibility(
+  account: AzureAccount,
+  scope: string,
+  principalId: string,
+  roleName: string,
+  overrideTenantId?: string
+): Promise<EnsureResult> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  const roleId = RBAC_ROLE_IDS[roleName];
+  if (!roleId) throw new Error(`Unknown Azure role: ${roleName}`);
+  type Schedule = { properties: { principalId: string; roleDefinitionId: string } };
+  let path = `${scope}/providers/Microsoft.Authorization/roleEligibilitySchedules?api-version=2020-10-01&$filter=atScope()`;
+  for (;;) {
+    const page: { value?: Schedule[]; nextLink?: string } = await gFetch(token, ARM, path);
+    const found = (page?.value ?? []).some(
+      (s) => s.properties?.principalId === principalId && s.properties?.roleDefinitionId?.toLowerCase().endsWith(`/${roleId.toLowerCase()}`)
+    );
+    if (found) return "exists";
+    if (!page?.nextLink) break;
+    const next = new URL(page.nextLink, ARM);
+    if (next.origin !== ARM) throw new Error("Azure returned an unexpected role eligibility URL");
+    path = `${next.pathname}${next.search}`;
+  }
+  // A fresh name each time: an old request with a fixed name would clash once its eligibility was removed.
+  await gFetch(token, ARM, `${scope}/providers/Microsoft.Authorization/roleEligibilityScheduleRequests/${createRandomUuid()}?api-version=2020-10-01`, {
+    method: "PUT",
+    body: JSON.stringify({
+      properties: {
+        principalId,
+        roleDefinitionId: `${scope}/providers/Microsoft.Authorization/roleDefinitions/${roleId}`,
+        requestType: "AdminAssign",
+        justification: "Set up by ZenInstaller",
+        scheduleInfo: { startDateTime: new Date().toISOString(), expiration: { type: "NoExpiration" } },
       },
     }),
   });
