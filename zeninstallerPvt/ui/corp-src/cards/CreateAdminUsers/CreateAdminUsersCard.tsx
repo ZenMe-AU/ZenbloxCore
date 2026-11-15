@@ -100,8 +100,8 @@ function Intro() {
 
 function licenceText(licence: LicenceState, error: string | null): string {
   if (licence === null) return "Checking the Entra ID licence...";
-  if (licence === "unknown") return error ? `Couldn't check the Entra ID licence: ${error}` : "Couldn't check the Entra ID licence";
-  return licence === "none" ? LICENCE_LABEL.none : `Licence: ${LICENCE_LABEL[licence]}`;
+  if (licence === "unknown") return `Unable to identify the Entra ID licence. ${error ?? ""}`;
+  return LICENCE_LABEL[licence]
 }
 
 // A bordered radio or checkbox, greyed out until the licence allows it.
@@ -249,12 +249,9 @@ export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Prop
         )}
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
-            <Typography variant="sectionLabel">Entra role assignment</Typography>
-            <Typography color="text.muted">{licenceText(entraLicence, licenceError)}</Typography>
-          </Box>
-          <Typography color="text.muted">Who gets the roles</Typography>
-          <RadioGroup value={known ? roleTarget : ""} onChange={(e) => setRoleTarget(e.target.value as RoleTarget)} sx={{ gap: 1 }}>
+          <Typography color="text.muted">The role assignment options differ based on your Entra ID license. {licenceText(entraLicence, licenceError)}</Typography>
+
+          <RadioGroup value={known ? roleTarget : ""} onChange={(e) => setRoleTarget(e.target.value as RoleTarget)} sx={{ gap: 1, ml: 4 }}>
             {ROLE_TARGETS.map((t) => (
               <LicenceOption
                 key={t.target}
@@ -267,7 +264,7 @@ export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Prop
               />
             ))}
           </RadioGroup>
-          <Typography color="text.muted">How the roles are held</Typography>
+          <Typography color="text.muted">Is Entra Privileged Identity Management (PIM) available?</Typography>
           <LicenceOption
             control={<Checkbox size="small" checked={usePim} onChange={(e) => setUsePim(e.target.checked)} />}
             option={PIM_OPTION}

@@ -64,25 +64,25 @@ export type LicenceState = EntraLicence | "unknown" | null; // Null while checki
 export const ROLE_TARGETS: { target: RoleTarget; label: string; description: string; needs: EntraLicence }[] = [
   {
     target: "users",
-    label: "Assign directly to users",
-    description: "Global Administrator goes on each adm_ account. PrivilegedAccounts is a normal group, so removing someone from it doesn't remove their Global Administrator.",
+    label: "Assign access directly to users",
+    description: "Global Administrator is directly assigned to each adm_ account which is also added to the PrivilegedAccounts group.",
     needs: "none",
   },
   {
     target: "group",
-    label: "Assign to the group",
-    description: "PrivilegedAccounts is role-assignable, so membership decides who's Global Administrator.",
+    label: "Assign access to the group",
+    description: "(Not recommended), Entra roles are assigned to all members of the PrivilegedAccounts group. This means one member's access cannot be different from another, it's an all or nothing privileged account.",
     needs: "p1",
   },
 ];
 
 export const PIM_OPTION = {
-  label: "Use PIM",
-  description: "Eligible instead of active. Global Administrator and Owner on the tenant root management group are activated when needed, with a reason and a time limit.",
+  label: "Require PIM for all privileged accounts",
+  description: "When assigning roles, set them as PIM Eligible instead of active. User must activate their roles when needed, with a reason and a time limit.",
   needs: "p2" as EntraLicence,
 };
 
-export const LICENCE_LABEL: Record<EntraLicence, string> = { none: "No licence", p1: "Entra ID P1", p2: "Entra ID P2" };
+export const LICENCE_LABEL: Record<EntraLicence, string> = { none: "No Entra ID licence available", p1: "Entra ID P1 license available", p2: "Entra ID P2 license available" };
 const LICENCE_RANK: Record<EntraLicence, number> = { none: 0, p1: 1, p2: 2 };
 
 // Nothing is allowed until the licence is read.
