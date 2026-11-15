@@ -3,8 +3,11 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import { useState } from "react";
+import { Box, Button, ButtonBase, CircularProgress, Collapse, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseBackendDeployCard } from "./useBackendDeployCard";
@@ -38,7 +41,8 @@ function Intro({ appName }: { appName: string }) {
 }
 
 export default function BackendDeployCard({ card, backend, repoFullName }: Props) {
-  const { appName, latest, deployed, loadingLatest, loadingDeployed, building, build, buildWorkflow, updateAvailable, error, steps, running, run } = backend;
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
+  const { appName, latest, deployed, loadingLatest, loadingDeployed, deployedUnavailable, building, build, buildWorkflow, updateAvailable, error, steps, running, run } = backend;
 
   return (
     <Card
@@ -57,8 +61,6 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro appName={appName} />
-        <ResourceGroupCreationAccess access={backend.managementAccess} resourceAccess />
-
         <Box>
           <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Versions</Typography>
           <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
@@ -73,9 +75,11 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
               <Box component="span" sx={{ color: "text.primary", typography: "technicalBody" }}>
                 {loadingDeployed
                   ? "checking..."
-                  : deployed
-                    ? `${deployed.sha.slice(0, 7)}${deployed.deployedAt ? ` · ${when(deployed.deployedAt)}` : ""}`
-                    : "nothing deployed"}
+                  : deployedUnavailable
+                    ? "unavailable"
+                    : deployed
+                      ? `${deployed.sha.slice(0, 7)}${deployed.deployedAt ? ` · ${when(deployed.deployedAt)}` : ""}`
+                      : "nothing deployed"}
               </Box>
             </Typography>
           </Box>
@@ -87,7 +91,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           </Box>
         )}
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           <Button
             onClick={() => void build()}
             disabled={building || running}
@@ -126,15 +130,22 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
             )}
           </Button>
 
+          {backend.managementAccess.status === "error" && (
+            <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+              <Typography color="error.main">Insufficient permissions to deploy</Typography>
+            </Box>
+          )}
+
           {/* Mutually exclusive with the prompt below, so both share the slot by the button. */}
-          {!loadingLatest && latest && !updateAvailable && (
+          {!loadingLatest && !deployedUnavailable && latest && !updateAvailable && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2", color: "success.main" }} />
               <Typography color="success.dark">The Function App is running the latest build.</Typography>
             </Box>
           )}
 
-          {!loadingLatest && updateAvailable && deployed && (
+          {!loadingLatest && !deployedUnavailable && updateAvailable && deployed && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
               <Typography color="warning.dark">Ready to deploy the new build</Typography>
@@ -150,6 +161,50 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           </Box>
         )}
         <ProcessRetryNotice started={steps.length > 0} />
+
+        {(backend.managementAccess.status === "checking" || backend.managementAccess.status === "error") && (
+          <Box sx={{ minWidth: 0 }}>
+            <ButtonBase
+              disableRipple
+              onClick={() => setPrerequisitesOpen((open) => !open)}
+              aria-expanded={prerequisitesOpen}
+              aria-label={prerequisitesOpen ? "Collapse prerequisites" : "View prerequisites"}
+              aria-controls="backend-deploy-prerequisites"
+              sx={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                userSelect: "none",
+                py: 0.25,
+                "&:hover .prerequisites-toggle-label, &:focus-visible .prerequisites-toggle-label": { color: "primary.main" },
+                "&:hover .prerequisites-toggle-line, &:focus-visible .prerequisites-toggle-line": { backgroundColor: "primary.main" },
+                "&:hover .prerequisites-toggle-icon, &:focus-visible .prerequisites-toggle-icon": { color: "primary.main" },
+              }}
+            >
+              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+              <Typography className="prerequisites-toggle-label" color="text.muted" sx={{ whiteSpace: "nowrap", transition: "color 0.2s" }}>
+                {prerequisitesOpen ? "hide prerequisites" : "view prerequisites"}
+              </Typography>
+              <KeyboardArrowDownIcon
+                className="prerequisites-toggle-icon"
+                sx={{
+                  typography: "caption",
+                  color: "text.muted",
+                  transform: prerequisitesOpen ? "rotate(180deg)" : "none",
+                  transition: "color 0.2s, transform 0.2s",
+                }}
+                aria-hidden="true"
+              />
+              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+            </ButtonBase>
+            <Collapse in={prerequisitesOpen} timeout={300}>
+              <Box id="backend-deploy-prerequisites" role="region" aria-label="Prerequisites" sx={{ mt: 0.5 }}>
+                <ResourceGroupCreationAccess access={backend.managementAccess} resourceAccess errorStyle />
+              </Box>
+            </Collapse>
+          </Box>
+        )}
       </Box>
     </Card>
   );

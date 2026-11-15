@@ -5,6 +5,7 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { ThemeProvider } from "@mui/material";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureInstallerSubscriptionAccess, ensureResourceGroupCreationAccess } from "../api/azureArm";
 import { ARM_SCOPES } from "../config/azureConfig";
@@ -12,7 +13,11 @@ import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
 import { useCoreInfraCard } from "../cards/CoreInfra/useCoreInfraCard";
 import { useCreateDomainCard } from "../cards/CreateDomain/useCreateDomainCard";
 import { usePrivateFrontendInfraCard } from "../cards/PrivateFrontendInfra/usePrivateFrontendInfraCard";
+import PrivateFrontendInfraCard from "../cards/PrivateFrontendInfra/PrivateFrontendInfraCard";
 import { useRemoteTerminalInfraCard } from "../cards/RemoteTerminalInfra/useRemoteTerminalInfraCard";
+import RemoteTerminalInfraCard from "../cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
+import { DEPLOYMENT_TERMINAL_KEYS } from "../logic/variables";
+import theme from "../theme";
 import type { AzureAccount, SetupStep } from "../types";
 import type { ResourceGroupCreationAccess } from "../hooks/util/useResourceGroupCreationAccess";
 
@@ -264,6 +269,7 @@ describe.each(cards)("$name access preflight", ({ useCard }) => {
       status: "error",
       error: expect.stringContaining("Contributor access"),
     });
+
     expect(latest.steps).toEqual([]);
     expect(mocks.ensureResourceGroup).not.toHaveBeenCalled();
     expect(mocks.ensureRegistered).not.toHaveBeenCalled();
@@ -333,4 +339,145 @@ describe.each(cards)("$name access preflight", ({ useCard }) => {
     expect(latest.steps[0]).toMatchObject({ status: "error", detail: expect.stringContaining("selected subscription sub-2") });
     expect(mocks.ensureRegistered).toHaveBeenCalledTimes(1);
   });
+});
+
+it("shows backend access errors beside Re-run and in an independent prerequisites section", async () => {
+  const values = Object.fromEntries(DEPLOYMENT_TERMINAL_KEYS.map((key) => [key, "saved-value"]));
+  const props = {
+    azureAccount: account,
+    subscriptionId: "sub-1",
+    tenantId: "tenant-1",
+    variableValues: values,
+    allowedOrigins: ["https://installer.example.com"],
+    githubAccount: { login: "example", id: 1, type: "Organization" as const },
+    githubRepo: "corp",
+    githubRepoId: 2,
+    githubEnvName: "TEST",
+  };
+  const variables = { values, loading: false, refreshing: false, error: false, onRefresh: vi.fn(async () => {}), onConfirmed: vi.fn() };
+  const container = document.createElement("div");
+  root = createRoot(container);
+  let latest: ReturnType<typeof useRemoteTerminalInfraCard>;
+
+  function Harness() {
+    const infra = useRemoteTerminalInfraCard(props);
+    latest = infra;
+    return (
+      <ThemeProvider theme={theme}>
+        <RemoteTerminalInfraCard
+          card={{
+            cardId: "remote_terminal_infra", status: infra.status, summary: infra.summary,
+            locked: false, requirements: [], unavailable: false, expanded: true,
+            onToggle: vi.fn(), onRequirementClick: vi.fn(),
+          }}
+          infra={infra}
+          subscriptionId="sub-1"
+          githubAccount={null}
+          repoName="corp"
+          selectedEnv={null}
+          variables={variables}
+        />
+      </ThemeProvider>
+    );
+  }
+
+  await act(async () => root!.render(<Harness />));
+  expect(latest!.done).toBe(true);
+  expect(latest!.status).toBe("error");
+  expect(latest!.summary).toBe("Insufficient permissions to continue");
+  const rerun = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Re-run")!;
+  expect(rerun.disabled).toBe(true);
+  expect(rerun.parentElement?.textContent).toContain("Insufficient permissions to continue");
+  const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="remote-terminal-prerequisites"]')!;
+  const detailsToggle = container.querySelector<HTMLButtonElement>('[aria-controls="remote-terminal-connection-details"]')!;
+  expect(rerun.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(toggle.compareDocumentPosition(detailsToggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(toggle.querySelectorAll(".prerequisites-toggle-line")).toHaveLength(2);
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  await act(async () => toggle.click());
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(detailsToggle.getAttribute("aria-expanded")).toBe("false");
+  const prerequisites = container.querySelector('#remote-terminal-prerequisites')!;
+  expect(prerequisites.textContent).toContain("Missing Azure management permissions");
+  expect(prerequisites.querySelector("a")?.href).toBe(AZURE_PIM_ACTIVATION_URL);
+  mocks.azFetch.mockImplementation(async (_token: string, _origin: string, path: string) =>
+    path.includes("/permissions?") ? { value: [{ actions: ["*"] }] } : { value: [] }
+  );
+  const retry = Array.from(prerequisites.querySelectorAll("button")).find((button) => button.textContent === "Recheck resource access")!;
+  await act(async () => {
+    retry.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(latest!.creationAccess).toMatchObject({ status: "ready", error: null });
+  expect(latest!.status).toBe("complete");
+  expect(container.querySelector('[aria-controls="remote-terminal-prerequisites"]')).toBeNull();
+  expect(rerun.parentElement?.textContent).not.toContain("Insufficient permissions to continue");
+});
+
+it("shows frontend access errors beside Create and in an independent prerequisites section", async () => {
+  const values = {};
+  const props = {
+    azureAccount: account,
+    subscriptionId: "sub-1",
+    tenantId: "tenant-1",
+    variableValues: values,
+    allowedOrigins: ["https://installer.example.com"],
+  };
+  const variables = { values, loading: false, refreshing: false, error: false, onRefresh: vi.fn(async () => {}), onConfirmed: vi.fn() };
+  const container = document.createElement("div");
+  root = createRoot(container);
+  let latest: ReturnType<typeof usePrivateFrontendInfraCard>;
+
+  function Harness() {
+    const infra = usePrivateFrontendInfraCard(props);
+    latest = infra;
+    return (
+      <ThemeProvider theme={theme}>
+        <PrivateFrontendInfraCard
+          card={{
+            cardId: "private_frontend_infra", status: infra.status, summary: infra.summary,
+            locked: false, requirements: [], unavailable: false, expanded: true,
+            onToggle: vi.fn(), onRequirementClick: vi.fn(),
+          }}
+          infra={infra}
+          subscriptionId="sub-1"
+          githubAccount={null}
+          repoName="corp"
+          selectedEnv={null}
+          variables={variables}
+        />
+      </ThemeProvider>
+    );
+  }
+
+  await act(async () => root!.render(<Harness />));
+  expect(latest!.status).toBe("error");
+  expect(latest!.summary).toBe("Insufficient permissions to continue");
+  const create = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Create frontend hosting environment")!;
+  expect(create.disabled).toBe(true);
+  expect(create.parentElement?.textContent).toContain("Insufficient permissions to continue");
+  const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="private-frontend-prerequisites"]')!;
+  const detailsToggle = container.querySelector<HTMLButtonElement>('[aria-controls="private-frontend-connection-details"]')!;
+  expect(create.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(toggle.compareDocumentPosition(detailsToggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(toggle.querySelectorAll(".prerequisites-toggle-line")).toHaveLength(2);
+  expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  await act(async () => toggle.click());
+  expect(toggle.getAttribute("aria-expanded")).toBe("true");
+  expect(detailsToggle.getAttribute("aria-expanded")).toBe("false");
+  const prerequisites = container.querySelector('#private-frontend-prerequisites')!;
+  expect(prerequisites.textContent).toContain("Missing Azure management permissions");
+  expect(prerequisites.querySelector("a")?.href).toBe(AZURE_PIM_ACTIVATION_URL);
+  mocks.azFetch.mockImplementation(async (_token: string, _origin: string, path: string) =>
+    path.includes("/permissions?") ? { value: [{ actions: ["*"] }] } : { value: [] }
+  );
+  const retry = Array.from(prerequisites.querySelectorAll("button")).find((button) => button.textContent === "Recheck resource access")!;
+  await act(async () => {
+    retry.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect(latest!.creationAccess).toMatchObject({ status: "ready", error: null });
+  expect(latest!.status).toBe("warning");
+  expect(container.querySelector('[aria-controls="private-frontend-prerequisites"]')).toBeNull();
+  expect(create.parentElement?.textContent).not.toContain("Insufficient permissions to continue");
 });

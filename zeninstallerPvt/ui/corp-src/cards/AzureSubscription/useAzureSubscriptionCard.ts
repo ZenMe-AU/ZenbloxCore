@@ -115,12 +115,12 @@ export function useAzureSubscriptionCard({
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
   const status: CardStatus = installerAccess.status === "error"
-    ? "warning"
+    ? "error"
     : subscriptionConfirmed ? "complete" : subscriptionDrift || subscriptionNoAccess ? "warning" : "idle";
   const summary = !azureConfigured
     ? "Unavailable"
     : installerAccess.status === "error"
-      ? "Installer subscription access needs attention"
+      ? "Insufficient permissions to continue"
       : subscriptionConfirmed
         ? (subscriptionLabel ?? "Subscription selected")
         : subscriptionDrift

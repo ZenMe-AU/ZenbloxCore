@@ -302,22 +302,26 @@ export function useAzureAppRegistrationCard({
   // which overrides this status to "idle" regardless of what's computed here.
   const status: CardStatus = !azureConfigured
     ? "error"
-    : !variablesComplete
-      ? "warning"
-      : rbacStatus === "sp-not-found" || rbacStatus === "missing-role" || planClientIdMismatch
-        ? "warning" // vars saved but the app reg is gone from this tenant, the SP lost access, or AZURE_PLAN_CLIENT_ID drifted
-        : "complete"; // filled in — validated (true) or not yet run (null) both count as complete
+    : managementAccess.status === "error"
+      ? "error"
+      : !variablesComplete
+        ? "warning"
+        : rbacStatus === "sp-not-found" || rbacStatus === "missing-role" || planClientIdMismatch
+          ? "warning" // vars saved but the app reg is gone from this tenant, the SP lost access, or AZURE_PLAN_CLIENT_ID drifted
+          : "complete"; // filled in — validated (true) or not yet run (null) both count as complete
   const summary = !azureConfigured
     ? "Unavailable"
-    : rbacStatus === "sp-not-found"
-      ? "Not found in the selected tenant — recreate it"
-      : rbacStatus === "missing-role"
-        ? "Missing access on the selected subscription"
-        : planClientIdMismatch
-          ? "AZURE_PLAN_CLIENT_ID doesn't match AZURE_CLIENT_ID"
-          : result
-            ? "App registration ready"
-            : "Create the app registration";
+    : managementAccess.status === "error"
+      ? "Insufficient permissions to continue"
+      : rbacStatus === "sp-not-found"
+        ? "Not found in the selected tenant — recreate it"
+        : rbacStatus === "missing-role"
+          ? "Missing access on the selected subscription"
+          : planClientIdMismatch
+            ? "AZURE_PLAN_CLIENT_ID doesn't match AZURE_CLIENT_ID"
+            : result
+              ? "App registration ready"
+              : "Create the app registration";
 
   return {
     managementAccess,

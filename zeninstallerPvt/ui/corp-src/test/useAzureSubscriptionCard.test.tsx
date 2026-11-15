@@ -29,6 +29,7 @@ async function waitFor(assertion: () => void, timeoutMs = 1000) {
 const { apiMocks } = vi.hoisted(() => ({
   apiMocks: {
     listSubscriptions: vi.fn(),
+    ensureInstallerSubscriptionAccess: vi.fn(),
   },
 }));
 
@@ -38,7 +39,7 @@ vi.mock("../api/azureGraph", () => ({
 
 vi.mock("../api/azureArm", async (importOriginal) => ({
   ...await importOriginal<typeof import("../api/azureArm")>(),
-  ensureInstallerSubscriptionAccess: vi.fn().mockResolvedValue(undefined),
+  ensureInstallerSubscriptionAccess: apiMocks.ensureInstallerSubscriptionAccess,
 }));
 
 vi.mock("../config/azureConfig", () => ({
@@ -57,6 +58,7 @@ describe("useAzureSubscriptionCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     apiMocks.listSubscriptions.mockResolvedValue([{ id: "sub-1", displayName: "Main" }]);
+    apiMocks.ensureInstallerSubscriptionAccess.mockResolvedValue(undefined);
   });
 
   it("loads subscriptions and marks a saved subscription complete", async () => {
@@ -91,6 +93,36 @@ describe("useAzureSubscriptionCard", () => {
 
     await act(async () => {
       expect(latest?.restore.subscription.apply("Main")).toBe(true);
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("reports installer access failures as a deployment error", async () => {
+    apiMocks.ensureInstallerSubscriptionAccess.mockRejectedValueOnce(new Error("Missing deployment permissions"));
+    let latest: UseAzureSubscriptionCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    const account = { username: "org@example.com", tenantId: "tenant-1" } as AzureAccount;
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          azureAccount={account}
+          confirmedTenantId="tenant-1"
+          manualTenantId="tenant-1"
+          savedSubscriptionId="sub-1"
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />
+      );
+    });
+
+    await waitFor(() => {
+      expect(latest?.status).toBe("error");
+      expect(latest?.summary).toBe("Insufficient permissions to deploy");
     });
 
     await act(async () => {

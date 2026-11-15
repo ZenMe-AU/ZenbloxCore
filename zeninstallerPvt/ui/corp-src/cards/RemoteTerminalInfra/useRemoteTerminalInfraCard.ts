@@ -511,8 +511,10 @@ export function useRemoteTerminalInfraCard({
     webPubSubName,
   ]);
 
-  const status: CardStatus = !azureConfigured ? "error" : done ? "complete" : "warning";
-  const summary = !azureConfigured ? "Unavailable" : done ? "Backend environment ready" : "Set up the backend environment";
+  const status: CardStatus = !azureConfigured || creationAccess.status === "error" ? "error" : done ? "complete" : "warning";
+  const summary = !azureConfigured ? "Unavailable"
+    : creationAccess.status === "error" ? "Insufficient permissions to continue"
+      : done ? "Backend environment ready" : "Set up the backend environment";
 
   return {
     cardId: "remote_terminal_infra" as const,

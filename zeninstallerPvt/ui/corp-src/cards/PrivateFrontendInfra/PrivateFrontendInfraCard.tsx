@@ -5,7 +5,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, ButtonBase, Collapse, Typography } from "@mui/material";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import { warningMessageIconSx } from "../../config/styles";
 import type { UsePrivateFrontendInfraCard } from "./usePrivateFrontendInfraCard";
 import StepRow from "../StepRow";
 import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
@@ -55,6 +57,7 @@ export default function PrivateFrontendInfraCard({
   githubUrl,
 }: Props) {
   const [varExpanded, setVarExpanded] = useState(false);
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState(false);
   const [editingStorage, setEditingStorage] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
@@ -92,7 +95,6 @@ export default function PrivateFrontendInfraCard({
 
         {infra.steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <ResourceGroupCreationAccess access={infra.creationAccess} resourceAccess />
             <Box>
               <Typography sx={{ typography: "fieldLabel", mb: 0.75 }}>Resources</Typography>
               <Box sx={{ borderLeft: "2px solid", borderLeftColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
@@ -130,18 +132,22 @@ export default function PrivateFrontendInfraCard({
               </Box>
             </Box>
 
-            <Button
-              variant="contained"
-              onClick={() => void infra.run()}
-              disabled={infra.running || editingStorage || !infra.location.trim() || infra.creationAccess.status !== "ready"}
-              sx={{
-                alignSelf: "flex-start",
-                py: 0.85,
-                px: 2.5,
-              }}
-            >
-              {infra.done ? "Re-run" : "Create frontend hosting environment"}
-            </Button>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <Button
+                variant="contained"
+                onClick={() => void infra.run()}
+                disabled={infra.running || editingStorage || !infra.location.trim() || infra.creationAccess.status !== "ready"}
+                sx={{ py: 0.85, px: 2.5 }}
+              >
+                {infra.done ? "Re-run" : "Create frontend hosting environment"}
+              </Button>
+              {infra.creationAccess.status === "error" && (
+                <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                  <Typography color="error.main">Insufficient permissions to continue</Typography>
+                </Box>
+              )}
+            </Box>
           </Box>
         )}
 
@@ -166,6 +172,50 @@ export default function PrivateFrontendInfraCard({
                 ↩ Start over
               </Button>
             )}
+          </Box>
+        )}
+
+        {(infra.creationAccess.status === "checking" || infra.creationAccess.status === "error") && (
+          <Box sx={{ minWidth: 0 }}>
+            <ButtonBase
+              disableRipple
+              onClick={() => setPrerequisitesOpen((open) => !open)}
+              aria-expanded={prerequisitesOpen}
+              aria-label={prerequisitesOpen ? "Collapse prerequisites" : "View prerequisites"}
+              aria-controls="private-frontend-prerequisites"
+              sx={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                userSelect: "none",
+                py: 0.25,
+                "&:hover .prerequisites-toggle-label, &:focus-visible .prerequisites-toggle-label": { color: "primary.main" },
+                "&:hover .prerequisites-toggle-line, &:focus-visible .prerequisites-toggle-line": { backgroundColor: "primary.main" },
+                "&:hover .prerequisites-toggle-icon, &:focus-visible .prerequisites-toggle-icon": { color: "primary.main" },
+              }}
+            >
+              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+              <Typography className="prerequisites-toggle-label" color="text.muted" sx={{ whiteSpace: "nowrap", transition: "color 0.2s" }}>
+                {prerequisitesOpen ? "hide prerequisites" : "view prerequisites"}
+              </Typography>
+              <KeyboardArrowDownIcon
+                className="prerequisites-toggle-icon"
+                sx={{
+                  typography: "caption",
+                  color: "text.muted",
+                  transform: prerequisitesOpen ? "rotate(180deg)" : "none",
+                  transition: "color 0.2s, transform 0.2s",
+                }}
+                aria-hidden="true"
+              />
+              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+            </ButtonBase>
+            <Collapse in={prerequisitesOpen} timeout={300}>
+              <Box id="private-frontend-prerequisites" role="region" aria-label="Prerequisites" sx={{ mt: 0.5 }}>
+                <ResourceGroupCreationAccess access={infra.creationAccess} resourceAccess errorStyle />
+              </Box>
+            </Collapse>
           </Box>
         )}
 

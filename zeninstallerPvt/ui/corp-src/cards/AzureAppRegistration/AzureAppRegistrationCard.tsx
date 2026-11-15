@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Box, Button, ButtonBase, Collapse, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
@@ -71,6 +72,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
   } = appReg;
   const disabled = card.locked;
   const [varExpanded, setVarExpanded] = useState(false);
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const [bannerState, setBannerState] = useState<"none" | "saved" | "no-changes" | "error">("none");
   const prevRunNonceRef = useRef(runNonce);
@@ -178,9 +180,6 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
             <Intro />
           </Box>
 
-          <ResourceGroupCreationAccess access={appReg.managementAccess} resourceAccess />
-
-
           {/* Requires the Azure sign-in from the Azure login card */}
           {azureAccount && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
@@ -285,6 +284,12 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                     >
                       {rbacMissing ? "Grant Reader access on this subscription" : "Create app registration"}
                     </Button>
+                    {appReg.managementAccess.status === "error" && (
+                      <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                        <Typography color="error.main">Insufficient permissions to continue</Typography>
+                      </Box>
+                    )}
                     {varHasAny && !rbacMissing && !spNotFound && (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
@@ -317,6 +322,50 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                       ↩ Try again
                     </Button>
                   )}
+                </Box>
+              )}
+
+              {(appReg.managementAccess.status === "checking" || appReg.managementAccess.status === "error") && (
+                <Box sx={{ minWidth: 0 }}>
+                  <ButtonBase
+                    disableRipple
+                    onClick={() => setPrerequisitesOpen((open) => !open)}
+                    aria-expanded={prerequisitesOpen}
+                    aria-label={prerequisitesOpen ? "Collapse prerequisites" : "View prerequisites"}
+                    aria-controls="azure-app-registration-prerequisites"
+                    sx={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1.5,
+                      userSelect: "none",
+                      py: 0.25,
+                      "&:hover .prerequisites-toggle-label, &:focus-visible .prerequisites-toggle-label": { color: "primary.main" },
+                      "&:hover .prerequisites-toggle-line, &:focus-visible .prerequisites-toggle-line": { backgroundColor: "primary.main" },
+                      "&:hover .prerequisites-toggle-icon, &:focus-visible .prerequisites-toggle-icon": { color: "primary.main" },
+                    }}
+                  >
+                    <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+                    <Typography className="prerequisites-toggle-label" color="text.muted" sx={{ whiteSpace: "nowrap", transition: "color 0.2s" }}>
+                      {prerequisitesOpen ? "hide prerequisites" : "view prerequisites"}
+                    </Typography>
+                    <KeyboardArrowDownIcon
+                      className="prerequisites-toggle-icon"
+                      sx={{
+                        typography: "caption",
+                        color: "text.muted",
+                        transform: prerequisitesOpen ? "rotate(180deg)" : "none",
+                        transition: "color 0.2s, transform 0.2s",
+                      }}
+                      aria-hidden="true"
+                    />
+                    <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+                  </ButtonBase>
+                  <Collapse in={prerequisitesOpen} timeout={300}>
+                    <Box id="azure-app-registration-prerequisites" role="region" aria-label="Prerequisites" sx={{ mt: 0.5 }}>
+                      <ResourceGroupCreationAccess access={appReg.managementAccess} resourceAccess errorStyle />
+                    </Box>
+                  </Collapse>
                 </Box>
               )}
             </Box>

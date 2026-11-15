@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchArtifactZip, fetchStageReport, triggerWorkflow } from "../../api";
 import {
   deployZipToFunctionApp,
@@ -47,6 +47,7 @@ export interface UseBackendDeployCard extends CardHook, AzureConfigHook {
   latest: BackendBuild | null;
   deployed: DeployedBackend | null;
   loadingDeployed: boolean;
+  deployedUnavailable: boolean;
   loadingLatest: boolean;
   building: boolean;
   build: () => Promise<void>;
@@ -78,9 +79,11 @@ export function useBackendDeployCard({
   const [latest, setLatest] = useState<BackendBuild | null>(null);
   const [deployed, setDeployed] = useState<DeployedBackend | null>(null);
   const [loadingDeployed, setLoadingDeployed] = useState(false);
+  const [deployedUnavailable, setDeployedUnavailable] = useState(false);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const deployedReadSequence = useRef(0);
 
   // The same name the Backend Environment card created; where it lives is asked of Azure, since it may be reused elsewhere.
   const appName = functionAppFromApiUrl(variableValues.VITE_API_URL) || getFunctionAppName(subscriptionId);
@@ -120,21 +123,36 @@ export function useBackendDeployCard({
   }, [githubAccount, repoName, selectedEnv, readLatest]);
 
   const readDeployed = useCallback(async () => {
-    if (!azureAccount || !appName || !subscriptionId) return;
+    if (!azureAccount || !appName || !subscriptionId) {
+      setLoadingDeployed(false);
+      return;
+    }
+    const sequence = ++deployedReadSequence.current;
     setLoadingDeployed(true);
     try {
-      setDeployed(await fetchDeployedBackend(azureAccount, subscriptionId, await findGroup(azureAccount), appName, tenantId || undefined));
+      const current = await fetchDeployedBackend(azureAccount, subscriptionId, await findGroup(azureAccount), appName, tenantId || undefined);
+      if (sequence !== deployedReadSequence.current) return;
+      setDeployed(current);
+      setDeployedUnavailable(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not read the deployed version");
+      if (sequence !== deployedReadSequence.current) return;
+      setDeployedUnavailable(true);
+      const message = e instanceof Error ? e.message : "Could not read the deployed version";
+      if (/^403 \/subscriptions\//.test(message)) reportAccessFailure(e);
+      else setError(message);
     } finally {
-      setLoadingDeployed(false);
+      if (sequence === deployedReadSequence.current) setLoadingDeployed(false);
     }
-  }, [azureAccount, subscriptionId, appName, tenantId, findGroup]);
+  }, [azureAccount, subscriptionId, appName, tenantId, findGroup, reportAccessFailure]);
 
   // Deferred so the loading flag is not set during the render that schedules this.
   useEffect(() => {
+    const sequence = deployedReadSequence;
     const t = setTimeout(() => void readDeployed(), 0);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      sequence.current++;
+    };
   }, [readDeployed]);
 
   const build = useCallback(async () => {
@@ -217,8 +235,8 @@ export function useBackendDeployCard({
       await readDeployed();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      setError(message);
-      if (/^403\b/.test(message)) reportAccessFailure(e);
+      if (/^403 \/subscriptions\//.test(message)) reportAccessFailure(e);
+      else setError(message);
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error", detail: message } : s)));
     } finally {
       setRunning(false);
@@ -235,16 +253,24 @@ export function useBackendDeployCard({
   const done = !!deployed && !!latest && deployed.version === latest.version;
   const updateAvailable = !!latest && !done;
 
-  const status: CardStatus = !ready ? "idle" : done ? "complete" : "warning";
-  const summary = !ready ? "Unavailable" : done ? `Deployed ${latest?.sha.slice(0, 7)}` : updateAvailable ? "Update available" : "Build the backend";
+  const status: CardStatus = !ready ? "idle" : managementAccess.status === "error" ? "error" : done ? "complete" : "warning";
+  const summary = !ready ? "Unavailable" : managementAccess.status === "error" ? "Insufficient permissions to deploy"
+    : done ? `Deployed ${latest?.sha.slice(0, 7)}` : updateAvailable ? "Update available" : "Build the backend";
 
   return {
-    managementAccess,
+    managementAccess: {
+      ...managementAccess,
+      retry: () => {
+        managementAccess.retry();
+        void readDeployed();
+      },
+    },
     cardId: "backend_deploy" as const,
     appName,
     latest,
     deployed,
     loadingDeployed,
+    deployedUnavailable,
     loadingLatest,
     building,
     build,

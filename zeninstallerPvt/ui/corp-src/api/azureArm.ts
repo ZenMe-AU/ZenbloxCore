@@ -295,7 +295,7 @@ export function formatAzureAccessError(error: unknown): string {
   if (!denied) return message;
   const scope = denied[2].split("?")[0];
   const action = message.match(/perform action '([^']+)'/)?.[1];
-  return `Azure denied access to ${scope} (HTTP ${denied[1]}).${action ? ` Required action: ${action}.\n`: ""}
+  return `Azure denied access to ${scope} (HTTP ${denied[1]})\n\n${action ? ` Required action: ${action}`: ""}\n
 Ask an administrator for the required access at this scope or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} and recheck.
 Recent role changes may take time to propagate. If prompted, sign in again.`;
 }
@@ -322,7 +322,7 @@ export async function ensureManagementAccess(account: AzureAccount, requirements
     if (denied.length) missing.push(`${scope}: ${denied.join(", ")}`);
   }
   if (missing.length) {
-    throw new Error(`Missing Azure management permissions:\n${missing.join("\n")}\nAsk an administrator for equivalent access at the listed scopes, or activate eligible roles in PIM at ${AZURE_PIM_ACTIVATION_URL} and recheck.`);
+    throw new Error(`Missing Azure management permissions:\n${missing.join("\n")}\n\nAsk an administrator for equivalent access at the listed scopes or activate eligible roles in PIM at ${AZURE_PIM_ACTIVATION_URL} and recheck.`);
   }
 }
 
@@ -356,7 +356,7 @@ async function scopeExists(check: CardAccessCheck, scope: string, apiVersion: st
   return check.existence.get(scope)!;
 }
 
-// Requires the actions at the resource itself, or at its nearest existing parent when creating it.
+// Requires the actions at the resource itself or at its nearest existing parent when creating it.
 async function requireAtResource(check: CardAccessCheck, scope: string, api: string, actions: readonly string[], mustExist = false): Promise<void> {
   let target = scope;
   if (!await scopeExists(check, scope, api)) {
@@ -512,17 +512,16 @@ export async function ensureResourceGroupCreationAccess(account: AzureAccount, s
 
 // Checks the configured installer management actions at subscription scope, not literal role names.
 export async function ensureInstallerSubscriptionAccess(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<void> {
-  const guidance = `You need at least Contributor + User Access Administrator access (or equivalent permissions).`;
   let permissions: ArmPermission[];
   try {
     permissions = await readPermissionsAtScope(account, subscriptionScope(subscriptionId), overrideTenantId);
   } catch (err) {
-    throw new Error(`Could not verify installer subscription access. ${guidance} Details: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(`Could not verify installer subscription access. Details: ${err instanceof Error ? err.message : String(err)}`);
   }
   const missing = Object.values(SUBSCRIPTION_PERMISSIONS)
     .flat().filter((action) => !grantsArmAction(permissions, action));
   if (missing.length) {
-    throw new Error(`${guidance}\n\n Missing actions:\n ${missing.join(", ")}`);
+    throw new Error(`Missing permissions:\n ${missing.join(", ")}`);
   }
 }
 
