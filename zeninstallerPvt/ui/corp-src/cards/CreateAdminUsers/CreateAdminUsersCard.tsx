@@ -14,8 +14,6 @@ import {
   FormControlLabel,
   IconButton,
   InputAdornment,
-  Radio,
-  RadioGroup,
   Table,
   TableBody,
   TableCell,
@@ -44,11 +42,9 @@ import {
   CREATE_ADMIN_USERS_TITLE,
   LICENCE_LABEL,
   PIM_OPTION,
-  ROLE_TARGETS,
   groupRoleLabel,
   licenceAllows,
   type LicenceState,
-  type RoleTarget,
 } from "./config";
 import { resolveAdmin, type AdminRow, type ManagerChoice, type UseCreateAdminUsersCard } from "./useCreateAdminUsersCard";
 
@@ -98,13 +94,7 @@ function Intro() {
   );
 }
 
-function licenceText(licence: LicenceState, error: string | null): string {
-  if (licence === null) return "Checking the Entra ID licence...";
-  if (licence === "unknown") return `Unable to identify the Entra ID licence. ${error ?? ""}`;
-  return LICENCE_LABEL[licence]
-}
-
-// A bordered radio or checkbox, greyed out until the licence allows it.
+// A bordered option, greyed out until the licence allows it.
 function LicenceOption({ value, control, option, licence, selected, running }: {
   value?: string;
   control: ReactElement;
@@ -227,13 +217,12 @@ function ManagerPicker({ label, self, value, admins, search, onChange, disabled 
 }
 
 export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Props) {
-  const { admins, rowErrors, addAdmin, updateAdmin, removeAdmin, searchUsers, missingGroups, entraLicence, licenceError, roleTarget, setRoleTarget, usePim, setUsePim, access, steps, running, canRun, run, reset, consentRequired, requestConsent, error } =
+  const { admins, rowErrors, addAdmin, updateAdmin, removeAdmin, searchUsers, missingGroups, entraLicence, roleTarget, usePim, setUsePim, access, steps, running, canRun, run, reset, consentRequired, requestConsent, error } =
     adminUsers;
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(() => admins[0]?.key ?? null);
   const [editKey, setEditKey] = useState<string | null>(null);
   const incomplete = admins.filter((a) => rowErrors[a.key]).length;
-  const known = entraLicence !== null && entraLicence !== "unknown";
   const groupSummary = error ? "Couldn't read Entra" : !missingGroups ? "Checking..." : `${missingGroups.length} to create · ${ADMIN_GROUPS.length - missingGroups.length} existing`;
 
   return (
@@ -249,21 +238,6 @@ export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Prop
         )}
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          <Typography color="text.muted">The role assignment options differ based on your Entra ID license. {licenceText(entraLicence, licenceError)}</Typography>
-
-          <RadioGroup value={known ? roleTarget : ""} onChange={(e) => setRoleTarget(e.target.value as RoleTarget)} sx={{ gap: 1, ml: 4 }}>
-            {ROLE_TARGETS.map((t) => (
-              <LicenceOption
-                key={t.target}
-                value={t.target}
-                control={<Radio size="small" />}
-                option={t}
-                licence={entraLicence}
-                selected={known && roleTarget === t.target}
-                running={running}
-              />
-            ))}
-          </RadioGroup>
           <Typography color="text.muted">Is Entra Privileged Identity Management (PIM) available?</Typography>
           <LicenceOption
             control={<Checkbox size="small" checked={usePim} onChange={(e) => setUsePim(e.target.checked)} />}

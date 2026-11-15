@@ -93,7 +93,6 @@ export type UseCreateAdminUsersCard = CardHook & {
   entraLicence: LicenceState;
   licenceError: string | null; // Why the licence couldn't be read, unless it's missing consent.
   roleTarget: RoleTarget; // Who holds PrivilegedAccounts' Global Administrator.
-  setRoleTarget: (target: RoleTarget) => void;
   usePim: boolean; // PrivilegedAccounts' roles are eligible rather than active.
   setUsePim: (pim: boolean) => void;
   access: CardResourceAccess;
@@ -151,7 +150,6 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   const [error, setError] = useState<string | null>(null);
   const [entraLicence, setEntraLicence] = useState<LicenceState>(null);
   const [licenceError, setLicenceError] = useState<string | null>(null);
-  const [roleTargetChoice, setRoleTarget] = useState<RoleTarget | null>(null);
   const [pimChoice, setUsePim] = useState<boolean | null>(null);
   const [consentRequired, setConsentRequired] = useState(false);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
@@ -180,7 +178,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     };
   }, [azureAccount, tenantId, tid, checkKey]);
 
-  // Decides which role modes can be picked; none until it's read.
+  // Reads the licence used to select the role-assignment mode and PIM availability.
   useEffect(() => {
     if (!azureAccount || !tenantId) return;
     let cancelled = false;
@@ -212,8 +210,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   const removeAdmin = useCallback((key: string) => setAdmins((prev) => prev.filter((a) => a.key !== key)), []);
   const findUsers = useCallback((query: string) => (azureAccount ? searchUsers(azureAccount, query, tid) : Promise.resolve([])), [azureAccount, tid]);
 
-  // Until the user picks, follow the best the licence allows.
-  const roleTarget: RoleTarget = licenceAllows("p1", entraLicence) ? (roleTargetChoice ?? "group") : "users";
+  const roleTarget: RoleTarget = licenceAllows("p1", entraLicence) ? "group" : "users";
   const usePim = licenceAllows(PIM_OPTION.needs, entraLicence) && (pimChoice ?? true);
   const rowErrors = adminRowErrors(admins);
   const canRun = !running && !!dnsName && access.status === "ready" && licenceAllows("none", entraLicence) && Object.keys(rowErrors).length === 0;
@@ -413,7 +410,6 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     entraLicence,
     licenceError,
     roleTarget,
-    setRoleTarget,
     usePim,
     setUsePim,
     access,

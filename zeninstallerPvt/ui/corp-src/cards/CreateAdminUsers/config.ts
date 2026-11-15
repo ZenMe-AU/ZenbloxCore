@@ -61,21 +61,6 @@ export function roleLabel(role: GroupRole): string {
 export type RoleTarget = "users" | "group";
 export type LicenceState = EntraLicence | "unknown" | null; // Null while checking; "unknown" when it couldn't be read.
 
-export const ROLE_TARGETS: { target: RoleTarget; label: string; description: string; needs: EntraLicence }[] = [
-  {
-    target: "users",
-    label: "Assign access directly to users",
-    description: "Global Administrator is directly assigned to each adm_ account which is also added to the PrivilegedAccounts group.",
-    needs: "none",
-  },
-  {
-    target: "group",
-    label: "Assign access to the group",
-    description: "(Not recommended), Entra roles are assigned to all members of the PrivilegedAccounts group. This means one member's access cannot be different from another, it's an all or nothing privileged account.",
-    needs: "p1",
-  },
-];
-
 export const PIM_OPTION = {
   label: "Require PIM for all privileged accounts",
   description: "When assigning roles, set them as PIM Eligible instead of active. User must activate their roles when needed, with a reason and a time limit.",

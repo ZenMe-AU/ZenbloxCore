@@ -163,7 +163,6 @@ describe("useCreateAdminUsersCard", () => {
     mocks.getEntraLicence.mockResolvedValue("none");
     const card = renderCard();
     await waitFor(() => expect(card.current.entraLicence).toBe("none"));
-    act(() => card.current.setRoleTarget("group"));
     expect(card.current.roleTarget).toBe("users");
     await waitFor(() => expect(card.current.missingGroups).not.toBeNull());
     act(() => card.current.updateAdmin(card.current.admins[0].key, { givenName: "Ann", surname: "Lee" }));
@@ -201,29 +200,6 @@ describe("useCreateAdminUsersCard", () => {
     );
     // ResourceGroupDeployer's subscription Owner stays active.
     expect(mocks.ensureRbacRoleAtScope.mock.calls.map((c) => c[1])).toEqual(["/subscriptions/sub-1"]);
-  });
-
-  it("makes each privileged account eligible for Global Administrator when assigned to users with PIM", async () => {
-    mocks.getEntraLicence.mockResolvedValue("p2");
-    const card = renderCard();
-    await waitFor(() => expect(card.current.entraLicence).toBe("p2"));
-    await waitFor(() => expect(card.current.missingGroups).not.toBeNull());
-    act(() => {
-      card.current.setRoleTarget("users");
-      card.current.updateAdmin(card.current.admins[0].key, { givenName: "Ann", surname: "Lee" });
-    });
-    await act(async () => {
-      await card.current.run();
-    });
-
-    expect(card.current.steps.filter((s) => s.status === "error")).toEqual([]);
-    expect(mocks.createGroup.mock.calls[0][1]).toMatchObject({ displayName: "PrivilegedAccounts", isAssignableToRole: false });
-    expect(mocks.ensureDirectoryRoleAssignment).not.toHaveBeenCalled();
-    expect(mocks.ensureDirectoryRoleEligibility.mock.calls.map((c) => c[1])).toEqual(["u-adm_Ann.Lee@corp.com"]);
-    expect(mocks.ensureRbacRoleEligibility).toHaveBeenCalledWith(
-      expect.anything(), "/providers/Microsoft.Management/managementGroups/tenant-1", "id-PrivilegedAccounts", "Owner", "tenant-1"
-    );
-    expect(card.current.steps.find((s) => s.id.startsWith("priv:"))?.detail).toBe("Created, member of PrivilegedAccounts, eligible for Global Administrator");
   });
 
   it("skips the privileged account when it isn't ticked", async () => {
