@@ -3,32 +3,10 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Fragment, useEffect, useState, type ReactElement } from "react";
-import {
-  Autocomplete,
-  Box,
-  Button,
-  ButtonBase,
-  Checkbox,
-  Chip,
-  FormControlLabel,
-  IconButton,
-  InputAdornment,
-  MenuItem,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TextField,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { useState } from "react";
+import { Box, Button, ButtonBase, Checkbox, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import UndoIcon from "@mui/icons-material/Undo";
 import Card from "../../components/Card";
 import ErrorText from "../../components/ErrorText";
 import ProcessRetryNotice from "../../components/ProcessRetryNotice";
@@ -36,40 +14,19 @@ import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationA
 import StatusText from "../../components/StatusText";
 import WarningNotice from "../../components/WarningNotice";
 import StepRow from "../StepRow";
-import type { AdminPair, EntraLicence, EntraUser, VerifiedDomain } from "../../api/azureGraph";
+import { warningMessageIconSx } from "../../config/styles";
 import type { CardChrome } from "../../types";
-import {
-  ADMIN_GROUPS,
-  CREATE_ADMIN_USERS_TITLE,
-  LICENCE_LABEL,
-  PIM_OPTION,
-  PRIVILEGED_ACCOUNT_GROUPS,
-  USER_ACCOUNT_GROUPS,
-  groupRoleLabel,
-  licenceAllows,
-  type LicenceState,
-} from "./config";
-import { resolveAdmin, type AdminRow, type ManagerChoice, type UseCreateAdminUsersCard } from "./useCreateAdminUsersCard";
+import { ADMIN_GROUPS, CREATE_ADMIN_USERS_TITLE, PIM_OPTION } from "./config";
+import type { UseCreateAdminUsersCard } from "./useCreateAdminUsersCard";
+import AdminUserRow from "./AdminUserRow";
+import ExistingAdminRow from "./ExistingAdminRow";
+import LicenceOption from "./LicenceOption";
+import SecurityGroupRow from "./SecurityGroupRow";
+import { box, circle, header } from "./styles";
 
 type Props = {
   card: CardChrome;
   adminUsers: UseCreateAdminUsersCard;
-};
-
-const box = { border: "1px solid", borderColor: "divider", borderRadius: 1, backgroundColor: "background.paper", overflow: "hidden" };
-const header = { width: "100%", justifyContent: "flex-start", gap: 1.25, px: 1.5, py: 1, textAlign: "left", "&:hover": { backgroundColor: "action.hover" } };
-const head = { color: "text.primary", fontWeight: 700 };
-const circle = {
-  width: 24,
-  height: 24,
-  flex: "none",
-  borderRadius: "50%",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  bgcolor: "primary.main",
-  color: "primary.contrastText",
-  typography: "body2",
 };
 
 const INTRO_POINTS = [
@@ -95,176 +52,14 @@ function Intro() {
   );
 }
 
-// A bordered option, greyed out until the licence allows it.
-function LicenceOption({ value, control, option, licence, selected, running }: {
-  value?: string;
-  control: ReactElement;
-  option: { label: string; description: string; needs: EntraLicence };
-  licence: LicenceState;
-  selected: boolean;
-  running: boolean;
-}) {
-  const allowed = licenceAllows(option.needs, licence);
-  const known = licence !== null && licence !== "unknown";
-  return (
-    <FormControlLabel
-      value={value}
-      disabled={running || !allowed}
-      control={control}
-      sx={{ ...box, m: 0, pr: 1.5, py: 0.75, alignItems: "flex-start", borderColor: selected ? "primary.main" : "divider", backgroundColor: allowed ? "background.paper" : "action.hover" }}
-      label={
-        <Box sx={{ pt: 0.75 }}>
-          <Typography color={allowed ? "text.primary" : "text.disabled"} sx={{ fontWeight: 700 }}>
-            {option.label}
-            {option.needs !== "none" && (
-              <Chip
-                size="small"
-                variant="outlined"
-                color={allowed ? "primary" : "default"}
-                label={known && !allowed ? `Needs ${LICENCE_LABEL[option.needs]}` : LICENCE_LABEL[option.needs]}
-                sx={{ ml: 1 }}
-              />
-            )}
-          </Typography>
-          <Typography color={allowed ? "text.secondary" : "text.disabled"}>{option.description}</Typography>
-        </Box>
-      }
-    />
-  );
-}
-
-function Arrow({ open }: { open: boolean }) {
-  return <KeyboardArrowDownIcon aria-hidden="true" sx={{ ml: "auto", color: "text.muted", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />;
-}
-
-// Shown only once a generated value was changed by hand.
-function ResetButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled: boolean }) {
-  return (
-    <IconButton aria-label={label} title={label} size="small" onClick={onClick} disabled={disabled} sx={{ color: "primary.main" }}>
-      <UndoIcon sx={{ typography: "body2" }} />
-    </IconButton>
-  );
-}
-
-function GroupChips({ groups }: { groups: string[] }) {
-  return (
-    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-      {groups.map((g) => (
-        <Chip key={g} size="small" variant="outlined" label={g} />
-      ))}
-    </Box>
-  );
-}
-
-// Locked until the domains are read.
-function DomainSelect({ label, value, domains, onChange, disabled, note, error }: {
-  label: string;
-  value: string;
-  domains: VerifiedDomain[] | null;
-  onChange: (domain: string) => void;
-  disabled: boolean;
-  note: string | null; // Why it's locked.
-  error: boolean;
-}) {
-  return (
-    <TextField
-      select
-      size="small"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      disabled={disabled || !domains}
-      error={error}
-      helperText={note}
-      inputProps={{ "aria-label": label }}
-      SelectProps={{ renderValue: (v) => v as string }} // "(primary)" only in the list.
-      sx={{ flex: 1, minWidth: 0 }}
-    >
-      {(domains ?? []).map((d) => (
-        <MenuItem key={d.name} value={d.name}>
-          {d.isDefault ? `${d.name} (primary)` : d.name}
-        </MenuItem>
-      ))}
-    </TextField>
-  );
-}
-
-function managerLabel(m: ManagerChoice, admins: AdminRow[], privileged: boolean): string {
-  if (m.kind === "entra") return m.displayName;
-  const row = admins.find((o) => o.key === m.key);
-  if (!row) return "Removed user";
-  const r = resolveAdmin(row);
-  return (privileged ? r.privilegedDisplayName : r.displayName.trim()) || "New user";
-}
-
-const sameManager = (a: ManagerChoice, b: ManagerChoice) =>
-  a.kind === b.kind && (a.kind === "row" ? a.key === (b as typeof a).key : a.id === (b as typeof a).id);
-
-// Another admin in this list (new or existing), or an Entra user found by name or UPN, of the same kind (adm_ or not); empty means no manager.
-function ManagerPicker({ label, self, privileged, value, admins, existing, search, onChange, disabled }: {
-  label: string;
-  self: string;
-  privileged: boolean;
-  value: ManagerChoice | null;
-  admins: AdminRow[];
-  existing: AdminPair[];
-  search: (query: string) => Promise<EntraUser[]>;
-  onChange: (manager: ManagerChoice | null) => void;
-  disabled: boolean;
-}) {
-  const [query, setQuery] = useState("");
-  const [found, setFound] = useState<{ query: string; users: EntraUser[] }>({ query: "", users: [] });
-  const q = query.trim();
-  useEffect(() => {
-    if (q.length < 2) return;
-    let cancelled = false;
-    const timer = setTimeout(() => search(q).then((users) => !cancelled && setFound({ query: q, users }), () => !cancelled && setFound({ query: q, users: [] })), 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [q, search]);
-  // An existing admin's account of the same kind.
-  const listed = existing.map((x) => (privileged ? x.privileged : x.user));
-  const listedIds = new Set(listed.map((u) => u.id));
-  const options: ManagerChoice[] = [
-    ...admins.filter((o) => o.key !== self).map((o) => ({ kind: "row" as const, key: o.key })),
-    ...listed.map(({ id, displayName, userPrincipalName }) => ({ kind: "entra" as const, id, displayName, userPrincipalName })),
-    ...(q.length >= 2 && found.query === q ? found.users : [])
-      .filter((u) => /^adm_/i.test(u.userPrincipalName) === privileged && !listedIds.has(u.id))
-      .map((u) => ({ kind: "entra" as const, ...u })),
-  ];
-  const inList = (m: ManagerChoice) => m.kind === "row" || listedIds.has(m.id);
-  // Keeps a picked Entra user listed after the search results change.
-  if (value && !options.some((o) => sameManager(o, value))) options.push(value);
-  const text = (m: ManagerChoice) => (m.kind === "entra" ? `${m.displayName} (${m.userPrincipalName})` : managerLabel(m, admins, privileged));
-  return (
-    <Autocomplete
-      size="small"
-      options={options}
-      value={value}
-      onChange={(_, m) => onChange(m)}
-      onInputChange={(_, v, reason) => setQuery(reason === "input" ? v : "")}
-      groupBy={(m) => (inList(m) ? "In this list" : "Entra users")}
-      getOptionLabel={text}
-      isOptionEqualToValue={sameManager}
-      filterOptions={(opts, { inputValue }) => opts.filter((m) => !inList(m) || text(m).toLowerCase().includes(inputValue.trim().toLowerCase()))}
-      noOptionsText="Type a name or UPN to search Entra"
-      disabled={disabled}
-      renderInput={(params) => <TextField {...params} placeholder="No manager" inputProps={{ ...params.inputProps, "aria-label": label }} />}
-    />
-  );
-}
-
 export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
-  const { admins, rowErrors, addAdmin, updateAdmin, removeAdmin, searchUsers, domains, primaryDomain, missingGroups, existingAdmins, entraLicence, licenceError, roleTarget, usePim, setUsePim, access, steps, running, canRun, run, reset, consentRequired, requestConsent, error } =
-    adminUsers;
+  const { admins, rowErrors, addAdmin, missingGroups, existingAdmins, entraLicence, roleTarget, usePim, setUsePim, access, steps, running, canRun, run, reset, consentRequired, requestConsent, error } = adminUsers;
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(() => admins[0]?.key ?? null);
   const [editKey, setEditKey] = useState<string | null>(null);
   const incomplete = admins.filter((a) => rowErrors[a.key]).length;
-  // Consent has its own notice.
-  const domainNote = domains || consentRequired ? null : licenceError ? `Couldn't read the domains: ${licenceError}` : "Reading the domains...";
   const groupSummary = error ? "Couldn't read Entra" : !missingGroups ? "Checking..." : `${missingGroups.length} to create · ${ADMIN_GROUPS.length - missingGroups.length} existing`;
+  const toggle = (key: string) => setOpenKey(openKey === key ? null : key);
 
   return (
     <Card title={CREATE_ADMIN_USERS_TITLE} lockedIntro={<Intro />} {...card}>
@@ -294,308 +89,47 @@ export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
             <Typography variant="sectionLabel">Security groups</Typography>
             <Typography color="text.muted">{groupSummary}</Typography>
           </Box>
-          {ADMIN_GROUPS.map((g) => {
-            const open = openGroup === g.name;
-            const toCreate = missingGroups?.includes(g.name);
-            const exists = !!missingGroups && !toCreate; // Greyed out, but still opens.
-            const summary = [
-              ...(g.memberOf.length ? [`member of ${g.memberOf.join(", ")}`] : []),
-              ...(g.roles.length ? [`${g.roles.length} role${g.roles.length > 1 ? "s" : ""}`] : []),
-            ].join(" · ");
-            const details: [string, string][] = [
-              ["Description", g.description],
-              ["Member of", g.memberOf.join(", ") || "—"],
-              ["Roles", g.roles.map((role) => groupRoleLabel(g, role, roleTarget, usePim)).join(", ") || "—"],
-              ["Role-assignable", g.roleAssignable && roleTarget === "group" ? "Yes" : "No"],
-            ];
-            return (
-              <Box key={g.name} sx={exists ? { ...box, backgroundColor: "action.hover" } : box}>
-                <ButtonBase aria-expanded={open} onClick={() => setOpenGroup(open ? null : g.name)} sx={header}>
-                  <Typography color={exists ? "text.disabled" : "text.primary"} sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
-                    {g.name}
-                  </Typography>
-                  {summary && (
-                    <Typography color={exists ? "text.disabled" : "text.muted"} noWrap>
-                      {summary}
-                    </Typography>
-                  )}
-                  {missingGroups && <Chip size="small" variant="outlined" color={toCreate ? "primary" : "default"} label={toCreate ? "Create" : "Exists"} sx={exists ? { color: "text.disabled" } : undefined} />}
-                  <Arrow open={open} />
-                </ButtonBase>
-                {open && (
-                  <Box sx={{ borderTop: "1px solid", borderColor: "divider", p: 1.5, display: "grid", gridTemplateColumns: "max-content 1fr", columnGap: 3, rowGap: 0.5 }}>
-                    {details.map(([label, value]) => (
-                      <Fragment key={label}>
-                        <Typography color="text.muted">{label}</Typography>
-                        <Typography color="text.secondary">{value}</Typography>
-                      </Fragment>
-                    ))}
-                  </Box>
-                )}
-              </Box>
-            );
-          })}
+          {ADMIN_GROUPS.map((g) => (
+            <SecurityGroupRow
+              key={g.name}
+              group={g}
+              missingGroups={missingGroups}
+              roleTarget={roleTarget}
+              usePim={usePim}
+              open={openGroup === g.name}
+              onToggle={() => setOpenGroup(openGroup === g.name ? null : g.name)}
+            />
+          ))}
         </Box>
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
             <Typography variant="sectionLabel">User accounts</Typography>
             <Typography color="text.muted">
-              {existingAdmins?.length ? `${existingAdmins.length} existing · ` : ""}
               {admins.length} to add ·{" "}
               <Box component="span" sx={incomplete ? { color: "error.main" } : undefined}>
                 {incomplete} incomplete
               </Box>
+              {existingAdmins?.length ? ` · ${existingAdmins.length} existing` : ""}
             </Typography>
           </Box>
-          {existingAdmins?.map((x) => {
-            const open = openKey === x.user.id;
-            return (
-              <Box key={x.user.id} sx={{ ...box, backgroundColor: "action.hover" }}>
-                <ButtonBase aria-expanded={open} onClick={() => setOpenKey(open ? null : x.user.id)} sx={header}>
-                  <Typography color="text.disabled" sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
-                    {x.user.displayName}
-                  </Typography>
-                  <Typography color="text.disabled" noWrap>
-                    {x.user.userPrincipalName}
-                  </Typography>
-                  <Chip size="small" variant="outlined" label="Exists" sx={{ color: "text.disabled" }} />
-                  <Arrow open={open} />
-                </ButtonBase>
-                {open && (
-                  <Box sx={{ borderTop: "1px solid", borderColor: "divider", p: 1.5, overflowX: "auto" }}>
-                    <Table size="small" sx={{ minWidth: 700, tableLayout: "fixed" }}>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell sx={{ ...head, width: 200 }}>Account</TableCell>
-                          <TableCell sx={head}>UPN</TableCell>
-                          <TableCell sx={head}>Display name</TableCell>
-                          <TableCell sx={head}>Manager</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {(
-                          [
-                            ["User account", x.user],
-                            ["Privileged account", x.privileged],
-                          ] as const
-                        ).map(([account, u]) => (
-                          <TableRow key={account}>
-                            <TableCell sx={{ color: "text.primary", whiteSpace: "nowrap" }}>{account}</TableCell>
-                            <TableCell sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>{u.userPrincipalName}</TableCell>
-                            <TableCell sx={{ color: "text.secondary" }}>{u.displayName}</TableCell>
-                            <TableCell sx={{ color: "text.secondary" }}>{u.manager ?? "—"}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </Box>
-                )}
-              </Box>
-            );
-          })}
-          {admins.length === 0 && <Typography color="text.muted">No users. Running the card only creates the groups.</Typography>}
-          {admins.map((a, index) => {
-            const r = resolveAdmin(a);
-            const open = openKey === a.key;
-            const defaultName = resolveAdmin({ ...a, displayName: null }).displayName;
-            const defaultUpn = resolveAdmin({ ...a, username: null }).username;
-            const editing = editKey === a.key;
-            const domain = a.domain ?? primaryDomain;
-            return (
-              <Box key={a.key} sx={box}>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
-                  <ButtonBase aria-expanded={open} onClick={() => setOpenKey(open ? null : a.key)} sx={{ ...header, flex: 1, minWidth: 0 }}>
-                    <Box sx={circle}>{index + 1}</Box>
-                    <Typography color={r.displayName.trim() ? "text.primary" : "text.muted"} sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
-                      {r.displayName.trim() || "New user"}
-                    </Typography>
-                    {r.username && (
-                      <Typography color="text.muted" noWrap>
-                        {r.username}@{domain}
-                      </Typography>
-                    )}
-                    {rowErrors[a.key] && (
-                      <Typography color="error.main" noWrap sx={{ minWidth: 0 }}>
-                        {rowErrors[a.key]}
-                      </Typography>
-                    )}
-                    <Arrow open={open} />
-                  </ButtonBase>
-                  <IconButton aria-label={`Remove user ${index + 1}`} size="small" onClick={() => removeAdmin(a.key)} disabled={running} sx={{ mx: 0.75 }}>
-                    <CloseIcon sx={{ typography: "body2" }} />
-                  </IconButton>
-                </Box>
-                {open && (
-                  <Box sx={{ borderTop: "1px solid", borderColor: "divider", p: 1.5, display: "flex", flexDirection: "column", gap: 1.25 }}>
-                    <Box sx={{ display: "flex", gap: 1 }}>
-                      <TextField
-                        size="small"
-                        label="First name"
-                        value={a.givenName}
-                        onChange={(e) => updateAdmin(a.key, { givenName: e.target.value })}
-                        disabled={running}
-                        sx={{ flex: 1 }}
-                      />
-                      <TextField
-                        size="small"
-                        label="Surname"
-                        value={a.surname}
-                        onChange={(e) => updateAdmin(a.key, { surname: e.target.value })}
-                        disabled={running}
-                        sx={{ flex: 1 }}
-                      />
-                      <TextField
-                        size="small"
-                        label="Mobile number"
-                        type="tel"
-                        autoComplete="off"
-                        placeholder="+61 400 000 000"
-                        value={a.mobile}
-                        onChange={(e) => updateAdmin(a.key, { mobile: e.target.value })}
-                        disabled={running}
-                        sx={{ flex: 1 }}
-                      />
-                    </Box>
-                    <Box sx={{ overflowX: "auto" }}>
-                      <Table size="small" sx={{ minWidth: 1000, tableLayout: "fixed" }}>
-                        <TableHead>
-                          <TableRow>
-                            <TableCell sx={{ ...head, width: 200 }}>Account</TableCell>
-                            <TableCell sx={{ ...head, width: "27%" }}>UPN</TableCell>
-                            <TableCell sx={{ ...head, width: "13%" }}>Display name</TableCell>
-                            <TableCell sx={{ ...head, width: "19%" }}>
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                                Manager
-                                <Tooltip title="Only their manager can give them an Access Pass.">
-                                  <InfoOutlinedIcon aria-hidden="true" sx={{ typography: "body2", color: "text.muted" }} />
-                                </Tooltip>
-                              </Box>
-                            </TableCell>
-                            <TableCell sx={head}>Groups</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          <TableRow>
-                            <TableCell sx={{ color: "text.primary", whiteSpace: "nowrap" }}>
-                              User account
-                              <Button
-                                size="small"
-                                aria-label={editing ? `Done editing user ${index + 1}` : `Edit user ${index + 1}'s UPN and display name`}
-                                onClick={() => setEditKey(editing ? null : a.key)}
-                                disabled={running}
-                                sx={{ ml: 1, minWidth: 0 }}
-                              >
-                                {editing ? "Done" : "Edit"}
-                              </Button>
-                            </TableCell>
-                            {editing ? (
-                              <>
-                                <TableCell>
-                                  <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5 }}>
-                                    <TextField
-                                      size="small"
-                                      value={r.username}
-                                      onChange={(e) => updateAdmin(a.key, { username: e.target.value })}
-                                      disabled={running}
-                                      inputProps={{ "aria-label": `User ${index + 1} UPN` }}
-                                      InputProps={{
-                                        endAdornment: a.username !== null && a.username !== defaultUpn && (
-                                          <InputAdornment position="end">
-                                            <ResetButton label={`Reset UPN to ${defaultUpn}`} onClick={() => updateAdmin(a.key, { username: null })} disabled={running} />
-                                          </InputAdornment>
-                                        ),
-                                      }}
-                                      sx={{ flexBasis: "100%" }} // The @domain goes on the next line.
-                                    />
-                                    <Typography color="text.secondary">@</Typography>
-                                    <DomainSelect
-                                      label={`User ${index + 1} domain`}
-                                      value={domain}
-                                      domains={domains}
-                                      onChange={(d) => updateAdmin(a.key, { domain: d === primaryDomain ? null : d })}
-                                      disabled={running}
-                                      note={domainNote}
-                                      error={!domains && !!licenceError}
-                                    />
-                                  </Box>
-                                </TableCell>
-                                <TableCell>
-                                  <TextField
-                                    size="small"
-                                    fullWidth
-                                    value={r.displayName}
-                                    onChange={(e) => updateAdmin(a.key, { displayName: e.target.value })}
-                                    disabled={running}
-                                    inputProps={{ "aria-label": `User ${index + 1} display name` }}
-                                    InputProps={{
-                                      endAdornment: a.displayName !== null && a.displayName !== defaultName && (
-                                        <InputAdornment position="end">
-                                          <ResetButton
-                                            label={`Reset display name to ${defaultName}`}
-                                            onClick={() => updateAdmin(a.key, { displayName: null })}
-                                            disabled={running}
-                                          />
-                                        </InputAdornment>
-                                      ),
-                                    }}
-                                  />
-                                </TableCell>
-                              </>
-                            ) : (
-                              <>
-                                <TableCell sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>{r.username ? `${r.username}@${domain}` : "—"}</TableCell>
-                                <TableCell sx={{ color: "text.secondary" }}>{r.displayName || "—"}</TableCell>
-                              </>
-                            )}
-                            <TableCell>
-                              <ManagerPicker
-                                label={`User ${index + 1} manager`}
-                                self={a.key}
-                                privileged={false}
-                                value={a.manager}
-                                admins={admins}
-                                existing={existingAdmins ?? []}
-                                search={searchUsers}
-                                onChange={(manager) => updateAdmin(a.key, { manager })}
-                                disabled={running}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <GroupChips groups={USER_ACCOUNT_GROUPS} />
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell sx={{ color: "text.primary", whiteSpace: "nowrap" }}>Privileged account</TableCell>
-                            <TableCell sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>{r.privilegedUsername ? `${r.privilegedUsername}@${domain}` : "—"}</TableCell>
-                            <TableCell sx={{ color: "text.secondary" }}>{r.privilegedDisplayName || "—"}</TableCell>
-                            <TableCell>
-                              <ManagerPicker
-                                label={`User ${index + 1} privileged account manager`}
-                                self={a.key}
-                                privileged
-                                value={a.privilegedManager}
-                                admins={admins}
-                                existing={existingAdmins ?? []}
-                                search={searchUsers}
-                                onChange={(privilegedManager) => updateAdmin(a.key, { privilegedManager })}
-                                disabled={running}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <GroupChips groups={PRIVILEGED_ACCOUNT_GROUPS} />
-                            </TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </Box>
-                  </Box>
-                )}
-              </Box>
-            );
-          })}
+          {existingAdmins?.map((x) => (
+            <ExistingAdminRow key={x.user.id} admin={x} open={openKey === x.user.id} onToggle={() => toggle(x.user.id)} />
+          ))}
+          {admins.map((a, index) => (
+            <AdminUserRow
+              key={a.key}
+              adminUsers={adminUsers}
+              admin={a}
+              index={index}
+              open={openKey === a.key}
+              onToggle={() => toggle(a.key)}
+              editing={editKey === a.key}
+              onEditToggle={() => setEditKey(editKey === a.key ? null : a.key)}
+            />
+          ))}
           <Box sx={box}>
-            <ButtonBase onClick={() => setOpenKey(addAdmin())} disabled={running} sx={header}>
+            <ButtonBase onClick={() => setOpenKey(addAdmin())} disabled={running} disableRipple sx={header}>
               <Box sx={circle}>
                 <AddIcon sx={{ typography: "body2" }} />
               </Box>
@@ -610,9 +144,17 @@ export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
         {error && <ErrorText>Couldn't read the groups and admins from Entra: {error}</ErrorText>}
 
         {steps.length === 0 ? (
-          <Button variant="contained" onClick={() => void run()} disabled={!canRun} sx={{ alignSelf: "flex-start", py: 0.85, px: 2.5 }}>
-            {admins.length ? "Create groups and admin accounts" : "Create groups"}
-          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+            <Button variant="contained" onClick={() => void run()} disabled={!canRun}>
+              {admins.length ? "Create groups and admin accounts" : "Create groups"}
+            </Button>
+            {admins.length === 0 && (
+              <Box role="note" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                <InfoOutlinedIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "info.main" }} />
+                <Typography color="text.secondary">No users. Running the card only creates the groups.</Typography>
+              </Box>
+            )}
+          </Box>
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, borderLeft: "2px solid", borderColor: "divider", pl: 1.5 }}>
             {steps.map((s) => (
