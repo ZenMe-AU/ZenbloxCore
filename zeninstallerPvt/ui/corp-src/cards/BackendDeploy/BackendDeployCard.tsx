@@ -3,8 +3,10 @@
  * @license SPDX-License-Identifier: MIT
  */
 
+import { useState } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseBackendDeployCard } from "./useBackendDeployCard";
@@ -14,6 +16,8 @@ import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import ErrorText from "../../components/ErrorText";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 import type { CardChrome } from "../../types";
 
 const when = (unixSeconds: number) => new Date(unixSeconds * 1000).toLocaleString();
@@ -37,7 +41,8 @@ function Intro({ appName }: { appName: string }) {
 }
 
 export default function BackendDeployCard({ card, backend, repoFullName }: Props) {
-  const { appName, latest, deployed, loadingLatest, loadingDeployed, building, build, buildWorkflow, updateAvailable, error, failedBuildRunId, steps, running, run } = backend;
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
+  const { appName, latest, deployed, loadingLatest, loadingDeployed, deployedUnavailable, building, build, buildWorkflow, updateAvailable, error, failedBuildRunId, steps, running, run } = backend;
   // Prefer the failed run when present; the latest successful build is not the run that needs attention.
   const workflowRunId = failedBuildRunId || latest?.runId;
 
@@ -58,7 +63,6 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro appName={appName} />
-
         <Box>
           <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Versions</Typography>
           <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
@@ -73,9 +77,11 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
               <Box component="span" sx={{ color: "text.primary", typography: "technicalBody" }}>
                 {loadingDeployed
                   ? "checking..."
-                  : deployed
-                    ? `${deployed.sha.slice(0, 7)}${deployed.deployedAt ? ` · ${when(deployed.deployedAt)}` : ""}`
-                    : "nothing deployed"}
+                  : deployedUnavailable
+                    ? "unavailable"
+                    : deployed
+                      ? `${deployed.sha.slice(0, 7)}${deployed.deployedAt ? ` · ${when(deployed.deployedAt)}` : ""}`
+                      : "nothing deployed"}
               </Box>
             </Typography>
           </Box>
@@ -112,7 +118,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           </Button>
           <Button
             onClick={() => void run()}
-            disabled={!updateAvailable || loadingLatest || loadingDeployed || running || building}
+            disabled={!updateAvailable || loadingLatest || loadingDeployed || running || building || backend.managementAccess.status !== "ready"}
             variant="contained"
             size="small"
             aria-busy={running}
@@ -127,15 +133,22 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
             )}
           </Button>
 
+          {backend.managementAccess.status === "error" && (
+            <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+              <Typography color="error.main">Insufficient permissions to deploy</Typography>
+            </Box>
+          )}
+
           {/* Show stable version guidance only; errors, active work, and incomplete reads take precedence. */}
-          {!error && !building && !running && !loadingLatest && !loadingDeployed && latest && !updateAvailable && (
+          {!error && !building && !running && !loadingLatest && !loadingDeployed && !deployedUnavailable && latest && !updateAvailable && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2", color: "success.main" }} />
               <Typography color="success.dark">The Function App is running the latest build.</Typography>
             </Box>
           )}
 
-          {!error && !building && !running && !loadingLatest && !loadingDeployed && updateAvailable && (
+          {!error && !building && !running && !loadingLatest && !loadingDeployed && !deployedUnavailable && updateAvailable && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
               <Typography color="warning.dark">Ready to deploy the new build</Typography>
@@ -151,6 +164,12 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           </Box>
         )}
         <ProcessRetryNotice started={steps.length > 0} />
+
+        {(backend.managementAccess.status === "checking" || backend.managementAccess.status === "error") && (
+          <Prerequisites id="backend-deploy-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+            <AzureAccessCheck access={backend.managementAccess} resourceAccess errorStyle />
+          </Prerequisites>
+        )}
       </Box>
     </Card>
   );

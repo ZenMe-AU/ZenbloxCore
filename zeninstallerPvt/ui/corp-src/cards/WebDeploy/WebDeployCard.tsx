@@ -13,6 +13,7 @@ import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
 import StatusText from "../../components/StatusText";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import CloudVariableDetail from "../CloudVariableDetail";
@@ -99,6 +100,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro storageAccountName={storageAccountName} />
+        <AzureAccessCheck access={web.managementAccess} resourceAccess />
 
         <CloudVariableDetail
           account={githubAccount}
@@ -191,7 +193,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           </Button>
           <Button
             onClick={() => void run()}
-            disabled={!updateAvailable || loadingLatest || loadingDeployed || running || building || missingGithubClientId}
+            disabled={!updateAvailable || loadingLatest || loadingDeployed || running || building || missingGithubClientId || web.managementAccess.status !== "ready"}
             variant="contained"
             size="small"
             aria-busy={running}

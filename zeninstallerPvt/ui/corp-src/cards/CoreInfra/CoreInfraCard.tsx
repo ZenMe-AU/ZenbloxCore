@@ -9,6 +9,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseCoreInfraCard } from "./useCoreInfraCard";
 import StepRow from "../StepRow";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ProcessRetryNotice from "../../components/ProcessRetryNotice";
@@ -220,8 +221,9 @@ export default function CoreInfraCard({
         {/* Planned resources */}
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <AzureAccessCheck access={infra.creationAccess} resourceAccess />
             <Box>
-              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
+              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources to be created</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
                 <PlainRow label="Resource group" value={resourceGroupName} />
                 <PlainRow label="Log Analytics" value={lawName} />
@@ -260,8 +262,12 @@ export default function CoreInfraCard({
             <Button
               variant="contained"
               onClick={run}
-              disabled={disabled || running || !location.trim() || editingStorage}
-              sx={{ alignSelf: "flex-start" }}
+              disabled={disabled || running || !location.trim() || editingStorage || infra.creationAccess.status !== "ready"}
+              sx={{
+                alignSelf: "flex-start",
+                py: 0.85,
+                px: 2.5,
+              }}
             >
               {done ? "Re-run" : "Create core infrastructure"}
             </Button>

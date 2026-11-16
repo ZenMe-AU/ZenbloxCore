@@ -28,6 +28,7 @@ async function waitFor(assertion: () => void, timeoutMs = 2000) {
 
 const { apiMocks } = vi.hoisted(() => ({
   apiMocks: {
+    ensureResourceGroupCreationAccess: vi.fn(),
     getMsal: vi.fn(),
     ensureScopeConsent: vi.fn(),
     getProviderRegistrationState: vi.fn(),
@@ -61,7 +62,10 @@ vi.mock("../auth/msal", () => ({
   ensureScopeConsent: apiMocks.ensureScopeConsent,
 }));
 
-vi.mock("../api/azureArm", () => ({
+vi.mock("../api/azureArm", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../api/azureArm")>(),
+  ensureCardResourceAccess: apiMocks.ensureResourceGroupCreationAccess,
+  ensureResourceGroupCreationAccess: apiMocks.ensureResourceGroupCreationAccess,
   getProviderRegistrationState: apiMocks.getProviderRegistrationState,
   registerProvider: apiMocks.registerProvider,
   ensureDnsZone: apiMocks.ensureDnsZone,
@@ -131,6 +135,7 @@ describe("useCreateDomainCard", () => {
     localStorage.clear();
     sessionStorage.clear();
     configMocks.azureClientId = "client-id";
+    apiMocks.ensureResourceGroupCreationAccess.mockResolvedValue(undefined);
 
     apiMocks.getMsal.mockResolvedValue({
       acquireTokenRedirect: vi.fn().mockResolvedValue(undefined),

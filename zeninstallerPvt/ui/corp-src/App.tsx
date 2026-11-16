@@ -20,6 +20,7 @@ import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
 import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
+import { useCreateAdminUsersCard } from "./cards/CreateAdminUsers/useCreateAdminUsersCard";
 import { useCoreInfraCard } from "./cards/CoreInfra/useCoreInfraCard";
 import { usePrivateFrontendInfraCard } from "./cards/PrivateFrontendInfra/usePrivateFrontendInfraCard";
 import { useRemoteTerminalInfraCard } from "./cards/RemoteTerminalInfra/useRemoteTerminalInfraCard";
@@ -28,9 +29,9 @@ import { useAccessPassCard } from "./cards/AccessPass/useAccessPassCard";
 import { useAwsLoginCard } from "./cards/AwsLogin/useAwsLoginCard";
 import { useWebDeployCard } from "./cards/WebDeploy/useWebDeployCard";
 import { useAwsSetupCard } from "./cards/AwsSetup/useAwsSetupCard";
-import { usePrivAvdGalleryCard } from "./cards/PrivAvdGallery/usePrivAvdGalleryCard";
-import { usePrivAvdImageCard } from "./cards/PrivAvdImage/usePrivAvdImageCard";
-import { usePrivAvdPawCard } from "./cards/PrivAvdPaw/usePrivAvdPawCard";
+import { useAvdGalleryCard } from "./cards/AvdGallery/useAvdGalleryCard";
+import { usePawImageCard } from "./cards/PawImage/usePawImageCard";
+import { usePawDeployCard } from "./cards/PawDeploy/usePawDeployCard";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -49,13 +50,14 @@ import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalI
 import BackendDeployCard from "./cards/BackendDeploy/BackendDeployCard";
 import WebDeployCard from "./cards/WebDeploy/WebDeployCard";
 import CreateDomainCard from "./cards/CreateDomain/CreateDomainCard";
+import CreateAdminUsersCard from "./cards/CreateAdminUsers/CreateAdminUsersCard";
 import AccessPassCard from "./cards/AccessPass/AccessPassCard";
 import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
 import AwsSetupCard from "./cards/AwsSetup/AwsSetupCard";
 import StageCard from "./cards/Stage/StageCard";
-import PrivAvdGalleryCard from "./cards/PrivAvdGallery/PrivAvdGalleryCard";
-import PrivAvdImageCard from "./cards/PrivAvdImage/PrivAvdImageCard";
-import PrivAvdPawCard from "./cards/PrivAvdPaw/PrivAvdPawCard";
+import AvdGalleryCard from "./cards/AvdGallery/AvdGalleryCard";
+import PawImageCard from "./cards/PawImage/PawImageCard";
+import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -206,15 +208,22 @@ function AppDashboard() {
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
     })
   );
+  const adminUsers = addCard(
+    useCreateAdminUsersCard({
+      azureAccount: azureLogin.account,
+      tenantId: azureLogin.confirmedTenantId,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
+    })
+  );
 
   const privAvdTarget = {
     account: githubRepoEnv.repo.selectedAccount,
     repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
     selectedEnv: githubRepoEnv.env.selectedEnv,
   };
-  const privAvdGallery = addCard(usePrivAvdGalleryCard(privAvdTarget));
-  const privAvdImage = addCard(usePrivAvdImageCard(privAvdTarget));
-  const privAvdPaw = addCard(usePrivAvdPawCard(privAvdTarget));
+  const avdGallery = addCard(useAvdGalleryCard(privAvdTarget));
+  const pawImage = addCard(usePawImageCard(privAvdTarget));
+  const pawDeploy = addCard(usePawDeployCard(privAvdTarget));
 
   const plan = useDeploymentPlan({
     account: githubRepoEnv.repo.selectedAccount,
@@ -346,6 +355,7 @@ function AppDashboard() {
       ["azure_app_registration", "Create an app registration in Azure"],
       ["core_infra", "Terraform state backend"],
       ["create_domain", "Core domain"],
+      ["create_admin_users", "Create admin users"],
       ["remote_terminal_infra", "Private Zeninstaller Backend Environment"],
       ["backend_deploy", "Private Zeninstaller Backend"],
       ["private_frontend_infra", "Frontend hosting environment"],
@@ -364,7 +374,7 @@ function AppDashboard() {
       done: card.status === "complete" || card.status === "skipped",
       chrome: card,
     })),
-    ...[privAvdGallery, privAvdImage, privAvdPaw].map(({ cardId, cardDependencyLabel, done }) => ({
+    ...[avdGallery, pawImage, pawDeploy].map(({ cardId, cardDependencyLabel, done }) => ({
       id: cardId,
       title: cardDependencyLabel,
       done,
@@ -514,6 +524,8 @@ function AppDashboard() {
                 githubUrl={githubRepoEnv.githubEnvUrl}
               />
 
+              <CreateAdminUsersCard card={cardProps("create_admin_users")} adminUsers={adminUsers} />
+
               <RemoteTerminalInfraCard
                 card={cardProps("remote_terminal_infra")}
                 infra={remoteTerminalInfra}
@@ -579,23 +591,23 @@ function AppDashboard() {
                 <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
               ))}
 
-              <PrivAvdGalleryCard
+              <AvdGalleryCard
                 card={cardProps("privavd_gallery")}
-                privAvd={privAvdGallery}
+                privAvd={avdGallery}
                 {...privAvdTarget}
                 variables={githubVariables}
               />
 
-              <PrivAvdImageCard
+              <PawImageCard
                 card={cardProps("privavd_image")}
-                privAvd={privAvdImage}
+                privAvd={pawImage}
                 {...privAvdTarget}
                 variables={githubVariables}
               />
 
-              <PrivAvdPawCard
+              <PawDeployCard
                 card={cardProps("privavd_paw")}
-                privAvd={privAvdPaw}
+                privAvd={pawDeploy}
                 {...privAvdTarget}
                 variables={githubVariables}
               />

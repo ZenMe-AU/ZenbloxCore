@@ -6,9 +6,13 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
+import { ThemeProvider } from "@mui/material";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AzureAccount } from "../types";
+import AzureAppRegistrationCard from "../cards/AzureAppRegistration/AzureAppRegistrationCard";
 import { useAzureAppRegistrationCard, type UseAzureAppRegistrationCard } from "../cards/AzureAppRegistration/useAzureAppRegistrationCard";
+import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
+import theme from "../theme";
 
 async function waitFor(assertion: () => void, timeoutMs = 1500) {
   const deadline = Date.now() + timeoutMs;
@@ -28,6 +32,8 @@ async function waitFor(assertion: () => void, timeoutMs = 1500) {
 
 const { apiMocks } = vi.hoisted(() => ({
   apiMocks: {
+    ensureCardResourceAccess: vi.fn(),
+    ensureServicePrincipalAccess: vi.fn(),
     getMsal: vi.fn(),
     ensureScopeConsent: vi.fn(),
     getExistingApp: vi.fn(),
@@ -39,7 +45,7 @@ const { apiMocks } = vi.hoisted(() => ({
     setOidcImmutableSubject: vi.fn(),
     ensureRbacRole: vi.fn(),
     isConsentError: vi.fn(),
-    rbacStatus: "ready" as const,
+    rbacStatus: "ready" as "ready" | "missing-role",
     rbacMissingRoles: [] as string[],
   },
 }));
@@ -53,7 +59,13 @@ vi.mock("../api", () => ({
   setOidcImmutableSubject: apiMocks.setOidcImmutableSubject,
 }));
 
+vi.mock("../api/azureArm", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../api/azureArm")>(),
+  ensureCardResourceAccess: apiMocks.ensureCardResourceAccess,
+}));
+
 vi.mock("../api/azureGraph", () => ({
+  ensureServicePrincipalAccess: apiMocks.ensureServicePrincipalAccess,
   getExistingApp: apiMocks.getExistingApp,
   getAppNameByAppId: apiMocks.getAppNameByAppId,
   createAppRegistration: apiMocks.createAppRegistration,
@@ -115,6 +127,8 @@ describe("useAzureAppRegistrationCard", () => {
     sessionStorage.clear();
 
     apiMocks.getExistingApp.mockResolvedValue({ appId: "existing-app", id: "app-obj" });
+    apiMocks.ensureCardResourceAccess.mockReset().mockResolvedValue(undefined);
+    apiMocks.ensureServicePrincipalAccess.mockReset().mockResolvedValue(undefined);
     apiMocks.getAppNameByAppId.mockResolvedValue("Prefilled App");
     apiMocks.createAppRegistration.mockResolvedValue({ appId: "created-app", id: "app-created" });
     apiMocks.getExistingSP.mockResolvedValue({ id: "sp-existing" });
@@ -372,6 +386,130 @@ describe("useAzureAppRegistrationCard", () => {
     await act(async () => {
       root.unmount();
     });
+  });
+
+  it("blocks Graph changes when subscription role-assignment access is missing", async () => {
+    let latest: UseAzureAppRegistrationCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    await act(async () => {
+      root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />);
+    });
+
+    apiMocks.ensureCardResourceAccess.mockRejectedValueOnce(new Error("Missing roleAssignments/write"));
+    await act(async () => { await latest?.run(); });
+    expect(latest?.steps[0]).toMatchObject({ id: "access", status: "error", detail: "Missing roleAssignments/write" });
+    expect(apiMocks.ensureScopeConsent).not.toHaveBeenCalled();
+    expect(apiMocks.createAppRegistration).not.toHaveBeenCalled();
+    expect(apiMocks.ensureFederatedCredential).not.toHaveBeenCalled();
+    expect(apiMocks.ensureRbacRole).not.toHaveBeenCalled();
+    await act(async () => root.unmount());
+  });
+
+  it("shows failed access beside Grant Reader and in a separate prerequisites section with a working recheck", async () => {
+    localStorage.setItem("zeninstaller_azure_result", JSON.stringify({ clientId: "saved-client", tenantId: "tenant-1", subscriptionIds: ["sub-1"] }));
+    apiMocks.rbacStatus = "missing-role";
+    apiMocks.rbacMissingRoles = ["Reader"];
+    apiMocks.ensureCardResourceAccess.mockRejectedValue(new Error(`Missing roleAssignments/write. Activate at ${AZURE_PIM_ACTIVATION_URL}`));
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    let latest: UseAzureAppRegistrationCard | null = null;
+    const props = baseProps();
+    const variables = {
+      values: {}, loading: false, refreshing: false, error: false,
+      onRefresh: vi.fn(async () => {}), onConfirmed: vi.fn(),
+    };
+    function CardHarness() {
+      const appReg = useAzureAppRegistrationCard(props);
+      useEffect(() => { latest = appReg; }, [appReg]);
+      return (
+        <ThemeProvider theme={theme}>
+          <AzureAppRegistrationCard
+            card={{
+              cardId: "azure_app_registration", status: appReg.status, summary: appReg.summary,
+              locked: false, requirements: [], unavailable: false, expanded: true,
+              onToggle: vi.fn(), onRequirementClick: vi.fn(),
+            }}
+            appReg={appReg}
+            githubAccount={null}
+            repoName="repo-one"
+            selectedEnv={null}
+            subscriptionId="sub-1"
+            variables={variables}
+          />
+        </ThemeProvider>
+      );
+    }
+
+    await act(async () => root.render(<CardHarness />));
+    await waitFor(() => {
+      expect(latest?.status).toBe("error");
+      expect(latest?.summary).toBe("Insufficient permissions to continue");
+    });
+    const grant = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Grant Reader access on this subscription")!;
+    expect(grant.disabled).toBe(true);
+    expect(grant.parentElement?.textContent).toContain("Insufficient permissions to continue");
+    const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="azure-app-registration-prerequisites"]')!;
+    const detailsToggle = container.querySelector<HTMLButtonElement>('[aria-controls="azure-app-registration-connection-details"]')!;
+    expect(grant.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(toggle.compareDocumentPosition(detailsToggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(toggle.querySelectorAll(".prerequisites-toggle-line")).toHaveLength(2);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    await act(async () => toggle.click());
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(detailsToggle.getAttribute("aria-expanded")).toBe("false");
+    const prerequisites = container.querySelector('#azure-app-registration-prerequisites')!;
+    expect(prerequisites.textContent).toContain("Missing roleAssignments/write");
+    expect(prerequisites.querySelector("a")?.href).toBe(AZURE_PIM_ACTIVATION_URL);
+
+    apiMocks.ensureCardResourceAccess.mockResolvedValue(undefined);
+    const retry = Array.from(prerequisites.querySelectorAll("button")).find((button) => button.textContent === "Recheck resource access")!;
+    await act(async () => retry.click());
+    await waitFor(() => expect(latest?.managementAccess.status).toBe("ready"));
+    expect(latest?.status).not.toBe("error");
+    expect(container.querySelector('[aria-controls="azure-app-registration-prerequisites"]')).toBeNull();
+    expect(grant.parentElement?.textContent).not.toContain("Insufficient permissions to continue");
+    await act(async () => root.unmount());
+  });
+
+  it("checks Graph service-principal access after consent and before creating the app", async () => {
+    let latest: UseAzureAppRegistrationCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    apiMocks.ensureServicePrincipalAccess.mockRejectedValueOnce(new Error("403 /servicePrincipals: Insufficient privileges"));
+    await act(async () => {
+      root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />);
+    });
+    await act(async () => { await latest?.run(); });
+    expect(apiMocks.ensureScopeConsent).toHaveBeenCalledTimes(1);
+    expect(apiMocks.ensureServicePrincipalAccess).toHaveBeenCalledTimes(1);
+    expect(latest?.steps.find((step) => step.id === "graph-access")).toMatchObject({
+      status: "error", detail: expect.stringContaining("Application.ReadWrite.All"),
+    });
+    expect(latest?.managementAccess).toMatchObject({
+      status: "error", error: expect.stringContaining("Application Administrator"),
+    });
+    expect(apiMocks.createAppRegistration).not.toHaveBeenCalled();
+    expect(apiMocks.createServicePrincipal).not.toHaveBeenCalled();
+    apiMocks.ensureServicePrincipalAccess.mockResolvedValueOnce(undefined);
+    await act(async () => latest?.managementAccess.retry());
+    expect(apiMocks.ensureServicePrincipalAccess).toHaveBeenCalledTimes(2);
+    expect(latest?.managementAccess.status).toBe("ready");
+    await act(async () => root.unmount());
+  });
+
+  it("invalidates the success warning when the actual RBAC write is denied", async () => {
+    let latest: UseAzureAppRegistrationCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    apiMocks.ensureRbacRole.mockRejectedValueOnce(new Error("403 /subscriptions/sub/providers/Microsoft.Authorization/roleAssignments/role: AuthorizationFailed"));
+    await act(async () => {
+      root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />);
+    });
+    expect(latest?.managementAccess.status).toBe("ready");
+    await act(async () => { await latest?.run(); });
+    expect(latest?.steps.find((step) => step.id === "rbac")?.status).toBe("error");
+    expect(latest?.managementAccess).toMatchObject({ status: "error", error: expect.stringContaining("Azure denied access") });
+    await act(async () => latest?.managementAccess.retry());
+    expect(latest?.managementAccess.status).toBe("ready");
+    await act(async () => root.unmount());
   });
 
   it("asks for every scope up front, one call per resource, before doing any work", async () => {

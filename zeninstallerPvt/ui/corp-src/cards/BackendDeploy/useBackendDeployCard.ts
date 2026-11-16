@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchArtifactZip, fetchStageReport, triggerWorkflow } from "../../api";
 import {
   deployZipToFunctionApp,
@@ -16,6 +16,7 @@ import { PRIVATE_RESOURCE_GROUP, functionAppFromApiUrl, getFunctionAppName } fro
 import { getDeployCardStatus, shouldReportBuildFailure, type BuildFailureReport } from "../../logic/buildStatus";
 import { BACKEND_VERSION_KEYS } from "../../config/azureConfig";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
 import type { Account, AzureAccount, AzureConfigHook, CardHook, CardRequirements, GhEnv } from "../../types";
 
 // What the build workflow recorded, as the card reads it back off the Deployments API.
@@ -41,11 +42,13 @@ export interface UseBackendDeployCardParams {
 const BUILD_WORKFLOW = "buildBackend.yml";
 
 export interface UseBackendDeployCard extends CardHook, AzureConfigHook {
+  managementAccess: CardResourceAccess;
   readonly cardId: "backend_deploy";
   appName: string;
   latest: BackendBuild | null;
   deployed: DeployedBackend | null;
   loadingDeployed: boolean;
+  deployedUnavailable: boolean;
   loadingLatest: boolean;
   building: boolean;
   build: () => Promise<void>;
@@ -79,15 +82,21 @@ export function useBackendDeployCard({
   const [latest, setLatest] = useState<BackendBuild | null>(null);
   const [deployed, setDeployed] = useState<DeployedBackend | null>(null);
   const [loadingDeployed, setLoadingDeployed] = useState(false);
+  const [deployedUnavailable, setDeployedUnavailable] = useState(false);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [building, setBuilding] = useState(false);
   // Keep the summary and run ID with the message so card status and its GitHub link describe the same error.
   const [error, setError] = useState<{ message: string; summary: string; runId?: string } | null>(null);
   // Remember the observed failure so polling can distinguish a new failure from the previous report.
   const [lastFailure, setLastFailure] = useState<BuildFailureReport | null>(null);
+  const deployedReadSequence = useRef(0);
 
   // The same name the Backend Environment card created; where it lives is asked of Azure, since it may be reused elsewhere.
   const appName = functionAppFromApiUrl(variableValues.VITE_API_URL) || getFunctionAppName(subscriptionId);
+  const managementAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, {
+    card: "backendDeploy", resourceGroup: PRIVATE_RESOURCE_GROUP, functionApp: appName,
+  });
+  const { check: checkResourceAccess, reportFailure: reportAccessFailure } = managementAccess;
   const findGroup = useCallback(
     async (account: AzureAccount) => (await findFunctionAppGroup(account, subscriptionId, appName, tenantId || undefined)) ?? PRIVATE_RESOURCE_GROUP,
     [subscriptionId, appName, tenantId]
@@ -134,21 +143,36 @@ export function useBackendDeployCard({
   }, [githubAccount, repoName, selectedEnv, readLatest]);
 
   const readDeployed = useCallback(async () => {
-    if (!azureAccount || !appName || !subscriptionId) return;
+    if (!azureAccount || !appName || !subscriptionId) {
+      setLoadingDeployed(false);
+      return;
+    }
+    const sequence = ++deployedReadSequence.current;
     setLoadingDeployed(true);
     try {
-      setDeployed(await fetchDeployedBackend(azureAccount, subscriptionId, await findGroup(azureAccount), appName, tenantId || undefined));
+      const current = await fetchDeployedBackend(azureAccount, subscriptionId, await findGroup(azureAccount), appName, tenantId || undefined);
+      if (sequence !== deployedReadSequence.current) return;
+      setDeployed(current);
+      setDeployedUnavailable(false);
     } catch (e) {
-      setError({ message: e instanceof Error ? e.message : "Could not read the deployed version", summary: "Deployment error" });
+      if (sequence !== deployedReadSequence.current) return;
+      setDeployedUnavailable(true);
+      const message = { message: e instanceof Error ? e.message : "Could not read the deployed version", summary: "Deployment error" };
+      if (/^403 \/subscriptions\//.test(message)) reportAccessFailure(e);
+      else setError(message);
     } finally {
-      setLoadingDeployed(false);
+      if (sequence === deployedReadSequence.current) setLoadingDeployed(false);
     }
-  }, [azureAccount, subscriptionId, appName, tenantId, findGroup]);
+  }, [azureAccount, subscriptionId, appName, tenantId, findGroup, reportAccessFailure]);
 
   // Deferred so the loading flag is not set during the render that schedules this.
   useEffect(() => {
+    const sequence = deployedReadSequence;
     const t = setTimeout(() => void readDeployed(), 0);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      sequence.current++;
+    };
   }, [readDeployed]);
 
   const build = useCallback(async () => {
@@ -189,11 +213,15 @@ export function useBackendDeployCard({
     setRunning(true);
     setError(null);
     setSteps([
+      { id: "access", label: "Check Azure resource access", status: "pending" },
       { id: "download", label: "Download the built package", status: "pending" },
       { id: "upload", label: `Upload it to ${appName}`, status: "pending" },
       { id: "deploy", label: "Wait for the Function App to unpack it", status: "pending" },
     ]);
     try {
+      updateStep("access", "running");
+      await checkResourceAccess();
+      updateStep("access", "done");
       updateStep("download", "running");
       const mb = (bytes: number) => (bytes / 1_000_000).toFixed(1);
       const zip = await fetchArtifactZip(githubAccount, repoName, latest.artifactId, (received, total) =>
@@ -233,12 +261,13 @@ export function useBackendDeployCard({
       await readDeployed();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      setError({ message, summary: "Deployment error" });
+      if (/^403 \/subscriptions\//.test(message)) reportAccessFailure(e);
+      else setError({ message, summary: "Deployment error" });
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error", detail: message } : s)));
     } finally {
       setRunning(false);
     }
-  }, [azureAccount, githubAccount, repoName, latest, subscriptionId, appName, tenantId, findGroup, readDeployed, setRunning, setSteps, updateStep]);
+  }, [azureAccount, githubAccount, repoName, latest, subscriptionId, appName, tenantId, findGroup, readDeployed, setRunning, setSteps, updateStep, checkResourceAccess, reportAccessFailure]);
 
   const reset = useCallback(() => {
     resetSteps();
@@ -252,15 +281,23 @@ export function useBackendDeployCard({
 
   const checking = loadingLatest || loadingDeployed;
   // Loading and errors outrank version comparison, which can otherwise present an outdated ready/deployed state.
-  const status = getDeployCardStatus({ ready, hasError: !!error, busy: checking || building || running, done });
-  const summary = !ready ? "Unavailable" : error ? error.summary : building ? "Building backend" : running ? "Deploying backend" : checking ? "Checking build and deployment" : done ? `Deployed ${latest?.sha.slice(0, 7)}` : updateAvailable ? "Ready to deploy the new build" : "Build the backend";
+  const status = getDeployCardStatus({ ready, hasError: !!error, busy: checking || building || running, done, hasAccessError: managementAccess.status === "error" });
+  const summary = !ready ? "Unavailable" : managementAccess.status === "error" ? "Insufficient permissions to deploy": error ? error.summary : building ? "Building backend" : running ? "Deploying backend" : checking ? "Checking build and deployment" : done ? `Deployed ${latest?.sha.slice(0, 7)}` : updateAvailable ? "Ready to deploy the new build" : "Build the backend";
 
   return {
+    managementAccess: {
+      ...managementAccess,
+      retry: () => {
+        managementAccess.retry();
+        void readDeployed();
+      },
+    },
     cardId: "backend_deploy" as const,
     appName,
     latest,
     deployed,
     loadingDeployed,
+    deployedUnavailable,
     loadingLatest,
     building,
     build,

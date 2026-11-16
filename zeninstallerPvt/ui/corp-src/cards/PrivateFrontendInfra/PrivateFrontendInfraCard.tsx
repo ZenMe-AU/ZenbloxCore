@@ -5,9 +5,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, ButtonBase, Collapse, Typography } from "@mui/material";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import { warningMessageIconSx } from "../../config/styles";
 import type { UsePrivateFrontendInfraCard } from "./usePrivateFrontendInfraCard";
 import StepRow from "../StepRow";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
@@ -54,6 +58,7 @@ export default function PrivateFrontendInfraCard({
   githubUrl,
 }: Props) {
   const [varExpanded, setVarExpanded] = useState(false);
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState(false);
   const [editingStorage, setEditingStorage] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
@@ -128,14 +133,22 @@ export default function PrivateFrontendInfraCard({
               </Box>
             </Box>
 
-            <Button
-              variant="contained"
-              onClick={() => void infra.run()}
-              disabled={infra.running || editingStorage || !infra.location.trim()}
-              sx={{ alignSelf: "flex-start" }}
-            >
-              {infra.done ? "Re-run" : "Create private hosting environment"}
-            </Button>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <Button
+                variant="contained"
+                onClick={() => void infra.run()}
+                disabled={infra.running || editingStorage || !infra.location.trim() || infra.creationAccess.status !== "ready"}
+                sx={{ py: 0.85, px: 2.5 }}
+              >
+                {infra.done ? "Re-run" : "Create private hosting environment"}
+              </Button>
+              {infra.creationAccess.status === "error" && (
+                <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                  <Typography color="error.main">Insufficient permissions to continue</Typography>
+                </Box>
+              )}
+            </Box>
           </Box>
         )}
 
@@ -161,6 +174,12 @@ export default function PrivateFrontendInfraCard({
               </Button>
             )}
           </Box>
+        )}
+
+        {(infra.creationAccess.status === "checking" || infra.creationAccess.status === "error") && (
+          <Prerequisites id="private-frontend-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+            <AzureAccessCheck access={infra.creationAccess} resourceAccess errorStyle />
+          </Prerequisites>
         )}
 
         {/* ── Divider (clickable toggle) ── */}

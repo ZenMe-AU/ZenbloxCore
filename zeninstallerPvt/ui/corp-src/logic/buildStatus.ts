@@ -8,9 +8,10 @@ import type { CardStatus } from "../types";
 export type BuildFailureReport = { runId: string; reportedAt: number };
 
 // Prefer missing prerequisites, errors, and active work over a possibly stale version comparison.
-export function getDeployCardStatus({ ready, hasError, busy, done }: { ready: boolean; hasError: boolean; busy: boolean; done: boolean }): CardStatus {
+export function getDeployCardStatus({ ready, hasError, busy, done, hasAccessError = false }: { ready: boolean; hasError: boolean; busy: boolean; done: boolean; hasAccessError?: boolean }): CardStatus {
   if (!ready) return "idle";
   if (hasError) return "error";
+  if (hasAccessError) return "warning";
   if (busy) return "loading";
   return done ? "complete" : "warning";
 }

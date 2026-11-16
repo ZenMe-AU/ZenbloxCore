@@ -44,7 +44,7 @@ vi.mock("../logic/consent", () => ({
   isConsentError: apiMocks.isConsentError,
 }));
 
-vi.mock("../cards/AccessPass/password", () => ({
+vi.mock("../logic/password", () => ({
   generateRandomPassword: apiMocks.generateRandomPassword,
 }));
 

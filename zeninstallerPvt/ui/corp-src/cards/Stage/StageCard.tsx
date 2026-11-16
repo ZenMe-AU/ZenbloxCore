@@ -31,6 +31,7 @@ import type {
 } from "../../types";
 import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../../api";
 import { useAzurePermissions } from "../../hooks/util/useAzurePermissions";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
 import { useRemoteTerminal } from "./useRemoteTerminal";
 import { assessPrerequisites, computePlanSummary, isPlanBehind, type PrerequisiteAssessment } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
@@ -45,6 +46,8 @@ import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
 import StagePlanDetail from "./StagePlanDetail";
 import RemoteTerminal from "./RemoteTerminal";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 
 function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, CardStatus>, variableValues: Record<string, string>): boolean {
   switch (prereq.type) {
@@ -428,7 +431,7 @@ function Action({ repoFullName, runId }: { repoFullName: string | null; runId?: 
   return <ViewLink href={getWorkflowRunUrl(repoFullName, runId)} label="Open plan run in GitHub" />;
 }
 
-export default function StageCard({
+function StageCardContent({
   card,
   stageDef,
   stage,
@@ -450,7 +453,8 @@ export default function StageCard({
   statusUpdateDisabled,
   runError,
   azureAccount,
-}: Props) {
+  managementAccess,
+}: Props & { managementAccess?: CardResourceAccess }) {
   const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [planOutputOpen, setPlanOutputOpen] = useState(false);
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
@@ -481,9 +485,16 @@ export default function StageCard({
   const onDeploy =
     trackDeploy &&
     (async () => {
-      if (await remoteTerminal.start()) {
-        await trackDeploy();
+      if (managementAccess) {
+        if (managementAccess.status !== "ready") return;
+        try {
+          await managementAccess.check();
+        } catch {
+          // The access hook displays the verification failure and offers a recheck.
+          return;
+        }
       }
+      if (await remoteTerminal.start()) await trackDeploy();
     });
 
   const onPlanSummaryRef = useRef(onPlanSummary);
@@ -555,50 +566,25 @@ export default function StageCard({
       {stageDef.description}
     </Typography>
   ) : undefined;
+  const accessError = managementAccess?.status === "error";
+  const accessNotice = managementAccess && (managementAccess.status === "checking" || accessError)
+    ? <AzureAccessCheck access={managementAccess} resourceAccess errorStyle />
+    : undefined;
 
   return (
-    <Card title={stageDef.label} action={<Action repoFullName={repoFullName} runId={stage.runId} />} lockedIntro={intro} {...card}>
+    <Card
+      title={stageDef.label}
+      action={<Action repoFullName={repoFullName} runId={stage.runId} />}
+      lockedIntro={intro}
+      {...card}
+      status={!card.locked && !card.unavailable && accessError ? "error" : card.status}
+      summary={!card.locked && !card.unavailable && accessError ? "Insufficient permissions to deploy" : card.summary}
+    >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {intro}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           {stageDef.prerequisites.length > 0 && (
-            <Box>
-            <ButtonBase
-              disableRipple
-              onClick={() => setPrerequisitesOpen((open) => !open)}
-              aria-expanded={prerequisitesOpen}
-              aria-label={prerequisitesOpen ? "collapse" : "open prerequisites"}
-              aria-controls={`${stageDef.dir}-prerequisites`}
-              sx={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                userSelect: "none",
-                py: 0.25,
-                "&:hover .prerequisites-toggle-label, &:focus-visible .prerequisites-toggle-label": { color: "primary.main" },
-                "&:hover .prerequisites-toggle-line, &:focus-visible .prerequisites-toggle-line": { backgroundColor: "primary.main" },
-                "&:hover .prerequisites-toggle-icon, &:focus-visible .prerequisites-toggle-icon": { color: "primary.main" },
-              }}
-            >
-              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-              <Typography className="prerequisites-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
-                {prerequisitesOpen ? "hide prerequisites" : "view prerequisites"}
-              </Typography>
-              <KeyboardArrowDownIcon
-                className="prerequisites-toggle-icon"
-                sx={{
-                  typography: "body2",
-                  color: "text.muted",
-                  transform: prerequisitesOpen ? "rotate(180deg)" : "none",
-                  transition: "color 0.2s, transform 0.2s",
-                }}
-                aria-hidden="true"
-              />
-              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-            </ButtonBase>
-            <Collapse in={prerequisitesOpen} timeout={300}>
-              <Box id={`${stageDef.dir}-prerequisites`} role="region" aria-label="Prerequisites" sx={{ display: "flex", flexDirection: "column", mt: 0.5 }}>
+            <Prerequisites id={`${stageDef.dir}-prerequisites`} open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)} stage>
               <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>
                 Prerequisites
               </Typography>
@@ -645,61 +631,47 @@ export default function StageCard({
                   </Box>
                 );
               })}
-              </Box>
-            </Collapse>
+            </Prerequisites>
+          )}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+            <RunStatusUpdateButton
+              onRun={onRunStatusUpdate}
+              running={statusUpdateRunning}
+              countdown={statusUpdateCountdown}
+              disabled={statusUpdateDisabled}
+            />
+            {runError && <ErrorText>{runError}</ErrorText>}
           </Box>
-          )}
-          {canRefreshPrerequisites && (
-            <Box role="group" aria-label="Refresh changed prerequisites" sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-              <RunStatusUpdateButton
-                label="Refresh plan"
-                onRun={onRunStatusUpdate}
-                running={statusUpdateRunning}
-                countdown={statusUpdateCountdown}
-                disabled={statusUpdateDisabled}
-              />
-              {runError && <ErrorText>{runError}</ErrorText>}
-            </Box>
-          )}
         </Box>
 
-        {prerequisitesMet && stageDef.prerequisites.length > 0 && <Divider role="separator" />}
+        {(hasDetails || accessNotice) && (
+          <StagePlanDetail
+            items={planItems}
+            summary={planSummary}
+            loading={planLoading}
+            error={planError}
+            planAvailable={hasDetails}
+            accessNotice={accessNotice}
+            accessError={accessError}
+            onDeploy={onDeploy}
+            deployNotice={
+              !azurePermissions.ready && (
+                <PermissionNotice
+                  missing={azurePermissions.missing}
+                  error={azurePermissions.error}
+                  granting={azurePermissions.granting}
+                  onGrant={azurePermissions.grant}
+                />
+              )
+            }
+            stagesStale={deployDisabled || (managementAccess != null && managementAccess.status !== "ready")}
+            behind={isPlanBehind(stage, latestSha)}
+            planSha={stage.planSha}
+            latestSha={latestSha}
+          />
+        )}
 
-        {prerequisitesMet && (
-          <Box component="section" aria-label="Plan" sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-              <RunStatusUpdateButton
-                onRun={onRunStatusUpdate}
-                running={statusUpdateRunning}
-                countdown={statusUpdateCountdown}
-                disabled={statusUpdateDisabled}
-              />
-              {runError && <ErrorText>{runError}</ErrorText>}
-            </Box>
-
-            {hasDetails && (
-              <StagePlanDetail
-                items={planItems}
-                summary={planSummary}
-                loading={planLoading}
-                error={planError}
-                onDeploy={!deployDisabled ? onDeploy : undefined}
-                deployNotice={
-                  !azurePermissions.ready && (
-                    <PermissionNotice
-                      missing={azurePermissions.missing}
-                      error={azurePermissions.error}
-                      granting={azurePermissions.granting}
-                      onGrant={azurePermissions.grant}
-                    />
-                  )
-                }
-                stagesStale={deployDisabled}
-                behind={isPlanBehind(stage, latestSha)}
-                planSha={stage.planSha}
-                latestSha={latestSha}
-              />
-            )}
+        <RemoteTerminal session={remoteTerminal} />
 
             {!hasDetails && stage.status !== "pending" && (
               <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
@@ -749,8 +721,7 @@ export default function StageCard({
                 </Collapse>
               </Box>
             )}
-          </Box>
-        )}
+ 
 
         <RemoteTerminal session={remoteTerminal} />
 
@@ -786,4 +757,18 @@ export default function StageCard({
       </Box>
     </Card>
   );
+}
+
+function ArmStageCard({ resourceCard, ...props }: Props & { resourceCard: "subscriptionBudget" }) {
+  const managementAccess = useCardResourceAccess({
+    azureAccount: props.azureAccount,
+    subscriptionId: props.variableValues.AZURE_SUBSCRIPTION_ID ?? "",
+    tenantId: props.variableValues.AZURE_TENANT_ID || undefined,
+  }, { card: resourceCard });
+  return <StageCardContent {...props} managementAccess={managementAccess} />;
+}
+
+export default function StageCard(props: Props) {
+  if (props.stageDef.dir === "SubscriptionBudget") return <ArmStageCard {...props} resourceCard="subscriptionBudget" />;
+  return <StageCardContent {...props} />;
 }

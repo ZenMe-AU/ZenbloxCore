@@ -68,7 +68,7 @@ export async function ensureScopeConsent(account: AzureAccount, scopes: string[]
 }
 
 // ── Tokens ────────────────────────────────────────────────────────────────────
-export async function getToken(account: AzureAccount, scopes: string[], overrideTenantId?: string): Promise<string> {
+export async function getToken(account: AzureAccount, scopes: string[], overrideTenantId?: string, forceRefresh = false): Promise<string> {
   const msal = await getMsal();
   if (!msal) throw new Error("MSAL not configured");
 
@@ -83,6 +83,7 @@ export async function getToken(account: AzureAccount, scopes: string[], override
   const res = await msal.acquireTokenSilent({
     scopes,
     account,
+    forceRefresh,
     ...(authority ? { authority } : {}),
   });
   return res.accessToken;

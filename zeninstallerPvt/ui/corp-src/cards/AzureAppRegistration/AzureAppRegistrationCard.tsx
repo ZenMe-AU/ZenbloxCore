@@ -6,9 +6,12 @@
 import { useState, useEffect, useRef } from "react";
 import { Box, Button, ButtonBase, Collapse, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 import type { Account, CardChrome, GhEnv } from "../../types";
 import type { UseAzureAppRegistrationCard } from "./useAzureAppRegistrationCard";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
@@ -70,6 +73,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
   } = appReg;
   const disabled = card.locked;
   const [varExpanded, setVarExpanded] = useState(false);
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const [bannerState, setBannerState] = useState<"none" | "saved" | "no-changes" | "error">("none");
   const prevRunNonceRef = useRef(runNonce);
@@ -273,10 +277,20 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                     <Button
                       variant="contained"
                       onClick={handleRun}
-                      disabled={disabled || !subscriptionId || !appName.trim()}
+                      disabled={disabled || !subscriptionId || !appName.trim() || appReg.managementAccess.status !== "ready"}
+                      sx={{
+                        py: 0.85,
+                        px: 2.5,
+                      }}
                     >
                       {rbacMissing ? "Grant Reader access on this subscription" : "Create app registration"}
                     </Button>
+                    {appReg.managementAccess.status === "error" && (
+                      <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                        <Typography color="error.main">Insufficient permissions to continue</Typography>
+                      </Box>
+                    )}
                     {varHasAny && !rbacMissing && !spNotFound && (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
@@ -310,6 +324,12 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                     </Button>
                   )}
                 </Box>
+              )}
+
+              {(appReg.managementAccess.status === "checking" || appReg.managementAccess.status === "error") && (
+                <Prerequisites id="azure-app-registration-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+                  <AzureAccessCheck access={appReg.managementAccess} resourceAccess errorStyle />
+                </Prerequisites>
               )}
             </Box>
           )}

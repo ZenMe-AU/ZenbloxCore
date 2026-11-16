@@ -359,10 +359,10 @@ describe("a run belongs to the card that started it", () => {
     const plan = await mount();
 
     await act(async () => {
-      await plan().onRun("GlobalGroups");
+      await plan().onRun("UserAccounts");
     });
 
-    expect(plan().runs["GlobalGroups"].error).toBe("Failed to trigger workflow");
+    expect(plan().runs["UserAccounts"].error).toBe("Failed to trigger workflow");
     expect(plan().runs["SubscriptionBudget"]).toBeUndefined();
   });
 
