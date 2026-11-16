@@ -22,6 +22,8 @@ const { mocks } = vi.hoisted(() => ({
     getUserByUpn: vi.fn(),
     createUser: vi.fn(),
     getEntraLicence: vi.fn(),
+    listVerifiedDomainsViaOrganization: vi.fn(),
+    listAdminPairs: vi.fn(),
     getUserManagerId: vi.fn(),
     setUserManager: vi.fn(),
   },
@@ -38,6 +40,8 @@ vi.mock("../api/azureGraph", () => ({
   getUserByUpn: mocks.getUserByUpn,
   createUser: mocks.createUser,
   getEntraLicence: mocks.getEntraLicence,
+  listVerifiedDomainsViaOrganization: mocks.listVerifiedDomainsViaOrganization,
+  listAdminPairs: mocks.listAdminPairs,
   getUserManagerId: mocks.getUserManagerId,
   setUserManager: mocks.setUserManager,
   searchUsers: vi.fn(),
@@ -70,7 +74,6 @@ function renderCard() {
       azureAccount: account,
       tenantId: "tenant-1",
       subscriptionId: "sub-1",
-      dnsName: "corp.com",
     });
     useEffect(() => {
       latest = value;
@@ -91,7 +94,7 @@ describe("useCreateAdminUsersCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Only PrivilegedAccounts is missing; created groups exist from then on.
-    const existing = new Set(["PawUsers", "DbAdmin-Dev", "DbAdmin-Test", "DbAdmin-Prod", "ResourceGroupDeployer", "LeadDeveloper"]);
+    const existing = new Set(["PawUsers", "PrivilegedAccountApproved", "DbAdmin-Dev", "DbAdmin-Test", "DbAdmin-Prod", "ResourceGroupDeployer", "LeadDeveloper"]);
     mocks.getGroupByName.mockImplementation(async (_a, name: string) => (existing.has(name) ? { id: `id-${name}`, displayName: name, description: "" } : null));
     mocks.createGroup.mockImplementation(async (_a, params: { displayName: string }) => {
       existing.add(params.displayName);
@@ -106,6 +109,11 @@ describe("useCreateAdminUsersCard", () => {
     mocks.getUserByUpn.mockImplementation(async (_a, upn: string) => (upn === "Ann.Lee@corp.com" ? { id: "u-Ann.Lee@corp.com", userPrincipalName: upn } : null));
     mocks.createUser.mockImplementation(async (_a, params: { userPrincipalName: string }) => ({ id: `u-${params.userPrincipalName}`, userPrincipalName: params.userPrincipalName }));
     mocks.getEntraLicence.mockResolvedValue("p1");
+    mocks.listVerifiedDomainsViaOrganization.mockResolvedValue([
+      { name: "corp.onmicrosoft.com", isDefault: false, isInitial: true },
+      { name: "corp.com", isDefault: true, isInitial: false },
+    ]);
+    mocks.listAdminPairs.mockResolvedValue([]);
     mocks.getUserManagerId.mockResolvedValue(null);
     mocks.setUserManager.mockResolvedValue(undefined);
   });
@@ -114,6 +122,7 @@ describe("useCreateAdminUsersCard", () => {
     const card = renderCard();
     await waitFor(() => expect(card.current.missingGroups).toEqual(["PrivilegedAccounts"]));
     await waitFor(() => expect(card.current.entraLicence).toBe("p1"));
+    expect(card.current.primaryDomain).toBe("corp.com");
     // P1 allows the role-assignable group but not PIM.
     expect(card.current.roleTarget).toBe("group");
     act(() => card.current.setUsePim(true));
@@ -121,13 +130,17 @@ describe("useCreateAdminUsersCard", () => {
 
     act(() => {
       card.current.updateAdmin(card.current.admins[0].key, {
-        givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001", userGroups: ["LeadDeveloper"],
+        givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001",
       });
       card.current.addAdmin();
     });
     const bob = card.current.admins[1].key;
     const ann = card.current.admins[0].key;
-    act(() => card.current.updateAdmin(bob, { givenName: "Bob", surname: "Wu", username: "bob", manager: { kind: "row", key: ann } }));
+    act(() =>
+      card.current.updateAdmin(bob, {
+        givenName: "Bob", surname: "Wu", mobile: "+61 400 000 002", username: "bob", manager: { kind: "row", key: ann }, privilegedManager: { kind: "row", key: ann },
+      })
+    );
     await act(async () => {
       await card.current.run();
     });
@@ -142,20 +155,24 @@ describe("useCreateAdminUsersCard", () => {
       expect.anything(), "/providers/Microsoft.Management/managementGroups/tenant-1", "id-PrivilegedAccounts", "Owner", "tenant-1", "Group"
     );
     expect(mocks.ensureRbacRoleAtScope).toHaveBeenCalledWith(expect.anything(), "/subscriptions/sub-1", "id-ResourceGroupDeployer", "Owner", "tenant-1", "Group");
-    // Ann.Lee already exists, so only her adm_ account is created; Bob gets both, without a mobile.
+    // Ann.Lee already exists, so only her adm_ account is created; Bob gets both.
     expect(mocks.createUser.mock.calls.map((c) => c[1].userPrincipalName)).toEqual(["adm_Ann.Lee@corp.com", "bob@corp.com", "adm_bob@corp.com"]);
     expect(mocks.createUser.mock.calls[0][1]).toMatchObject({ displayName: "Ann Lee Admin", givenName: "Ann", surname: "Lee", mobilePhone: "+61 400 000 001", password: "pw" });
-    expect(mocks.createUser.mock.calls[1][1]).toMatchObject({ displayName: "Bob Wu", mobilePhone: undefined });
-    // Each account joins its own ticked groups.
+    expect(mocks.createUser.mock.calls[1][1]).toMatchObject({ displayName: "Bob Wu", mobilePhone: "+61 400 000 002" });
+    // User accounts join PrivilegedAccountApproved, adm_ accounts PrivilegedAccounts.
     const userJoins = mocks.addGroupMember.mock.calls.filter((c) => String(c[2]).startsWith("u-")).map((c) => [c[1], c[2]]);
     expect(userJoins).toEqual([
-      ["id-LeadDeveloper", "u-Ann.Lee@corp.com"],
+      ["id-PrivilegedAccountApproved", "u-Ann.Lee@corp.com"],
       ["id-PrivilegedAccounts", "u-adm_Ann.Lee@corp.com"],
+      ["id-PrivilegedAccountApproved", "u-bob@corp.com"],
       ["id-PrivilegedAccounts", "u-adm_bob@corp.com"],
     ]);
-    // Bob reports to Ann, who has no manager by default; adm_ accounts get none.
-    expect(mocks.setUserManager.mock.calls.map((c) => [c[1], c[2]])).toEqual([["u-bob@corp.com", "u-Ann.Lee@corp.com"]]);
-    expect(card.current.steps.find((s) => s.id === "managers")).toMatchObject({ status: "done", detail: "Set for 1 user" });
+    // Bob's accounts report to Ann's accounts of the same kind; Ann has no manager by default.
+    expect(mocks.setUserManager.mock.calls.map((c) => [c[1], c[2]])).toEqual([
+      ["u-bob@corp.com", "u-Ann.Lee@corp.com"],
+      ["u-adm_bob@corp.com", "u-adm_Ann.Lee@corp.com"],
+    ]);
+    expect(card.current.steps.find((s) => s.id === "managers")).toMatchObject({ status: "done", detail: "Set for 2 users" });
     await waitFor(() => expect(card.current.done).toBe(true));
   });
 
@@ -165,7 +182,7 @@ describe("useCreateAdminUsersCard", () => {
     await waitFor(() => expect(card.current.entraLicence).toBe("none"));
     expect(card.current.roleTarget).toBe("users");
     await waitFor(() => expect(card.current.missingGroups).not.toBeNull());
-    act(() => card.current.updateAdmin(card.current.admins[0].key, { givenName: "Ann", surname: "Lee" }));
+    act(() => card.current.updateAdmin(card.current.admins[0].key, { givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001" }));
     await act(async () => {
       await card.current.run();
     });
@@ -202,19 +219,6 @@ describe("useCreateAdminUsersCard", () => {
     expect(mocks.ensureRbacRoleAtScope.mock.calls.map((c) => c[1])).toEqual(["/subscriptions/sub-1"]);
   });
 
-  it("skips the privileged account when it isn't ticked", async () => {
-    const card = renderCard();
-    await waitFor(() => expect(card.current.missingGroups).not.toBeNull());
-    const key = card.current.admins[0].key;
-    act(() => card.current.updateAdmin(key, { givenName: "Bob", surname: "Wu", privileged: false }));
-    await act(async () => {
-      await card.current.run();
-    });
-
-    expect(mocks.createUser.mock.calls.map((c) => c[1].userPrincipalName)).toEqual(["Bob.Wu@corp.com"]);
-    expect(card.current.steps.some((s) => s.id === `priv:${key}`)).toBe(false);
-  });
-
   it("keeps an existing manager and skips users without one", async () => {
     mocks.getUserManagerId.mockResolvedValue("boss");
     const card = renderCard();
@@ -222,17 +226,44 @@ describe("useCreateAdminUsersCard", () => {
     await waitFor(() => expect(card.current.missingGroups).not.toBeNull());
     act(() => {
       card.current.updateAdmin(card.current.admins[0].key, {
-        givenName: "Ann", surname: "Lee", privileged: false, manager: { kind: "entra", id: "e1", displayName: "Chris Tan", userPrincipalName: "chris@corp.com" },
+        givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001", manager: { kind: "entra", id: "e1", displayName: "Chris Tan", userPrincipalName: "chris@corp.com" },
       });
       card.current.addAdmin();
     });
-    act(() => card.current.updateAdmin(card.current.admins[1].key, { givenName: "Cat", surname: "Ng", privileged: false, manager: null }));
+    act(() => card.current.updateAdmin(card.current.admins[1].key, { givenName: "Cat", surname: "Ng", mobile: "+61 400 000 003" }));
     await act(async () => {
       await card.current.run();
     });
 
     expect(mocks.setUserManager).not.toHaveBeenCalled();
     expect(card.current.steps.find((s) => s.id === "managers")).toMatchObject({ status: "skipped", detail: "Already set" });
+  });
+
+  it("creates both accounts on the domain picked for that admin", async () => {
+    const card = renderCard();
+    await waitFor(() => expect(card.current.domains).not.toBeNull());
+    await waitFor(() => expect(card.current.missingGroups).not.toBeNull());
+    act(() => card.current.updateAdmin(card.current.admins[0].key, { givenName: "Bob", surname: "Wu", mobile: "+61 400 000 002", domain: "corp.onmicrosoft.com" }));
+    await act(async () => {
+      await card.current.run();
+    });
+
+    expect(mocks.createUser.mock.calls.map((c) => c[1].userPrincipalName)).toEqual(["Bob.Wu@corp.onmicrosoft.com", "adm_Bob.Wu@corp.onmicrosoft.com"]);
+  });
+
+  it("lists the admins already in Entra and rereads them after a run", async () => {
+    const pair = {
+      user: { id: "u-dan", displayName: "Dan Ho", userPrincipalName: "Dan.Ho@corp.com", manager: null },
+      privileged: { id: "u-adm-dan", displayName: "Dan Ho Admin", userPrincipalName: "adm_Dan.Ho@corp.com", manager: null },
+    };
+    mocks.listAdminPairs.mockResolvedValue([pair]);
+    const card = renderCard();
+    await waitFor(() => expect(card.current.existingAdmins).toEqual([pair]));
+    act(() => card.current.removeAdmin(card.current.admins[0].key));
+    await act(async () => {
+      await card.current.run();
+    });
+    await waitFor(() => expect(mocks.listAdminPairs).toHaveBeenCalledTimes(2));
   });
 
   it("stops after the groups step when a group can't be created", async () => {
@@ -255,7 +286,7 @@ describe("useCreateAdminUsersCard", () => {
     await waitFor(() => expect(card.current.entraLicence).toBe("unknown"));
     expect(card.current.consentRequired).toBe(true);
     expect(card.current.licenceError).toBeNull();
-    act(() => card.current.updateAdmin(card.current.admins[0].key, { givenName: "Bob", surname: "Wu" }));
+    act(() => card.current.updateAdmin(card.current.admins[0].key, { givenName: "Bob", surname: "Wu", mobile: "+61 400 000 002" }));
     expect(card.current.canRun).toBe(false);
 
     mocks.getEntraLicence.mockRejectedValueOnce(new Error("403 Forbidden"));
@@ -267,7 +298,7 @@ describe("useCreateAdminUsersCard", () => {
 
 describe("resolveAdmin", () => {
   const row = (patch: Partial<AdminRow>): AdminRow => ({
-    key: "1", givenName: "", surname: "", mobile: "", displayName: null, username: null, userGroups: [], privileged: true, privilegedGroups: [], manager: null, ...patch,
+    key: "1", givenName: "", surname: "", mobile: "", displayName: null, username: null, domain: null, manager: null, privilegedManager: null, ...patch,
   });
 
   it("defaults the display name, UPN and privileged account from the legal names", () => {
@@ -284,21 +315,20 @@ describe("resolveAdmin", () => {
 
 describe("adminRowErrors", () => {
   const row = (key: string, username: string, patch: Partial<AdminRow> = {}): AdminRow => ({
-    key, givenName: "A", surname: "B", mobile: "+61 400 000 000", displayName: null, username, userGroups: [], privileged: true, privilegedGroups: [], manager: null, ...patch,
+    key, givenName: "A", surname: "B", mobile: "+61 400 000 000", displayName: null, username, domain: null, manager: null, privilegedManager: null, ...patch,
   });
 
-  it("flags missing names, bad mobiles, bad UPNs, and duplicates", () => {
+  it("flags missing names, missing or bad mobiles, bad UPNs, and duplicates", () => {
     expect(adminRowErrors([row("1", "ann", { givenName: "" })])).toHaveProperty("1");
     expect(adminRowErrors([row("1", "ann", { mobile: "abc" })])).toHaveProperty("1");
     expect(adminRowErrors([row("1", "ann", { manager: { kind: "row", key: "gone" } })])).toEqual({ "1": "Pick another manager; that user was removed." });
-    expect(adminRowErrors([row("1", "ann", { mobile: "" })])).toEqual({});
+    expect(adminRowErrors([row("1", "ann", { privilegedManager: { kind: "row", key: "gone" } })])).toHaveProperty("1");
+    expect(adminRowErrors([row("1", "ann", { mobile: "" })])).toHaveProperty("1");
     expect(adminRowErrors([row("1", "ann", { displayName: "" })])).toHaveProperty("1");
     expect(adminRowErrors([row("1", ".ann")])).toHaveProperty("1");
     expect(adminRowErrors([row("1", "ann@corp.com")])).toHaveProperty("1");
     expect(adminRowErrors([row("1", "Ann.Lee"), row("2", "ann.lee")])).toEqual({ 2: "Each account needs its own UPN." });
     expect(adminRowErrors([row("1", "bob"), row("2", "adm_bob")])).toEqual({ 2: "Each account needs its own UPN." });
-    // An unticked privileged account isn't created, so it can't clash.
-    expect(adminRowErrors([row("1", "bob", { privileged: false }), row("2", "adm_bob", { privileged: false })])).toEqual({});
     expect(adminRowErrors([row("1", "ann.lee"), row("2", "bob_wu-2")])).toEqual({});
   });
 });

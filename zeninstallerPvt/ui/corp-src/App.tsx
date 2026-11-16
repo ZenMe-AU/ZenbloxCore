@@ -213,7 +213,6 @@ function AppDashboard() {
       azureAccount: azureLogin.account,
       tenantId: azureLogin.confirmedTenantId,
       subscriptionId: azureSubscription.selectedSubscriptionId,
-      dnsName,
     })
   );
 
@@ -525,7 +524,7 @@ function AppDashboard() {
                 githubUrl={githubRepoEnv.githubEnvUrl}
               />
 
-              <CreateAdminUsersCard card={cardProps("create_admin_users")} adminUsers={adminUsers} dnsName={dnsName} />
+              <CreateAdminUsersCard card={cardProps("create_admin_users")} adminUsers={adminUsers} />
 
               <RemoteTerminalInfraCard
                 card={cardProps("remote_terminal_infra")}

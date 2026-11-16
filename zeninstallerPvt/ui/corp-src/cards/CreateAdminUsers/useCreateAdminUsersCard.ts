@@ -17,9 +17,13 @@ import {
   getEntraLicence,
   getUserManagerId,
   isGroupMember,
+  listAdminPairs,
+  listVerifiedDomainsViaOrganization,
   searchUsers,
   setUserManager,
+  type AdminPair,
   type EntraUser,
+  type VerifiedDomain,
 } from "../../api/azureGraph";
 import { ensureRbacRoleAtScope, ensureRbacRoleEligibility } from "../../api/azureArm";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
@@ -32,29 +36,29 @@ import {
   ADMIN_GROUPS,
   ADMIN_USERS_SCOPES,
   CREATE_ADMIN_USERS_TITLE,
-  DEFAULT_PRIVILEGED_GROUPS,
+  PRIVILEGED_ACCOUNT_GROUPS,
   PRIVILEGED_GROUP,
   PIM_OPTION,
+  USER_ACCOUNT_GROUPS,
   licenceAllows,
   roleLabel,
   type LicenceState,
   type RoleTarget,
 } from "./config";
 
-// The user account's manager: another admin in this list, or an existing Entra user. The adm_ account gets none.
+// A manager of the same kind: another admin in this list (their matching account), or an existing Entra user.
 export type ManagerChoice = { kind: "row"; key: string } | ({ kind: "entra" } & EntraUser);
 
 export type AdminRow = {
   key: string;
   givenName: string; // Legal name, as on the passport.
   surname: string;
-  mobile: string; // Optional.
+  mobile: string;
   displayName: string | null; // Null follows the default; the same for username.
   username: string | null; // The user account's UPN, before the @; the privileged account is always adm_ + this.
-  userGroups: string[]; // The user account is always created.
-  privileged: boolean; // Create the privileged account too.
-  privilegedGroups: string[];
-  manager: ManagerChoice | null; // Null for no manager.
+  domain: string | null; // After the @, for both accounts; null for the primary domain.
+  manager: ManagerChoice | null; // The user account's manager; null for none.
+  privilegedManager: ManagerChoice | null; // The adm_ account's manager, another adm_ account.
 };
 
 export type ResolvedAdmin = { displayName: string; username: string; privilegedUsername: string; privilegedDisplayName: string };
@@ -78,7 +82,6 @@ export type UseCreateAdminUsersCardParams = {
   azureAccount: AzureAccount | null;
   tenantId: string | null;
   subscriptionId: string;
-  dnsName: string; // Admin accounts are <username>@<dnsName>.
 };
 
 export type UseCreateAdminUsersCard = CardHook & {
@@ -89,7 +92,10 @@ export type UseCreateAdminUsersCard = CardHook & {
   updateAdmin: (key: string, patch: Partial<Omit<AdminRow, "key">>) => void;
   removeAdmin: (key: string) => void;
   searchUsers: (query: string) => Promise<EntraUser[]>; // For the manager picker.
+  domains: VerifiedDomain[] | null; // The tenant's verified domains; null until read.
+  primaryDomain: string; // Empty until the domains are read.
   missingGroups: string[] | null; // Null until Entra was read.
+  existingAdmins: AdminPair[] | null; // Admins already in Entra; null until read.
   entraLicence: LicenceState;
   licenceError: string | null; // Why the licence couldn't be read, unless it's missing consent.
   roleTarget: RoleTarget; // Who holds PrivilegedAccounts' Global Administrator.
@@ -103,7 +109,7 @@ export type UseCreateAdminUsersCard = CardHook & {
   reset: () => void;
   consentRequired: boolean;
   requestConsent: () => Promise<void>;
-  error: string | null; // Reading the groups failed.
+  error: string | null; // Reading the groups or admins failed.
 };
 
 const USERNAME = /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/i;
@@ -116,10 +122,9 @@ const newAdmin = (): AdminRow => ({
   mobile: "",
   displayName: null,
   username: null,
-  userGroups: [],
-  privileged: true,
-  privilegedGroups: [...DEFAULT_PRIVILEGED_GROUPS],
+  domain: null,
   manager: null,
+  privilegedManager: null,
 });
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -129,41 +134,42 @@ export function adminRowErrors(admins: AdminRow[]): Record<string, string> {
   const seen = new Set<string>();
   for (const a of admins) {
     const r = resolveAdmin(a);
-    const m = a.manager;
-    // An unticked privileged account isn't created, so it can't clash.
-    const names = [r.username, ...(a.privileged ? [r.privilegedUsername] : [])].map((n) => n.trim().toLowerCase());
+    const names = [r.username, r.privilegedUsername].map((n) => n.trim().toLowerCase());
     if (!a.givenName.trim() || !a.surname.trim()) errors[a.key] = "Enter the first name and surname.";
-    else if (a.mobile.trim() && !MOBILE.test(a.mobile.trim())) errors[a.key] = "Enter a valid mobile number, e.g. +61 400 000 000, or leave it empty.";
+    else if (!MOBILE.test(a.mobile.trim())) errors[a.key] = "Enter a mobile number, e.g. +61 400 000 000.";
     else if (!r.displayName.trim()) errors[a.key] = "Enter a display name.";
     else if (!USERNAME.test(r.username.trim())) errors[a.key] = "Use letters, numbers, dots, hyphens or underscores in the UPN.";
     else if (names.some((n) => seen.has(n))) errors[a.key] = "Each account needs its own UPN.";
-    else if (m?.kind === "row" && !admins.some((o) => o.key === m.key)) errors[a.key] = "Pick another manager; that user was removed.";
+    else if ([a.manager, a.privilegedManager].some((m) => m?.kind === "row" && !admins.some((o) => o.key === m.key))) errors[a.key] = "Pick another manager; that user was removed.";
     for (const n of names) seen.add(n);
   }
   return errors;
 }
 
-export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId, dnsName }: UseCreateAdminUsersCardParams): UseCreateAdminUsersCard {
+export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId }: UseCreateAdminUsersCardParams): UseCreateAdminUsersCard {
   const [admins, setAdmins] = useState<AdminRow[]>(() => [newAdmin()]);
   const [missingGroups, setMissingGroups] = useState<string[] | null>(null);
+  const [existingAdmins, setExistingAdmins] = useState<AdminPair[] | null>(null);
   const [checkKey, setCheckKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [entraLicence, setEntraLicence] = useState<LicenceState>(null);
   const [licenceError, setLicenceError] = useState<string | null>(null);
+  const [domains, setDomains] = useState<VerifiedDomain[] | null>(null);
   const [pimChoice, setUsePim] = useState<boolean | null>(null);
   const [consentRequired, setConsentRequired] = useState(false);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const tid = tenantId || undefined;
   const access = useCardResourceAccess({ azureAccount, subscriptionId, tenantId: tid }, { card: "adminUsers" });
 
-  // The card is done once every group exists.
+  // The card is done once every group exists; the admins it already made are listed too.
   useEffect(() => {
     if (!azureAccount || !tenantId) return;
     let cancelled = false;
-    Promise.all(ADMIN_GROUPS.map((g) => getGroupByName(azureAccount, g.name, tid))).then(
-      (found) => {
+    Promise.all([Promise.all(ADMIN_GROUPS.map((g) => getGroupByName(azureAccount, g.name, tid))), listAdminPairs(azureAccount, tid)]).then(
+      ([found, pairs]) => {
         if (cancelled) return;
         setMissingGroups(ADMIN_GROUPS.filter((_, i) => !found[i]).map((g) => g.name));
+        setExistingAdmins(pairs);
         setError(null);
       },
       (err) => {
@@ -178,13 +184,15 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     };
   }, [azureAccount, tenantId, tid, checkKey]);
 
-  // Reads the licence used to select the role-assignment mode and PIM availability.
+  // Reads the licence, which selects the role-assignment mode and PIM, and the verified domains; both need the same permission.
   useEffect(() => {
     if (!azureAccount || !tenantId) return;
     let cancelled = false;
-    getEntraLicence(azureAccount, tid).then(
-      (licence) => {
-        if (!cancelled) setEntraLicence(licence);
+    Promise.all([getEntraLicence(azureAccount, tid), listVerifiedDomainsViaOrganization(azureAccount, tid)]).then(
+      ([licence, verified]) => {
+        if (cancelled) return;
+        setEntraLicence(licence);
+        setDomains(verified);
       },
       (err) => {
         if (cancelled) return;
@@ -210,21 +218,21 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   const removeAdmin = useCallback((key: string) => setAdmins((prev) => prev.filter((a) => a.key !== key)), []);
   const findUsers = useCallback((query: string) => (azureAccount ? searchUsers(azureAccount, query, tid) : Promise.resolve([])), [azureAccount, tid]);
 
+  const primaryDomain = domains?.find((d) => d.isDefault)?.name ?? "";
   const roleTarget: RoleTarget = licenceAllows("p1", entraLicence) ? "group" : "users";
   const usePim = licenceAllows(PIM_OPTION.needs, entraLicence) && (pimChoice ?? true);
   const rowErrors = adminRowErrors(admins);
-  const canRun = !running && !!dnsName && access.status === "ready" && licenceAllows("none", entraLicence) && Object.keys(rowErrors).length === 0;
+  const canRun = !running && !!primaryDomain && access.status === "ready" && licenceAllows("none", entraLicence) && Object.keys(rowErrors).length === 0;
 
   const run = useCallback(async () => {
     if (!azureAccount || !tenantId || !canRun) return;
-    // Every admin gets a user account; the privileged one only when ticked. Each joins its own groups.
+    // Every admin gets a user account and an adm_ account, each in its fixed groups.
     const accounts = admins.flatMap((a) => {
       const r = resolveAdmin(a);
+      const domain = a.domain ?? primaryDomain;
       return [
-        { a, isUser: true, stepId: `user:${a.key}`, upn: `${r.username.trim()}@${dnsName}`, displayName: r.displayName.trim(), groups: a.userGroups },
-        ...(a.privileged
-          ? [{ a, isUser: false, stepId: `priv:${a.key}`, upn: `${r.privilegedUsername.trim()}@${dnsName}`, displayName: r.privilegedDisplayName, groups: a.privilegedGroups }]
-          : []),
+        { a, kind: "user", upn: `${r.username.trim()}@${domain}`, displayName: r.displayName.trim(), groups: USER_ACCOUNT_GROUPS, manager: a.manager },
+        { a, kind: "priv", upn: `${r.privilegedUsername.trim()}@${domain}`, displayName: r.privilegedDisplayName, groups: PRIVILEGED_ACCOUNT_GROUPS, manager: a.privilegedManager },
       ];
     });
     // Assigned to users, the accounts hold PrivilegedAccounts' directory roles; with PIM its roles are eligible.
@@ -244,8 +252,8 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
         { id: "groups", label: "Create the security groups" },
         { id: "nesting", label: "Nest the groups" },
         ...roleSteps.map(({ id, label }) => ({ id, label })),
-        ...accounts.map((acc) => ({ id: acc.stepId, label: `Create ${acc.upn}` })),
-        ...(admins.some((a) => a.manager) ? [{ id: "managers", label: "Set the managers" }] : []),
+        ...accounts.map((acc) => ({ id: `${acc.kind}:${acc.a.key}`, label: `Create ${acc.upn}` })),
+        ...(accounts.some((acc) => acc.manager) ? [{ id: "managers", label: "Set the managers" }] : []),
       ].map((s) => ({ ...s, status: "pending" as const }))
     );
     setRunning(true);
@@ -312,8 +320,9 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
         }
       }
 
-      const users = new Map<string, { id: string; existed: boolean }>(); // Admin key → user account, also for managers picked from this list.
-      for (const { a, isUser, stepId, upn, displayName, groups } of accounts) {
+      const users = new Map<string, { id: string; existed: boolean }>(); // Step id → account, also for managers picked from this list.
+      for (const { a, kind, upn, displayName, groups } of accounts) {
+        const stepId = `${kind}:${a.key}`;
         updateStep(stepId, "running");
         try {
           let user = await getUserByUpn(azureAccount, upn, tid);
@@ -326,7 +335,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
                 displayName,
                 givenName: a.givenName.trim(),
                 surname: a.surname.trim(),
-                mobilePhone: a.mobile.trim() || undefined,
+                mobilePhone: a.mobile.trim(),
                 mailNickname: upn.split("@")[0].replace(/[^a-zA-Z0-9]/g, "").toLowerCase(),
                 password: generateRandomPassword(30),
               },
@@ -336,7 +345,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
           for (const name of groups) {
             if (!(await isGroupMember(azureAccount, ids.get(name)!, user.id, tid))) await addGroupMember(azureAccount, ids.get(name)!, user.id, tid);
           }
-          if (isUser) users.set(a.key, { id: user.id, existed });
+          users.set(stepId, { id: user.id, existed });
           const roles = groups.includes(PRIVILEGED_GROUP) ? userRoles : [];
           const ensureRole = usePim ? ensureDirectoryRoleEligibility : ensureDirectoryRoleAssignment;
           for (const role of roles) await ensureRole(azureAccount, user.id, DIRECTORY_ROLE_IDS[role], tid);
@@ -347,15 +356,14 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
         }
       }
 
-      if (admins.some((a) => a.manager)) {
+      if (accounts.some((acc) => acc.manager)) {
         updateStep("managers", "running");
         try {
           let set = 0;
-          for (const a of admins) {
-            const user = users.get(a.key);
-            const m = a.manager;
+          for (const { a, kind, manager: m } of accounts) {
+            const user = users.get(`${kind}:${a.key}`);
             if (!user || !m) continue; // Its account failed, or it has no manager.
-            const managerId = m.kind === "row" ? users.get(m.key)?.id : m.id;
+            const managerId = m.kind === "row" ? users.get(`${kind}:${m.key}`)?.id : m.id; // From this list: their account of the same kind.
             // An existing account keeps the manager it has.
             if (!managerId || (user.existed && (await getUserManagerId(azureAccount, user.id, tid)))) continue;
             await setUserManager(azureAccount, user.id, managerId, tid);
@@ -370,7 +378,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
       setRunning(false);
       setCheckKey((k) => k + 1);
     }
-  }, [azureAccount, tenantId, tid, canRun, dnsName, admins, subscriptionId, roleTarget, usePim, setSteps, setRunning, updateStep]);
+  }, [azureAccount, tenantId, tid, canRun, primaryDomain, admins, subscriptionId, roleTarget, usePim, setSteps, setRunning, updateStep]);
 
   const requestConsent = useCallback(async () => {
     if (!azureAccount) return;
@@ -406,7 +414,10 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     updateAdmin,
     removeAdmin,
     searchUsers: findUsers,
+    domains,
+    primaryDomain,
     missingGroups,
+    existingAdmins,
     entraLicence,
     licenceError,
     roleTarget,

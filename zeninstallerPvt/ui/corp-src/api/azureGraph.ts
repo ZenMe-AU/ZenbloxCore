@@ -775,6 +775,44 @@ export async function searchUsers(account: AzureAccount, query: string, override
   }));
 }
 
+export type AdminAccount = EntraUser & { manager: string | null }; // The manager's display name.
+export type AdminPair = { user: AdminAccount; privileged: AdminAccount };
+
+// Every page of users matching the filter, with their manager's name.
+async function listUsersWithManager(token: string, filter: string): Promise<AdminAccount[]> {
+  const users: AdminAccount[] = [];
+  let path: string | null = `/users?$filter=${encodeURIComponent(filter)}&$select=id,displayName,userPrincipalName&$expand=manager($select=displayName)&$top=100`;
+  while (path) {
+    const page: { value?: { id: string; displayName?: string; userPrincipalName: string; manager?: { displayName?: string } }[]; "@odata.nextLink"?: string } =
+      await gFetch(token, GRAPH, path);
+    for (const u of page?.value ?? []) {
+      users.push({ id: u.id, displayName: u.displayName ?? u.userPrincipalName, userPrincipalName: u.userPrincipalName, manager: u.manager?.displayName ?? null });
+    }
+    const next = page?.["@odata.nextLink"];
+    if (next && !next.startsWith(`${GRAPH}/`)) throw new Error("Graph returned an unexpected users URL");
+    path = next ? next.slice(GRAPH.length) : null;
+  }
+  return users;
+}
+
+// An adm_ account plus the account with the same UPN minus adm_ is an admin this card made.
+export async function listAdminPairs(account: AzureAccount, overrideTenantId?: string): Promise<AdminPair[]> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  const privileged = await listUsersWithManager(token, "startswith(userPrincipalName,'adm_')");
+  const users = new Map<string, AdminAccount>();
+  for (let i = 0; i < privileged.length; i += 15) {
+    // Graph takes at most 15 values in one in().
+    const upns = privileged.slice(i, i + 15).map((p) => `'${p.userPrincipalName.slice(4).replace(/'/g, "''")}'`);
+    for (const u of await listUsersWithManager(token, `userPrincipalName in (${upns.join(",")})`)) users.set(u.userPrincipalName.toLowerCase(), u);
+  }
+  return privileged
+    .flatMap((p) => {
+      const user = users.get(p.userPrincipalName.slice(4).toLowerCase());
+      return user ? [{ user, privileged: p }] : [];
+    })
+    .sort((a, b) => a.user.displayName.localeCompare(b.user.displayName));
+}
+
 // Null when the user has no manager.
 export async function getUserManagerId(account: AzureAccount, userId: string, overrideTenantId?: string): Promise<string | null> {
   const token = await getToken(account, USER_SCOPES, overrideTenantId);

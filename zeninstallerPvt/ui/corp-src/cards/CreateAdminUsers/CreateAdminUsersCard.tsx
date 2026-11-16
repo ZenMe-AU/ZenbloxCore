@@ -14,6 +14,7 @@ import {
   FormControlLabel,
   IconButton,
   InputAdornment,
+  MenuItem,
   Table,
   TableBody,
   TableCell,
@@ -35,13 +36,15 @@ import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationA
 import StatusText from "../../components/StatusText";
 import WarningNotice from "../../components/WarningNotice";
 import StepRow from "../StepRow";
-import type { EntraLicence, EntraUser } from "../../api/azureGraph";
+import type { AdminPair, EntraLicence, EntraUser, VerifiedDomain } from "../../api/azureGraph";
 import type { CardChrome } from "../../types";
 import {
   ADMIN_GROUPS,
   CREATE_ADMIN_USERS_TITLE,
   LICENCE_LABEL,
   PIM_OPTION,
+  PRIVILEGED_ACCOUNT_GROUPS,
+  USER_ACCOUNT_GROUPS,
   groupRoleLabel,
   licenceAllows,
   type LicenceState,
@@ -51,7 +54,6 @@ import { resolveAdmin, type AdminRow, type ManagerChoice, type UseCreateAdminUse
 type Props = {
   card: CardChrome;
   adminUsers: UseCreateAdminUsersCard;
-  dnsName: string;
 };
 
 const box = { border: "1px solid", borderColor: "divider", borderRadius: 1, backgroundColor: "background.paper", overflow: "hidden" };
@@ -69,11 +71,10 @@ const circle = {
   color: "primary.contrastText",
   typography: "body2",
 };
-const GROUP_NAMES = ADMIN_GROUPS.map((g) => g.name);
 
 const INTRO_POINTS = [
   "Creates the security groups, with their nesting and roles.",
-  "Each admin gets a cloud-only user account, plus a privileged adm_ account when ticked.",
+  "Each admin gets a cloud-only user account and a privileged adm_ account.",
   "Needs Global Administrator in Entra, and Owner or User Access Administrator on the subscription and the tenant root management group.",
 ];
 
@@ -145,36 +146,67 @@ function ResetButton({ label, onClick, disabled }: { label: string; onClick: () 
   );
 }
 
-function GroupPicker({ label, value, onChange, disabled }: { label: string; value: string[]; onChange: (groups: string[]) => void; disabled: boolean }) {
+function GroupChips({ groups }: { groups: string[] }) {
   return (
-    <Autocomplete
-      multiple
-      size="small"
-      disableCloseOnSelect
-      options={GROUP_NAMES}
-      value={value}
-      onChange={(_, groups) => onChange(groups)}
-      disabled={disabled}
-      renderInput={(params) => <TextField {...params} placeholder={value.length ? undefined : "No groups"} inputProps={{ ...params.inputProps, "aria-label": label }} />}
-    />
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+      {groups.map((g) => (
+        <Chip key={g} size="small" variant="outlined" label={g} />
+      ))}
+    </Box>
   );
 }
 
-function managerLabel(m: ManagerChoice, admins: AdminRow[]): string {
+// Locked until the domains are read.
+function DomainSelect({ label, value, domains, onChange, disabled, note, error }: {
+  label: string;
+  value: string;
+  domains: VerifiedDomain[] | null;
+  onChange: (domain: string) => void;
+  disabled: boolean;
+  note: string | null; // Why it's locked.
+  error: boolean;
+}) {
+  return (
+    <TextField
+      select
+      size="small"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled || !domains}
+      error={error}
+      helperText={note}
+      inputProps={{ "aria-label": label }}
+      SelectProps={{ renderValue: (v) => v as string }} // "(primary)" only in the list.
+      sx={{ flex: 1, minWidth: 0 }}
+    >
+      {(domains ?? []).map((d) => (
+        <MenuItem key={d.name} value={d.name}>
+          {d.isDefault ? `${d.name} (primary)` : d.name}
+        </MenuItem>
+      ))}
+    </TextField>
+  );
+}
+
+function managerLabel(m: ManagerChoice, admins: AdminRow[], privileged: boolean): string {
   if (m.kind === "entra") return m.displayName;
   const row = admins.find((o) => o.key === m.key);
-  return row ? resolveAdmin(row).displayName.trim() || "New user" : "Removed user";
+  if (!row) return "Removed user";
+  const r = resolveAdmin(row);
+  return (privileged ? r.privilegedDisplayName : r.displayName.trim()) || "New user";
 }
 
 const sameManager = (a: ManagerChoice, b: ManagerChoice) =>
   a.kind === b.kind && (a.kind === "row" ? a.key === (b as typeof a).key : a.id === (b as typeof a).id);
 
-// Another admin in this list, or an Entra user found by name or UPN; empty means no manager.
-function ManagerPicker({ label, self, value, admins, search, onChange, disabled }: {
+// Another admin in this list (new or existing), or an Entra user found by name or UPN, of the same kind (adm_ or not); empty means no manager.
+function ManagerPicker({ label, self, privileged, value, admins, existing, search, onChange, disabled }: {
   label: string;
   self: string;
+  privileged: boolean;
   value: ManagerChoice | null;
   admins: AdminRow[];
+  existing: AdminPair[];
   search: (query: string) => Promise<EntraUser[]>;
   onChange: (manager: ManagerChoice | null) => void;
   disabled: boolean;
@@ -191,13 +223,20 @@ function ManagerPicker({ label, self, value, admins, search, onChange, disabled 
       clearTimeout(timer);
     };
   }, [q, search]);
+  // An existing admin's account of the same kind.
+  const listed = existing.map((x) => (privileged ? x.privileged : x.user));
+  const listedIds = new Set(listed.map((u) => u.id));
   const options: ManagerChoice[] = [
     ...admins.filter((o) => o.key !== self).map((o) => ({ kind: "row" as const, key: o.key })),
-    ...(q.length >= 2 && found.query === q ? found.users : []).map((u) => ({ kind: "entra" as const, ...u })),
+    ...listed.map(({ id, displayName, userPrincipalName }) => ({ kind: "entra" as const, id, displayName, userPrincipalName })),
+    ...(q.length >= 2 && found.query === q ? found.users : [])
+      .filter((u) => /^adm_/i.test(u.userPrincipalName) === privileged && !listedIds.has(u.id))
+      .map((u) => ({ kind: "entra" as const, ...u })),
   ];
+  const inList = (m: ManagerChoice) => m.kind === "row" || listedIds.has(m.id);
   // Keeps a picked Entra user listed after the search results change.
   if (value && !options.some((o) => sameManager(o, value))) options.push(value);
-  const text = (m: ManagerChoice) => (m.kind === "entra" ? `${m.displayName} (${m.userPrincipalName})` : managerLabel(m, admins));
+  const text = (m: ManagerChoice) => (m.kind === "entra" ? `${m.displayName} (${m.userPrincipalName})` : managerLabel(m, admins, privileged));
   return (
     <Autocomplete
       size="small"
@@ -205,10 +244,10 @@ function ManagerPicker({ label, self, value, admins, search, onChange, disabled 
       value={value}
       onChange={(_, m) => onChange(m)}
       onInputChange={(_, v, reason) => setQuery(reason === "input" ? v : "")}
-      groupBy={(m) => (m.kind === "row" ? "In this list" : "Entra users")}
+      groupBy={(m) => (inList(m) ? "In this list" : "Entra users")}
       getOptionLabel={text}
       isOptionEqualToValue={sameManager}
-      filterOptions={(opts, { inputValue }) => opts.filter((m) => m.kind === "entra" || text(m).toLowerCase().includes(inputValue.trim().toLowerCase()))}
+      filterOptions={(opts, { inputValue }) => opts.filter((m) => !inList(m) || text(m).toLowerCase().includes(inputValue.trim().toLowerCase()))}
       noOptionsText="Type a name or UPN to search Entra"
       disabled={disabled}
       renderInput={(params) => <TextField {...params} placeholder="No manager" inputProps={{ ...params.inputProps, "aria-label": label }} />}
@@ -216,13 +255,15 @@ function ManagerPicker({ label, self, value, admins, search, onChange, disabled 
   );
 }
 
-export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Props) {
-  const { admins, rowErrors, addAdmin, updateAdmin, removeAdmin, searchUsers, missingGroups, entraLicence, roleTarget, usePim, setUsePim, access, steps, running, canRun, run, reset, consentRequired, requestConsent, error } =
+export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
+  const { admins, rowErrors, addAdmin, updateAdmin, removeAdmin, searchUsers, domains, primaryDomain, missingGroups, existingAdmins, entraLicence, licenceError, roleTarget, usePim, setUsePim, access, steps, running, canRun, run, reset, consentRequired, requestConsent, error } =
     adminUsers;
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(() => admins[0]?.key ?? null);
   const [editKey, setEditKey] = useState<string | null>(null);
   const incomplete = admins.filter((a) => rowErrors[a.key]).length;
+  // Consent has its own notice.
+  const domainNote = domains || consentRequired ? null : licenceError ? `Couldn't read the domains: ${licenceError}` : "Reading the domains...";
   const groupSummary = error ? "Couldn't read Entra" : !missingGroups ? "Checking..." : `${missingGroups.length} to create · ${ADMIN_GROUPS.length - missingGroups.length} existing`;
 
   return (
@@ -300,20 +341,67 @@ export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Prop
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
             <Typography variant="sectionLabel">User accounts</Typography>
             <Typography color="text.muted">
+              {existingAdmins?.length ? `${existingAdmins.length} existing · ` : ""}
               {admins.length} to add ·{" "}
               <Box component="span" sx={incomplete ? { color: "error.main" } : undefined}>
                 {incomplete} incomplete
               </Box>
             </Typography>
           </Box>
+          {existingAdmins?.map((x) => {
+            const open = openKey === x.user.id;
+            return (
+              <Box key={x.user.id} sx={{ ...box, backgroundColor: "action.hover" }}>
+                <ButtonBase aria-expanded={open} onClick={() => setOpenKey(open ? null : x.user.id)} sx={header}>
+                  <Typography color="text.disabled" sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
+                    {x.user.displayName}
+                  </Typography>
+                  <Typography color="text.disabled" noWrap>
+                    {x.user.userPrincipalName}
+                  </Typography>
+                  <Chip size="small" variant="outlined" label="Exists" sx={{ color: "text.disabled" }} />
+                  <Arrow open={open} />
+                </ButtonBase>
+                {open && (
+                  <Box sx={{ borderTop: "1px solid", borderColor: "divider", p: 1.5, overflowX: "auto" }}>
+                    <Table size="small" sx={{ minWidth: 700, tableLayout: "fixed" }}>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ ...head, width: 200 }}>Account</TableCell>
+                          <TableCell sx={head}>UPN</TableCell>
+                          <TableCell sx={head}>Display name</TableCell>
+                          <TableCell sx={head}>Manager</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {(
+                          [
+                            ["User account", x.user],
+                            ["Privileged account", x.privileged],
+                          ] as const
+                        ).map(([account, u]) => (
+                          <TableRow key={account}>
+                            <TableCell sx={{ color: "text.primary", whiteSpace: "nowrap" }}>{account}</TableCell>
+                            <TableCell sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>{u.userPrincipalName}</TableCell>
+                            <TableCell sx={{ color: "text.secondary" }}>{u.displayName}</TableCell>
+                            <TableCell sx={{ color: "text.secondary" }}>{u.manager ?? "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Box>
+                )}
+              </Box>
+            );
+          })}
           {admins.length === 0 && <Typography color="text.muted">No users. Running the card only creates the groups.</Typography>}
           {admins.map((a, index) => {
             const r = resolveAdmin(a);
             const open = openKey === a.key;
             const defaultName = resolveAdmin({ ...a, displayName: null }).displayName;
             const defaultUpn = resolveAdmin({ ...a, username: null }).username;
-            const off = a.privileged ? "text.secondary" : "text.disabled";
             const editing = editKey === a.key;
+            const domain = a.domain ?? primaryDomain;
             return (
               <Box key={a.key} sx={box}>
                 <Box sx={{ display: "flex", alignItems: "center" }}>
@@ -324,10 +412,9 @@ export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Prop
                     </Typography>
                     {r.username && (
                       <Typography color="text.muted" noWrap>
-                        {r.username}@{dnsName}
+                        {r.username}@{domain}
                       </Typography>
                     )}
-                    {a.privileged && <Chip size="small" variant="outlined" color="primary" label="Privileged" />}
                     {rowErrors[a.key] && (
                       <Typography color="error.main" noWrap sx={{ minWidth: 0 }}>
                         {rowErrors[a.key]}
@@ -360,7 +447,7 @@ export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Prop
                       />
                       <TextField
                         size="small"
-                        label="Mobile number (optional)"
+                        label="Mobile number"
                         type="tel"
                         autoComplete="off"
                         placeholder="+61 400 000 000"
@@ -375,9 +462,9 @@ export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Prop
                         <TableHead>
                           <TableRow>
                             <TableCell sx={{ ...head, width: 200 }}>Account</TableCell>
-                            <TableCell sx={{ ...head, width: "24%" }}>UPN</TableCell>
+                            <TableCell sx={{ ...head, width: "27%" }}>UPN</TableCell>
                             <TableCell sx={{ ...head, width: "13%" }}>Display name</TableCell>
-                            <TableCell sx={{ ...head, width: "16%" }}>
+                            <TableCell sx={{ ...head, width: "19%" }}>
                               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                                 Manager
                                 <Tooltip title="Only their manager can give them an Access Pass.">
@@ -405,24 +492,33 @@ export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Prop
                             {editing ? (
                               <>
                                 <TableCell>
-                                  <TextField
-                                    size="small"
-                                    fullWidth
-                                    value={r.username}
-                                    onChange={(e) => updateAdmin(a.key, { username: e.target.value })}
-                                    disabled={running}
-                                    inputProps={{ "aria-label": `User ${index + 1} UPN` }}
-                                    InputProps={{
-                                      endAdornment: (
-                                        <InputAdornment position="end">
-                                          {a.username !== null && a.username !== defaultUpn && (
+                                  <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5 }}>
+                                    <TextField
+                                      size="small"
+                                      value={r.username}
+                                      onChange={(e) => updateAdmin(a.key, { username: e.target.value })}
+                                      disabled={running}
+                                      inputProps={{ "aria-label": `User ${index + 1} UPN` }}
+                                      InputProps={{
+                                        endAdornment: a.username !== null && a.username !== defaultUpn && (
+                                          <InputAdornment position="end">
                                             <ResetButton label={`Reset UPN to ${defaultUpn}`} onClick={() => updateAdmin(a.key, { username: null })} disabled={running} />
-                                          )}
-                                          @{dnsName}
-                                        </InputAdornment>
-                                      ),
-                                    }}
-                                  />
+                                          </InputAdornment>
+                                        ),
+                                      }}
+                                      sx={{ flexBasis: "100%" }} // The @domain goes on the next line.
+                                    />
+                                    <Typography color="text.secondary">@</Typography>
+                                    <DomainSelect
+                                      label={`User ${index + 1} domain`}
+                                      value={domain}
+                                      domains={domains}
+                                      onChange={(d) => updateAdmin(a.key, { domain: d === primaryDomain ? null : d })}
+                                      disabled={running}
+                                      note={domainNote}
+                                      error={!domains && !!licenceError}
+                                    />
+                                  </Box>
                                 </TableCell>
                                 <TableCell>
                                   <TextField
@@ -448,7 +544,7 @@ export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Prop
                               </>
                             ) : (
                               <>
-                                <TableCell sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>{r.username ? `${r.username}@${dnsName}` : "—"}</TableCell>
+                                <TableCell sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>{r.username ? `${r.username}@${domain}` : "—"}</TableCell>
                                 <TableCell sx={{ color: "text.secondary" }}>{r.displayName || "—"}</TableCell>
                               </>
                             )}
@@ -456,40 +552,38 @@ export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Prop
                               <ManagerPicker
                                 label={`User ${index + 1} manager`}
                                 self={a.key}
+                                privileged={false}
                                 value={a.manager}
                                 admins={admins}
+                                existing={existingAdmins ?? []}
                                 search={searchUsers}
                                 onChange={(manager) => updateAdmin(a.key, { manager })}
                                 disabled={running}
                               />
                             </TableCell>
                             <TableCell>
-                              <GroupPicker
-                                label={`User ${index + 1} user account groups`}
-                                value={a.userGroups}
-                                onChange={(userGroups) => updateAdmin(a.key, { userGroups })}
-                                disabled={running}
-                              />
+                              <GroupChips groups={USER_ACCOUNT_GROUPS} />
                             </TableCell>
                           </TableRow>
                           <TableRow>
+                            <TableCell sx={{ color: "text.primary", whiteSpace: "nowrap" }}>Privileged account</TableCell>
+                            <TableCell sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>{r.privilegedUsername ? `${r.privilegedUsername}@${domain}` : "—"}</TableCell>
+                            <TableCell sx={{ color: "text.secondary" }}>{r.privilegedDisplayName || "—"}</TableCell>
                             <TableCell>
-                              <FormControlLabel
-                                sx={{ whiteSpace: "nowrap" }}
-                                control={<Checkbox size="small" checked={a.privileged} onChange={(e) => updateAdmin(a.key, { privileged: e.target.checked })} disabled={running} />}
-                                label={<Typography color="text.primary">Privileged account</Typography>}
+                              <ManagerPicker
+                                label={`User ${index + 1} privileged account manager`}
+                                self={a.key}
+                                privileged
+                                value={a.privilegedManager}
+                                admins={admins}
+                                existing={existingAdmins ?? []}
+                                search={searchUsers}
+                                onChange={(privilegedManager) => updateAdmin(a.key, { privilegedManager })}
+                                disabled={running}
                               />
                             </TableCell>
-                            <TableCell sx={{ color: off, overflowWrap: "anywhere" }}>{r.privilegedUsername ? `${r.privilegedUsername}@${dnsName}` : "—"}</TableCell>
-                            <TableCell sx={{ color: off }}>{r.privilegedDisplayName || "—"}</TableCell>
-                            <TableCell sx={{ color: off }}>—</TableCell>
                             <TableCell>
-                              <GroupPicker
-                                label={`User ${index + 1} privileged account groups`}
-                                value={a.privilegedGroups}
-                                onChange={(privilegedGroups) => updateAdmin(a.key, { privilegedGroups })}
-                                disabled={running || !a.privileged}
-                              />
+                              <GroupChips groups={PRIVILEGED_ACCOUNT_GROUPS} />
                             </TableCell>
                           </TableRow>
                         </TableBody>
@@ -512,9 +606,8 @@ export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Prop
           </Box>
         </Box>
 
-        {!dnsName && <WarningNotice message="Save the DNS variable first: admin accounts are created on the corp domain." />}
         <ResourceGroupCreationAccess access={access} resourceAccess />
-        {error && <ErrorText>Couldn't read the groups from Entra: {error}</ErrorText>}
+        {error && <ErrorText>Couldn't read the groups and admins from Entra: {error}</ErrorText>}
 
         {steps.length === 0 ? (
           <Button variant="contained" onClick={() => void run()} disabled={!canRun} sx={{ alignSelf: "flex-start", py: 0.85, px: 2.5 }}>
