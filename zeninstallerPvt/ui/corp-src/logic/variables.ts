@@ -35,7 +35,7 @@ const VARIABLE_DISPLAY_NAMES: Record<string, string> = {
   NAME: "COMPANY_SHORT_CODE",
   DNS: "DNS Domain",
   VITE_GITHUB_CLIENT_ID: "OAuth App Client ID",
-  VITE_AZURE_CLIENT_ID: "Sign-in App Client ID",
+  VITE_AZURE_CLIENT_ID: "ZenInstaller Private App Client ID",
   SITE_STORAGE_ACCOUNT: "Site Storage Account",
   API_STORAGE_ACCOUNT: "Backend Storage Account",
   TF_STATE_RESOURCE_GROUP: "Terraform State Resource Group",
