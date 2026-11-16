@@ -5,7 +5,7 @@
 
 import type { PrivAvdResource } from "../../components/PrivAvdDeployCard";
 
-export const PRIVAVD_IMAGE_DIR = "privavd-image";
+export const PRIVAVD_IMAGE_DIR = "buildImage";
 export const PRIVAVD_IMAGE_TITLE = "PAW golden image";
 export const PRIVAVD_IMAGE_DESCRIPTION =
   "Builds the Windows 11 privileged access workstation image with Packer and publishes a new version to the gallery. A build takes about an hour.";

@@ -5,7 +5,7 @@
 
 import type { PrivAvdResource } from "../../components/PrivAvdDeployCard";
 
-export const PRIVAVD_PAW_DIR = "privavd-paw";
+export const PRIVAVD_PAW_DIR = "deployPaw";
 export const PRIVAVD_PAW_TITLE = "PAW Azure Virtual Desktop";
 export const PRIVAVD_PAW_DESCRIPTION =
   "Deploys the Azure Virtual Desktop host pool and session host from the newest image version replicated to the region.";

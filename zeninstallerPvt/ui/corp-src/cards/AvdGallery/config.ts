@@ -6,7 +6,7 @@
 import { DEFAULT_AZURE_LOCATION } from "../../logic/naming";
 import type { PrivAvdResource } from "../../components/PrivAvdDeployCard";
 
-export const PRIVAVD_GALLERY_DIR = "privavd-gallery";
+export const PRIVAVD_GALLERY_DIR = "initImageGallery";
 export const PRIVAVD_GALLERY_TITLE = "PAW image gallery";
 export const PRIVAVD_GALLERY_DESCRIPTION =
   "Creates the Azure Compute Gallery and the image definition the privileged access workstation image is published to.";
