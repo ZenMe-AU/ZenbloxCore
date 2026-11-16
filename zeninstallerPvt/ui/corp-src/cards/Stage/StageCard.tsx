@@ -555,16 +555,22 @@ function StageCardContent({
       {stageDef.description}
     </Typography>
   ) : undefined;
+  const accessError = managementAccess?.status === "error";
+  const accessNotice = managementAccess && (managementAccess.status === "checking" || accessError)
+    ? <ResourceGroupCreationAccess access={managementAccess} resourceAccess errorStyle />
+    : undefined;
 
   return (
-    <Card title={stageDef.label} action={<Action repoFullName={repoFullName} runId={stage.runId} />} lockedIntro={intro} {...card}>
+    <Card
+      title={stageDef.label}
+      action={<Action repoFullName={repoFullName} runId={stage.runId} />}
+      lockedIntro={intro}
+      {...card}
+      status={!card.locked && !card.unavailable && accessError ? "error" : card.status}
+      summary={!card.locked && !card.unavailable && accessError ? "Insufficient permissions to deploy" : card.summary}
+    >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {intro}
-        {managementAccess && (
-          <>
-            <ResourceGroupCreationAccess access={managementAccess} resourceAccess />
-          </>
-        )}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           {stageDef.prerequisites.length > 0 && (
             <Box>
@@ -665,12 +671,15 @@ function StageCardContent({
           </Box>
         </Box>
 
-        {hasDetails && (
+        {(hasDetails || accessNotice) && (
           <StagePlanDetail
             items={planItems}
             summary={planSummary}
             loading={planLoading}
             error={planError}
+            planAvailable={hasDetails}
+            accessNotice={accessNotice}
+            accessError={accessError}
             onDeploy={onDeploy}
             deployNotice={
               !azurePermissions.ready && (
