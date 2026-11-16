@@ -4,10 +4,9 @@
  */
 
 import { useEffect, useState } from "react";
-import { Box, Button, ButtonBase, CircularProgress, Collapse, Link, MenuItem, Select, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Link, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { warningMessageIconSx } from "../../config/styles";
 import type { Account, CardChrome, GhEnv } from "../../types";
 import type { UseAzureAccount } from "../AzureLogin/useAzureAccount";
@@ -21,6 +20,7 @@ import Card from "../../components/Card";
 import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
 import ExternalLink from "../../components/ExternalLink";
+import Prerequisites from "../../components/Prerequisites";
 import { AZURE_PIM_ACTIVATION_URL, AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
 
 type Props = {
@@ -215,69 +215,34 @@ export default function AzureSubscriptionCard({
         />
 
         {(subscription.installerAccess.status === "checking" || subscription.installerAccess.status === "error") && (
-          <Box sx={{ minWidth: 0 }}>
-            <ButtonBase
-              disableRipple
-              onClick={() => setPrerequisitesOpen((open) => !open)}
-              aria-expanded={prerequisitesOpen}
-              aria-label={prerequisitesOpen ? "Collapse prerequisites" : "View prerequisites"}
-              aria-controls="azure-subscription-prerequisites"
-              sx={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                userSelect: "none",
-                py: 0.25,
-                "&:hover .prerequisites-toggle-label, &:focus-visible .prerequisites-toggle-label": { color: "primary.main" },
-                "&:hover .prerequisites-toggle-line, &:focus-visible .prerequisites-toggle-line": { backgroundColor: "primary.main" },
-                "&:hover .prerequisites-toggle-icon, &:focus-visible .prerequisites-toggle-icon": { color: "primary.main" },
-              }}
-            >
-              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-              <Typography className="prerequisites-toggle-label" color="text.muted" sx={{ whiteSpace: "nowrap", transition: "color 0.2s" }}>
-                {prerequisitesOpen ? "hide prerequisites" : "view prerequisites"}
-              </Typography>
-              <KeyboardArrowDownIcon
-                className="prerequisites-toggle-icon"
-                sx={{
-                  typography: "caption",
-                  color: "text.muted",
-                  transform: prerequisitesOpen ? "rotate(180deg)" : "none",
-                  transition: "color 0.2s, transform 0.2s",
-                }}
-                aria-hidden="true"
-              />
-              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-            </ButtonBase>
-            <Collapse in={prerequisitesOpen} timeout={300}>
-              <Box id="azure-subscription-prerequisites" role="region" aria-label="Prerequisites" sx={{ mt: 0.5 }}>
-                {subscription.installerAccess.status === "checking" ? (
-                  <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <CircularProgress aria-label="Checking installer subscription access" size={12} />
-                    <Typography color="text.muted">Checking your subscription permissions for the Zenblox installer...</Typography>
-                  </Box>
-                ) : (
-                  <>
-                    <Box role="alert" sx={{
-                      backgroundColor: "background.default", border: "1px solid", borderColor: "error.main",
-                      borderRadius: 1, px: 2, py: 1.25, minWidth: 0, overflowWrap: "anywhere",
-                    }}>
-                      <Box sx={{ color: "error.main" }}>
-                        <Typography sx={{ whiteSpace: "pre-line" }}>{subscription.installerAccess.error}</Typography>
-                        <ExternalLink href={AZURE_PIM_ACTIVATION_URL} label="Activate an Azure resource role in PIM">
-                          Activate eligible roles in PIM and recheck subscription access.
-                        </ExternalLink>
-                      </Box>
-                    </Box>
-                    <Button variant="contained" sx={{ mt: 1, py: 0.85, px: 2.5 }} onClick={subscription.installerAccess.retry}>
-                      Recheck subscription access
-                    </Button>
-                  </>
-                )}
+          <Prerequisites id="azure-subscription-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+            {subscription.installerAccess.status === "checking" ? (
+              <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CircularProgress aria-label="Checking installer subscription access" size={12} />
+                <Typography color="text.muted">Checking your subscription permissions for the Zenblox installer...</Typography>
               </Box>
-            </Collapse>
-          </Box>
+            ) : (
+              <>
+                <Box role="alert" sx={{
+                  backgroundColor: "background.default", border: "1px solid", borderColor: "error.main",
+                  borderRadius: 1, px: 2, py: 1.25, minWidth: 0, overflowWrap: "anywhere",
+                }}>
+                  <Box sx={{ color: "error.main" }}>
+                    <Typography sx={{ whiteSpace: "pre-line" }}>{subscription.installerAccess.error}</Typography>
+                    <Typography>
+                      Ask a subscription administrator to grant access in IAM or activate your eligible role in PIM at{" "}
+                      <ExternalLink href={AZURE_PIM_ACTIVATION_URL} label="Activate an Azure resource role in PIM">
+                        PIM - My roles - Azure resources
+                      </ExternalLink>{" "}then retry.
+                    </Typography>
+                  </Box>
+                </Box>
+                <Button variant="contained" sx={{ mt: 1, py: 0.85, px: 2.5 }} onClick={subscription.installerAccess.retry}>
+                  Recheck subscription access
+                </Button>
+              </>
+            )}
+          </Prerequisites>
         )}
       </Box>
     </Card>

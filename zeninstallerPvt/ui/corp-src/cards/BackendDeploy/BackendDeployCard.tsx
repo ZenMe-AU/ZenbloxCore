@@ -4,10 +4,9 @@
  */
 
 import { useState } from "react";
-import { Box, Button, ButtonBase, CircularProgress, Collapse, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseBackendDeployCard } from "./useBackendDeployCard";
@@ -17,7 +16,8 @@ import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import ErrorText from "../../components/ErrorText";
-import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 import type { CardChrome } from "../../types";
 
 const when = (unixSeconds: number) => new Date(unixSeconds * 1000).toLocaleString();
@@ -163,47 +163,9 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
         <ProcessRetryNotice started={steps.length > 0} />
 
         {(backend.managementAccess.status === "checking" || backend.managementAccess.status === "error") && (
-          <Box sx={{ minWidth: 0 }}>
-            <ButtonBase
-              disableRipple
-              onClick={() => setPrerequisitesOpen((open) => !open)}
-              aria-expanded={prerequisitesOpen}
-              aria-label={prerequisitesOpen ? "Collapse prerequisites" : "View prerequisites"}
-              aria-controls="backend-deploy-prerequisites"
-              sx={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                userSelect: "none",
-                py: 0.25,
-                "&:hover .prerequisites-toggle-label, &:focus-visible .prerequisites-toggle-label": { color: "primary.main" },
-                "&:hover .prerequisites-toggle-line, &:focus-visible .prerequisites-toggle-line": { backgroundColor: "primary.main" },
-                "&:hover .prerequisites-toggle-icon, &:focus-visible .prerequisites-toggle-icon": { color: "primary.main" },
-              }}
-            >
-              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-              <Typography className="prerequisites-toggle-label" color="text.muted" sx={{ whiteSpace: "nowrap", transition: "color 0.2s" }}>
-                {prerequisitesOpen ? "hide prerequisites" : "view prerequisites"}
-              </Typography>
-              <KeyboardArrowDownIcon
-                className="prerequisites-toggle-icon"
-                sx={{
-                  typography: "caption",
-                  color: "text.muted",
-                  transform: prerequisitesOpen ? "rotate(180deg)" : "none",
-                  transition: "color 0.2s, transform 0.2s",
-                }}
-                aria-hidden="true"
-              />
-              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-            </ButtonBase>
-            <Collapse in={prerequisitesOpen} timeout={300}>
-              <Box id="backend-deploy-prerequisites" role="region" aria-label="Prerequisites" sx={{ mt: 0.5 }}>
-                <ResourceGroupCreationAccess access={backend.managementAccess} resourceAccess errorStyle />
-              </Box>
-            </Collapse>
-          </Box>
+          <Prerequisites id="backend-deploy-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+            <AzureAccessCheck access={backend.managementAccess} resourceAccess errorStyle />
+          </Prerequisites>
         )}
       </Box>
     </Card>

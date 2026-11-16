@@ -10,7 +10,8 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseRemoteTerminalInfraCard } from "./useRemoteTerminalInfraCard";
 import StepRow from "../StepRow";
-import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
@@ -193,47 +194,9 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
         )}
 
         {(infra.creationAccess.status === "checking" || infra.creationAccess.status === "error") && (
-          <Box sx={{ minWidth: 0 }}>
-            <ButtonBase
-              disableRipple
-              onClick={() => setPrerequisitesOpen((open) => !open)}
-              aria-expanded={prerequisitesOpen}
-              aria-label={prerequisitesOpen ? "Collapse prerequisites" : "View prerequisites"}
-              aria-controls="remote-terminal-prerequisites"
-              sx={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                userSelect: "none",
-                py: 0.25,
-                "&:hover .prerequisites-toggle-label, &:focus-visible .prerequisites-toggle-label": { color: "primary.main" },
-                "&:hover .prerequisites-toggle-line, &:focus-visible .prerequisites-toggle-line": { backgroundColor: "primary.main" },
-                "&:hover .prerequisites-toggle-icon, &:focus-visible .prerequisites-toggle-icon": { color: "primary.main" },
-              }}
-            >
-              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-              <Typography className="prerequisites-toggle-label" color="text.muted" sx={{ whiteSpace: "nowrap", transition: "color 0.2s" }}>
-                {prerequisitesOpen ? "hide prerequisites" : "view prerequisites"}
-              </Typography>
-              <KeyboardArrowDownIcon
-                className="prerequisites-toggle-icon"
-                sx={{
-                  typography: "caption",
-                  color: "text.muted",
-                  transform: prerequisitesOpen ? "rotate(180deg)" : "none",
-                  transition: "color 0.2s, transform 0.2s",
-                }}
-                aria-hidden="true"
-              />
-              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-            </ButtonBase>
-            <Collapse in={prerequisitesOpen} timeout={300}>
-              <Box id="remote-terminal-prerequisites" role="region" aria-label="Prerequisites" sx={{ mt: 0.5 }}>
-                <ResourceGroupCreationAccess access={infra.creationAccess} resourceAccess errorStyle />
-              </Box>
-            </Collapse>
-          </Box>
+          <Prerequisites id="remote-terminal-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+            <AzureAccessCheck access={infra.creationAccess} resourceAccess errorStyle />
+          </Prerequisites>
         )}
 
         {/* ── Divider (clickable toggle) ── */}

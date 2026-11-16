@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { listSubscriptions, type Subscription } from "../../api/azureGraph";
 import { ensureInstallerSubscriptionAccess } from "../../api/azureArm";
-import { useSubscriptionAccess, type SubscriptionAccess } from "../../hooks/util/useResourceGroupCreationAccess";
+import { useSubscriptionAccess, type SubscriptionAccess } from "../../hooks/util/useAzureAccessCheck";
 import { AZURE_CLIENT_ID } from "../../config/azureConfig";
 import { findIgnoreCase } from "../../logic/search";
 import type { UrlRestoreField } from "../../hooks/useUrlStateManager";

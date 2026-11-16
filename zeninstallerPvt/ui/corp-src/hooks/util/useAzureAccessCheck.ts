@@ -56,6 +56,6 @@ export function useSubscriptionAccess(
   return { status, error, retry: () => setAttempt((previous) => previous + 1) };
 }
 
-export function useResourceGroupCreationAccess(target: AzureTarget): ResourceGroupCreationAccess {
+export function useAzureAccessCheck(target: AzureTarget): ResourceGroupCreationAccess {
   return useSubscriptionAccess(target, ensureResourceGroupCreationAccess);
 }

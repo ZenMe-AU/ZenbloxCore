@@ -13,7 +13,7 @@ import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
-import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
 import StatusText from "../../components/StatusText";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import CloudVariableDetail from "../CloudVariableDetail";
@@ -97,7 +97,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro storageAccountName={storageAccountName} />
-        <ResourceGroupCreationAccess access={web.managementAccess} resourceAccess />
+        <AzureAccessCheck access={web.managementAccess} resourceAccess />
 
         <CloudVariableDetail
           account={githubAccount}

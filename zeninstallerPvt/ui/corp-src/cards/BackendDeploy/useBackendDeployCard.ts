@@ -15,7 +15,7 @@ import {
 import { PRIVATE_RESOURCE_GROUP, functionAppFromApiUrl, getFunctionAppName } from "../../logic/naming";
 import { BACKEND_VERSION_KEYS } from "../../config/azureConfig";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
-import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
 import type { Account, AzureAccount, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
 
 // What the build workflow recorded, as the card reads it back off the Deployments API.

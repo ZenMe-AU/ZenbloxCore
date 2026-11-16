@@ -99,6 +99,13 @@ describe("backend deploy permission errors", () => {
       expect(container.querySelector('[title="Update available"]')).not.toBeNull();
       expect(deploy.disabled).toBe(false);
       expect(container.querySelector('[aria-controls="backend-deploy-prerequisites"]')).toBeNull();
+      mocks.access.status = "error";
+      mocks.access.error = "Missing Azure management permissions";
+      await act(async () => root.render(<Harness />));
+      const restoredToggle = container.querySelector<HTMLButtonElement>('[aria-controls="backend-deploy-prerequisites"]')!;
+      expect(restoredToggle.getAttribute("aria-expanded")).toBe("true");
+      await act(async () => restoredToggle.click());
+      expect(restoredToggle.getAttribute("aria-expanded")).toBe("false");
     } finally {
       await act(async () => root.unmount());
     }

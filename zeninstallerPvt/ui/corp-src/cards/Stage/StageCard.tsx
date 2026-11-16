@@ -31,7 +31,7 @@ import type {
 } from "../../types";
 import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../../api";
 import { useAzurePermissions } from "../../hooks/util/useAzurePermissions";
-import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
 import { useRemoteTerminal } from "./useRemoteTerminal";
 import { computePlanSummary, isPlanBehind } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
@@ -46,7 +46,8 @@ import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
 import StagePlanDetail from "./StagePlanDetail";
 import RemoteTerminal from "./RemoteTerminal";
-import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 
 function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, CardStatus>, variableValues: Record<string, string>): boolean {
   switch (prereq.type) {
@@ -450,7 +451,6 @@ function StageCardContent({
   azureAccount,
   managementAccess,
 }: Props & { managementAccess?: CardResourceAccess }) {
-  const [expandedPrereqs, setExpandedPrereqs] = useState<Record<number, boolean>>({});
   const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [planOutputOpen, setPlanOutputOpen] = useState(false);
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
@@ -557,7 +557,7 @@ function StageCardContent({
   ) : undefined;
   const accessError = managementAccess?.status === "error";
   const accessNotice = managementAccess && (managementAccess.status === "checking" || accessError)
-    ? <ResourceGroupCreationAccess access={managementAccess} resourceAccess errorStyle />
+    ? <AzureAccessCheck access={managementAccess} resourceAccess errorStyle />
     : undefined;
 
   return (
@@ -573,43 +573,7 @@ function StageCardContent({
         {intro}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           {stageDef.prerequisites.length > 0 && (
-            <Box>
-            <ButtonBase
-              disableRipple
-              onClick={() => setPrerequisitesOpen((open) => !open)}
-              aria-expanded={prerequisitesOpen}
-              aria-label={prerequisitesOpen ? "collapse" : "open prerequisites"}
-              aria-controls={`${stageDef.dir}-prerequisites`}
-              sx={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                userSelect: "none",
-                py: 0.25,
-                "&:hover .prerequisites-toggle-label, &:focus-visible .prerequisites-toggle-label": { color: "primary.main" },
-                "&:hover .prerequisites-toggle-line, &:focus-visible .prerequisites-toggle-line": { backgroundColor: "primary.main" },
-                "&:hover .prerequisites-toggle-icon, &:focus-visible .prerequisites-toggle-icon": { color: "primary.main" },
-              }}
-            >
-              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-              <Typography className="prerequisites-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
-                {prerequisitesOpen ? "hide prerequisites" : "view prerequisites"}
-              </Typography>
-              <KeyboardArrowDownIcon
-                className="prerequisites-toggle-icon"
-                sx={{
-                  typography: "body2",
-                  color: "text.muted",
-                  transform: prerequisitesOpen ? "rotate(180deg)" : "none",
-                  transition: "color 0.2s, transform 0.2s",
-                }}
-                aria-hidden="true"
-              />
-              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-            </ButtonBase>
-            <Collapse in={prerequisitesOpen} timeout={300}>
-              <Box id={`${stageDef.dir}-prerequisites`} role="region" aria-label="Prerequisites" sx={{ display: "flex", flexDirection: "column", mt: 0.5 }}>
+            <Prerequisites id={`${stageDef.dir}-prerequisites`} open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)} stage>
               <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>
                 Prerequisites
               </Typography>
@@ -656,9 +620,7 @@ function StageCardContent({
                   </Box>
                 );
               })}
-              </Box>
-            </Collapse>
-          </Box>
+            </Prerequisites>
           )}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
             <RunStatusUpdateButton

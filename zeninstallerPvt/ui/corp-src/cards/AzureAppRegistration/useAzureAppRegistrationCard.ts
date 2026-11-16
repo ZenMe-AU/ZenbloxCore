@@ -16,7 +16,7 @@ import {
   ensureRbacRole,
   ensureServicePrincipalAccess,
 } from "../../api/azureGraph";
-import { formatCardResourceAccessError, useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
+import { formatCardResourceAccessError, useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
 import { isConsentError } from "../../logic/consent";
 import { createResultStorage } from "../../logic/resultStorage";
 import { useStepRunner } from "../../hooks/util/useStepRunner";

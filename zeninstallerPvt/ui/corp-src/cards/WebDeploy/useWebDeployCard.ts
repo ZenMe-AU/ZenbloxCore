@@ -10,7 +10,7 @@ import { getStaticWebsiteUrl } from "../../api/azureArm";
 import { readDeployedSite, recordDeployedSite, uploadStaticSite, type DeployedSite } from "../../api/azureBlob";
 import { getWebStorageAccountName, PRIVATE_RESOURCE_GROUP } from "../../logic/naming";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
-import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
 import type { Account, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
 
 // What the build workflow recorded, as the card reads it back off the Deployments API.

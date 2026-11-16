@@ -7,7 +7,7 @@ import { useCallback, useState } from "react";
 import { ensureCardResourceAccess, formatAzureAccessError, type CardResourceAccessRequest } from "../../api/azureArm";
 import { ensureStaticSiteDataReadAccess } from "../../api/azureBlob";
 import { ensureServicePrincipalAccess } from "../../api/azureGraph";
-import { useSubscriptionAccess } from "./useResourceGroupCreationAccess";
+import { useSubscriptionAccess } from "./useAzureAccessCheck";
 import type { AzureTarget } from "../../types";
 
 function formatGraphAccessError(error: unknown): string {
