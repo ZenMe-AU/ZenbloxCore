@@ -25,6 +25,7 @@ export const PRIVILEGED_GROUP = "PrivilegedAccounts";
 // The groups, nesting and roles the GlobalGroups (c02) Terraform stage used to create; parents come before their members.
 export const ADMIN_GROUPS: AdminGroup[] = [
   { name: "PawUsers", description: "Signs in to the PAW desktop", memberOf: [], roles: [] },
+  { name: "PrivilegedAccountApproved", description: "This group indicates that user has been approved to have a privileged account. This approval will be renewed during access review sessions that are run every 6 months.", memberOf: [], roles: [] },
   {
     name: PRIVILEGED_GROUP,
     description: "All enabled privileged accounts",
