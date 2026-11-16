@@ -31,7 +31,7 @@ import UndoIcon from "@mui/icons-material/Undo";
 import Card from "../../components/Card";
 import ErrorText from "../../components/ErrorText";
 import ProcessRetryNotice from "../../components/ProcessRetryNotice";
-import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
 import StatusText from "../../components/StatusText";
 import WarningNotice from "../../components/WarningNotice";
 import StepRow from "../StepRow";
@@ -513,7 +513,7 @@ export default function CreateAdminUsersCard({ card, adminUsers, dnsName }: Prop
         </Box>
 
         {!dnsName && <WarningNotice message="Save the DNS variable first: admin accounts are created on the corp domain." />}
-        <ResourceGroupCreationAccess access={access} resourceAccess />
+        <AzureAccessCheck access={access} resourceAccess />
         {error && <ErrorText>Couldn't read the groups from Entra: {error}</ErrorText>}
 
         {steps.length === 0 ? (

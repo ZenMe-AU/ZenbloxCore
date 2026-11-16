@@ -22,7 +22,7 @@ import {
   type EntraUser,
 } from "../../api/azureGraph";
 import { ensureRbacRoleAtScope, ensureRbacRoleEligibility } from "../../api/azureArm";
-import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { isConsentError } from "../../logic/consent";
 import { generateRandomPassword } from "../../logic/password";
