@@ -249,7 +249,114 @@ export async function ensureResourceGroup(
   return "created";
 }
 
+// Read-only existence check — used by live "is infra still operable" checks (no create-on-miss).
+export async function resourceGroupExists(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<boolean> {
+  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
+  return !!(await armGet(token, resourceGroupPath(subscriptionId, name)));
+}
+
+// ── Azure Access Checks ─────────────────────────────────────────────────────────────
+
 type ArmPermission = { actions: string[]; notActions?: string[] };
+export type ManagementAccessRequirement = { scope: string; actions: readonly string[] };
+
+export type CardResourceAccessRequest = {
+  card: "core" | "domain" | "frontend" | "backend" | "appRegistration" | "backendDeploy" | "webDeploy" | "subscriptionBudget" | "globalGroups";
+  resourceGroup?: string;
+  workspace?: string;
+  storageAccount?: string;
+  dnsZone?: string;
+  appInsights?: string;
+  webPubSub?: string;
+  functionApp?: string;
+  servicePlan?: string;
+};
+
+// Shared state for one card access check: existence probes are cached, requirements accumulate in order.
+type CardAccessCheck = {
+  account: AzureAccount;
+  subscriptionId: string;
+  overrideTenantId?: string;
+  card: CardResourceAccessRequest["card"];
+  group: string;
+  sub: string;
+  token: string;
+  existence: Map<string, boolean>;
+  requirements: ManagementAccessRequirement[];
+};
+
+// Missing resources are checked at their existing parent group; missing groups need subscription access.
+export async function ensureCardResourceAccess(
+  account: AzureAccount, subscriptionId: string, request: CardResourceAccessRequest, overrideTenantId?: string
+): Promise<void> {
+  const sub = subscriptionScope(subscriptionId);
+  const { card, resourceGroup: group } = request;
+  if (card === "subscriptionBudget") {
+    await ensureManagementAccess(account, [{
+      scope: sub, actions: [...SUBSCRIPTION_PERMISSIONS.budgets, "Microsoft.Consumption/budgets/delete"],
+    }], overrideTenantId);
+    return;
+  }
+  if (card === "globalGroups") {
+    const root = `/providers/Microsoft.Management/managementGroups/${overrideTenantId || account.tenantId}`;
+    const actions = [...RESOURCE_PERMISSIONS.roleAssignments, "Microsoft.Authorization/roleAssignments/delete"];
+    await ensureManagementAccess(account, [{ scope: sub, actions }, { scope: root, actions }], overrideTenantId);
+    return;
+  }
+  if (card === "appRegistration") {
+    await ensureManagementAccess(account, [{ scope: sub, actions: RESOURCE_PERMISSIONS.roleAssignments }], overrideTenantId);
+    return;
+  }
+  if (!group) throw new Error("A resource group is required to check Azure card access.");
+  const check: CardAccessCheck = {
+    account, subscriptionId, overrideTenantId, card, group, sub,
+    token: await getToken(account, ARM_SCOPES, overrideTenantId, true),
+    existence: new Map(),
+    requirements: [],
+  };
+  const rg = resourceGroupScope(subscriptionId, group);
+  if (card !== "backendDeploy" && card !== "webDeploy") await requireGroupAndProviders(check, rg);
+  if (request.workspace) await requireAtResource(check, `${rg}/providers/Microsoft.OperationalInsights/workspaces/${request.workspace}`, "2022-10-01",
+    RESOURCE_PERMISSIONS.workspace);
+  if (request.storageAccount) await requireStorageAccess(check, request.storageAccount);
+  if (card === "core" || card === "frontend") check.requirements.push({ scope: sub, actions: RESOURCE_PERMISSIONS.diagnostics });
+  if (request.dnsZone) await requireDnsAccess(check, request.dnsZone);
+  if (request.appInsights) await requireAtResource(check, appInsightsScope(subscriptionId, group, request.appInsights), "2020-02-02", [
+    ...RESOURCE_PERMISSIONS.appInsights, ...RESOURCE_PERMISSIONS.roleAssignments,
+  ]);
+  if (request.webPubSub) await requireWebPubSubAccess(check, request.webPubSub);
+  if (request.functionApp) await requireFunctionAppAccess(check, request.functionApp, request.servicePlan);
+  await ensureManagementAccess(account, check.requirements, overrideTenantId);
+}
+
+// Checks only the signed-in caller's subscription-level resource-group creation action.
+export async function ensureResourceGroupCreationAccess(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<void> {
+  const guidance = `You need Contributor access (or equivalent permissions such as Owner) on the selected subscription ${subscriptionId} to create resource groups.
+      Access to an individual resource group is not sufficient. Ask a subscription administrator to grant access in IAM
+      or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} then retry.`;
+  try {
+    const permissions = await readPermissionsAtScope(account, subscriptionScope(subscriptionId), overrideTenantId);
+    if (grantsArmAction(permissions, "Microsoft.Resources/subscriptions/resourceGroups/write")) return;
+  } catch (err) {
+    throw new Error(`Could not verify resource-group creation access. ${guidance} Details: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  throw new Error(guidance);
+}
+
+// Checks the configured installer management actions at subscription scope, not literal role names.
+export async function ensureInstallerSubscriptionAccess(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<void> {
+  let permissions: ArmPermission[];
+  try {
+    permissions = await readPermissionsAtScope(account, subscriptionScope(subscriptionId), overrideTenantId);
+  } catch (err) {
+    throw new Error(`Could not verify installer subscription access. Details: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  const missing = Object.values(SUBSCRIPTION_PERMISSIONS)
+    .flat().filter((action) => !grantsArmAction(permissions, action));
+  if (missing.length) {
+    throw new Error(`Missing permissions:\n ${missing.join(", ")}`);
+  }
+}
 
 function grantsArmAction(permissions: ArmPermission[], action: string): boolean {
   const matches = (pattern: string) =>
@@ -295,12 +402,11 @@ export function formatAzureAccessError(error: unknown): string {
   if (!denied) return message;
   const scope = denied[2].split("?")[0];
   const action = message.match(/perform action '([^']+)'/)?.[1];
-  return `Azure denied access to ${scope} (HTTP ${denied[1]})\n\n${action ? ` Required action: ${action}`: ""}\n
+  return `Azure denied access to ${scope} (HTTP ${denied[1]})\n\n${action ? ` Missing permissions: ${action}`: ""}\n
 Ask an administrator for the required access at this scope or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} and recheck.
 Recent role changes may take time to propagate. If prompted, sign in again.`;
 }
 
-export type ManagementAccessRequirement = { scope: string; actions: readonly string[] };
 // Evaluates the authenticated caller's grants, not another principal's role assignments or data access.
 export async function ensureManagementAccess(account: AzureAccount, requirements: readonly ManagementAccessRequirement[], overrideTenantId?: string
 ): Promise<void> {
@@ -319,37 +425,12 @@ export async function ensureManagementAccess(account: AzureAccount, requirements
       throw new Error(`Could not verify Azure management access at ${scope}. Details: ${err instanceof Error ? err.message : String(err)}`);
     }
     const denied = [...actions].filter((action) => !grantsArmAction(permissions, action));
-    if (denied.length) missing.push(`${scope}: ${denied.join(", ")}`);
+    if (denied.length) missing.push(`Azure access required at ${scope}\n\nMissing permissions: ${denied.join(", ")}`);
   }
   if (missing.length) {
-    throw new Error(`Missing Azure management permissions:\n${missing.join("\n")}\n\nAsk an administrator for equivalent access at the listed scopes or activate eligible roles in PIM at ${AZURE_PIM_ACTIVATION_URL} and recheck.`);
+    throw new Error(`${missing.join("\n\n")}\n\nAsk an administrator for the required access at the listed scopes or activate eligible roles in PIM at ${AZURE_PIM_ACTIVATION_URL} and recheck.\nRecent role changes may take time to propagate. If prompted, sign in again.`);
   }
 }
-
-export type CardResourceAccessRequest = {
-  card: "core" | "domain" | "frontend" | "backend" | "appRegistration" | "backendDeploy" | "webDeploy" | "subscriptionBudget" | "globalGroups";
-  resourceGroup?: string;
-  workspace?: string;
-  storageAccount?: string;
-  dnsZone?: string;
-  appInsights?: string;
-  webPubSub?: string;
-  functionApp?: string;
-  servicePlan?: string;
-};
-
-// Shared state for one card access check: existence probes are cached, requirements accumulate in order.
-type CardAccessCheck = {
-  account: AzureAccount;
-  subscriptionId: string;
-  overrideTenantId?: string;
-  card: CardResourceAccessRequest["card"];
-  group: string;
-  sub: string;
-  token: string;
-  existence: Map<string, boolean>;
-  requirements: ManagementAccessRequirement[];
-};
 
 async function scopeExists(check: CardAccessCheck, scope: string, apiVersion: string): Promise<boolean> {
   if (!check.existence.has(scope)) check.existence.set(scope, !!await armGet(check.token, `${scope}?api-version=${apiVersion}`));
@@ -452,84 +533,6 @@ async function requireFunctionAppAccess(check: CardAccessCheck, functionApp: str
   }
 }
 
-// Missing resources are checked at their existing parent group; missing groups need subscription access.
-export async function ensureCardResourceAccess(
-  account: AzureAccount, subscriptionId: string, request: CardResourceAccessRequest, overrideTenantId?: string
-): Promise<void> {
-  const sub = subscriptionScope(subscriptionId);
-  const { card, resourceGroup: group } = request;
-  if (card === "subscriptionBudget") {
-    await ensureManagementAccess(account, [{
-      scope: sub, actions: [...SUBSCRIPTION_PERMISSIONS.budgets, "Microsoft.Consumption/budgets/delete"],
-    }], overrideTenantId);
-    return;
-  }
-  if (card === "globalGroups") {
-    const root = `/providers/Microsoft.Management/managementGroups/${overrideTenantId || account.tenantId}`;
-    const actions = [...RESOURCE_PERMISSIONS.roleAssignments, "Microsoft.Authorization/roleAssignments/delete"];
-    await ensureManagementAccess(account, [{ scope: sub, actions }, { scope: root, actions }], overrideTenantId);
-    return;
-  }
-  if (card === "appRegistration") {
-    await ensureManagementAccess(account, [{ scope: sub, actions: RESOURCE_PERMISSIONS.roleAssignments }], overrideTenantId);
-    return;
-  }
-  if (!group) throw new Error("A resource group is required to check Azure card access.");
-  const check: CardAccessCheck = {
-    account, subscriptionId, overrideTenantId, card, group, sub,
-    token: await getToken(account, ARM_SCOPES, overrideTenantId, true),
-    existence: new Map(),
-    requirements: [],
-  };
-  const rg = resourceGroupScope(subscriptionId, group);
-  if (card !== "backendDeploy" && card !== "webDeploy") await requireGroupAndProviders(check, rg);
-  if (request.workspace) await requireAtResource(check, `${rg}/providers/Microsoft.OperationalInsights/workspaces/${request.workspace}`, "2022-10-01",
-    RESOURCE_PERMISSIONS.workspace);
-  if (request.storageAccount) await requireStorageAccess(check, request.storageAccount);
-  if (card === "core" || card === "frontend") check.requirements.push({ scope: sub, actions: RESOURCE_PERMISSIONS.diagnostics });
-  if (request.dnsZone) await requireDnsAccess(check, request.dnsZone);
-  if (request.appInsights) await requireAtResource(check, appInsightsScope(subscriptionId, group, request.appInsights), "2020-02-02", [
-    ...RESOURCE_PERMISSIONS.appInsights, ...RESOURCE_PERMISSIONS.roleAssignments,
-  ]);
-  if (request.webPubSub) await requireWebPubSubAccess(check, request.webPubSub);
-  if (request.functionApp) await requireFunctionAppAccess(check, request.functionApp, request.servicePlan);
-  await ensureManagementAccess(account, check.requirements, overrideTenantId);
-}
-
-// Checks only the signed-in caller's subscription-level resource-group creation action.
-export async function ensureResourceGroupCreationAccess(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<void> {
-  const guidance = `You need Contributor access (or equivalent permissions such as Owner) on the selected subscription ${subscriptionId} to create resource groups.
-      Access to an individual resource group is not sufficient. Ask a subscription administrator to grant access in IAM
-      or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} then retry.`;
-  try {
-    const permissions = await readPermissionsAtScope(account, subscriptionScope(subscriptionId), overrideTenantId);
-    if (grantsArmAction(permissions, "Microsoft.Resources/subscriptions/resourceGroups/write")) return;
-  } catch (err) {
-    throw new Error(`Could not verify resource-group creation access. ${guidance} Details: ${err instanceof Error ? err.message : String(err)}`);
-  }
-  throw new Error(guidance);
-}
-
-// Checks the configured installer management actions at subscription scope, not literal role names.
-export async function ensureInstallerSubscriptionAccess(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<void> {
-  let permissions: ArmPermission[];
-  try {
-    permissions = await readPermissionsAtScope(account, subscriptionScope(subscriptionId), overrideTenantId);
-  } catch (err) {
-    throw new Error(`Could not verify installer subscription access. Details: ${err instanceof Error ? err.message : String(err)}`);
-  }
-  const missing = Object.values(SUBSCRIPTION_PERMISSIONS)
-    .flat().filter((action) => !grantsArmAction(permissions, action));
-  if (missing.length) {
-    throw new Error(`Missing permissions:\n ${missing.join(", ")}`);
-  }
-}
-
-// Read-only existence check — used by live "is infra still operable" checks (no create-on-miss).
-export async function resourceGroupExists(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<boolean> {
-  const token = await getToken(account, ARM_SCOPES, overrideTenantId);
-  return !!(await armGet(token, resourceGroupPath(subscriptionId, name)));
-}
 
 // ── Log Analytics workspace ────────────────────────────────────────────────────
 
