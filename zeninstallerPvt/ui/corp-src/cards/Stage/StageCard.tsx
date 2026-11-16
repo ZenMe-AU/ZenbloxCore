@@ -631,9 +631,7 @@ function StageCardContent({
                   </Box>
                 );
               })}
-              </Box>
-            </Collapse>
-          </Box>
+            </Prerequisites>
           )}
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
             <RunStatusUpdateButton
@@ -723,8 +721,7 @@ function StageCardContent({
                 </Collapse>
               </Box>
             )}
-          </Box>
-        )}
+ 
 
         <RemoteTerminal session={remoteTerminal} />
 
