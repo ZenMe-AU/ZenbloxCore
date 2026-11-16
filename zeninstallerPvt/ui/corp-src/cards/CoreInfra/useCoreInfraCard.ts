@@ -34,6 +34,7 @@ import {
   getCoreStorageAccountName,
 } from "../../logic/naming";
 import { createResultStorage } from "../../logic/resultStorage";
+import { getVariableDisplayName } from "../../logic/variables";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { APP_SCOPES, AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../../config/azureConfig";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
@@ -347,8 +348,10 @@ export function useCoreInfraCard({
   const azureConfigured = !!AZURE_CLIENT_ID;
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
-  const status: CardStatus = !azureConfigured ? "error" : done ? "complete" : "warning";
-  const summary = !azureConfigured ? "Unavailable" : done ? "Infrastructure ready" : "Set up corp infrastructure";
+  // Surface the missing company identifier as a fixable warning before infrastructure setup can proceed.
+  const missingCorpName = !corpName;
+  const status: CardStatus = !azureConfigured ? "error" : missingCorpName ? "warning" : done ? "complete" : "warning";
+  const summary = !azureConfigured ? "Unavailable" : missingCorpName ? `${getVariableDisplayName("NAME")} not set` : done ? "Infrastructure ready" : "Set up corp infrastructure";
 
   return {
     location,

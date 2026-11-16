@@ -37,7 +37,9 @@ function Intro({ appName }: { appName: string }) {
 }
 
 export default function BackendDeployCard({ card, backend, repoFullName }: Props) {
-  const { appName, latest, deployed, loadingLatest, loadingDeployed, building, build, buildWorkflow, updateAvailable, error, steps, running, run } = backend;
+  const { appName, latest, deployed, loadingLatest, loadingDeployed, building, build, buildWorkflow, updateAvailable, error, failedBuildRunId, steps, running, run } = backend;
+  // Prefer the failed run when present; the latest successful build is not the run that needs attention.
+  const workflowRunId = failedBuildRunId || latest?.runId;
 
   return (
     <Card
@@ -46,8 +48,8 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
           <ViewLink
-            href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)}
-            label={latest ? "Open latest backend workflow run" : "Open backend workflow in GitHub"}
+            href={workflowRunId ? getWorkflowRunUrl(repoFullName, workflowRunId) : getWorkflowUrl(repoFullName, buildWorkflow)}
+            label={failedBuildRunId ? "Open failed backend workflow run" : latest ? "Open latest backend workflow run" : "Open backend workflow in GitHub"}
           />
         ) : undefined
       }
@@ -85,10 +87,11 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           </Box>
         )}
 
+        {/* Wait for both version reads before enabling actions so initial null state is not mistaken for current state. */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Button
             onClick={() => void build()}
-            disabled={building || running}
+            disabled={loadingLatest || building || running}
             variant="outlined"
             size="small"
             aria-busy={building}
@@ -109,7 +112,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           </Button>
           <Button
             onClick={() => void run()}
-            disabled={!updateAvailable || running || building}
+            disabled={!updateAvailable || loadingLatest || loadingDeployed || running || building}
             variant="contained"
             size="small"
             aria-busy={running}
@@ -124,15 +127,15 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
             )}
           </Button>
 
-          {/* Mutually exclusive with the prompt below, so both share the slot by the button. */}
-          {!loadingLatest && latest && !updateAvailable && (
+          {/* Show stable version guidance only; errors, active work, and incomplete reads take precedence. */}
+          {!error && !building && !running && !loadingLatest && !loadingDeployed && latest && !updateAvailable && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2", color: "success.main" }} />
               <Typography color="success.dark">The Function App is running the latest build.</Typography>
             </Box>
           )}
 
-          {!loadingLatest && updateAvailable && deployed && (
+          {!error && !building && !running && !loadingLatest && !loadingDeployed && updateAvailable && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
               <Typography color="warning.dark">Ready to deploy the new build</Typography>

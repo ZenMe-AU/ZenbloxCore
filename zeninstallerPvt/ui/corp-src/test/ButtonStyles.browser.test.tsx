@@ -125,7 +125,7 @@ describe("compact button styling", () => {
             .filter((button) => !button.closest('[aria-label="Connection details"]'));
           expect(buttons.map((button) => button.textContent)).toEqual([
             "Reference action",
-            done ? "Re-run" : "Create frontend hosting environment",
+            done ? "Re-run" : "Create private hosting environment",
             done ? "Re-run" : "Create backend environment",
           ]);
           const reference = getComputedStyle(buttons[0]);

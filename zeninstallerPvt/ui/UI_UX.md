@@ -229,12 +229,12 @@ Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRe
 | 3 | `azure_login` | Azure login | none | MSAL sign-in, tenant selection (or manual tenant id), sign-out | [AzureLogin](corp-src/cards/AzureLogin) |
 | 4 | `azure_subscription` | Choose Azure subscription | `azure_login`, `repo` | Pick subscription; saves ids as GitHub variables; drift detection | [AzureSubscription](corp-src/cards/AzureSubscription) |
 | 5 | `azure_app_registration` | Create an app registration in Azure | `github_login`, `azure_login`, `repo`, `azure_subscription` | Creates the GitHub-Actions service principal and federated credential; RBAC check | [AzureAppRegistration](corp-src/cards/AzureAppRegistration) |
-| 6 | `core_infra` | Terraform state backend | `azure_login`, `repo`, `azure_subscription`, `azure_app_registration` | Company short code, location; creates state storage; checklist of steps | [CoreInfra](corp-src/cards/CoreInfra) |
+| 6 | `core_infra` | Terraform state backend | `azure_login`, `repo`, `azure_subscription`, `azure_app_registration` | Company short code and location; identifies the missing short code as an actionable warning; creates state storage; checklist of steps | [CoreInfra](corp-src/cards/CoreInfra) |
 | 7 | `create_domain` | Core domain | `azure_login`, `repo`, `azure_subscription`, `core_infra` | Creates the corp domain resources | [CreateDomain](corp-src/cards/CreateDomain) |
 | 8 | `remote_terminal_infra` | Private Zeninstaller Backend Environment | `azure_login`, `azure_subscription`, `core_infra` | Provisions relay for the remote terminal; connection details | [RemoteTerminalInfra](corp-src/cards/RemoteTerminalInfra) |
-| 9 | `backend_deploy` | Private Zeninstaller Backend | `github_login`, `repo`, `azure_login`, `remote_terminal_infra` | Build and deploy the Function App backend | [BackendDeploy](corp-src/cards/BackendDeploy) |
+| 9 | `backend_deploy` | Private Zeninstaller Backend | `github_login`, `repo`, `azure_login`, `remote_terminal_infra` | Build and deploy the Function App backend; reports build/deployment state and links to a failed build run | [BackendDeploy](corp-src/cards/BackendDeploy) |
 | 10 | `private_frontend_infra` | Private hosting environment | `azure_login`, `azure_subscription` | Storage static site / hosting infra | [PrivateFrontendInfra](corp-src/cards/PrivateFrontendInfra) |
-| 11 | `web_deploy` | Private Zeninstaller Frontend | `github_login`, `repo`, `azure_login`, `private_frontend_infra` | Build and upload the frontend | [WebDeploy](corp-src/cards/WebDeploy) |
+| 11 | `web_deploy` | Private Zeninstaller Frontend | `github_login`, `repo`, `azure_login`, `private_frontend_infra` | Build and upload the frontend; records build configuration for drift checks and links to a failed build run | [WebDeploy](corp-src/cards/WebDeploy) |
 | 12 | `aws_login` | AWS login | none | Bootstrap access key, MFA code | [AwsLogin](corp-src/cards/AwsLogin) |
 | 13 | `aws_setup` | AWS setup | `aws_login`, `repo` | Creates IAM role for GitHub OIDC; connection details | [AwsSetup](corp-src/cards/AwsSetup) |
 | 14-19 | `stage_<dir>` | Azure subscription budget, Organisation security groups, User accounts and sign-in, AWS single sign-on with Entra ID, AWS single sign-on with Entra ID P2, AWS CloudFront distribution | `repo` (+ per-stage prerequisites inside) | Stage-specific description, Terraform plan and review, then deploy through the remote terminal | [Stage](corp-src/cards/Stage) |
@@ -348,7 +348,7 @@ flowchart TD
   Edit -. variable differs from plan .-> Stale[Deploy disabled until plan refreshed]
 ```
 
-Stage status mapping ([logic/stage.ts](corp-src/logic/stage.ts)): `deployed` to `complete`; `success` (ready to deploy) and unmet stage prerequisites to `warning`; failed plans to `error`; `skipped` to `skipped`; `pending` and stale plans to `idle`; loading to `loading`. "No changes" counts as deployed. The plan/status-update action, no-plan message, and plan failure output are shown only while current prerequisites are met. Missing values are checked after trimming whitespace, and stage-variable editors remain available to resolve blockers.
+Stage status mapping ([logic/stage.ts](corp-src/logic/stage.ts)): `deployed` to `complete`; `success` (ready to deploy) and unmet stage prerequisites to `warning`; failed plans to `error`; `skipped` to `skipped`; `pending` and stale plans to `idle`; loading to `loading`. A pending stage summary says "Get updated plan" to name its next action. "No changes" counts as deployed. The plan/status-update action, no-plan message, and plan failure output are shown only while current prerequisites are met. Missing values are checked after trimming whitespace, and stage-variable editors remain available to resolve blockers.
 
 Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)): status bar (`role=status`) cycles `registering`, `dispatching`, `negotiating`, `connecting`, `connected`, `reconnecting`, `closed`, `error`; shows runner stage label, short session id, End session; a device-code panel with copyable code and link; then an xterm instance (120x24).
 
@@ -357,6 +357,14 @@ Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)):
 ### 5.5 GitHub environment-file decoding
 
 GitHub's Contents API returns environment-file content as Base64. The UI decodes the returned bytes as UTF-8 before parsing, preserving non-ASCII variable values instead of interpreting each byte as a character.
+
+### 5.6 Backend and frontend build/deploy cards
+
+The deployment cards consume an artifact and successful-build report for the selected GitHub environment. The backend build version is derived from the backend source tree and root lockfile; the frontend version also reflects the Vite configuration values baked into the site. Frontend reports retain those values so the card can identify configuration drift from the current GitHub variables.
+
+Each card reads the latest successful build report and a separate build-failure report. When a newer failure report is available, it is surfaced as an error with a link to that run, without discarding the last successful artifact; a subsequent successful build clears the failure state. The card status prioritizes errors, then active checks/builds/deployments, before comparing the latest build with the deployed version. Actions stay disabled while the required status reads are in progress. Deployments record the live version in Azure so the cards can tell whether an update is needed across browser sessions.
+
+Core Infra summarizes a missing company short code as `COMPANY_SHORT_CODE not set`. A missing `VITE_GITHUB_CLIENT_ID` is likewise named directly by the frontend deployment card because the site requires it for sign-in.
 
 ## 6. Component inventory
 
@@ -493,7 +501,7 @@ The UI targets modern evergreen browsers supported by Vite 7, React 19, and MUI 
 
 ## 9. Findings and recommendations
 
-Source reviewed 2026-11-12; none of these have been confirmed with assistive technology.
+Source reviewed 2026-11-16; none of these have been confirmed with assistive technology.
 
 | # | Severity | Finding | Recommendation |
 |---|---|---|---|
@@ -552,6 +560,11 @@ Remove-Item Env:UX_BROWSERS
 - Focused Vitest run: 62 tests passed across four files, covering UTF-8 GitHub environment decoding, Azure tenant prefill/confirmation, stage prerequisite gating/status mapping, and light/dark status colors.
 - Editor diagnostics reported no errors in the modified files; `git diff --check` passed. This focused run does not replace the full-suite baseline or resolve the separately recorded Access Pass telemetry failures.
 
+### 10.3 Verification on 2026-11-16
+
+- Focused backend and frontend deploy-card Vitest tests cover build failures, retention of the latest successful artifact, recovery after a successful retry, and deployment status precedence. Core Infra tests cover the missing-company-short-code summary; stage summary tests cover the pending-stage action label.
+- Scoped ESLint checks and `git diff --check` pass for the changed UI implementation and tests. The backend workflow's newly added failure-report step still requires a GitHub Actions YAML validation; see remaining work.
+
 ## 11. Remaining work
 
 - [x] Add and run representative Firefox/WebKit accessibility and keyboard smoke tests. All 14 opt-in cases pass; actual Safari and authenticated deployment flows remain unverified.
@@ -567,3 +580,4 @@ Remove-Item Env:UX_BROWSERS
 - [ ] Resolve the footer Contact and Terms placeholders before release, or remove those entry points.
 - [x] Hide the decorative header mark from assistive technology and add focus-navigation regressions; ensure touched help/clear/revert targets are at least 24px.
 - [ ] Decide whether broader touch-target changes or confirmations for destructive actions are needed; these product decisions remain deferred.
+- [ ] Validate the backend build workflow's failure-report step with GitHub Actions tooling; its current indentation appears inconsistent with the surrounding workflow steps.

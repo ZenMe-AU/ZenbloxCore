@@ -80,7 +80,7 @@ export async function openBackendCard(page: Page) {
   const card = page.locator("#card-backend_deploy");
   await expect(card).toBeVisible();
   await expandCard(card);
-  await expect(card.getByText(/Builds the Zeninstaller backend in GitHub Actions/)).toBeVisible({ timeout: 60_000 });
+  await expect(card.getByText(/GitHub Actions builds the ZenInstaller backend/)).toBeVisible({ timeout: 60_000 });
   await expect(card.getByText(/checking\.\.\./)).toHaveCount(0, { timeout: 60_000 });
   return card;
 }

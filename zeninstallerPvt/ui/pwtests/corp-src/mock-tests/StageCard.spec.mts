@@ -293,7 +293,9 @@ async function prepareStage(
       expect([
         ...[...stages.map(({ dir }) => dir), ...privAvdDirs].flatMap((dir) => [`plan:${dir}`, `deploy:${dir}`]),
         "build:backend",
+        "build:backend-failure",
         "build:frontend",
+        "build:frontend-failure",
       ]).toContain(task);
       state.reportTasks.push(task);
       return replyJson(

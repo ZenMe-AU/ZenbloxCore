@@ -44,6 +44,11 @@ describe("stage header status", () => {
     expect(getStageSummaryText(stage, undefined, false, false)).toBe("Plan failed; check the GitHub Actions run"); // No redundant leading "Failed:" label.
   });
 
+  it("points to the plan action when a stage has not run", () => {
+    // The pending summary should guide users to the action that creates the first plan.
+    expect(getStageSummaryText({ ...stage, status: "pending" }, undefined, false, false)).toBe("Get updated plan");
+  });
+
   it("treats empty prerequisites as ready and whitespace-only group values as missing", () => {
     // Empty requirement sets are ready, while whitespace-only values remain actionable blockers.
     expect(getUnmetPrerequisites([], {}, {} as Record<CardId, CardStatus>)).toEqual([]);

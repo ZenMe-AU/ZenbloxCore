@@ -939,6 +939,7 @@ export async function prepareMockBackend(
 		VITE_API_URL: "https://pwtests-terminal-app.azurewebsites.net",
 		VITE_AZURE_CLIENT_ID: installerClientId,
 		VITE_APPINSIGHTS_CONNECTION_STRING: appInsightsConnectionString,
+		API_STORAGE_ACCOUNT: "pwteststerminalstorage",
 	};
 	await context.addInitScript((values) => {
 		localStorage.setItem("zeninstaller_azure_result", JSON.stringify({
@@ -1030,6 +1031,9 @@ export async function prepareMockBackend(
 				payload: nextBuild,
 				created_at: new Date(nextBuild.builtAt * 1000).toISOString(), sha: nextBuild.sha,
 			}] : [] });
+		}
+		if (url.pathname.endsWith("/deployments") && request.method() === "GET") {
+			return route.fulfill({ json: [] });
 		}
 		if (url.pathname.endsWith("/actions/workflows/buildBackend.yml/dispatches") && request.method() === "POST") {
 			state.dispatches.push(request.postDataJSON());

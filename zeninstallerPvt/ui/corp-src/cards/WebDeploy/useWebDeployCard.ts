@@ -8,9 +8,10 @@ import JSZip from "jszip";
 import { fetchArtifactZip, fetchStageReport, triggerWorkflow } from "../../api";
 import { getStaticWebsiteUrl } from "../../api/azureArm";
 import { readDeployedSite, recordDeployedSite, uploadStaticSite, type DeployedSite } from "../../api/azureBlob";
+import { getDeployCardStatus, shouldReportBuildFailure, type BuildFailureReport } from "../../logic/buildStatus";
 import { getWebStorageAccountName } from "../../logic/naming";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
-import type { Account, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
+import type { Account, AzureConfigHook, CardHook, CardRequirements, GhEnv } from "../../types";
 
 // What the build workflow recorded, as the card reads it back off the Deployments API.
 type WebBuild = {
@@ -47,6 +48,8 @@ export interface UseWebDeployCard extends CardHook, AzureConfigHook {
   build: () => Promise<void>;
   buildWorkflow: string;
   updateAvailable: boolean;
+  // Lets the card link directly to the failed workflow run when one is current.
+  failedBuildRunId: string | null;
   // The built site bakes this in, so a build without it ships a broken sign-in.
   missingGithubClientId: boolean;
   // Variables whose value no longer matches what the latest build used.
@@ -80,16 +83,26 @@ export function useWebDeployCard({
   const [loadingDeployed, setLoadingDeployed] = useState(false);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [building, setBuilding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Keep a short header summary and run link with the detailed error shown in the card body.
+  const [error, setError] = useState<{ message: string; summary: string; runId?: string } | null>(null);
+  const [lastFailure, setLastFailure] = useState<BuildFailureReport | null>(null);
 
   const storageAccountName = variableValues.SITE_STORAGE_ACCOUNT || getWebStorageAccountName(subscriptionId);
   const missingGithubClientId = !(variableValues.VITE_GITHUB_CLIENT_ID ?? "").trim();
   const ready = !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv && !missingGithubClientId;
 
-  const readLatest = useCallback(async (): Promise<WebBuild | null> => {
+  const readLatest = useCallback(async () => {
     if (!githubAccount || !repoName || !selectedEnv) return null;
-    const report = await fetchStageReport(githubAccount, repoName, selectedEnv.name, "frontend", "build");
-    return (report?.stage as unknown as WebBuild) ?? null;
+    // Keep the last successful artifact separate from failure reports so a failed run cannot erase it.
+    const [report, failure] = await Promise.all([
+      fetchStageReport(githubAccount, repoName, selectedEnv.name, "frontend", "build"),
+      fetchStageReport(githubAccount, repoName, selectedEnv.name, "frontend-failure", "build"),
+    ]);
+    return {
+      build: (report?.stage as unknown as WebBuild) ?? null,
+      buildReportedAt: report?.createdAt ?? 0,
+      failure: failure ? { runId: (failure.stage as unknown as { runId: string }).runId, reportedAt: failure.createdAt } : null,
+    };
   }, [githubAccount, repoName, selectedEnv]);
 
   useEffect(() => {
@@ -98,10 +111,16 @@ export function useWebDeployCard({
     void (async () => {
       setLoadingLatest(true);
       try {
-        const b = await readLatest();
-        if (!cancelled) setLatest(b);
+        const reports = await readLatest();
+        if (!cancelled && reports) {
+          setLatest(reports.build);
+          setLastFailure(reports.failure);
+          if (reports.failure && shouldReportBuildFailure(reports.failure, null, reports.build, reports.buildReportedAt)) {
+            setError({ message: "The frontend build failed. Check the workflow run in GitHub.", summary: "Build error", runId: reports.failure.runId });
+          }
+        }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Could not read the latest build");
+        if (!cancelled) setError({ message: e instanceof Error ? e.message : "Could not read the latest build", summary: "Build status unavailable" });
       } finally {
         if (!cancelled) setLoadingLatest(false);
       }
@@ -120,7 +139,7 @@ export function useWebDeployCard({
       setSiteUrl(url);
       setDeployed(url ? await readDeployedSite(azureAccount, storageAccountName, tenantId) : null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not read what is live");
+      setError({ message: e instanceof Error ? e.message : "Could not read what is live", summary: "Deployment error" });
     } finally {
       setLoadingDeployed(false);
     }
@@ -141,24 +160,30 @@ export function useWebDeployCard({
       await triggerWorkflow(githubAccount, repoName, BUILD_WORKFLOW, selectedEnv.name, selectedEnv.name);
       for (const delay of POLL_DELAYS_MS) {
         await new Promise((r) => setTimeout(r, delay));
-        const next = await readLatest();
-        if (next && next.builtAt > before) {
-          setLatest(next);
+        const reports = await readLatest();
+        // Stop as soon as this attempt fails; otherwise accept only a build newer than the one we started with.
+        if (reports?.failure && shouldReportBuildFailure(reports.failure, lastFailure, reports.build, reports.buildReportedAt)) {
+          setLastFailure(reports.failure);
+          setError({ message: "The frontend build failed. Check the workflow run in GitHub.", summary: "Build error", runId: reports.failure.runId });
+          return;
+        }
+        if (reports?.build && reports.build.builtAt > before) {
+          setLatest(reports.build);
           return;
         }
       }
-      setError("The build is taking longer than expected — check GitHub Actions.");
+      setError({ message: "The build is taking longer than expected — check GitHub Actions.", summary: "Build status unavailable" });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start the build");
+      setError({ message: e instanceof Error ? e.message : "Failed to start the build", summary: "Build error" });
     } finally {
       setBuilding(false);
     }
-  }, [githubAccount, repoName, selectedEnv, latest, readLatest]);
+  }, [githubAccount, repoName, selectedEnv, latest, readLatest, lastFailure]);
 
   const run = useCallback(async () => {
     if (!azureAccount || !githubAccount || !repoName || !latest || !storageAccountName) return;
     if (latest.artifactId == null) {
-      setError("The latest build did not publish a site artifact.");
+      setError({ message: "The latest build did not publish a site artifact.", summary: "Build error" });
       return;
     }
     setRunning(true);
@@ -197,7 +222,7 @@ export function useWebDeployCard({
       await readDeployed();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      setError(message);
+      setError({ message, summary: "Deployment error" });
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error", detail: message } : s)));
     } finally {
       setRunning(false);
@@ -218,16 +243,27 @@ export function useWebDeployCard({
   const done = !!deployed && !!latest && deployed.version === latest.version;
   const updateAvailable = !!latest && !done;
 
-  const status: CardStatus = !ready ? "idle" : done ? "complete" : "warning";
+  const checking = loadingLatest || loadingDeployed;
+  // Keep the header aligned with the actual operation instead of leaving a stale warning during work or failure.
+  const status = getDeployCardStatus({ ready, hasError: !!error, busy: checking || building || running, done });
+  // Name the missing setting directly so this summary matches the actionable prerequisite wording used by other cards.
   const summary = missingGithubClientId
-    ? "Set VITE_GITHUB_CLIENT_ID first"
+    ? "VITE_GITHUB_CLIENT_ID not set"
     : !ready
       ? "Unavailable"
-      : done
-        ? `Deployed ${latest?.sha.slice(0, 7)}`
-        : updateAvailable
-          ? "Update available"
-          : "Build the frontend";
+      : error
+        ? error.summary
+        : building
+          ? "Building frontend"
+          : running
+            ? "Deploying frontend"
+            : checking
+              ? "Checking build and deployment"
+              : done
+                ? `Deployed ${latest?.sha.slice(0, 7)}`
+                : updateAvailable
+                  ? "Ready to deploy the new build"
+                  : "Build the frontend";
 
   return {
     cardId: "web_deploy" as const,
@@ -241,9 +277,10 @@ export function useWebDeployCard({
     build,
     buildWorkflow: BUILD_WORKFLOW,
     updateAvailable,
+    failedBuildRunId: error?.runId ?? null,
     missingGithubClientId,
     staleVariables,
-    error,
+    error: error?.message ?? null,
     steps,
     running,
     done,
