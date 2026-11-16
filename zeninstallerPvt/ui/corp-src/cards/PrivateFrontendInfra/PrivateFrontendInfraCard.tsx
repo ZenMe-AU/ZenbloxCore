@@ -140,7 +140,7 @@ export default function PrivateFrontendInfraCard({
                 disabled={infra.running || editingStorage || !infra.location.trim() || infra.creationAccess.status !== "ready"}
                 sx={{ py: 0.85, px: 2.5 }}
               >
-                {infra.done ? "Re-run" : "Create frontend hosting environment"}
+                {infra.done ? "Re-run" : "Create private hosting environment"}
               </Button>
               {infra.creationAccess.status === "error" && (
                 <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>

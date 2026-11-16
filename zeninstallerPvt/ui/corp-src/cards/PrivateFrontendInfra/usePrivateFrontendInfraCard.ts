@@ -356,7 +356,7 @@ export function usePrivateFrontendInfraCard({
   const status: CardStatus = !azureConfigured || creationAccess.status === "error" ? "error" : done ? "complete" : "warning";
   const summary = !azureConfigured ? "Unavailable"
     : creationAccess.status === "error" ? "Insufficient permissions to continue"
-      : done ? "Private environment ready" : "Set up the private environment";
+      : done ? "Private environment ready" : "Ready to create";
 
   return {
     cardId: "private_frontend_infra" as const,

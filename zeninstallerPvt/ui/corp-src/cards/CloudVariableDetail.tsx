@@ -27,6 +27,8 @@ type Props = {
   populate?: Record<string, string>;
   title?: string;
   disabled?: boolean;
+  /** Refresh clean fields from saved values but keep local edits; remount when the account/repo/environment scope changes. */
+  preserveDirtyOnSync?: boolean;
   onComplete?: (done: boolean) => void;
   githubUrl?: string;
   saveHint?: ReactNode; // Rendered next to the Save button (e.g. an "unsaved change" warning).
@@ -49,6 +51,7 @@ export default function CloudVariableDetail({
   populate,
   title = "Variables",
   disabled,
+  preserveDirtyOnSync,
   onComplete,
   githubUrl,
   saveHint,
@@ -78,6 +81,7 @@ export default function CloudVariableDetail({
     envName,
     onSavedKey: variables.onConfirmed,
     populate,
+    preserveDirtyOnSync,
     autoSaveCounter,
     onAutoSaveResult,
   });

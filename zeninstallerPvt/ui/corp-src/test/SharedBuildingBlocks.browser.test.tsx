@@ -257,14 +257,21 @@ describe("shared UI building blocks", () => {
   });
 
   it("exposes setup-step states and names progress indicators", () => {
+    // Verify computed status colors in both schemes and restore the document's prior scheme.
     const container = document.createElement("div");
+    const previousScheme = document.documentElement.getAttribute("data-mui-color-scheme");
     document.body.appendChild(container);
     const root = createRoot(container);
 
     try {
       flushSync(() => {
         root.render(
-          <ThemeProvider theme={theme} defaultMode="light">
+          <ThemeProvider
+            theme={theme}
+            defaultMode="light"
+            modeStorageKey="zeninstaller-scheme-regression-mode"
+            colorSchemeStorageKey="zeninstaller-scheme-regression-color-scheme"
+          >
             <StepRow step={{ id: "pending", label: "Pending task", status: "pending" }} />
             <StepRow step={{ id: "running", label: "Running task", status: "running", progress: 0.4 }} />
             <StepRow step={{ id: "done", label: "Done task", status: "done" }} />
@@ -279,10 +286,42 @@ describe("shared UI building blocks", () => {
         .filter((text) => text?.startsWith("Status:"));
       expect(stepStates).toEqual(["Status: Pending", "Status: Running", "Status: Done", "Status: Skipped", "Status: Error"]);
       expect(container.querySelector('[role="progressbar"][aria-label="Running: Running task"]')).not.toBeNull();
-      expect(container.querySelector('[role="progressbar"][aria-label="Progress: Running task"]')).not.toBeNull();
+      const progress = container.querySelector<HTMLElement>('[role="progressbar"][aria-label="Progress: Running task"]')!;
+      expect(progress).not.toBeNull();
+      expect(getComputedStyle(progress).backgroundColor).toBe("rgb(226, 232, 240)");
+      expect(getComputedStyle(progress.querySelector(".MuiLinearProgress-bar")!).backgroundColor).toBe("rgb(37, 99, 235)");
+      const failedStep = [...container.querySelectorAll<HTMLElement>(".MuiTypography-root")].find((element) => element.textContent === "Failed task")!;
+      expect(getComputedStyle(failedStep).color).toBe("rgb(185, 28, 28)");
+
+      localStorage.removeItem("zeninstaller-scheme-regression-mode");
+      localStorage.removeItem("zeninstaller-scheme-regression-color-scheme");
+      flushSync(() => root.render(
+        <ThemeProvider
+          key="dark"
+          theme={theme}
+          defaultMode="dark"
+          modeStorageKey="zeninstaller-scheme-regression-mode"
+          colorSchemeStorageKey="zeninstaller-scheme-regression-color-scheme"
+        >
+          <StepRow step={{ id: "running", label: "Running task", status: "running", progress: 0.4 }} />
+          <StepRow step={{ id: "error", label: "Failed task", status: "error" }} />
+          <ConfigErrorNotice id="dark-config-error" />
+        </ThemeProvider>
+      ));
+      document.documentElement.setAttribute("data-mui-color-scheme", "dark");
+      const darkProgress = container.querySelector<HTMLElement>('[role="progressbar"][aria-label="Progress: Running task"]')!;
+      const darkFailedStep = [...container.querySelectorAll<HTMLElement>(".MuiTypography-root")].find((element) => element.textContent === "Failed task")!;
+      expect(getComputedStyle(darkProgress).backgroundColor).toBe("rgb(53, 68, 72)");
+      expect(getComputedStyle(darkProgress.querySelector(".MuiLinearProgress-bar")!).backgroundColor).toBe("rgb(96, 165, 250)");
+      expect(getComputedStyle(darkFailedStep).color).toBe("rgb(252, 165, 165)");
+      expect(getComputedStyle(container.querySelector<HTMLElement>("#dark-config-error")!).color).toBe("rgb(252, 165, 165)");
     } finally {
       flushSync(() => root.unmount());
       container.remove();
+      localStorage.removeItem("zeninstaller-scheme-regression-mode");
+      localStorage.removeItem("zeninstaller-scheme-regression-color-scheme");
+      if (previousScheme === null) document.documentElement.removeAttribute("data-mui-color-scheme");
+      else document.documentElement.setAttribute("data-mui-color-scheme", previousScheme);
     }
   });
 
@@ -316,6 +355,8 @@ describe("shared UI building blocks", () => {
       const notice = container.querySelector<HTMLElement>("#azure-login-config-error");
       expect(notice?.textContent).toContain("This card is unavailable because a required setting is missing or invalid.");
       expect(container.querySelectorAll('[aria-describedby="azure-login-config-error"]')).toHaveLength(2);
+      // The unavailable-card notice uses the light-scheme error text color.
+      expect(getComputedStyle(notice!).color).toBe("rgb(185, 28, 28)");
     } finally {
       flushSync(() => root.unmount());
       container.remove();

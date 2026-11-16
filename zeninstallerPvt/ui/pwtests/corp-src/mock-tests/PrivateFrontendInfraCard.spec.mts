@@ -37,6 +37,11 @@ test("Derives completion from existing Azure resources and saved variables", asy
   const lines = detailsToggle.locator(".connection-toggle-line");
   const label = detailsToggle.locator(".connection-toggle-label");
   const icon = detailsToggle.locator(".connection-toggle-icon");
+  // Sample theme colors only after the card expansion and its transitions have settled.
+  await expect(card.locator(":scope > .MuiCollapse-root")).toHaveClass(/\bMuiCollapse-entered\b/);
+  await detailsToggle.scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  await detailsToggle.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)));
   const initialLineColors = await lines.evaluateAll((elements) => elements.map((element) => getComputedStyle(element).backgroundColor));
   const initialLabelColor = await label.evaluate((element) => getComputedStyle(element).color);
   const initialIconColor = await icon.evaluate((element) => getComputedStyle(element).color);

@@ -1,6 +1,6 @@
 # ZenInstaller UI/UX
 
-Analysis of the installer UI in `corp-src/` (the `zeninstallerPvt/ui` workspace folder): structure, interaction model, design system, accessibility and open issues. Companion documents: [README.md](README.md) (design decisions) and [CSS_STANDARDISATION.md](CSS_STANDARDISATION.md) (styling migration history).
+Analysis of the installer UI in `corp-src/` (the `zeninstallerPvt/ui` workspace folder): structure, interaction model, design system, accessibility and open issues. Companion document: [README.md](README.md) (design decisions); current UI behavior, styling, accessibility, verification and open issues are covered here.
 
 Stack: React + MUI (`createTheme` with CSS variables), Vite, no router (single page), xterm.js for the remote terminal.
 
@@ -101,7 +101,7 @@ classDiagram
 | `idle` | Not started / action needed | `#fed7aa` | hollow circle (orange) | `#b45309` |
 | `loading` | In progress | `#e2e8f0` | hollow circle (blue) | `#64748b` |
 | `complete` | Done | `#bbf7d0` | filled check (green) | `#15803d` |
-| `warning` | Needs attention (for stages: ready to deploy) | `#fed7aa` | warning triangle (orange) | `#b45309` |
+| `warning` | Needs attention or a recoverable action (stage: ready to deploy or unmet stage prerequisites) | `#fed7aa` | warning triangle (orange) | `#b45309` |
 | `error` | Failed | `#fecaca` | outlined `!` (red) | `#dc2626` |
 | `skipped` | Optional, not run | `#f1f5f9` | hollow circle (grey) | `#64748b` |
 | `unavailable` | Misconfigured (missing env var) | divider, muted | warning triangle (grey) | `#64748b` |
@@ -146,7 +146,7 @@ Key behaviours:
 - Outer element `id="card-<cardId>"` (test contract and jump-to target).
 - Clicking anywhere in the header toggles the card. The title and chevron are separate labelled, keyboard-operable controls; an expanded-card action stops propagation so it does not collapse the card.
 - Collapsed title and summary each occupy one line and ellipsize, keeping card faces the same height; full text remains in the DOM and accessible name, with a `title` attribute.
-- Expanded headers keep the summary beside the heading and wrap on narrow screens. Locked summaries show direct requirement labels such as "Sign in to AWS"; stage summaries name missing values, for example "Failed: CONTACT_EMAILS not set" or "AWS_ROLE_ARN not set", rather than a generic prerequisite prefix.
+- Expanded headers keep the summary beside the heading and wrap on narrow screens. Locked summaries show direct requirement labels such as "Sign in to AWS"; blocked stage summaries name missing values directly (for example, "CONTACT_EMAILS not set"), and failed-plan summaries say "Plan failed; check the GitHub Actions run" without a redundant "Failed:" prefix.
 - Both toggles carry `aria-expanded` and `aria-controls`; the chevron has an explicit `Expand/Collapse <title>` label.
 - A locked card still expands, to show its optional read-only introduction and unmet requirements; its live content is not rendered. Pipeline-stage descriptions are shown for both locked and unlocked stages.
 - Ripples are disabled; focus shows a 2px blue outline plus a 3px 12% halo.
@@ -237,7 +237,7 @@ Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRe
 | 11 | `web_deploy` | Private Zeninstaller Frontend | `github_login`, `repo`, `azure_login`, `private_frontend_infra` | Build and upload the frontend | [WebDeploy](corp-src/cards/WebDeploy) |
 | 12 | `aws_login` | AWS login | none | Bootstrap access key, MFA code | [AwsLogin](corp-src/cards/AwsLogin) |
 | 13 | `aws_setup` | AWS setup | `aws_login`, `repo` | Creates IAM role for GitHub OIDC; connection details | [AwsSetup](corp-src/cards/AwsSetup) |
-| 14-19 | `stage_<dir>` | Azure subscription budget, Organisation security groups, User accounts and sign-in, AWS single sign-on with Entra ID, AWS single sign-on with Microsoft Entra ID P2, AWS CloudFront distribution | `repo` (+ per-stage prerequisites inside) | Stage-specific description, Terraform plan and review, then deploy through the remote terminal | [Stage](corp-src/cards/Stage) |
+| 14-19 | `stage_<dir>` | Azure subscription budget, Organisation security groups, User accounts and sign-in, AWS single sign-on with Entra ID, AWS single sign-on with Entra ID P2, AWS CloudFront distribution | `repo` (+ per-stage prerequisites inside) | Stage-specific description, Terraform plan and review, then deploy through the remote terminal | [Stage](corp-src/cards/Stage) |
 | 20 | `privavd_gallery` | PAW image gallery | `repo`, `core_infra` | Creates the Azure Compute Gallery and image definition used to publish the privileged access workstation image | [PrivAvdGallery](corp-src/cards/PrivAvdGallery) |
 | 21 | `privavd_image` | PAW golden image | `privavd_gallery` | Builds the Windows 11 privileged access workstation image with Packer and publishes a version to the gallery; the build takes about an hour | [PrivAvdImage](corp-src/cards/PrivAvdImage) |
 | 22 | `privavd_paw` | PAW Azure Virtual Desktop | `privavd_image` | Deploys the Azure Virtual Desktop host pool and session host from the newest replicated image version | [PrivAvdPaw](corp-src/cards/PrivAvdPaw) |
@@ -278,6 +278,7 @@ sequenceDiagram
 
 - Two independent chains: GitHub (`account`, `repo`, `env`) and Azure (`tenant`, `subscription`). A 10s timeout guards each.
 - User interaction with a field cancels restoration of its keys (`urlRestore.cancel`).
+- An MSA or app-result tenant may prefill the Azure tenant field without confirming ARM access. Startup probes use a saved tenant selection; explicit tenant selection confirms only after ARM token acquisition succeeds, and a late startup probe cannot replace a tenant the user has since confirmed.
 - Expanded state key: `zeninstaller_corp_expanded_cards`.
 
 ### 5.2 Locked card to prerequisite
@@ -329,12 +330,14 @@ The order is a recommendation; the UI enforces only the per-card prerequisites i
 flowchart TD
   L{Repo ready?} -- no --> Lock[Locked: 'Select a repository & environment']
   L -- yes --> P[Prerequisites list: card / var / varGroup / stageVar]
-  P --> Edit[Expandable rows: view variables or edit stageVars and save to GitHub]
-  Edit --> Run[Button: Get Updated Plan]
+  P --> Edit[Expandable rows: view prerequisites or edit stageVars and save to GitHub]
+  Edit --> Ready{Prerequisites met?}
+  Ready -- no --> Blocked[Summary names missing values; plan actions and failure details stay hidden]
+  Ready -- yes --> Run[Button: Get Updated Plan]
   Run --> Perm[Ensure Graph permissions for the pipeline SP]
   Perm --> Wf[Dispatch plan workflow, countdown 'Running... 45s', poll for report]
   Wf --> Rep{Report}
-  Rep -- failed --> Fail[Status error + failure log]
+  Rep -- failed --> Fail[Error status + failure log]
   Rep -- success --> Plan[Plan detail: create/update/delete/replace pills + resource list]
   Plan --> Beh{Plan behind branch?}
   Beh -- yes --> Pill['not latest' pill with sha tooltip]
@@ -345,11 +348,15 @@ flowchart TD
   Edit -. variable differs from plan .-> Stale[Deploy disabled until plan refreshed]
 ```
 
-Stage status mapping ([logic/stage.ts](corp-src/logic/stage.ts)): `deployed` to `complete`, `success` (ready to deploy) to `warning`, `failed` to `error`, `skipped` to `skipped`, `pending` to `idle`, in-flight run to `idle` with "Status update required", loading to `loading`. "No changes" counts as deployed.
+Stage status mapping ([logic/stage.ts](corp-src/logic/stage.ts)): `deployed` to `complete`; `success` (ready to deploy) and unmet stage prerequisites to `warning`; failed plans to `error`; `skipped` to `skipped`; `pending` and stale plans to `idle`; loading to `loading`. "No changes" counts as deployed. The plan/status-update action, no-plan message, and plan failure output are shown only while current prerequisites are met. Missing values are checked after trimming whitespace, and stage-variable editors remain available to resolve blockers.
 
 Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)): status bar (`role=status`) cycles `registering`, `dispatching`, `negotiating`, `connecting`, `connected`, `reconnecting`, `closed`, `error`; shows runner stage label, short session id, End session; a device-code panel with copyable code and link; then an xterm instance (120x24).
 
 ---
+
+### 5.5 GitHub environment-file decoding
+
+GitHub's Contents API returns environment-file content as Base64. The UI decodes the returned bytes as UTF-8 before parsing, preserving non-ASCII variable values instead of interpreting each byte as a character.
 
 ## 6. Component inventory
 
@@ -402,6 +409,8 @@ Runnable process sections show the same retry guidance before and during executi
 
 Source of truth: [theme.ts](corp-src/theme.ts) (MUI theme, CSS variables) and [App.css](corp-src/App.css) (global helpers). Layout tokens `--card-w` (360px) and `--card-w-expanded` (1280px) are set in [corp.tsx](corp-src/corp.tsx) from [config/cardLayout.ts](corp-src/config/cardLayout.ts).
 
+Use theme CSS-variable tokens (`theme.vars.palette`) for custom or shared styles that must follow the selected color scheme; `theme.palette` can reflect the default scheme instead. `App.css` is the only first-party stylesheet and holds global rules; third-party stylesheets such as xterm's may be imported separately. Keep `sx` for layout and dynamic values rather than design tokens.
+
 ### 7.1 Colour
 
 | Token | Value | Use |
@@ -413,7 +422,7 @@ Source of truth: [theme.ts](corp-src/theme.ts) (MUI theme, CSS variables) and [A
 | `text` primary / secondary / muted | `#0f172a` / `#475569` / `#64748b` | body / supporting / hints, disabled |
 | `divider` | `#e2e8f0` | borders |
 | `background` default / paper | `#f8fafc` / `#ffffff` | light-scheme page / surfaces |
-| `card.*` | per-status border, icon, dark-contrast summary; muted bg `#f8fafc`; muted text `#94a3b8`; radius 10px; shadows | card chrome (typed `theme.palette.card`) |
+| `card.*` | per-status border, icon, dark-contrast summary; muted bg `#f8fafc`; muted text `#94a3b8`; radius 10px; shadows | card chrome (typed `theme.vars.palette.card`) |
 
 Visual language: light or dark slate-neutral schemes with a blue brand accent; the system-reported scheme is used by default, and explicit Light/Dark choices persist. Dark is the fallback only when the browser cannot expose its color-scheme preference; its page and surface backgrounds are `#080d0f` and `#1b2629`. Status is carried by a coloured 1px border, glyph, and text. The palette table above lists light-scheme values; `theme.ts` defines both schemes.
 
@@ -474,7 +483,7 @@ Muted card titles (`#94a3b8`) remain below 4.5:1 by design and are excluded from
 
 ### 8.3 Not yet validated
 
-Manual 200% zoom reflow, keyboard-only end-to-end run, screen-reader announcements, and Windows high-contrast checks (Step 10 in `CSS_STANDARDISATION.md`).
+Manual 200% zoom reflow, keyboard-only end-to-end run, screen-reader announcements, and Windows High Contrast checks remain unvalidated; see section 11.
 
 ### 8.4 Browser support
 
@@ -484,7 +493,7 @@ The UI targets modern evergreen browsers supported by Vite 7, React 19, and MUI 
 
 ## 9. Findings and recommendations
 
-Source reviewed 2026-11-11; none of these have been confirmed with assistive technology.
+Source reviewed 2026-11-12; none of these have been confirmed with assistive technology.
 
 | # | Severity | Finding | Recommendation |
 |---|---|---|---|
@@ -538,11 +547,17 @@ Remove-Item Env:UX_BROWSERS
 
 ---
 
+### 10.2 Verification on 2026-11-12
+
+- Focused Vitest run: 62 tests passed across four files, covering UTF-8 GitHub environment decoding, Azure tenant prefill/confirmation, stage prerequisite gating/status mapping, and light/dark status colors.
+- Editor diagnostics reported no errors in the modified files; `git diff --check` passed. This focused run does not replace the full-suite baseline or resolve the separately recorded Access Pass telemetry failures.
+
 ## 11. Remaining work
 
 - [x] Add and run representative Firefox/WebKit accessibility and keyboard smoke tests. All 14 opt-in cases pass; actual Safari and authenticated deployment flows remain unverified.
 - [x] Audit browser `dotenv` usage and characterize both API parsing paths. See section 10.1 for build warnings and six passing browser tests.
 - [ ] Replace the Node-oriented browser parser dependency after selecting and approving a compatible browser-only implementation; preserve the characterized `.env` semantics and deployment-side usage.
+- [ ] Confirm which serving layer adds frontend response headers, then define and verify a CSP compatible with Emotion's runtime style injection and the CSS custom properties set on `#root` by `corp.tsx`.
 - [x] Recheck the test-runner and shared-editor failures. Automatic JSX works; scheme-aware editor tokens and a missing mock-helper import are fixed. See dated results in section 10.1.
 - [ ] Fix the three current Access Pass telemetry error-path failures and triage unrelated lint findings separately.
 - [ ] Complete manual 200% browser zoom checks at desktop and narrow widths, and verify Windows High Contrast/reduced-motion behavior on a real platform. Playwright emulation and the 320px viewport check do not replace these checks.
