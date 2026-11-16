@@ -31,6 +31,7 @@ export const ACCESS_PASS_SCOPES = [
 ];
 
 export const GROUPS_SCOPES = ["https://graph.microsoft.com/Group.ReadWrite.All"];
+export const CLAIMS_POLICY_SCOPES = ["https://graph.microsoft.com/Policy.ReadWrite.ApplicationConfiguration"]; // SAML claims of the AWS sign-in app.
 export const ROLE_MANAGEMENT_SCOPES = ["https://graph.microsoft.com/RoleManagement.ReadWrite.Directory"];
 
 // ── Individual Graph application permissions ───────────────────────────────────
