@@ -3,6 +3,12 @@ variable "SUBSCRIPTION_ID" {
   type        = string
 }
 
+variable "PRIV_SHARE" {
+  description = "Resource group containing the deployed private file share storage account."
+  type        = string
+  default     = "privatefileshare-rg"
+}
+
 variable "PAW_LOCATION" {
   description = "Azure region for the AVD resources."
   type        = string
