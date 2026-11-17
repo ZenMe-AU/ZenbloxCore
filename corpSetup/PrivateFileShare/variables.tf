@@ -27,3 +27,9 @@ variable "SERVICE_ACCESS_SUBNET_ADDRESS_PREFIX" {
   type        = string
   default     = "10.251.2.0/26"
 }
+
+variable "PRIVAVD_SESSION_HOST_SUBNET_ID" {
+  description = "Optional PAW session-host subnet ID to allow after PAW is deployed"
+  type        = string
+  default     = null
+}

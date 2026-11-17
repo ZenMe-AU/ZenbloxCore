@@ -12,9 +12,12 @@ resource "azurerm_storage_account" "private_file_share" {
   public_network_access_enabled = true
 
   network_rules {
-    default_action             = "Deny"
-    bypass                     = []
-    virtual_network_subnet_ids = [azurerm_subnet.service_access.id]
+    default_action = "Deny"
+    bypass         = []
+    virtual_network_subnet_ids = concat(
+      [azurerm_subnet.service_access.id],
+      var.PRIVAVD_SESSION_HOST_SUBNET_ID == null ? [] : [var.PRIVAVD_SESSION_HOST_SUBNET_ID]
+    )
   }
 }
 

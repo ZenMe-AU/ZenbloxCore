@@ -17,19 +17,18 @@ data "azurerm_storage_account" "private_file_share" {
   resource_group_name = var.PRIV_SHARE
 }
 
-resource "azurerm_service_endpoint_policy" "private_file_share" {
+resource "azurerm_subnet_service_endpoint_storage_policy" "private_file_share" {
   name                = "${var.HOST_POOL_NAME}-storage-policy"
   location            = azurerm_resource_group.avd.location
   resource_group_name = azurerm_resource_group.avd.name
   tags                = var.TAGS
-}
 
-resource "azurerm_service_endpoint_policy_definition" "private_file_share" {
-  name                       = "private-file-share-only"
-  service_endpoint_policy_id = azurerm_service_endpoint_policy.private_file_share.id
-  description                = "Allow the PrivateFileShare storage account only"
-  service                    = "Microsoft.Storage"
-  service_resources          = [data.azurerm_storage_account.private_file_share.id]
+  definition {
+    name              = "private-file-share-only"
+    description       = "Allow the PrivateFileShare storage account only"
+    service           = "Microsoft.Storage"
+    service_resources = [data.azurerm_storage_account.private_file_share.id]
+  }
 }
 
 /*
@@ -48,9 +47,9 @@ resource "azurerm_subnet" "session_hosts" {
   address_prefixes                = [var.SESSION_HOST_SUBNET_ADDRESS_PREFIX]
   default_outbound_access_enabled = false
   service_endpoints               = ["Microsoft.Storage"]
-  service_endpoint_policy_ids     = [azurerm_service_endpoint_policy.private_file_share.id]
+  service_endpoint_policy_ids     = [azurerm_subnet_service_endpoint_storage_policy.private_file_share.id]
 
-  depends_on = [azurerm_service_endpoint_policy_definition.private_file_share]
+  depends_on = [azurerm_subnet_service_endpoint_storage_policy.private_file_share]
 }
 
 resource "azurerm_network_security_group" "session_hosts" {
