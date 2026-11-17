@@ -482,8 +482,10 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
   const azureConfigured = !!AZURE_CLIENT_ID;
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
-  const status: CardStatus = !azureConfigured ? "error" : done ? "complete" : "warning";
-  const summary = !azureConfigured ? "Unavailable" : done ? (isPrimary ? "Domain verified and primary" : "Domain verified") : "Set up the corp domain";
+  const status: CardStatus = !azureConfigured || creationAccess.status === "error" ? "error" : done ? "complete" : "warning";
+  const summary = !azureConfigured ? "Unavailable"
+    : creationAccess.status === "error" ? "Insufficient permissions to continue"
+      : done ? (isPrimary ? "Domain verified and primary" : "Domain verified") : "Set up the corp domain";
 
   return {
     creationAccess,
