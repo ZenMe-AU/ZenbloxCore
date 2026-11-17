@@ -392,14 +392,16 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
 
   const done = !!missingGroups && missingGroups.length === 0;
   const failed = !!error || steps.some((s) => s.status === "error");
-  const status: CardStatus = !AZURE_CLIENT_ID || failed ? "error" : done ? "complete" : "warning";
+  const status: CardStatus = !AZURE_CLIENT_ID || failed || access.status === "error" ? "error" : done ? "complete" : "warning";
   const summary = !AZURE_CLIENT_ID
     ? "Unavailable"
-    : done
-      ? "Admin groups are in Entra"
-      : missingGroups
-        ? `${missingGroups.length} of ${ADMIN_GROUPS.length} groups missing`
-        : "Checking groups...";
+    : access.status === "error"
+      ? "Insufficient permissions to continue"
+      : done
+        ? "Admin groups are in Entra"
+        : missingGroups
+          ? `${missingGroups.length} of ${ADMIN_GROUPS.length} groups missing`
+          : "Checking groups...";
 
   return {
     cardId: "create_admin_users",

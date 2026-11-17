@@ -5,9 +5,12 @@
 
 import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
+import { ThemeProvider } from "@mui/material";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountInfo } from "@azure/msal-browser";
 import { adminRowErrors, resolveAdmin, useCreateAdminUsersCard, type AdminRow, type UseCreateAdminUsersCard } from "../cards/CreateAdminUsers/useCreateAdminUsersCard";
+import CreateAdminUsersCard from "../cards/CreateAdminUsers/CreateAdminUsersCard";
+import theme from "../theme";
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -26,6 +29,7 @@ const { mocks } = vi.hoisted(() => ({
     listAdminPairs: vi.fn(),
     getUserManagerId: vi.fn(),
     setUserManager: vi.fn(),
+    ensureCardResourceAccess: vi.fn(),
   },
 }));
 
@@ -46,8 +50,16 @@ vi.mock("../api/azureGraph", () => ({
   setUserManager: mocks.setUserManager,
   searchUsers: vi.fn(),
 }));
-vi.mock("../api/azureArm", () => ({ ensureRbacRoleAtScope: mocks.ensureRbacRoleAtScope, ensureRbacRoleEligibility: mocks.ensureRbacRoleEligibility }));
-vi.mock("../hooks/util/useCardResourceAccess", () => ({ useCardResourceAccess: () => ({ status: "ready" }) }));
+vi.mock("../api/azureArm", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../api/azureArm")>(),
+  ensureRbacRoleAtScope: mocks.ensureRbacRoleAtScope,
+  ensureRbacRoleEligibility: mocks.ensureRbacRoleEligibility,
+  ensureCardResourceAccess: mocks.ensureCardResourceAccess,
+}));
+vi.mock("../config/azureConfig", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../config/azureConfig")>(),
+  AZURE_CLIENT_ID: "test-client",
+}));
 vi.mock("../logic/password", () => ({ generateRandomPassword: () => "pw" }));
 
 async function waitFor(assertion: () => void, timeoutMs = 2000) {
@@ -93,6 +105,7 @@ function renderCard() {
 describe("useCreateAdminUsersCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.ensureCardResourceAccess.mockResolvedValue(undefined);
     // Only PrivilegedAccounts is missing; created groups exist from then on.
     const existing = new Set(["PawUsers", "PrivilegedAccountApproved", "DbAdmin-Dev", "DbAdmin-Test", "DbAdmin-Prod", "ResourceGroupDeployer", "LeadDeveloper"]);
     mocks.getGroupByName.mockImplementation(async (_a, name: string) => (existing.has(name) ? { id: `id-${name}`, displayName: name, description: "" } : null));
@@ -116,6 +129,59 @@ describe("useCreateAdminUsersCard", () => {
     mocks.listAdminPairs.mockResolvedValue([]);
     mocks.getUserManagerId.mockResolvedValue(null);
     mocks.setUserManager.mockResolvedValue(undefined);
+  });
+
+  it("shows failed access below Create in prerequisites and recovers after rechecking", async () => {
+    mocks.ensureCardResourceAccess.mockRejectedValue(new Error("Missing role assignment access"));
+    mocks.getEntraLicence.mockResolvedValue("p2");
+    let latest: UseCreateAdminUsersCard | null = null;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    function Harness() {
+      const value = useCreateAdminUsersCard({ azureAccount: account, tenantId: "tenant-1", subscriptionId: "sub-1" });
+      useEffect(() => { latest = value; }, [value]);
+      return (
+        <ThemeProvider theme={theme}>
+          <CreateAdminUsersCard
+            card={{ cardId: "create_admin_users", status: value.status, summary: value.summary, locked: false, requirements: [],
+              unavailable: false, expanded: true, onToggle: vi.fn(), onRequirementClick: vi.fn() }}
+            adminUsers={value}
+          />
+        </ThemeProvider>
+      );
+    }
+    try {
+      await act(async () => root.render(<Harness />));
+      await waitFor(() => expect(latest?.access.status).toBe("error"));
+      expect(latest?.status).toBe("error");
+      expect(latest?.summary).toBe("Insufficient permissions to continue");
+      const create = [...container.querySelectorAll("button")].find((button) => button.textContent === "Create groups and admin accounts")!;
+      expect(create.disabled).toBe(true);
+      expect(create.parentElement?.textContent).toContain("Insufficient permissions to continue");
+      const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="create-admin-users-prerequisites"]')!;
+      expect(create.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+      await act(async () => toggle.click());
+      expect(toggle.getAttribute("aria-expanded")).toBe("true");
+      const panel = container.querySelector('#create-admin-users-prerequisites[role="region"]')!;
+      expect(panel.textContent).toContain("Missing role assignment access");
+      expect([...container.querySelectorAll("button")].filter((button) => button.textContent === "Recheck resource access")).toHaveLength(1);
+      expect(mocks.ensureCardResourceAccess).toHaveBeenLastCalledWith(account, "sub-1", expect.objectContaining({ card: "adminUsers", usePim: true }), "tenant-1");
+
+      mocks.ensureCardResourceAccess.mockResolvedValue(undefined);
+      const retry = [...panel.querySelectorAll("button")].find((button) => button.textContent === "Recheck resource access")!;
+      await act(async () => retry.click());
+      await waitFor(() => expect(latest?.access.status).toBe("ready"));
+      expect(latest?.status).not.toBe("error");
+      expect(create.parentElement?.textContent).not.toContain("Insufficient permissions to continue");
+      expect(container.querySelector('[aria-controls="create-admin-users-prerequisites"]')).toBeNull();
+      await act(async () => latest?.setUsePim(false));
+      expect(mocks.ensureCardResourceAccess).toHaveBeenLastCalledWith(account, "sub-1", expect.objectContaining({ usePim: false }), "tenant-1");
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
   });
 
   it("creates the groups, nesting, roles and admin accounts", async () => {

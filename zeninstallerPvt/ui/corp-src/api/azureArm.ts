@@ -262,7 +262,8 @@ type ArmPermission = { actions: string[]; notActions?: string[] };
 export type ManagementAccessRequirement = { scope: string; actions: readonly string[] };
 
 export type CardResourceAccessRequest = {
-  card: "core" | "domain" | "frontend" | "backend" | "appRegistration" | "backendDeploy" | "webDeploy" | "subscriptionBudget" | "globalGroups";
+  card: "core" | "domain" | "frontend" | "backend" | "appRegistration" | "backendDeploy" | "webDeploy" | "subscriptionBudget" | "globalGroups" | "adminUsers";
+  usePim?: boolean;
   resourceGroup?: string;
   workspace?: string;
   storageAccount?: string;
@@ -302,6 +303,17 @@ export async function ensureCardResourceAccess(
     const root = `/providers/Microsoft.Management/managementGroups/${overrideTenantId || account.tenantId}`;
     const actions = [...RESOURCE_PERMISSIONS.roleAssignments, "Microsoft.Authorization/roleAssignments/delete"];
     await ensureManagementAccess(account, [{ scope: sub, actions }, { scope: root, actions }], overrideTenantId);
+    return;
+  }
+  if (card === "adminUsers") {
+    const root = `/providers/Microsoft.Management/managementGroups/${overrideTenantId || account.tenantId}`;
+    const rootActions = request.usePim
+      ? ["Microsoft.Authorization/roleEligibilitySchedules/read", "Microsoft.Authorization/roleEligibilityScheduleRequests/write"]
+      : ["Microsoft.Authorization/roleAssignments/read", "Microsoft.Authorization/roleAssignments/write"];
+    await ensureManagementAccess(account, [
+      { scope: sub, actions: ["Microsoft.Authorization/roleAssignments/read", "Microsoft.Authorization/roleAssignments/write"] },
+      { scope: root, actions: rootActions },
+    ], overrideTenantId);
     return;
   }
   if (card === "appRegistration") {

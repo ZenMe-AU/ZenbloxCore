@@ -26,15 +26,15 @@ export function formatCardResourceAccessError(error: unknown, card: CardResource
 // pre-flight warning panel for Azure resource permissions
 export function useCardResourceAccess(
   target: AzureTarget,
-  { card, resourceGroup, workspace, storageAccount, dnsZone, appInsights, webPubSub, functionApp, servicePlan }: CardResourceAccessRequest
+  { card, usePim, resourceGroup, workspace, storageAccount, dnsZone, appInsights, webPubSub, functionApp, servicePlan }: CardResourceAccessRequest
 ) {
   const { azureAccount, subscriptionId, tenantId } = target;
   const checkAccess = useCallback(async (account: NonNullable<AzureTarget["azureAccount"]>, subscription: string, tenant?: string) => {
     await ensureCardResourceAccess(account, subscription, {
-      card, resourceGroup, workspace, storageAccount, dnsZone, appInsights, webPubSub, functionApp, servicePlan,
+      card, usePim, resourceGroup, workspace, storageAccount, dnsZone, appInsights, webPubSub, functionApp, servicePlan,
     }, tenant);
     if (card === "webDeploy" && storageAccount) await ensureStaticSiteDataReadAccess(account, storageAccount, tenant);
-  }, [card, resourceGroup, workspace, storageAccount, dnsZone, appInsights, webPubSub, functionApp, servicePlan]);
+  }, [card, usePim, resourceGroup, workspace, storageAccount, dnsZone, appInsights, webPubSub, functionApp, servicePlan]);
   const formatError = useCallback((error: unknown) => formatCardResourceAccessError(error, card), [card]);
   const access = useSubscriptionAccess(target, checkAccess, formatError);
   const [failure, setFailure] = useState<{
