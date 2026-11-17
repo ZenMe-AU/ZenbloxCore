@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountInfo } from "@azure/msal-browser";
 import { adminRowErrors, resolveAdmin, useCreateAdminUsersCard, type AdminRow, type UseCreateAdminUsersCard } from "../cards/CreateAdminUsers/useCreateAdminUsersCard";
 import CreateAdminUsersCard from "../cards/CreateAdminUsers/CreateAdminUsersCard";
+import { createAdminUsersAccess } from "../cards/CreateAdminUsers/config";
 import theme from "../theme";
 
 const { mocks } = vi.hoisted(() => ({
@@ -167,7 +168,7 @@ describe("useCreateAdminUsersCard", () => {
       const panel = container.querySelector('#create-admin-users-prerequisites[role="region"]')!;
       expect(panel.textContent).toContain("Missing role assignment access");
       expect([...container.querySelectorAll("button")].filter((button) => button.textContent === "Recheck resource access")).toHaveLength(1);
-      expect(mocks.ensureCardResourceAccess).toHaveBeenLastCalledWith(account, "sub-1", expect.objectContaining({ card: "adminUsers", usePim: true }), "tenant-1");
+      expect(mocks.ensureCardResourceAccess).toHaveBeenLastCalledWith(account, "sub-1", createAdminUsersAccess(true), "tenant-1");
 
       mocks.ensureCardResourceAccess.mockResolvedValue(undefined);
       const retry = [...panel.querySelectorAll("button")].find((button) => button.textContent === "Recheck resource access")!;
@@ -177,7 +178,7 @@ describe("useCreateAdminUsersCard", () => {
       expect(create.parentElement?.textContent).not.toContain("Insufficient permissions to continue");
       expect(container.querySelector('[aria-controls="create-admin-users-prerequisites"]')).toBeNull();
       await act(async () => latest?.setUsePim(false));
-      expect(mocks.ensureCardResourceAccess).toHaveBeenLastCalledWith(account, "sub-1", expect.objectContaining({ usePim: false }), "tenant-1");
+      expect(mocks.ensureCardResourceAccess).toHaveBeenLastCalledWith(account, "sub-1", createAdminUsersAccess(false), "tenant-1");
     } finally {
       await act(async () => root.unmount());
       container.remove();

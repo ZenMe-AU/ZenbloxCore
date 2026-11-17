@@ -7,7 +7,9 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ensureInstallerSubscriptionAccess, ensureResourceGroupCreationAccess } from "../api/azureArm";
+import { ensureResourceGroupCreationAccess } from "../api/azureArm";
+// import { ensureInstallerSubscriptionAccess } from "../api/azureArm";
+// import { INSTALLER_SUBSCRIPTION_ACTIONS } from "../cards/AzureSubscription/config";
 import { ARM_SCOPES } from "../config/azureConfig";
 import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
 import { useCoreInfraCard } from "../cards/CoreInfra/useCoreInfraCard";
@@ -150,85 +152,88 @@ describe("subscription resource-group creation permissions", () => {
   });
 });
 
-describe("installer subscription permissions", () => {
-  const contributor = { actions: ["*"], notActions: ["Microsoft.Authorization/*/Write", "Microsoft.Authorization/*/Delete"] };
-
-  it.each([
-    [{ actions: ["*"] }],
-    [contributor, { actions: ["Microsoft.Authorization/*"] }],
-    [{ actions: ["*/read", "*/write", "*/action"] }],
-  ])("accepts Owner, Contributor with User Access Administrator, or equivalent custom actions: %j", async (...permissions) => {
-    mocks.azFetch.mockResolvedValue({ value: permissions });
-    await expect(ensureInstallerSubscriptionAccess(account, "sub-1", "tenant-1")).resolves.toBeUndefined();
-    expect(mocks.getToken).toHaveBeenCalledWith(account, ARM_SCOPES, "tenant-1");
-    expect(mocks.azFetch).toHaveBeenCalledWith("arm-token", "https://management.azure.com", permissionsPath);
-  });
-
-  it("warns Contributors about role assignment and lock permissions, not resource-group creation", async () => {
-    mocks.azFetch.mockResolvedValue({ value: [contributor] });
-    const result = ensureInstallerSubscriptionAccess(account, "sub-1");
-    await expect(result).rejects.toThrow("Microsoft.Authorization/roleAssignments/write");
-    await expect(result).rejects.toThrow("Microsoft.Authorization/locks/write");
-    await expect(result).rejects.toThrow("Contributor plus User Access Administrator");
-    await expect(result).rejects.not.toThrow("Microsoft.Resources/subscriptions/resourceGroups/write");
-  });
-
-  it("warns Readers about missing creation permissions", async () => {
-    mocks.azFetch.mockResolvedValue({ value: [{ actions: ["*/read"] }] });
-    const result = ensureInstallerSubscriptionAccess(account, "sub-1");
-    await expect(result).rejects.toThrow("Microsoft.Resources/subscriptions/resourceGroups/write");
-    await expect(result).rejects.toThrow("Microsoft.Storage/storageAccounts/write");
-    await expect(result).rejects.toThrow("Microsoft.Consumption/budgets/write");
-  });
-
-  it.each([
-    "Microsoft.Storage/register/action",
-    "Microsoft.Storage/storageAccounts/blobServices/containers/write",
-    "Microsoft.Storage/storageAccounts/tableServices/tables/write",
-    "Microsoft.OperationalInsights/workspaces/write",
-    "Microsoft.Insights/diagnosticSettings/write",
-    "Microsoft.Network/dnsZones/TXT/write",
-    "Microsoft.Web/sites/config/list/action",
-    "Microsoft.Web/sites/publish/action",
-    "Microsoft.SignalRService/webPubSub/hubs/write",
-    "Microsoft.SignalRService/locations/checkNameAvailability/action",
-  ])("detects an excluded required installer action: %s", async (action) => {
-    mocks.azFetch.mockResolvedValue({ value: [{ actions: ["*"], notActions: [action.toUpperCase()] }] });
-    await expect(ensureInstallerSubscriptionAccess(account, "sub-1")).rejects.toThrow(action);
-  });
-
-  it("combines grants across permission pages before evaluating NotActions", async () => {
-    mocks.azFetch
-      .mockResolvedValueOnce({ value: [contributor], nextLink: `https://management.azure.com${permissionsPath}&$skiptoken=next` })
-      .mockResolvedValueOnce({ value: [{ actions: ["Microsoft.Authorization/*"] }] });
-    await expect(ensureInstallerSubscriptionAccess(account, "sub-1")).resolves.toBeUndefined();
-    expect(mocks.azFetch).toHaveBeenCalledTimes(2);
-  });
-
-  it.each([
-    {},
-    { value: [{ actions: [null] }] },
-    { value: [{ actions: ["*"], notActions: "bad" }] },
-    { value: [], nextLink: "https://unexpected.example/permissions" },
-  ])("never treats malformed permissions as verified: %j", async (page) => {
-    mocks.azFetch.mockResolvedValue(page);
-    await expect(ensureInstallerSubscriptionAccess(account, "sub-1")).rejects.toThrow("Could not verify installer subscription access");
-  });
-
-  it("reports failed verification separately from known missing permissions", async () => {
-    mocks.azFetch.mockRejectedValue(new Error("403 AuthorizationFailed"));
-    await expect(ensureInstallerSubscriptionAccess(account, "sub-1")).rejects.toThrow(
-      /Could not verify installer subscription access.*403 AuthorizationFailed/
-    );
-  });
-
-  it("reports token failures and stops looping pagination", async () => {
-    mocks.getToken.mockRejectedValueOnce(new Error("Sign in again"));
-    await expect(ensureInstallerSubscriptionAccess(account, "sub-1")).rejects.toThrow("Sign in again");
-    mocks.azFetch.mockResolvedValue({ value: [], nextLink: `https://management.azure.com${permissionsPath}` });
-    await expect(ensureInstallerSubscriptionAccess(account, "sub-1")).rejects.toThrow("looping subscription permissions URL");
-  });
-});
+// ensureInstallerSubscriptionAccess is commented out; the subscription card now uses ensureCardResourceAccess.
+// describe("installer subscription permissions", () => {
+//   const contributor = { actions: ["*"], notActions: ["Microsoft.Authorization/*/Write", "Microsoft.Authorization/*/Delete"] };
+//
+//   it.each([
+//     [{ actions: ["*"] }],
+//     [contributor, { actions: ["Microsoft.Authorization/*"] }],
+//     [{ actions: ["*/read", "*/write", "*/action"] }],
+//   ])("accepts Owner, Contributor with User Access Administrator, or equivalent custom actions: %j", async (...permissions) => {
+//     mocks.azFetch.mockResolvedValue({ value: permissions });
+//     await expect(ensureInstallerSubscriptionAccess(account, "sub-1", INSTALLER_SUBSCRIPTION_ACTIONS, "tenant-1")).resolves.toBeUndefined();
+//     expect(mocks.getToken).toHaveBeenCalledWith(account, ARM_SCOPES, "tenant-1");
+//     expect(mocks.azFetch).toHaveBeenCalledWith("arm-token", "https://management.azure.com", permissionsPath);
+//   });
+//
+//   it("warns Contributors about role assignment and lock permissions, not resource-group creation", async () => {
+//     mocks.azFetch.mockResolvedValue({ value: [contributor] });
+//     const result = ensureInstallerSubscriptionAccess(account, "sub-1", INSTALLER_SUBSCRIPTION_ACTIONS);
+//     await expect(result).rejects.toThrow("Microsoft.Authorization/roleAssignments/write");
+//     await expect(result).rejects.toThrow("Microsoft.Authorization/locks/write");
+//     await expect(result).rejects.toThrow("Contributor plus User Access Administrator");
+//     await expect(result).rejects.not.toThrow("Microsoft.Resources/subscriptions/resourceGroups/write");
+//   });
+//
+//   // Readers now pass: the subscription card only needs read, and each card checks its own write access.
+//   // it("warns Readers about missing creation permissions", async () => {
+//   //   mocks.azFetch.mockResolvedValue({ value: [{ actions: ["*/read"] }] });
+//   //   const result = ensureInstallerSubscriptionAccess(account, "sub-1", INSTALLER_SUBSCRIPTION_ACTIONS);
+//   //   await expect(result).rejects.toThrow("Microsoft.Resources/subscriptions/resourceGroups/write");
+//   //   // await expect(result).rejects.toThrow("Microsoft.Storage/storageAccounts/write"); // checked by its card on the resource now
+//   //   await expect(result).rejects.toThrow("Microsoft.Consumption/budgets/write");
+//   // });
+//
+//   it.each([
+//     "Microsoft.Resources/subscriptions/read",
+//     // "Microsoft.Storage/register/action", // checked by its card now; the subscription card only needs read
+//     // "Microsoft.Storage/storageAccounts/blobServices/containers/write", // checked by its card on the resource now
+//     // "Microsoft.Storage/storageAccounts/tableServices/tables/write", // checked by its card on the resource now
+//     // "Microsoft.OperationalInsights/workspaces/write", // checked by its card on the resource now
+//     // "Microsoft.Insights/diagnosticSettings/write", // checked by its card now; the subscription card only needs read
+//     // "Microsoft.Network/dnsZones/TXT/write", // checked by its card on the resource now
+//     // "Microsoft.Web/sites/config/list/action", // checked by its card on the resource now
+//     // "Microsoft.Web/sites/publish/action", // checked by its card on the resource now
+//     // "Microsoft.SignalRService/webPubSub/hubs/write", // checked by its card on the resource now
+//     // "Microsoft.SignalRService/locations/checkNameAvailability/action", // checked by its card now; the subscription card only needs read
+//   ])("detects an excluded required installer action: %s", async (action) => {
+//     mocks.azFetch.mockResolvedValue({ value: [{ actions: ["*"], notActions: [action.toUpperCase()] }] });
+//     await expect(ensureInstallerSubscriptionAccess(account, "sub-1", INSTALLER_SUBSCRIPTION_ACTIONS)).rejects.toThrow(action);
+//   });
+//
+//   it("combines grants across permission pages before evaluating NotActions", async () => {
+//     mocks.azFetch
+//       .mockResolvedValueOnce({ value: [contributor], nextLink: `https://management.azure.com${permissionsPath}&$skiptoken=next` })
+//       .mockResolvedValueOnce({ value: [{ actions: ["Microsoft.Authorization/*"] }] });
+//     await expect(ensureInstallerSubscriptionAccess(account, "sub-1", INSTALLER_SUBSCRIPTION_ACTIONS)).resolves.toBeUndefined();
+//     expect(mocks.azFetch).toHaveBeenCalledTimes(2);
+//   });
+//
+//   it.each([
+//     {},
+//     { value: [{ actions: [null] }] },
+//     { value: [{ actions: ["*"], notActions: "bad" }] },
+//     { value: [], nextLink: "https://unexpected.example/permissions" },
+//   ])("never treats malformed permissions as verified: %j", async (page) => {
+//     mocks.azFetch.mockResolvedValue(page);
+//     await expect(ensureInstallerSubscriptionAccess(account, "sub-1", INSTALLER_SUBSCRIPTION_ACTIONS)).rejects.toThrow("Could not verify installer subscription access");
+//   });
+//
+//   it("reports failed verification separately from known missing permissions", async () => {
+//     mocks.azFetch.mockRejectedValue(new Error("403 AuthorizationFailed"));
+//     await expect(ensureInstallerSubscriptionAccess(account, "sub-1", INSTALLER_SUBSCRIPTION_ACTIONS)).rejects.toThrow(
+//       /Could not verify installer subscription access.*403 AuthorizationFailed/
+//     );
+//   });
+//
+//   it("reports token failures and stops looping pagination", async () => {
+//     mocks.getToken.mockRejectedValueOnce(new Error("Sign in again"));
+//     await expect(ensureInstallerSubscriptionAccess(account, "sub-1", INSTALLER_SUBSCRIPTION_ACTIONS)).rejects.toThrow("Sign in again");
+//     mocks.azFetch.mockResolvedValue({ value: [], nextLink: `https://management.azure.com${permissionsPath}` });
+//     await expect(ensureInstallerSubscriptionAccess(account, "sub-1", INSTALLER_SUBSCRIPTION_ACTIONS)).rejects.toThrow("looping subscription permissions URL");
+//   });
+// });
 
 const cards = [
   { name: "Terraform state backend", useCard: useCoreInfraCard },

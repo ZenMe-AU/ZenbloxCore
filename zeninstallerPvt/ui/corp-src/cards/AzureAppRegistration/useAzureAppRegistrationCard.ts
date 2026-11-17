@@ -17,6 +17,7 @@ import {
   ensureServicePrincipalAccess,
 } from "../../api/azureGraph";
 import { formatCardResourceAccessError, useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { azureAppRegistrationAccess } from "./config";
 import { isConsentError } from "../../logic/consent";
 import { createResultStorage } from "../../logic/resultStorage";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
@@ -104,7 +105,7 @@ export function useAzureAppRegistrationCard({
   // from whichever of these is known: the saved GitHub var, a prior successful run, or the tenant
   // the user has picked but not yet confirmed via a run.
   const effectiveTenantId = tenantId || result?.tenantId || manualTenantId.trim() || undefined;
-  const managementAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId: effectiveTenantId }, { card: "appRegistration" });
+  const managementAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId: effectiveTenantId }, azureAppRegistrationAccess());
   const { check: checkResourceAccess, reportFailure: reportAccessFailure } = managementAccess;
 
   // The app's own save flow always writes AZURE_PLAN_CLIENT_ID equal to AZURE_CLIENT_ID — a saved
@@ -199,7 +200,7 @@ export function useAzureAppRegistrationCard({
         await ensureServicePrincipalAccess(azureAccount, effectiveTenantId);
       } catch (error) {
         reportAccessFailure(error);
-        throw new Error(formatCardResourceAccessError(error, "appRegistration"), { cause: error });
+        throw new Error(formatCardResourceAccessError(error), { cause: error });
       }
       updateStep("graph-access", "done", "Read-only service-principal access verified; Graph enforces create permission during the operation.");
 
@@ -264,7 +265,7 @@ export function useAzureAppRegistrationCard({
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
       const stepMessage = (currentStep === "sp" || currentStep === "graph-access") && (/\b403\b|Authorization_RequestDenied|Insufficient privileges/i.test(msg))
-        ? formatCardResourceAccessError(err, "appRegistration")
+        ? formatCardResourceAccessError(err)
         : msg;
       if (currentStep === "sp" && stepMessage !== msg) reportAccessFailure(err);
       if (currentStep === "rbac" && /^403\b/.test(msg)) reportAccessFailure(err);
@@ -324,7 +325,14 @@ export function useAzureAppRegistrationCard({
               : "Create the app registration";
 
   return {
-    managementAccess,
+    managementAccess: {
+      ...managementAccess,
+      retry: () => {
+        managementAccess.retry();
+        // Rechecks Graph reads only; Graph remains authoritative for app/service-principal writes.
+        if (azureAccount && subscriptionId) void ensureServicePrincipalAccess(azureAccount, effectiveTenantId).catch(reportAccessFailure);
+      },
+    },
     cardId: "azure_app_registration" as const,
     azureAccount,
     appName,

@@ -7,10 +7,11 @@ import { useCallback, useEffect, useState } from "react";
 import JSZip from "jszip";
 import { fetchArtifactZip, fetchStageReport, triggerWorkflow } from "../../api";
 import { getStaticWebsiteUrl } from "../../api/azureArm";
-import { readDeployedSite, recordDeployedSite, uploadStaticSite, type DeployedSite } from "../../api/azureBlob";
-import { getWebStorageAccountName, PRIVATE_RESOURCE_GROUP } from "../../logic/naming";
+import { ensureStaticSiteDataReadAccess, readDeployedSite, recordDeployedSite, uploadStaticSite, type DeployedSite } from "../../api/azureBlob";
+import { getWebStorageAccountName } from "../../logic/naming";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { webDeployAccess } from "./config";
 import type { Account, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
 
 // What the build workflow recorded, as the card reads it back off the Deployments API.
@@ -85,9 +86,7 @@ export function useWebDeployCard({
   const [error, setError] = useState<string | null>(null);
 
   const storageAccountName = variableValues.SITE_STORAGE_ACCOUNT || getWebStorageAccountName(subscriptionId);
-  const managementAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, {
-    card: "webDeploy", resourceGroup: PRIVATE_RESOURCE_GROUP, storageAccount: storageAccountName,
-  });
+  const managementAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, webDeployAccess(storageAccountName));
   const { check: checkResourceAccess, reportFailure: reportAccessFailure } = managementAccess;
   const missingGithubClientId = !(variableValues.VITE_GITHUB_CLIENT_ID ?? "").trim();
   const ready = !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv && !missingGithubClientId;
@@ -181,6 +180,10 @@ export function useWebDeployCard({
     try {
       updateStep("access", "running");
       await checkResourceAccess();
+      await ensureStaticSiteDataReadAccess(azureAccount, storageAccountName, tenantId).catch((e: unknown) => {
+        reportAccessFailure(e);
+        throw e;
+      });
       updateStep("access", "done", "Storage read checked; upload permission is enforced during upload.");
       updateStep("download", "running");
       const mb = (bytes: number) => (bytes / 1_000_000).toFixed(1);

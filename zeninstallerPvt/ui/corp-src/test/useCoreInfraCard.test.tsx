@@ -91,7 +91,8 @@ vi.mock("../api/azureGraph", () => ({
   getExistingSP: apiMocks.getExistingSP,
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../config/azureConfig", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../config/azureConfig")>()),
   get AZURE_CLIENT_ID() {
     return configMocks.azureClientId;
   },

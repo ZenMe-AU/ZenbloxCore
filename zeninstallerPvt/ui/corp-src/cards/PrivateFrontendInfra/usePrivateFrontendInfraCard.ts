@@ -24,6 +24,7 @@ import { createSpaAppRegistration, createServicePrincipal, ensureSpaRedirectUri,
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { privateFrontendInfraAccess } from "./config";
 import {
   DEFAULT_AZURE_LOCATION,
   DIAGNOSTIC_SETTING_NAME,
@@ -103,9 +104,7 @@ export function usePrivateFrontendInfraCard({
   const [siteStorageChecking, setSiteStorageChecking] = useState(false);
   const [siteStorageError, setSiteStorageError] = useState<string | null>(null);
   const webStorageAccountName = siteStorageOverride || variableValues.SITE_STORAGE_ACCOUNT || getWebStorageAccountName(subscriptionId);
-  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, {
-    card: "frontend", resourceGroup: resourceGroupName, workspace: lawName, storageAccount: webStorageAccountName,
-  });
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, privateFrontendInfraAccess(resourceGroupName, lawName, webStorageAccountName));
   const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
 
   const resultMatches = !!result && result.subscriptionId === subscriptionId;

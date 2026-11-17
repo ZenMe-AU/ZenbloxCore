@@ -32,6 +32,7 @@ import type {
 import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../../api";
 import { useAzurePermissions } from "../../hooks/util/useAzurePermissions";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { subscriptionBudgetAccess } from "./stageConfig";
 import { useRemoteTerminal } from "./useRemoteTerminal";
 import { assessPrerequisites, computePlanSummary, isPlanBehind, type PrerequisiteAssessment } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
@@ -759,16 +760,16 @@ function StageCardContent({
   );
 }
 
-function ArmStageCard({ resourceCard, ...props }: Props & { resourceCard: "subscriptionBudget" }) {
+function ArmStageCard(props: Props) {
   const managementAccess = useCardResourceAccess({
     azureAccount: props.azureAccount,
     subscriptionId: props.variableValues.AZURE_SUBSCRIPTION_ID ?? "",
     tenantId: props.variableValues.AZURE_TENANT_ID || undefined,
-  }, { card: resourceCard });
+  }, subscriptionBudgetAccess());
   return <StageCardContent {...props} managementAccess={managementAccess} />;
 }
 
 export default function StageCard(props: Props) {
-  if (props.stageDef.dir === "SubscriptionBudget") return <ArmStageCard {...props} resourceCard="subscriptionBudget" />;
+  if (props.stageDef.dir === "SubscriptionBudget") return <ArmStageCard {...props} />;
   return <StageCardContent {...props} />;
 }

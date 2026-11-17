@@ -94,7 +94,8 @@ vi.mock("../logic/consent", () => ({
   isConsentError: apiMocks.isConsentError,
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../config/azureConfig", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../config/azureConfig")>()),
   get AZURE_CLIENT_ID() {
     return configMocks.azureClientId;
   },

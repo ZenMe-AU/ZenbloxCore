@@ -103,7 +103,8 @@ vi.mock("../api/azureArm", async (importOriginal) => ({
   ensureDnsTxtRecord: vi.fn(),
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../config/azureConfig", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../config/azureConfig")>()),
   AZURE_CLIENT_ID: "client-id",
   ACCESS_PASS_SCOPES: ["access.pass"],
   APP_SCOPES: ["app.scope"],

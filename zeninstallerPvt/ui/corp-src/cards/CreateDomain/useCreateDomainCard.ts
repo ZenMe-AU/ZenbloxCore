@@ -9,6 +9,7 @@ import { APP_SCOPES, DNS_PROVIDERS, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_P
 import { ensureDnsZone, ensureDnsTxtRecord, ensureResourceGroup, ensureLogAnalyticsWorkspace, findDnsZone, listLocations, type AzureLocation } from "../../api/azureArm";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { createDomainAccess } from "./config";
 import {
   getEntraDomain,
   createEntraDomain,
@@ -115,9 +116,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
 
   const resourceGroupName = getCoreResourceGroupName(corpName);
   const lawName = getCoreLogAnalyticsName(corpName);
-  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId: corpName && dnsName ? subscriptionId : "", tenantId }, {
-    card: "domain", resourceGroup: resourceGroupName, workspace: lawName, dnsZone: dnsName,
-  });
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId: corpName && dnsName ? subscriptionId : "", tenantId }, createDomainAccess(resourceGroupName, lawName, dnsName));
   const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
 
   /*

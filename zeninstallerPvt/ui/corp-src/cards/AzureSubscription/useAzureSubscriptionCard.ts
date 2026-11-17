@@ -5,10 +5,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { listSubscriptions, type Subscription } from "../../api/azureGraph";
-import { ensureInstallerSubscriptionAccess } from "../../api/azureArm";
-import { useSubscriptionAccess, type SubscriptionAccess } from "../../hooks/util/useAzureAccessCheck";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
 import { AZURE_CLIENT_ID } from "../../config/azureConfig";
 import { findIgnoreCase } from "../../logic/search";
+import { azureSubscriptionAccess } from "./config";
 import type { UrlRestoreField } from "../../hooks/useUrlStateManager";
 import type { CardHook, CardRequirements, CardStatus, AzureAccount } from "../../types";
 
@@ -21,7 +21,7 @@ export type UseAzureSubscriptionCardParams = {
 };
 
 export interface UseAzureSubscriptionCard extends CardHook {
-  installerAccess: SubscriptionAccess;
+  installerAccess: CardResourceAccess;
   readonly cardId: "azure_subscription";
   subscriptions: Subscription[];
   selectedSubscriptionId: string;
@@ -65,12 +65,12 @@ export function useAzureSubscriptionCard({
   const selectedSubscriptionId = picked?.tenant === pickedTenant ? picked.id : "";
 
   const setSelectedSubscriptionId = (id: string) => setPicked({ tenant: pickedTenant, id });
-  const installerAccess = useSubscriptionAccess({
+  const installerAccess = useCardResourceAccess({
     azureAccount,
     subscriptionId: confirmedTenantId === pickedTenant && subscriptions.some((subscription) => subscription.id === selectedSubscriptionId)
       ? selectedSubscriptionId : "",
     tenantId: confirmedTenantId ?? undefined,
-  }, ensureInstallerSubscriptionAccess);
+  }, azureSubscriptionAccess());
 
   // Reload whenever the account or the confirmed tenant changes — the list is per-tenant.
   useEffect(() => {

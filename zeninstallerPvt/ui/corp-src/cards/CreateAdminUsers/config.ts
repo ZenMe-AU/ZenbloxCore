@@ -3,12 +3,22 @@
  * @license SPDX-License-Identifier: MIT
  */
 
+import type { CardResourceAccessRequest } from "../../api/azureArm";
 import type { EntraLicence } from "../../api/azureGraph";
-import { GROUPS_SCOPES, ORGANIZATION_SCOPES, ROLE_MANAGEMENT_SCOPES, USER_SCOPES } from "../../config/azureConfig";
+import { GROUPS_SCOPES, ORGANIZATION_SCOPES, ROLE_MANAGEMENT_SCOPES, USER_SCOPES, readWrite } from "../../config/azureConfig";
 
 export const CREATE_ADMIN_USERS_TITLE = "Create admin users";
 
 export const ADMIN_USERS_SCOPES = [...GROUPS_SCOPES, ...USER_SCOPES, ...ROLE_MANAGEMENT_SCOPES, ...ORGANIZATION_SCOPES];
+
+// Azure permissions to assign Owner to the admin groups on the subscription and the tenant root management group.
+const ROLE_ASSIGNMENTS = [...readWrite("Microsoft.Authorization/roleAssignments"), "Microsoft.Authorization/roleDefinitions/read"];
+// With PIM the root Owner role is made eligible instead of assigned.
+const ROLE_ELIGIBILITY = ["Microsoft.Authorization/roleEligibilitySchedules/read", "Microsoft.Authorization/roleEligibilityScheduleRequests/write"];
+export const createAdminUsersAccess = (usePim: boolean): CardResourceAccessRequest => ({
+  subscription: ROLE_ASSIGNMENTS,
+  tenantRoot: usePim ? ROLE_ELIGIBILITY : ROLE_ASSIGNMENTS,
+});
 
 export type GroupRole = { directoryRole: "Global Administrator" } | { azureRole: "Owner"; scope: "root" | "subscription" };
 

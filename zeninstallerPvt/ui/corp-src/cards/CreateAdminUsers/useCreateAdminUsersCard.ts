@@ -35,6 +35,7 @@ import type { AzureAccount, CardHook, CardStatus, SetupStep } from "../../types"
 import {
   ADMIN_GROUPS,
   ADMIN_USERS_SCOPES,
+  createAdminUsersAccess,
   CREATE_ADMIN_USERS_TITLE,
   PRIVILEGED_ACCOUNT_GROUPS,
   PRIVILEGED_GROUP,
@@ -159,7 +160,6 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   const [consentRequired, setConsentRequired] = useState(false);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const tid = tenantId || undefined;
-  const access = useCardResourceAccess({ azureAccount, subscriptionId, tenantId: tid }, { card: "adminUsers" });
 
   // The card is done once every group exists; the admins it already made are listed too.
   useEffect(() => {
@@ -221,6 +221,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   const primaryDomain = domains?.find((d) => d.isDefault)?.name ?? "";
   const roleTarget: RoleTarget = licenceAllows("p1", entraLicence) ? "group" : "users";
   const usePim = licenceAllows(PIM_OPTION.needs, entraLicence) && (pimChoice ?? true);
+  const access = useCardResourceAccess({ azureAccount, subscriptionId, tenantId: tid }, createAdminUsersAccess(usePim));
   const rowErrors = adminRowErrors(admins);
   const canRun = !running && !!primaryDomain && access.status === "ready" && licenceAllows("none", entraLicence) && Object.keys(rowErrors).length === 0;
 
