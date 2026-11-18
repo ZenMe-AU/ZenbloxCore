@@ -40,6 +40,7 @@ const { apiMocks } = vi.hoisted(() => ({
     getAppNameByAppId: vi.fn(),
     createAppRegistration: vi.fn(),
     getExistingSP: vi.fn(),
+    hasRbacRole: vi.fn(),
     createServicePrincipal: vi.fn(),
     ensureFederatedCredential: vi.fn(),
     setOidcImmutableSubject: vi.fn(),
@@ -47,6 +48,8 @@ const { apiMocks } = vi.hoisted(() => ({
     isConsentError: vi.fn(),
     rbacStatus: "ready" as "ready" | "missing-role",
     rbacMissingRoles: [] as string[],
+    rbacChecking: false,
+    rbacError: null as string | null,
   },
 }));
 
@@ -70,6 +73,7 @@ vi.mock("../api/azureGraph", () => ({
   getAppNameByAppId: apiMocks.getAppNameByAppId,
   createAppRegistration: apiMocks.createAppRegistration,
   getExistingSP: apiMocks.getExistingSP,
+  hasRbacRole: apiMocks.hasRbacRole,
   createServicePrincipal: apiMocks.createServicePrincipal,
   ensureFederatedCredential: apiMocks.ensureFederatedCredential,
   ensureRbacRole: apiMocks.ensureRbacRole,
@@ -80,7 +84,7 @@ vi.mock("../logic/consent", () => ({
 }));
 
 vi.mock("../cards/AzureAppRegistration/useRbacCheck", () => ({
-  useRbacCheck: vi.fn(() => ({ status: apiMocks.rbacStatus, missingRoles: apiMocks.rbacMissingRoles })),
+  useRbacCheck: vi.fn(() => ({ status: apiMocks.rbacStatus, missingRoles: apiMocks.rbacMissingRoles, checking: apiMocks.rbacChecking, error: apiMocks.rbacError })),
 }));
 
 vi.mock("../config/azureConfig", () => ({
@@ -132,6 +136,7 @@ describe("useAzureAppRegistrationCard", () => {
     apiMocks.getAppNameByAppId.mockResolvedValue("Prefilled App");
     apiMocks.createAppRegistration.mockResolvedValue({ appId: "created-app", id: "app-created" });
     apiMocks.getExistingSP.mockResolvedValue({ id: "sp-existing" });
+    apiMocks.hasRbacRole.mockResolvedValue(true);
     apiMocks.createServicePrincipal.mockResolvedValue({ id: "sp-created" });
     apiMocks.ensureScopeConsent.mockResolvedValue(false);
     apiMocks.ensureFederatedCredential.mockResolvedValue(undefined);
@@ -142,6 +147,8 @@ describe("useAzureAppRegistrationCard", () => {
     });
     apiMocks.rbacStatus = "ready";
     apiMocks.rbacMissingRoles = [];
+    apiMocks.rbacChecking = false;
+    apiMocks.rbacError = null;
   });
 
   it("uses default environments when pipeline valid envs include PROD/TEST", async () => {
@@ -164,6 +171,135 @@ describe("useAzureAppRegistrationCard", () => {
     await act(async () => {
       root.unmount();
     });
+  });
+
+  it.each([null, { clientId: "current-client", tenantId: "tenant-1", subscriptionIds: ["sub-1"] }, { clientId: "old-client", tenantId: "tenant-1", subscriptionIds: ["old-subscription"] }])("requires creation for the current target despite saved variables and RBAC: %j", async (saved) => {
+    if (saved) localStorage.setItem("zeninstaller_azure_result", JSON.stringify(saved));
+    let latest: UseAzureAppRegistrationCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<HookHarness {...baseProps({ variableValues: { AZURE_CLIENT_ID: "current-client", AZURE_PLAN_CLIENT_ID: "current-client" } })} onUpdate={(value) => { latest = value; }} />));
+      await act(async () => latest?.onVariablesComplete(true));
+      expect(latest).toMatchObject({ status: "warning", summary: "Create app registration", done: false });
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it.each(["graph-access", "app", "rbac"])("shows the running %s step instead of a saved ready state", async (step) => {
+    localStorage.setItem("zeninstaller_azure_result", JSON.stringify({ clientId: "existing-app", tenantId: "tenant-1", subscriptionIds: ["sub-1"], target: { accountId: 1, repoId: 456789, appName: "zeninstaller-github", environments: ["PROD", "TEST"] } }));
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    if (step === "graph-access") apiMocks.ensureServicePrincipalAccess.mockReturnValueOnce(pending);
+    else if (step === "app") apiMocks.getExistingApp.mockImplementationOnce(async () => { await pending; return { appId: "existing-app", id: "app-obj" }; });
+    else apiMocks.ensureRbacRole.mockReturnValueOnce(pending);
+    let latest: UseAzureAppRegistrationCard | null = null;
+    let task: Promise<void> | undefined;
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<HookHarness {...baseProps({ variableValues: { AZURE_CLIENT_ID: "existing-app", AZURE_PLAN_CLIENT_ID: "existing-app" } })} onUpdate={(value) => { latest = value; }} />));
+      await act(async () => latest?.onVariablesComplete(true));
+      expect(latest?.status).toBe("complete");
+      await act(async () => { task = latest!.run(); });
+      expect(latest?.steps.find((item) => item.status === "running")?.id).toBe(step);
+      expect(latest?.status).toBe("loading");
+      expect(latest?.summary).toBe(latest?.steps.find((item) => item.status === "running")?.label);
+      expect(latest?.done).toBe(false);
+    } finally {
+      await act(async () => { release(); await task; });
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("reports background access checking and verification failures instead of ready", async () => {
+    apiMocks.rbacChecking = true;
+    let latest: UseAzureAppRegistrationCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    const props = baseProps();
+    const render = () => root.render(<HookHarness {...props} onUpdate={(value) => { latest = value; }} />);
+    try {
+      await act(async () => render());
+      expect(latest).toMatchObject({ status: "loading", summary: "Checking app registration access", done: false });
+      apiMocks.rbacChecking = false;
+      apiMocks.rbacError = "Network unavailable";
+      await act(async () => render());
+      expect(latest).toMatchObject({ status: "error", summary: "Could not verify app registration access", done: false });
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("tracks the actual RBAC request through checking, success, and failure", async () => {
+    const { useRbacCheck: useActualRbacCheck } = await vi.importActual<typeof import("../cards/AzureAppRegistration/useRbacCheck")>("../cards/AzureAppRegistration/useRbacCheck");
+    let release!: () => void;
+    apiMocks.getExistingSP.mockImplementationOnce(async () => { await new Promise<void>((resolve) => { release = resolve; }); return { id: "sp-existing" }; });
+    let check!: ReturnType<typeof useActualRbacCheck>;
+    const props = baseProps();
+    function Harness({ subscriptionId = "sub-1" }) {
+      const value = useActualRbacCheck({ azureAccount: props.azureAccount, subscriptionId, spClientId: "client", tenantId: "tenant-1" });
+      useEffect(() => { check = value; }, [value]);
+      return null;
+    }
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<Harness />));
+      expect(check).toMatchObject({ checking: true, error: null });
+      await act(async () => release());
+      expect(check).toMatchObject({ status: "ready", checking: false, error: null });
+      apiMocks.hasRbacRole.mockRejectedValueOnce(new Error("Network unavailable"));
+      await act(async () => root.render(<Harness subscriptionId="sub-2" />));
+      expect(check).toMatchObject({ status: "unknown", checking: false, error: "Network unavailable" });
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("becomes ready only after creation and saving, and invalidates completion for changed inputs", async () => {
+    let latest: UseAzureAppRegistrationCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />));
+      await act(async () => latest!.run());
+      expect(latest).toMatchObject({ status: "warning", summary: "Save app registration connection details", done: false });
+      await act(async () => latest?.onVariablesComplete(true));
+      expect(latest).toMatchObject({ status: "complete", summary: "App registration ready", done: true });
+      await act(async () => latest?.setAppName("another-registration"));
+      expect(latest).toMatchObject({ status: "warning", summary: "Create app registration", done: false });
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("does not return to green after a failed rerun", async () => {
+    let latest: UseAzureAppRegistrationCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />));
+      await act(async () => latest!.run());
+      await act(async () => latest?.onVariablesComplete(true));
+      expect(latest?.done).toBe(true);
+      apiMocks.getExistingApp.mockRejectedValueOnce(new Error("Creation failed"));
+      await act(async () => latest!.run());
+      expect(latest).toMatchObject({ status: "error", summary: "Failed: Create app registration", done: false });
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("reports fetching the saved app name as activity", async () => {
+    let release!: (name: string) => void;
+    apiMocks.getAppNameByAppId.mockReturnValueOnce(new Promise((resolve) => { release = resolve; }));
+    let latest: UseAzureAppRegistrationCard | null = null;
+    let task: Promise<void> | undefined;
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />));
+      await act(async () => { task = latest!.prefillAppName("client"); });
+      expect(latest).toMatchObject({ status: "loading", summary: "Fetching app registration name", done: false });
+    } finally {
+      await act(async () => { release("Existing app"); await task; });
+      await act(async () => root.unmount());
+    }
   });
 
   it("falls back to PROD/TEST when pipeline valid envs do not include them", async () => {

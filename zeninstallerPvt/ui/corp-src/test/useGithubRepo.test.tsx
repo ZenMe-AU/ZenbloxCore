@@ -290,6 +290,8 @@ describe("useGithubRepo", () => {
 
     await waitFor(() => {
       expect(consoleError).toHaveBeenCalledWith("Failed to fetch branches:", expect.any(Error));
+      expect(latest?.status).toBe("error");
+      expect(latest?.repoError).toContain("Could not load repository branches");
     });
 
     consoleError.mockRestore();
@@ -298,7 +300,7 @@ describe("useGithubRepo", () => {
     });
   });
 
-  it("sets warning when selected repo is not from expected template or template check fails", async () => {
+  it("distinguishes an unsupported template warning from a failed verification request", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     mockApi.checkTemplate.mockResolvedValueOnce({ templateName: "other/template" });
 
@@ -335,8 +337,9 @@ describe("useGithubRepo", () => {
     });
 
     await waitFor(() => {
-      expect(latest?.templateStatus).toBe("not_clone");
-      expect(latest?.status).toBe("warning");
+      expect(latest?.templateStatus).toBe("error");
+      expect(latest?.status).toBe("error");
+      expect(latest?.repoError).toContain("Could not verify repository template");
       expect(consoleError).toHaveBeenCalledWith("Failed to check template:", expect.any(Error));
     });
 
@@ -389,6 +392,49 @@ describe("useGithubRepo", () => {
     await act(async () => {
       root.unmount();
     });
+  });
+
+  it.each(["template", "branches"])("retries a failed %s request when refreshing the repository", async (phase) => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockApi.checkTemplate.mockResolvedValue({ templateName: "ZenMe-AU/ZenbloxCore" });
+    mockApi.fetchBranches.mockResolvedValue([{ name: "main", commit: "sha", protected: false }]);
+    if (phase === "template") mockApi.checkTemplate.mockRejectedValueOnce(new Error("GitHub unavailable"));
+    else mockApi.fetchBranches.mockRejectedValueOnce(new Error("GitHub unavailable"));
+    let latest: UseGithubRepo | null = null;
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<HookHarness user={baseUser()} onUpdate={(value) => { latest = value; }} />));
+      await act(async () => latest?.setSelectedRepo({ id: 1, name: "repo-a" }));
+      expect(latest?.status).toBe("error");
+      expect(latest?.repoError).toContain("GitHub unavailable");
+      await act(async () => latest?.onRefresh());
+      await waitFor(() => {
+        expect(latest?.status).toBe("complete");
+        expect(latest?.repoError).toBeNull();
+        expect(latest?.branchList[0]?.name).toBe("main");
+      });
+    } finally {
+      consoleError.mockRestore();
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("keeps verification loading until the branch request finishes", async () => {
+    mockApi.checkTemplate.mockResolvedValue({ templateName: "ZenMe-AU/ZenbloxCore" });
+    let resolveBranches!: (branches: Branch[]) => void;
+    mockApi.fetchBranches.mockReturnValueOnce(new Promise<Branch[]>((resolve) => { resolveBranches = resolve; }));
+    let latest: UseGithubRepo | null = null;
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<HookHarness user={baseUser()} onUpdate={(value) => { latest = value; }} />));
+      await act(async () => latest?.setSelectedRepo({ id: 1, name: "repo-a" }));
+      expect(latest?.templateStatus).toBe("ready");
+      expect(latest?.status).toBe("loading");
+      await act(async () => resolveBranches([{ name: "main", commit: "sha", protected: false }]));
+      expect(latest?.status).toBe("complete");
+    } finally {
+      await act(async () => root.unmount());
+    }
   });
 
   it("handles repo fetch failures and still marks repos loaded", async () => {
@@ -453,7 +499,8 @@ describe("useGithubRepo", () => {
       await latest?.onClone();
     });
 
-    expect(latest?.cloneError).toBe('Repository "repo-a" already exists');
+    expect(latest?.cloneError).toBeNull();
+    expect(latest?.cloneValidationWarning).toBe('Repository "repo-a" already exists. Select it or choose a different name.');
     expect(mockApi.generateRepo).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -626,7 +673,7 @@ describe("useGithubRepo", () => {
     });
   });
 
-  it("returns early from refresh when account ref is missing", async () => {
+  it("retries account loading from Refresh when no account is selected", async () => {
     let latest: UseGithubRepo | null = null;
     const root = createRoot(document.createElement("div"));
 
@@ -652,7 +699,8 @@ describe("useGithubRepo", () => {
       latest?.onRefresh();
     });
 
-    expect(mockApi.fetchOrgList).not.toHaveBeenCalled();
+    expect(mockApi.fetchOrgList).toHaveBeenCalledOnce();
+    expect(latest?.selectedAccount?.login).toBe("org-one");
     expect(mockApi.fetchRepos).not.toHaveBeenCalled();
 
     await act(async () => {

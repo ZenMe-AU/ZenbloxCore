@@ -21,6 +21,7 @@ import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import FieldLabel from "../../components/FieldLabel";
 import StatusText from "../../components/StatusText";
+import ErrorText from "../../components/ErrorText";
 import { AZURE_APP_REGISTRATIONS_URL, getAppRegistrationUrl } from "./consoleUrls";
 import { AZURE_APP_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
@@ -259,6 +260,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
               )}
 
               {/* App name + create button */}
+              {!running && appReg.rbacError && <ErrorText>{appReg.rbacError}</ErrorText>}
               {steps.length === 0 && (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <Box>
@@ -283,7 +285,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                         px: 2.5,
                       }}
                     >
-                      {rbacMissing ? "Grant Reader access on this subscription" : "Create app registration"}
+                      {rbacMissing ? "Grant Reader access on this subscription" : appReg.done ? "Re-run app registration" : "Create app registration"}
                     </Button>
                     {appReg.managementAccess.status === "error" && (
                       <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -291,7 +293,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                         <Typography color="error.main">Insufficient permissions to continue</Typography>
                       </Box>
                     )}
-                    {varHasAny && !rbacMissing && !spNotFound && (
+                    {varHasAny && !appReg.done && !rbacMissing && !spNotFound && (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                         <Typography color="warning.main">This replaces the saved Azure app IDs for the selected GitHub environment.</Typography>

@@ -8,7 +8,8 @@ import JSZip from "jszip";
 import { fetchArtifactZip, fetchStageReport, triggerWorkflow } from "../../api";
 import { getStaticWebsiteUrl } from "../../api/azureArm";
 import { readDeployedSite, recordDeployedSite, uploadStaticSite, type DeployedSite } from "../../api/azureBlob";
-import { getDeployCardStatus, shouldReportBuildFailure, type BuildFailureReport } from "../../logic/buildStatus";
+import { getDeployCardPresentation, shouldReportBuildFailure, type BuildFailureReport, type DeployCardPresentation } from "../../logic/buildStatus";
+import { getAzureAccessFailureKind } from "../../logic/azureAccessFailure";
 import { getWebStorageAccountName, PRIVATE_RESOURCE_GROUP } from "../../logic/naming";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
@@ -37,7 +38,7 @@ export interface UseWebDeployCardParams {
 
 const BUILD_WORKFLOW = "buildFrontend.yml";
 
-export interface UseWebDeployCard extends CardHook, AzureConfigHook {
+export interface UseWebDeployCard extends CardHook, AzureConfigHook, Omit<DeployCardPresentation, "status" | "summary"> {
   managementAccess: CardResourceAccess;
   readonly cardId: "web_deploy";
   storageAccountName: string;
@@ -95,7 +96,7 @@ export function useWebDeployCard({
   });
   const { check: checkResourceAccess, reportFailure: reportAccessFailure } = managementAccess;
   const missingGithubClientId = !(variableValues.VITE_GITHUB_CLIENT_ID ?? "").trim();
-  const ready = !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv && !missingGithubClientId;
+  const ready = !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv;
 
   const readLatest = useCallback(async () => {
     if (!githubAccount || !repoName || !selectedEnv) return null;
@@ -145,11 +146,12 @@ export function useWebDeployCard({
       setSiteUrl(url);
       setDeployed(url ? await readDeployedSite(azureAccount, storageAccountName, tenantId) : null);
     } catch (e) {
-      setError({ message: e instanceof Error ? e.message : "Could not read what is live", summary: "Deployment error" });
+      if (getAzureAccessFailureKind(e) !== "request") reportAccessFailure(e);
+      else setError({ message: e instanceof Error ? e.message : "Could not read what is live", summary: "Deployment error" });
     } finally {
       setLoadingDeployed(false);
     }
-  }, [azureAccount, subscriptionId, storageAccountName, tenantId]);
+  }, [azureAccount, subscriptionId, storageAccountName, tenantId, reportAccessFailure]);
 
   // Deferred so the loading flag is not set during the render that schedules this.
   useEffect(() => {
@@ -187,7 +189,7 @@ export function useWebDeployCard({
   }, [githubAccount, repoName, selectedEnv, latest, readLatest, lastFailure]);
 
   const run = useCallback(async () => {
-    if (!azureAccount || !githubAccount || !repoName || !latest || !storageAccountName) return;
+    if (!azureAccount || !githubAccount || !repoName || !latest || !storageAccountName || missingGithubClientId) return;
     if (latest.artifactId == null) {
       setError({ message: "The latest build did not publish a site artifact.", summary: "Build error" });
       return;
@@ -233,12 +235,12 @@ export function useWebDeployCard({
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setError({ message, summary: "Deployment error" });
-      if (/^403\b/.test(message)) reportAccessFailure(e);
+      if (getAzureAccessFailureKind(e) !== "request") reportAccessFailure(e);
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error", detail: message } : s)));
     } finally {
       setRunning(false);
     }
-  }, [azureAccount, githubAccount, repoName, latest, storageAccountName, tenantId, readDeployed, setRunning, setSteps, updateStep, checkResourceAccess, reportAccessFailure]);
+  }, [azureAccount, githubAccount, repoName, latest, storageAccountName, tenantId, readDeployed, setRunning, setSteps, updateStep, checkResourceAccess, reportAccessFailure, missingGithubClientId]);
 
   const reset = useCallback(() => {
     resetSteps();
@@ -256,25 +258,12 @@ export function useWebDeployCard({
 
   const checking = loadingLatest || loadingDeployed;
   // Keep the header aligned with the actual operation instead of leaving a stale warning during work or failure.
-  const status = getDeployCardStatus({ ready, hasError: !!error, busy: checking || building || running, done });
-  // Name the missing setting directly so this summary matches the actionable prerequisite wording used by other cards.
-  const summary = missingGithubClientId
-    ? "VITE_GITHUB_CLIENT_ID not set"
-    : !ready
-      ? "Unavailable"
-      : error
-        ? error.summary
-        : building
-          ? "Building frontend"
-          : running
-            ? "Deploying frontend"
-            : checking
-              ? "Checking build and deployment"
-              : done
-                ? `Deployed ${latest?.sha.slice(0, 7)}`
-                : updateAvailable
-                  ? "Ready to deploy the new build"
-                  : "Build the frontend";
+  const presentation = getDeployCardPresentation({
+    ready, errorSummary: error?.summary, inputWarning: missingGithubClientId ? "VITE_GITHUB_CLIENT_ID not set" : undefined,
+    access: managementAccess,
+    busySummary: building ? "Building frontend" : running ? "Deploying frontend" : checking ? "Checking build and deployment" : undefined,
+    done, doneSummary: `Deployed ${latest?.sha.slice(0, 7)}`, updateAvailable, buildSummary: "Build the frontend",
+  });
 
   return {
     managementAccess,
@@ -296,8 +285,7 @@ export function useWebDeployCard({
     steps,
     running,
     done,
-    status,
-    summary,
+    ...presentation,
     run,
     reset,
     cardRequirements: ["github_login", "repo", "azure_login", "private_frontend_infra"],

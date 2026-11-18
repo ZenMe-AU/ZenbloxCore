@@ -7,7 +7,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ensureInstallerSubscriptionAccess, ensureResourceGroupCreationAccess } from "../api/azureArm";
+import { ensureInstallerSubscriptionAccess, ensureManagementAccess, ensureResourceGroupCreationAccess, listLocations, findStorageAccountGroup } from "../api/azureArm";
+import { getAzureAccessFailureKind, MissingAzureAccessError } from "../logic/azureAccessFailure";
+import { useSubscriptionAccess, type SubscriptionAccess } from "../hooks/util/useAzureAccessCheck";
+import { useCardResourceAccess, type CardResourceAccess } from "../hooks/util/useAzureCardAccess";
 import { ARM_SCOPES } from "../config/azureConfig";
 import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
 import { useCoreInfraCard } from "../cards/CoreInfra/useCoreInfraCard";
@@ -147,6 +150,157 @@ describe("subscription resource-group creation permissions", () => {
     mocks.azFetch.mockResolvedValue({ value: [], nextLink: "https://unexpected.example/permissions" });
     await expect(ensureResourceGroupCreationAccess(account, "sub-1")).rejects.toThrow("unexpected subscription permissions URL");
     expect(mocks.azFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("backend environment activity", () => {
+  const variableValues = {
+    ...Object.fromEntries(DEPLOYMENT_TERMINAL_KEYS.map((key) => [key, "saved-value"])),
+    API_STORAGE_ACCOUNT: "teststorage123", WEBPUBSUB_ENDPOINT: "test-wps.webpubsub.azure.com", VITE_API_URL: "https://test-function.azurewebsites.net",
+  };
+  let latest!: ReturnType<typeof useRemoteTerminalInfraCard>;
+  function Harness() {
+    latest = useRemoteTerminalInfraCard({
+      azureAccount: account, subscriptionId: "sub-1", tenantId: "tenant-1", variableValues,
+      allowedOrigins: [], githubAccount: { login: "example", id: 1, type: "User" }, githubRepo: "repo", githubRepoId: 1, githubEnvName: "PROD",
+    });
+    return null;
+  }
+  const allowAccess = () => mocks.azFetch.mockImplementation(async (_token: string, _origin: string, path: string) =>
+    path.includes("/permissions?") ? { value: [{ actions: ["*"] }] } : { value: [] }
+  );
+
+  it("does not report saved configuration ready while resource access is being checked", async () => {
+    mocks.getToken.mockReturnValue(new Promise<string>(() => {}));
+    const variableValues = Object.fromEntries(DEPLOYMENT_TERMINAL_KEYS.map((key) => [key, "saved-value"]));
+    let latest!: ReturnType<typeof useRemoteTerminalInfraCard>;
+    function Harness() {
+      latest = useRemoteTerminalInfraCard({
+        azureAccount: account, subscriptionId: "sub-1", tenantId: "tenant-1", variableValues,
+        allowedOrigins: [], githubAccount: null, githubRepo: "repo", githubRepoId: 1, githubEnvName: "PROD",
+      });
+      return null;
+    }
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Harness />));
+    expect(latest.done).toBe(true);
+    expect(latest.creationAccess.status).toBe("checking");
+    expect(latest.status).toBe("loading");
+    expect(latest.summary).toBe("Checking Azure resource access");
+  });
+
+  it("shows fetching regions until the request finishes, including an empty successful list", async () => {
+    allowAccess();
+    let release!: (locations: []) => void;
+    vi.mocked(listLocations).mockReturnValueOnce(new Promise((resolve) => { release = resolve; }));
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Harness />));
+    expect(latest).toMatchObject({ status: "loading", summary: "Fetching Azure regions", locationsLoading: true });
+    await act(async () => release([]));
+    expect(latest).toMatchObject({ status: "complete", summary: "Backend environment ready", locationsLoading: false });
+  });
+
+  it("shows the active setup step and does not go green after that step fails", async () => {
+    allowAccess();
+    let release!: () => void;
+    mocks.ensureRegistered.mockImplementationOnce(async () => { await new Promise<void>((resolve) => { release = resolve; }); throw new Error("Registration failed"); });
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Harness />));
+    let task: Promise<void> | undefined;
+    try {
+      await act(async () => { task = latest.run(); });
+      expect(latest).toMatchObject({ status: "loading", summary: "Register required Azure resource providers", running: true });
+    } finally {
+      await act(async () => { release(); await task; });
+    }
+    expect(latest).toMatchObject({ status: "error", summary: "Failed: Register required Azure resource providers", running: false });
+  });
+
+  it("shows a resource-name check instead of the saved ready state", async () => {
+    allowAccess();
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Harness />));
+    let release!: (group: string) => void;
+    vi.mocked(findStorageAccountGroup).mockReturnValueOnce(new Promise((resolve) => { release = resolve; }));
+    let task: Promise<boolean> | undefined;
+    try {
+      await act(async () => { task = latest.checkStorageAccount(); });
+      expect(latest).toMatchObject({ status: "loading", summary: "Checking storage account name", storageChecking: true });
+    } finally {
+      await act(async () => { release("existing-rg"); await task; });
+    }
+    expect(latest).toMatchObject({ status: "complete", summary: "Backend environment ready" });
+  });
+});
+
+describe("deployment access failure classification", () => {
+  it("distinguishes confirmed missing grants from an unsuccessful permission lookup", async () => {
+    const requirements = [{ scope: "/subscriptions/sub-1", actions: [writeAction] }];
+    await expect(ensureManagementAccess(account, requirements)).rejects.toBeInstanceOf(MissingAzureAccessError);
+    const denied = new Error("403 /subscriptions/sub-1: AuthorizationFailed");
+    mocks.azFetch.mockRejectedValueOnce(denied);
+    await expect(ensureManagementAccess(account, requirements)).rejects.toMatchObject({ cause: denied });
+  });
+
+  it.each([
+    { error: new MissingAzureAccessError("Missing grants"), kind: "permission" },
+    { error: new Error("401 /subscriptions/sub-1: Unauthorized"), kind: "authentication" },
+    { error: new Error("403 /subscriptions/sub-1: Forbidden"), kind: "permission" },
+    { error: new Error("Storage read failed", { cause: new Error("403 /$web: Forbidden") }), kind: "permission" },
+    { error: { status: 403 }, kind: "permission" },
+    { error: { errorCode: "interaction_required" }, kind: "authentication" },
+    { error: new Error("503 /subscriptions/sub-1: Unavailable"), kind: "request" },
+    { error: new Error("Network unavailable"), kind: "request" },
+    { error: new Error("Azure returned an invalid subscription permissions response"), kind: "request" },
+    { error: new Error("Missing permissions guidance alone is not proof of denial"), kind: "request" },
+  ])("classifies $kind without relying on remediation text: $error", ({ error, kind }) => {
+    expect(getAzureAccessFailureKind(error)).toBe(kind);
+  });
+
+  it("preserves reported card failures and clears them on retry or target change", async () => {
+    let access!: CardResourceAccess;
+    function Harness({ subscriptionId = "sub-1" }) {
+      access = useCardResourceAccess({ azureAccount: account, subscriptionId }, { card: "backendDeploy", resourceGroup: "rg", functionApp: "app" });
+      return null;
+    }
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Harness />));
+    expect(access).toMatchObject({ status: "error", failureKind: "permission" });
+    await act(async () => access.reportFailure(new Error("401 /subscriptions/sub-1: Unauthorized")));
+    expect(access).toMatchObject({ status: "error", failureKind: "authentication" });
+    mocks.azFetch.mockImplementation(async (_token: string, _origin: string, path: string) =>
+      path.includes("/permissions?") ? { value: [{ actions: ["*"] }] } : { value: [] }
+    );
+    await act(async () => access.retry());
+    expect(access).toMatchObject({ status: "ready", failureKind: null, error: null });
+    const requestFailure = new Error("Network unavailable");
+    await act(async () => access.reportFailure(requestFailure));
+    expect(access).toMatchObject({ status: "error", failureKind: "request", error: "Network unavailable" });
+    mocks.getToken.mockImplementation(() => new Promise<string>(() => {}));
+    await act(async () => root!.render(<Harness subscriptionId="sub-2" />));
+    expect(access).toMatchObject({ status: "checking", failureKind: null, error: null });
+  });
+
+  it("preserves classification before formatting and clears it on retry or target change", async () => {
+    const check = vi.fn().mockRejectedValue(new MissingAzureAccessError("Missing grants"));
+    const format = () => "Formatted access details";
+    let access!: SubscriptionAccess;
+    function Harness({ subscriptionId = "sub-1" }) {
+      access = useSubscriptionAccess({ azureAccount: account, subscriptionId }, check, format);
+      return null;
+    }
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(<Harness />));
+    expect(access).toMatchObject({ status: "error", failureKind: "permission", error: "Formatted access details" });
+    check.mockImplementation(() => new Promise<void>(() => {}));
+    await act(async () => access.retry());
+    expect(access).toMatchObject({ status: "checking", failureKind: null, error: null });
+    check.mockResolvedValue(undefined);
+    await act(async () => access.retry());
+    expect(access).toMatchObject({ status: "ready", failureKind: null, error: null });
+    check.mockImplementation(() => new Promise<void>(() => {}));
+    await act(async () => root!.render(<Harness subscriptionId="sub-2" />));
+    expect(access).toMatchObject({ status: "checking", failureKind: null, error: null });
   });
 });
 

@@ -9,7 +9,8 @@ import theme from "../theme";
 
 const mocks = vi.hoisted(() => ({
 	access: {
-		status: "error" as "error" | "ready",
+		status: "error" as "idle" | "checking" | "error" | "ready",
+		failureKind: "permission" as "permission" | "authentication" | "request" | null,
 		error: "Missing Azure management permissions" as string | null,
 		retry: vi.fn(),
 		check: vi.fn(),
@@ -69,6 +70,7 @@ describe("useBackendDeployCard", () => {
 		vi.clearAllMocks();
 		mocks.access.status = "ready";
 		mocks.access.error = null;
+		mocks.access.failureKind = null;
 		mocks.fetchStageReport.mockImplementation(async (_account, _repo, _env, dir) =>
 			dir === "backend" ? { stage: build, createdAt: 20_000 } : null
 		);
@@ -210,11 +212,53 @@ describe("useBackendDeployCard", () => {
 		expect(hook.current().error).toBe("Dispatch failed");
 		await act(async () => { hook.root.unmount(); });
 	});
+
+	it.each([
+		{ kind: "permission" as const, status: "warning", summary: "Insufficient permissions to deploy" },
+		{ kind: "authentication" as const, status: "warning", summary: "Sign in again to check deployment access" },
+		{ kind: "request" as const, status: "error", summary: "Unable to verify deployment access" },
+	])("uses $status for $kind access failures even when already deployed", async ({ kind, status, summary }) => {
+		mocks.access.status = "error";
+		mocks.access.failureKind = kind;
+		mocks.access.error = "Access details";
+		mocks.fetchDeployedBackend.mockResolvedValue({ version: build.version, sha: build.sha });
+		const hook = await mount();
+		expect(hook.current()).toMatchObject({ status, summary, showReady: false, showCurrent: false });
+		await act(async () => hook.root.unmount());
+	});
+
+	it.each(["idle", "checking"] as const)("does not claim readiness when access is %s", async (status) => {
+		mocks.access.status = status;
+		const hook = await mount();
+		expect(hook.current()).toMatchObject({ status: "loading", summary: "Checking deployment access", showReady: false, showCurrent: false });
+		await act(async () => hook.root.unmount());
+	});
+
+	it("keeps a build failure red when permission is also missing", async () => {
+		mocks.access.status = "error";
+		mocks.access.failureKind = "permission";
+		const hook = await mount();
+		mocks.triggerWorkflow.mockRejectedValueOnce(new Error("Dispatch failed"));
+		await act(async () => hook.current().build());
+		expect(hook.current()).toMatchObject({ status: "error", summary: "Build error", showReady: false });
+		await act(async () => hook.root.unmount());
+	});
+
+	it("keeps an actual denied deployment red and reports the access failure", async () => {
+		const hook = await mount();
+		const denied = new Error("403 /subscriptions/sub-1: Forbidden");
+		mocks.fetchArtifactZip.mockRejectedValueOnce(denied);
+		await act(async () => hook.current().run());
+		expect(hook.current()).toMatchObject({ status: "error", summary: "Deployment error", showReady: false });
+		expect(mocks.access.reportFailure).toHaveBeenCalledWith(denied);
+		await act(async () => hook.root.unmount());
+	});
 });
 
 describe("backend deploy permission errors", () => {
 	it("shows a separate prerequisites section below Deploy and restores status after a recheck", async () => {
 		mocks.access.status = "error";
+		mocks.access.failureKind = "permission";
 		mocks.access.error = "Missing Azure management permissions";
 		mocks.access.retry.mockReset();
 		mocks.fetchStageReport.mockResolvedValue({
@@ -253,7 +297,10 @@ describe("backend deploy permission errors", () => {
 		try {
 			await act(async () => root.render(<Harness />));
 			expect(Array.from(container.querySelectorAll('[role="alert"]')).some((alert) => alert.textContent?.includes("Insufficient permissions to deploy"))).toBe(true);
+			expect(container.textContent).not.toContain("Ready to deploy the new build");
 			const deploy = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Deploy")!;
+			expect(container.querySelector('[data-testid="ErrorOutlineIcon"]')).toBeNull();
+			expect(container.querySelector('[data-testid="WarningAmberIcon"]')).not.toBeNull();
 			const buildButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Build")!;
 			expect(deploy.disabled).toBe(true);
 			expect(buildButton.disabled).toBe(false);
@@ -271,13 +318,16 @@ describe("backend deploy permission errors", () => {
 			expect(mocks.access.retry).toHaveBeenCalledOnce();
 			mocks.access.status = "ready";
 			mocks.access.error = null;
+			mocks.access.failureKind = null;
 			await act(async () => root.render(<Harness />));
 			expect(Array.from(container.querySelectorAll('[role="status"]')).some((status) => status.textContent?.includes("Ready to deploy the new build"))).toBe(true);
 			expect(deploy.disabled).toBe(false);
 			expect(container.querySelector('[aria-controls="backend-deploy-prerequisites"]')).toBeNull();
 			mocks.access.status = "error";
 			mocks.access.error = "Missing Azure management permissions";
+			mocks.access.failureKind = "permission";
 			await act(async () => root.render(<Harness />));
+			expect(container.textContent).not.toContain("Ready to deploy the new build");
 			const restoredToggle = container.querySelector<HTMLButtonElement>('[aria-controls="backend-deploy-prerequisites"]')!;
 			expect(restoredToggle.getAttribute("aria-expanded")).toBe("true");
 			await act(async () => restoredToggle.click());

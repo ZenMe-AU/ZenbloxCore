@@ -100,7 +100,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro storageAccountName={storageAccountName} />
-        <AzureAccessCheck access={web.managementAccess} resourceAccess />
+        <AzureAccessCheck access={web.managementAccess} resourceAccess errorStyle={web.accessNotice?.severity === "error"} />
 
         <CloudVariableDetail
           account={githubAccount}
@@ -169,7 +169,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           </Box>
         )}
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
           <Button
             onClick={() => void build()}
             disabled={loadingLatest || building || running || missingGithubClientId}
@@ -208,7 +208,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             )}
           </Button>
 
-          {!error && !building && !running && !loadingLatest && !loadingDeployed && updateAvailable && deployed && (
+          {web.showReady && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
               <Typography color="warning.dark">Ready to deploy the new build</Typography>
@@ -217,7 +217,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
         </Box>
 
         {/* Only show a stable deployment result after reads and operations finish; the endpoint link can remain visible meanwhile. */}
-        {!error && !building && !running && !loadingLatest && !loadingDeployed && latest && !updateAvailable ? (
+        {web.showCurrent ? (
           <Box sx={{ backgroundColor: "background.default", border: "1px solid", borderColor: "success.light", borderRadius: 1, px: 2, py: 1.25 }}>
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2", color: "success.main" }} />

@@ -4,6 +4,7 @@
  */
 
 import type { CardStatus } from "../types";
+import type { SubscriptionAccess } from "../hooks/util/useAzureAccessCheck";
 
 export type BuildFailureReport = { runId: string; reportedAt: number };
 
@@ -14,6 +15,43 @@ export function getDeployCardStatus({ ready, hasError, busy, done, hasAccessErro
   if (hasAccessError) return "warning";
   if (busy) return "loading";
   return done ? "complete" : "warning";
+}
+
+export type DeployCardPresentation = {
+  status: CardStatus;
+  summary: string;
+  accessNotice: { summary: string; severity: "warning" | "error" } | null;
+  showReady: boolean;
+  showCurrent: boolean;
+};
+
+export function getDeployCardPresentation({ ready, errorSummary, inputWarning, access, busySummary, done, doneSummary, updateAvailable, buildSummary, versionUnavailable = false }: {
+  ready: boolean;
+  errorSummary?: string;
+  inputWarning?: string;
+  access: Pick<SubscriptionAccess, "status" | "failureKind">;
+  busySummary?: string;
+  done: boolean;
+  doneSummary: string;
+  updateAvailable: boolean;
+  buildSummary: string;
+  versionUnavailable?: boolean;
+}): DeployCardPresentation {
+  const accessNotice: DeployCardPresentation["accessNotice"] = access.status !== "error" ? null
+    : access.failureKind === "permission" ? { summary: "Insufficient permissions to deploy", severity: "warning" }
+    : access.failureKind === "authentication" ? { summary: "Sign in again to check deployment access", severity: "warning" }
+    : { summary: "Unable to verify deployment access", severity: "error" };
+  const accessError = accessNotice?.severity === "error";
+  const status = getDeployCardStatus({
+    ready, hasError: !!errorSummary || accessError, hasAccessError: !!inputWarning || !!accessNotice,
+    busy: !!busySummary || access.status !== "ready", done,
+  });
+  const summary = !ready ? "Unavailable"
+    : errorSummary ?? (accessError ? accessNotice.summary : undefined)
+      ?? inputWarning ?? accessNotice?.summary ?? busySummary
+      ?? (access.status !== "ready" ? "Checking deployment access" : done ? doneSummary : updateAvailable ? "Ready to deploy the new build" : buildSummary);
+  const showVersionGuidance = ready && !errorSummary && !inputWarning && access.status === "ready" && !busySummary && !versionUnavailable;
+  return { status, summary, accessNotice, showReady: showVersionGuidance && updateAvailable, showCurrent: showVersionGuidance && done };
 }
 
 // Ignore an old failure when a newer success exists; run IDs break ties when reports share a timestamp.

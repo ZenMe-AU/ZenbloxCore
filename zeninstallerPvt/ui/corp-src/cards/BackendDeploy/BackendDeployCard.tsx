@@ -94,7 +94,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
         )}
 
         {/* Wait for both version reads before enabling actions so initial null state is not mistaken for current state. */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
           <Button
             onClick={() => void build()}
             disabled={loadingLatest || building || running}
@@ -133,22 +133,26 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
             )}
           </Button>
 
-          {backend.managementAccess.status === "error" && (
+          {backend.accessNotice && (
             <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
-              <Typography color="error.main">Insufficient permissions to deploy</Typography>
+              {backend.accessNotice.severity === "error" ? (
+                <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+              ) : (
+                <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+              )}
+              <Typography color={backend.accessNotice.severity === "error" ? "error.main" : "warning.dark"}>{backend.accessNotice.summary}</Typography>
             </Box>
           )}
 
           {/* Show stable version guidance only; errors, active work, and incomplete reads take precedence. */}
-          {!error && !building && !running && !loadingLatest && !loadingDeployed && !deployedUnavailable && latest && !updateAvailable && (
+          {backend.showCurrent && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2", color: "success.main" }} />
               <Typography color="success.dark">The Function App is running the latest build.</Typography>
             </Box>
           )}
 
-          {!error && !building && !running && !loadingLatest && !loadingDeployed && !deployedUnavailable && updateAvailable && (
+          {backend.showReady && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
               <Typography color="warning.dark">Ready to deploy the new build</Typography>
@@ -167,7 +171,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
 
         {(backend.managementAccess.status === "checking" || backend.managementAccess.status === "error") && (
           <Prerequisites id="backend-deploy-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
-            <AzureAccessCheck access={backend.managementAccess} resourceAccess errorStyle />
+            <AzureAccessCheck access={backend.managementAccess} resourceAccess errorStyle={backend.accessNotice?.severity === "error"} />
           </Prerequisites>
         )}
       </Box>

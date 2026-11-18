@@ -13,7 +13,8 @@ import {
   type DeployedBackend,
 } from "../../api/azureArm";
 import { PRIVATE_RESOURCE_GROUP, functionAppFromApiUrl, getFunctionAppName } from "../../logic/naming";
-import { getDeployCardStatus, shouldReportBuildFailure, type BuildFailureReport } from "../../logic/buildStatus";
+import { getDeployCardPresentation, shouldReportBuildFailure, type BuildFailureReport, type DeployCardPresentation } from "../../logic/buildStatus";
+import { getAzureAccessFailureKind } from "../../logic/azureAccessFailure";
 import { BACKEND_VERSION_KEYS } from "../../config/azureConfig";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
@@ -41,7 +42,7 @@ export interface UseBackendDeployCardParams {
 
 const BUILD_WORKFLOW = "buildBackend.yml";
 
-export interface UseBackendDeployCard extends CardHook, AzureConfigHook {
+export interface UseBackendDeployCard extends CardHook, AzureConfigHook, Omit<DeployCardPresentation, "status" | "summary"> {
   managementAccess: CardResourceAccess;
   readonly cardId: "backend_deploy";
   appName: string;
@@ -158,7 +159,7 @@ export function useBackendDeployCard({
       if (sequence !== deployedReadSequence.current) return;
       setDeployedUnavailable(true);
       const message = { message: e instanceof Error ? e.message : "Could not read the deployed version", summary: "Deployment error" };
-      if (/^403 \/subscriptions\//.test(message)) reportAccessFailure(e);
+      if (getAzureAccessFailureKind(e) !== "request") reportAccessFailure(e);
       else setError(message);
     } finally {
       if (sequence === deployedReadSequence.current) setLoadingDeployed(false);
@@ -261,8 +262,8 @@ export function useBackendDeployCard({
       await readDeployed();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      if (/^403 \/subscriptions\//.test(message)) reportAccessFailure(e);
-      else setError({ message, summary: "Deployment error" });
+      if (getAzureAccessFailureKind(e) !== "request") reportAccessFailure(e);
+      setError({ message, summary: "Deployment error" });
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error", detail: message } : s)));
     } finally {
       setRunning(false);
@@ -281,8 +282,11 @@ export function useBackendDeployCard({
 
   const checking = loadingLatest || loadingDeployed;
   // Loading and errors outrank version comparison, which can otherwise present an outdated ready/deployed state.
-  const status = getDeployCardStatus({ ready, hasError: !!error, busy: checking || building || running, done, hasAccessError: managementAccess.status === "error" });
-  const summary = !ready ? "Unavailable" : managementAccess.status === "error" ? "Insufficient permissions to deploy": error ? error.summary : building ? "Building backend" : running ? "Deploying backend" : checking ? "Checking build and deployment" : done ? `Deployed ${latest?.sha.slice(0, 7)}` : updateAvailable ? "Ready to deploy the new build" : "Build the backend";
+  const presentation = getDeployCardPresentation({
+    ready, errorSummary: error?.summary, access: managementAccess,
+    busySummary: building ? "Building backend" : running ? "Deploying backend" : checking ? "Checking build and deployment" : undefined,
+    done, doneSummary: `Deployed ${latest?.sha.slice(0, 7)}`, updateAvailable, buildSummary: "Build the backend", versionUnavailable: deployedUnavailable,
+  });
 
   return {
     managementAccess: {
@@ -308,8 +312,7 @@ export function useBackendDeployCard({
     steps,
     running,
     done,
-    status,
-    summary,
+    ...presentation,
     run,
     reset,
     cardRequirements: ["github_login", "repo", "azure_login", "remote_terminal_infra"],

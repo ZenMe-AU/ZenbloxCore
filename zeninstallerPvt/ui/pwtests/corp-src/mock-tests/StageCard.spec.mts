@@ -3,17 +3,19 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-// UI component: ../../../corp-src/cards/Stage/StageCard.tsx (all six mounted pipeline stages)
+// UI component: ../../../corp-src/cards/Stage/StageCard.tsx (all five mounted pipeline stages)
 import { expect, type BrowserContext, type Locator, type Page, type TestInfo } from "@playwright/test";
 import JSZip from "jszip";
 import { test, getViewportName } from "../../../../../.playwright/viewportFixture.mjs";
 import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
+import { PRIVAVD_GALLERY_DIR } from "../../../corp-src/cards/AvdGallery/config.ts";
+import { PRIVAVD_IMAGE_DIR } from "../../../corp-src/cards/PawImage/config.ts";
+import { PRIVAVD_PAW_DIR } from "../../../corp-src/cards/PawDeploy/config.ts";
 import { GITHUB_API_URL, MICROSOFT_GRAPH_URL } from "../../testInit.js";
 import { prepareCardMocks, replyJson } from "../util/mockCardSetup.mts";
 
 const stages = [
   { dir: "SubscriptionBudget", snapshotDir: "c01subscription", title: "Azure subscription budget" },
-  { dir: "GlobalGroups", snapshotDir: "c02globalGroups", title: "Organisation security groups" },
   { dir: "UserAccounts", snapshotDir: "c07userAccounts", title: "User accounts and sign-in" },
   { dir: "AwsEntraSso", snapshotDir: "c20awsentrasso", title: "AWS single sign-on with Entra ID" },
   { dir: "AwsEntraSsoP2", snapshotDir: "c21awsentrassoP2", title: "AWS single sign-on with Entra ID P2" },
@@ -69,7 +71,7 @@ for (const stage of stages) {
       await expect(prerequisites.getByText("AWS variables configured", { exact: true })).toHaveCount(0);
       await expect(prerequisites.getByText("AWS_ROLE_ARN: arn:aws:iam::123456789012:role/zeninstaller-github", { exact: true })).toBeVisible();
     }
-    if (!["SubscriptionBudget", "GlobalGroups"].includes(stage.dir)) {
+    if (stage.dir !== "SubscriptionBudget") {
       await expect(prerequisites.getByText("DNS Domain: pwtests.example.com", { exact: true })).toBeVisible();
     }
     await toggle.click();
@@ -289,7 +291,7 @@ async function prepareStage(
       expect(url.searchParams.get("environment")).toBe("PROD");
       expect(url.searchParams.get("per_page")).toBe("1");
       const task = url.searchParams.get("task") ?? "";
-      const privAvdDirs = ["privavd-gallery", "privavd-image", "privavd-paw"];
+      const privAvdDirs = [PRIVAVD_GALLERY_DIR, PRIVAVD_IMAGE_DIR, PRIVAVD_PAW_DIR];
       expect([
         ...[...stages.map(({ dir }) => dir), ...privAvdDirs].flatMap((dir) => [`plan:${dir}`, `deploy:${dir}`]),
         "build:backend",

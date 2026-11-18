@@ -633,6 +633,22 @@ function StageCardContent({
               })}
             </Prerequisites>
           )}
+          {canRefreshPrerequisites && (
+            <Box role="group" aria-label="Refresh changed prerequisites" sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <RunStatusUpdateButton
+                onRun={onRunStatusUpdate}
+                running={statusUpdateRunning}
+                countdown={statusUpdateCountdown}
+                disabled={statusUpdateDisabled}
+                label="Refresh plan"
+              />
+              {runError && <ErrorText>{runError}</ErrorText>}
+            </Box>
+          )}
+        </Box>
+
+        {prerequisitesMet && (
+          <Box role="region" aria-label="Plan" sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
             <RunStatusUpdateButton
               onRun={onRunStatusUpdate}
@@ -642,7 +658,6 @@ function StageCardContent({
             />
             {runError && <ErrorText>{runError}</ErrorText>}
           </Box>
-        </Box>
 
         {(hasDetails || accessNotice) && (
           <StagePlanDetail
@@ -721,7 +736,8 @@ function StageCardContent({
                 </Collapse>
               </Box>
             )}
- 
+          </Box>
+        )}
 
         <RemoteTerminal session={remoteTerminal} />
 

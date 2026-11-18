@@ -3,6 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
+import { useRef } from "react";
 import { Box, ButtonBase, Collapse, IconButton, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
@@ -108,6 +109,7 @@ export default function Card({
   const showSummary = !!headerSummary;
   const titleId = `card-title-${cardId}`;
   const contentId = `card-content-${cardId}`;
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
   return (
     <Box
@@ -132,7 +134,17 @@ export default function Card({
        * consistent base height so cards align whether or not they have a summary.
        */}
       <Box
-        onClick={onToggle}
+        onPointerDown={(event) => {
+          pointerStart.current = { x: event.clientX, y: event.clientY };
+        }}
+        onClick={(event) => {
+          const start = pointerStart.current;
+          pointerStart.current = null;
+          const dragged = event.detail > 0 && start && Math.hypot(event.clientX - start.x, event.clientY - start.y) >= 2;
+          const selection = dragged ? event.currentTarget.ownerDocument.getSelection() : null;
+          if (selection && !selection.isCollapsed && selection.containsNode(event.currentTarget, true)) return;
+          onToggle();
+        }}
         sx={{
           display: "flex",
           alignItems: "center",
@@ -184,6 +196,7 @@ export default function Card({
                 component="span"
                 sx={{
                   display: "block",
+                  userSelect: "text",
                   typography: "body1",
                   fontWeight: 600,
                   color: muted ? colors.mutedText : theme.vars.palette.text.primary,

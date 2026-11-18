@@ -5,7 +5,6 @@
 
 import { useRef, useState } from "react";
 import { Box, Button, CircularProgress, Collapse, FormControlLabel, MenuItem, Select, Switch, TextField, Tooltip, Typography } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import Autocomplete, { createFilterOptions } from "@mui/material/Autocomplete";
 import AddIcon from "@mui/icons-material/Add";
 import BusinessIcon from "@mui/icons-material/Business";
@@ -22,12 +21,13 @@ import { warningMessageIconSx } from "../../config/styles";
 
 // ─── Template status badge ────────────────────────────────────────────────────
 
-type TemplateStatus = "checking" | "ready" | "not_clone";
+type TemplateStatus = "checking" | "ready" | "not_clone" | "error";
 
 const TEMPLATE_STATUS_CONFIG = {
   ready: { label: "Valid", color: "success" as const, icon: <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2" }} /> },
   not_clone: { label: "Not a clone", color: "warning" as const, icon: <WarningAmberIcon aria-hidden="true" sx={{ typography: "body2" }} /> },
   checking: { label: "Checking...", color: "text.secondary" as const, icon: <CircularProgress aria-label="Checking template" size={12} /> },
+  error: { label: "Check failed", color: "error" as const, icon: <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "body2" }} /> },
 } as const;
 
 function TemplateBadge({ status }: { status: TemplateStatus }) {
@@ -35,8 +35,8 @@ function TemplateBadge({ status }: { status: TemplateStatus }) {
   return (
     <Box
       sx={(theme) => {
-        const color = cfg.color === "text.secondary" ? theme.palette.text.secondary : theme.palette[cfg.color].main;
-        const backgroundColor = cfg.color === "text.secondary" ? theme.palette.background.default : alpha(color, 0.08);
+        const color = cfg.color === "text.secondary" ? theme.vars.palette.text.secondary : theme.vars.palette[cfg.color].main;
+        const backgroundColor = cfg.color === "text.secondary" ? theme.vars.palette.background.default : `color-mix(in srgb, ${color} 8%, transparent)`;
         return {
         display: "inline-flex",
         alignItems: "center",
@@ -46,7 +46,7 @@ function TemplateBadge({ status }: { status: TemplateStatus }) {
         borderRadius: "6px",
         backgroundColor,
         border: "1px solid",
-        borderColor: alpha(color, 0.27),
+        borderColor: `color-mix(in srgb, ${color} 27%, transparent)`,
         color,
         fontWeight: 600,
         whiteSpace: "nowrap",
@@ -79,12 +79,14 @@ type Props = {
   onIncludeAllBranchChange: (v: boolean) => void;
   cloning: boolean;
   cloneError: string | null;
+  cloneValidationWarning?: string | null;
   onClone: () => void;
   createEnvs: boolean;
   onCreateEnvsChange: (v: boolean) => void;
   cloneEnvWarning: string | null;
   repoLoading: boolean;
   repoRefreshFailed?: boolean;
+  repoError?: string | null;
   onRefresh: () => void;
 };
 
@@ -115,12 +117,14 @@ export default function RepoDetail({
   onIncludeAllBranchChange,
   cloning,
   cloneError,
+  cloneValidationWarning,
   onClone,
   createEnvs,
   onCreateEnvsChange,
   cloneEnvWarning,
   repoLoading,
   repoRefreshFailed,
+  repoError,
   onRefresh,
 }: Props) {
   const isNewRepo = selectedRepo?.isNew ?? false;
@@ -247,6 +251,8 @@ export default function RepoDetail({
       </Box>
 
       {/* ── Status row: badge + template name inline ── */}
+      {repoError && <ErrorText>{repoError}</ErrorText>}
+      {cloneEnvWarning && <ErrorText>{cloneEnvWarning}</ErrorText>}
       {selectedRepo && !isNewRepo && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
           <TemplateBadge status={templateStatus} />
@@ -365,6 +371,12 @@ export default function RepoDetail({
             copied. “Create environments” adds PROD and TEST to the new repository.
           </Typography>
 
+          {cloneValidationWarning && (
+            <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+              <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+              <Typography color="warning.dark">{cloneValidationWarning}</Typography>
+            </Box>
+          )}
           {cloneError && (
             <Box
               sx={{
@@ -383,26 +395,6 @@ export default function RepoDetail({
             >
               <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "body2", color: "error.main" }} />
               <ErrorText>{cloneError}</ErrorText>
-            </Box>
-          )}
-          {cloneEnvWarning && (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                mb: 2,
-                p: 1.25,
-                borderRadius: "6px",
-                backgroundColor: "background.default",
-                border: "1px solid",
-                borderColor: "warning.light",
-              }}
-              role="status"
-              aria-live="polite"
-            >
-              <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.light" }} />
-              <Typography color="warning.light">{cloneEnvWarning}</Typography>
             </Box>
           )}
           <Button

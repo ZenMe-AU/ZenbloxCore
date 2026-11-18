@@ -2,7 +2,7 @@
 
 ## Design decisions
 
-Current UI behaviour, styling and accessibility guidance, verification results and remaining work: see [UI_UX.md](UI_UX.md). Documentation reviewed 2026-11-16.
+Current UI behaviour, styling and accessibility guidance, verification results and remaining work: see [UI_UX.md](UI_UX.md). Documentation reviewed 2026-11-18.
 
 1. The MUI theme is the single source of truth for colour, typography and shape; `sx` is for layout and dynamic values only. Custom theme overrides that must follow the selected light/dark scheme use `theme.vars.palette`, not raw default-palette values.
 2. `corp-src/App.css` is the only first-party global stylesheet; it owns the focus ring, reduced motion, visually hidden and sensitive-value helpers, and app-wide CSS variables. Third-party component stylesheets may still be imported where required.
@@ -30,6 +30,7 @@ Current UI behaviour, styling and accessibility guidance, verification results a
 24. An Azure tenant shown as an MSA or app-result prefill is not considered confirmed for ARM access. A saved tenant is probed on startup, explicit tenant selection is confirmed through ARM access, and a late startup probe must not overwrite a tenant the user has since confirmed.
 25. Stage plan actions and plan-failure details are available only while the live prerequisites are met. Missing or whitespace-only prerequisite values keep the stage in a warning state and identify the missing inputs; users can still edit stage variables to resolve blockers.
 26. Backend and frontend build cards distinguish the latest successful artifact from a newer failed build, link to the failed workflow run, and prioritize active checks, builds, deployments, and errors over version-comparison status. The Core Infra card identifies a missing company short code, and pending pipeline stages use the actionable summary "Get updated plan".
+27. Deployment-card severity reflects the failure cause: known authentication or permission blockers are actionable warnings, inability to verify access is an error, and failed build/deploy attempts remain errors. A saved app-registration result is complete only when its variables and access checks are valid for the current target; activity takes precedence over saved completion.
 
 ## Test automation
 

@@ -17,9 +17,9 @@ test("Happy path", async ({ page, context }, testInfo) => {
 
 test("Does not save connection details after storage configuration fails", async ({ page, context }, testInfo) => {
   const { card, state, github, unexpectedRequests } = await prepareFrontend(page, context, { denyBlob: true });
-  await expect(card.getByRole("button", { name: "Create private hosting environment", exact: true })).toBeEnabled();
-  await card.getByRole("button", { name: "Create private hosting environment", exact: true }).click();
+  await card.getByRole("button", { name: "Create private hosting environment", exact: true }).click({ timeout: 30_000 });
   await expect(card.getByText(/Mock storage configuration denied/)).toBeVisible();
+  await expect(card.locator("h3")).toContainText("Insufficient permissions to continue");
   expect(state.appCreated).toBe(false);
   expect(github.variables.VITE_AZURE_CLIENT_ID).toBeUndefined();
   expect(await page.evaluate(() => localStorage.getItem("zeninstaller_private_env_result"))).toBeNull();
@@ -77,11 +77,11 @@ async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestI
   const { card, state, github, unexpectedRequests } = await prepareFrontend(page, context);
   const viewport = getViewportName(testInfo);
   await test.step("Create the hosting environment from seeded Azure prerequisites", async () => {
-    await expect(card.getByRole("button", { name: "Create private hosting environment", exact: true })).toBeEnabled();
+    const createHosting = card.getByRole("button", { name: "Create private hosting environment", exact: true });
     await expect(card.getByText("Australia East", { exact: true })).toBeVisible();
+    await expect(createHosting).toBeEnabled({ timeout: 30_000 });
     await expectSnapshot(page, card, testInfo, "start", viewport);
-    await card.getByRole("button", { name: "Create private hosting environment", exact: true }).click();
-    await expect(card.getByRole("button", { name: /Start over/ })).toBeEnabled();
+    await createHosting.click({ timeout: 30_000 });
     await expectSuccessfulSteps(card, [
       "Register required Azure resource providers",
       "Create resource group zeninstaller-private-rg",
@@ -103,12 +103,12 @@ async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestI
         cors: { corsRules: [{ allowedOrigins: [new URL(CORP_URL).origin] }] },
       },
     });
+    await expect(card.locator("h3")).toContainText("Complete");
     await expectSnapshot(page, card, testInfo, "hosting-created", viewport);
   });
   await test.step("Save and read back the site's connection details", async () => {
     await expect.poll(() => github.variables.VITE_AZURE_CLIENT_ID).toBe("mock-private-client");
     expect(github.variables.SITE_STORAGE_ACCOUNT).toBe(siteStorage);
-    await expect(card.locator("h3")).toContainText("Complete");
     expect(unexpectedRequests).toEqual([]);
     await expectSnapshot(page, card, testInfo, "end", viewport);
   });

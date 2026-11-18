@@ -8,6 +8,7 @@ import { ensureCardResourceAccess, formatAzureAccessError, type CardResourceAcce
 import { ensureStaticSiteDataReadAccess } from "../../api/azureBlob";
 import { ensureServicePrincipalAccess } from "../../api/azureGraph";
 import { useSubscriptionAccess } from "./useAzureAccessCheck";
+import { getAzureAccessFailureKind, type AzureAccessFailureKind } from "../../logic/azureAccessFailure";
 import type { AzureTarget } from "../../types";
 
 function formatGraphAccessError(error: unknown): string {
@@ -39,12 +40,13 @@ export function useCardResourceAccess(
   const access = useSubscriptionAccess(target, checkAccess, formatError);
   const [failure, setFailure] = useState<{
     account: typeof azureAccount; subscriptionId: string; tenantId: string | undefined;
-    checkAccess: typeof checkAccess; message: string;
+    checkAccess: typeof checkAccess; message: string; failureKind: AzureAccessFailureKind;
   } | null>(null);
   const reportFailure = useCallback((error: unknown) => {
     setFailure({
       account: azureAccount, subscriptionId, tenantId, checkAccess,
       message: formatCardResourceAccessError(error, card),
+      failureKind: getAzureAccessFailureKind(error),
     });
   }, [azureAccount, subscriptionId, tenantId, card, checkAccess]);
   const check = useCallback(async () => {
@@ -58,7 +60,7 @@ export function useCardResourceAccess(
     }
   }, [azureAccount, subscriptionId, tenantId, card, checkAccess, reportFailure]);
   const currentFailure = failure?.account === azureAccount && failure?.subscriptionId === subscriptionId &&
-    failure?.tenantId === tenantId && failure?.checkAccess === checkAccess ? failure.message : null;
+    failure?.tenantId === tenantId && failure?.checkAccess === checkAccess ? failure : null;
   const retry = () => {
     setFailure(null);
     access.retry();
@@ -69,7 +71,7 @@ export function useCardResourceAccess(
   };
   return {
     ...access,
-    ...(currentFailure ? { status: "error" as const, error: currentFailure } : {}),
+    ...(currentFailure ? { status: "error" as const, error: currentFailure.message, failureKind: currentFailure.failureKind } : {}),
     retry,
     check,
     reportFailure,
