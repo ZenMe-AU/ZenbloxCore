@@ -165,6 +165,10 @@ test("Hides a changed plan and refreshes from prerequisites with retry available
   const planZip = await new JSZip().file("plan.json", JSON.stringify({
     resource_changes: [{ address: "terraform_data.SubscriptionBudget", change: { actions: ["create"] } }],
   })).generateAsync({ type: "nodebuffer" });
+  let resolveInitialPlanDownload!: () => void;
+  const initialPlanDownload = new Promise<void>((resolve) => {
+    resolveInitialPlanDownload = resolve;
+  });
   await page.route(`${GITHUB_API_URL}/**/deployments?*`, (route) => {
     const task = new URL(route.request().url()).searchParams.get("task");
     return replyJson(route, task === "plan:SubscriptionBudget" ? [{
@@ -175,7 +179,10 @@ test("Hides a changed plan and refreshes from prerequisites with retry available
   });
   await page.route(`${GITHUB_API_URL}/**/actions/artifacts/*/zip`, async (route) => {
     const id = Number(new URL(route.request().url()).pathname.split("/").at(-2));
-    if (id === 1101) return route.fulfill({ contentType: "application/zip", body: planZip });
+    if (id === 1101) {
+      await initialPlanDownload;
+      return route.fulfill({ contentType: "application/zip", body: planZip });
+    }
     if (![1103, 1104].includes(id)) return route.fallback();
     const values = id === 1103 ? snapshot : setup.github.variables;
     const body = await new JSZip().file("corp.env", Object.entries(values).map(([key, value]) => `${key}=${value}`).join("\n"))
@@ -187,6 +194,13 @@ test("Hides a changed plan and refreshes from prerequisites with retry available
     return dispatches === 1 ? replyJson(route, { message: "Denied" }, 403) : route.fulfill({ status: 204 });
   });
   const card = await setup.open("stage_SubscriptionBudget");
+  try {
+    await expect(card.getByText("Loading plan...", { exact: true })).toBeVisible();
+    await expect(card.getByText("No changes detected.", { exact: true })).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Deploy", exact: true })).toHaveCount(0);
+  } finally {
+    resolveInitialPlanDownload();
+  }
   await expect(card.getByText("terraform_data.SubscriptionBudget", { exact: true })).toBeVisible();
   await card.getByRole("button", { name: "open prerequisites" }).click();
   await card.getByLabel("CONTACT_EMAILS:").fill("new-owner@example.com");
@@ -233,10 +247,16 @@ async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestI
     await expect(card.locator("h3")).toContainText(stage.title);
     await expect(card.getByRole("button", { name: "Get Updated Plan", exact: true })).toBeEnabled();
     await expectSnapshot(page, card, testInfo, `${stage.snapshotDir}-start`, viewport);
-    await card.getByRole("button", { name: "Get Updated Plan", exact: true }).click();
-    await expect(card.getByRole("button", { name: /^Running/ })).toBeDisabled();
-    await expect.poll(() => state.dispatches).toBe(1);
-    await expectSnapshot(page, card, testInfo, `${stage.snapshotDir}-running`, viewport);
+    const snapshotTime = await page.evaluate(() => Date.now());
+    await page.clock.setFixedTime(snapshotTime);
+    try {
+      await card.getByRole("button", { name: "Get Updated Plan", exact: true }).click();
+      await expect(card.getByRole("button", { name: /^Running\.\.\. [1-9]\d*[sm]$/ })).toBeDisabled();
+      await expect.poll(() => state.dispatches).toBe(1);
+      await expectSnapshot(page, card, testInfo, `${stage.snapshotDir}-running`, viewport);
+    } finally {
+      await page.clock.setSystemTime(snapshotTime);
+    }
   });
   await test.step("Read the stage report and render the downloaded Terraform plan", async () => {
     await advanceStagePoll(page, card);
