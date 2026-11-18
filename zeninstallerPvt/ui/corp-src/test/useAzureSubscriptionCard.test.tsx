@@ -29,20 +29,22 @@ async function waitFor(assertion: () => void, timeoutMs = 1000) {
 const { apiMocks } = vi.hoisted(() => ({
   apiMocks: {
     listSubscriptions: vi.fn(),
-    ensureInstallerSubscriptionAccess: vi.fn(),
+    ensureCardResourceAccess: vi.fn(),
   },
 }));
 
-vi.mock("../api/azureGraph", () => ({
+vi.mock("../api/azureGraph", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../api/azureGraph")>()),
   listSubscriptions: apiMocks.listSubscriptions,
 }));
 
 vi.mock("../api/azureArm", async (importOriginal) => ({
   ...await importOriginal<typeof import("../api/azureArm")>(),
-  ensureInstallerSubscriptionAccess: apiMocks.ensureInstallerSubscriptionAccess,
+  ensureCardResourceAccess: apiMocks.ensureCardResourceAccess,
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../config/azureConfig", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../config/azureConfig")>()),
   AZURE_CLIENT_ID: "client-id",
 }));
 
@@ -58,7 +60,7 @@ describe("useAzureSubscriptionCard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     apiMocks.listSubscriptions.mockResolvedValue([{ id: "sub-1", displayName: "Main" }]);
-    apiMocks.ensureInstallerSubscriptionAccess.mockResolvedValue(undefined);
+    apiMocks.ensureCardResourceAccess.mockResolvedValue(undefined);
   });
 
   it("loads subscriptions and marks a saved subscription complete", async () => {
@@ -101,7 +103,7 @@ describe("useAzureSubscriptionCard", () => {
   });
 
   it("reports installer access failures as a deployment error", async () => {
-    apiMocks.ensureInstallerSubscriptionAccess.mockRejectedValueOnce(new Error("Missing deployment permissions"));
+    apiMocks.ensureCardResourceAccess.mockRejectedValueOnce(new Error("Missing deployment permissions"));
     let latest: UseAzureSubscriptionCard | null = null;
     const root = createRoot(document.createElement("div"));
     const account = { username: "org@example.com", tenantId: "tenant-1" } as AzureAccount;

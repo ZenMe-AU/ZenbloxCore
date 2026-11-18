@@ -3,7 +3,14 @@
  * @license SPDX-License-Identifier: MIT
  */
 
+import type { CardResourceAccessRequest } from "../../api/azureArm";
+import { readWrite } from "../../config/azureConfig";
 import type { ActionType } from "../../types";
+
+// Azure permissions the SubscriptionBudget stage needs to create and remove its budget.
+export const subscriptionBudgetAccess = (): CardResourceAccessRequest => ({
+  subscription: [...readWrite("Microsoft.Consumption/budgets"), "Microsoft.Consumption/budgets/delete"],
+});
 
 export const ACTION_CONFIG: Record<ActionType, { symbol: string; color: string }> = {
   create: { symbol: "+", color: "success.main" },

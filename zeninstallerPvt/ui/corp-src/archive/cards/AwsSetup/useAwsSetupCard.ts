@@ -4,12 +4,12 @@
  */
 
 import { useCallback, useState } from "react";
-import { createOrUpdateGithubOidcRole, ensureGithubOidcProvider } from "../../api/aws";
+import { createOrUpdateGithubOidcRole, ensureGithubOidcProvider } from "../../../api/aws";
 import { getFederatedSubject } from "./naming";
-import type { AwsCallerIdentity } from "../../api/aws";
-import { PIPELINE } from "../../logic/pipeline";
-import { AWS_VARIABLE_KEYS } from "../../logic/variables";
-import type { CardHook, CardStatus } from "../../types";
+import type { AwsCallerIdentity } from "../../../api/aws";
+import { PIPELINE } from "../../../logic/pipeline";
+import { AWS_VARIABLE_KEYS } from "../../../logic/variables";
+import type { CardHook, CardStatus } from "../../../types";
 
 export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
 export type SetupStep = { id: string; label: string; status: StepStatus; detail?: string };

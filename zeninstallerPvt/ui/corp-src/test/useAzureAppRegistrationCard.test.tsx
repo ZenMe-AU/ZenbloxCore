@@ -87,7 +87,8 @@ vi.mock("../cards/AzureAppRegistration/useRbacCheck", () => ({
   useRbacCheck: vi.fn(() => ({ status: apiMocks.rbacStatus, missingRoles: apiMocks.rbacMissingRoles, checking: apiMocks.rbacChecking, error: apiMocks.rbacError })),
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../config/azureConfig", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../config/azureConfig")>()),
   AZURE_CLIENT_ID: "client-id",
   APP_SCOPES: ["app.scope"],
   ARM_SCOPES: ["arm.scope"],

@@ -204,7 +204,7 @@ function main(corpEnvFile) {
     const bucketSpaSourceFolder = resolve(workingDirPath, spaRelDir);
     const lambdaEdgeAuthGuardSourceFolder = resolve(workingDirPath, authGuardRelDir);
     // install dependencies and build for SPA
-    execSync(`pnpm install --ignore-workspace`, { stdio: "inherit", shell: true, cwd: bucketSpaSourceFolder });
+    execSync(`pnpm install --frozen-lockfile`, { stdio: "inherit", shell: true, cwd: bucketSpaSourceFolder });
     execSync(`pnpm run build`, { stdio: "inherit", shell: true, cwd: bucketSpaSourceFolder });
     // install dependencies and build for lambda@edge
     execSync(`pnpm install --ignore-workspace`, { stdio: "inherit", shell: true, cwd: lambdaEdgeAuthGuardSourceFolder });

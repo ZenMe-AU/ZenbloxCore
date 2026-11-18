@@ -18,7 +18,8 @@ import { getAzureAccessFailureKind } from "../../logic/azureAccessFailure";
 import { BACKEND_VERSION_KEYS } from "../../config/azureConfig";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
-import type { Account, AzureAccount, AzureConfigHook, CardHook, CardRequirements, GhEnv } from "../../types";
+import { backendDeployAccess } from "./config";
+import type { Account, AzureAccount, AzureConfigHook, CardHook, CardRequirements, CardStatus, GhEnv } from "../../types";
 
 // What the build workflow recorded, as the card reads it back off the Deployments API.
 type BackendBuild = {
@@ -94,9 +95,7 @@ export function useBackendDeployCard({
 
   // The same name the Backend Environment card created; where it lives is asked of Azure, since it may be reused elsewhere.
   const appName = functionAppFromApiUrl(variableValues.VITE_API_URL) || getFunctionAppName(subscriptionId);
-  const managementAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, {
-    card: "backendDeploy", resourceGroup: PRIVATE_RESOURCE_GROUP, functionApp: appName,
-  });
+  const managementAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, backendDeployAccess(appName));
   const { check: checkResourceAccess, reportFailure: reportAccessFailure } = managementAccess;
   const findGroup = useCallback(
     async (account: AzureAccount) => (await findFunctionAppGroup(account, subscriptionId, appName, tenantId || undefined)) ?? PRIVATE_RESOURCE_GROUP,

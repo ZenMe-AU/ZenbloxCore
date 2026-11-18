@@ -34,6 +34,7 @@ import { createAppRegistration, createServicePrincipal, ensureFederatedCredentia
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { remoteTerminalInfraAccess } from "./config";
 import {
   DEFAULT_AZURE_LOCATION,
   PRIVATE_APP_INSIGHTS,
@@ -156,10 +157,10 @@ export function useRemoteTerminalInfraCard({
   const webPubSubName = webPubSubOverride || savedWebPubSub || getWebPubSubName(subscriptionId);
   const functionAppName = functionAppOverride || functionAppFromApiUrl(variableValues.VITE_API_URL) || getFunctionAppName(subscriptionId);
   const planName = `${functionAppName}-plan`;
-  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, {
-    card: "backend", resourceGroup: resourceGroupName, workspace: lawName, storageAccount: storageAccountName,
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, remoteTerminalInfraAccess({
+    resourceGroup: resourceGroupName, workspace: lawName, storageAccount: storageAccountName,
     appInsights: appInsightsName, webPubSub: webPubSubName, functionApp: functionAppName, servicePlan: planName,
-  });
+  }));
   const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
   const pipelineAppName = PRIVATE_PIPELINE_APP;
 

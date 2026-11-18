@@ -27,10 +27,11 @@ export type CardId =
   | "global_groups"
   | "create_admin_users"
   | "aws_login"
-  | "aws_setup"
   | "privavd_gallery"
   | "privavd_image"
   | "privavd_paw"
+  | "aws_sso"
+  | "aws_sso_stack"
   | `stage_${string}`;
 export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped" | "unavailable";
 

@@ -7,7 +7,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ensureInstallerSubscriptionAccess, ensureManagementAccess, ensureResourceGroupCreationAccess, listLocations, findStorageAccountGroup } from "../api/azureArm";
+import { ensureManagementAccess, ensureResourceGroupCreationAccess, listLocations, findStorageAccountGroup } from "../api/azureArm";
 import { getAzureAccessFailureKind, MissingAzureAccessError } from "../logic/azureAccessFailure";
 import { useSubscriptionAccess, type SubscriptionAccess } from "../hooks/util/useAzureAccessCheck";
 import { useCardResourceAccess, type CardResourceAccess } from "../hooks/util/useAzureCardAccess";
@@ -171,7 +171,7 @@ describe("backend environment activity", () => {
   );
 
   it("does not report saved configuration ready while resource access is being checked", async () => {
-    mocks.getToken.mockReturnValue(new Promise<string>(() => {}));
+    mocks.getToken.mockReturnValue(new Promise<string>(() => { }));
     const variableValues = Object.fromEntries(DEPLOYMENT_TERMINAL_KEYS.map((key) => [key, "saved-value"]));
     let latest!: ReturnType<typeof useRemoteTerminalInfraCard>;
     function Harness() {
@@ -276,7 +276,7 @@ describe("deployment access failure classification", () => {
     const requestFailure = new Error("Network unavailable");
     await act(async () => access.reportFailure(requestFailure));
     expect(access).toMatchObject({ status: "error", failureKind: "request", error: "Network unavailable" });
-    mocks.getToken.mockImplementation(() => new Promise<string>(() => {}));
+    mocks.getToken.mockImplementation(() => new Promise<string>(() => { }));
     await act(async () => root!.render(<Harness subscriptionId="sub-2" />));
     expect(access).toMatchObject({ status: "checking", failureKind: null, error: null });
   });
@@ -292,13 +292,13 @@ describe("deployment access failure classification", () => {
     root = createRoot(document.createElement("div"));
     await act(async () => root!.render(<Harness />));
     expect(access).toMatchObject({ status: "error", failureKind: "permission", error: "Formatted access details" });
-    check.mockImplementation(() => new Promise<void>(() => {}));
+    check.mockImplementation(() => new Promise<void>(() => { }));
     await act(async () => access.retry());
     expect(access).toMatchObject({ status: "checking", failureKind: null, error: null });
     check.mockResolvedValue(undefined);
     await act(async () => access.retry());
     expect(access).toMatchObject({ status: "ready", failureKind: null, error: null });
-    check.mockImplementation(() => new Promise<void>(() => {}));
+    check.mockImplementation(() => new Promise<void>(() => { }));
     await act(async () => root!.render(<Harness subscriptionId="sub-2" />));
     expect(access).toMatchObject({ status: "checking", failureKind: null, error: null });
   });
@@ -508,7 +508,7 @@ it("shows backend access errors beside Re-run and in an independent prerequisite
     githubRepoId: 2,
     githubEnvName: "TEST",
   };
-  const variables = { values, loading: false, refreshing: false, error: false, onRefresh: vi.fn(async () => {}), onConfirmed: vi.fn() };
+  const variables = { values, loading: false, refreshing: false, error: false, onRefresh: vi.fn(async () => { }), onConfirmed: vi.fn() };
   const container = document.createElement("div");
   root = createRoot(container);
   let latest: ReturnType<typeof useRemoteTerminalInfraCard>;
@@ -577,7 +577,7 @@ it("shows frontend access errors beside Create and in an independent prerequisit
     variableValues: values,
     allowedOrigins: ["https://installer.example.com"],
   };
-  const variables = { values, loading: false, refreshing: false, error: false, onRefresh: vi.fn(async () => {}), onConfirmed: vi.fn() };
+  const variables = { values, loading: false, refreshing: false, error: false, onRefresh: vi.fn(async () => { }), onConfirmed: vi.fn() };
   const container = document.createElement("div");
   root = createRoot(container);
   let latest: ReturnType<typeof usePrivateFrontendInfraCard>;
