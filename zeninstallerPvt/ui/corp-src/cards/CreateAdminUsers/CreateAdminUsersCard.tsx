@@ -6,11 +6,13 @@
 import { useState } from "react";
 import { Box, Button, ButtonBase, Checkbox, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import Card from "../../components/Card";
 import ErrorText from "../../components/ErrorText";
 import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 import StatusText from "../../components/StatusText";
 import WarningNotice from "../../components/WarningNotice";
 import StepRow from "../StepRow";
@@ -57,6 +59,7 @@ export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(() => admins[0]?.key ?? null);
   const [editKey, setEditKey] = useState<string | null>(null);
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const incomplete = admins.filter((a) => rowErrors[a.key]).length;
   const groupSummary = error ? "Couldn't read Entra" : !missingGroups ? "Checking..." : `${missingGroups.length} to create · ${ADMIN_GROUPS.length - missingGroups.length} existing`;
   const toggle = (key: string) => setOpenKey(openKey === key ? null : key);
@@ -140,7 +143,6 @@ export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
           </Box>
         </Box>
 
-        <AzureAccessCheck access={access} resourceAccess />
         {error && <ErrorText>Couldn't read the groups and admins from Entra: {error}</ErrorText>}
 
         {steps.length === 0 ? (
@@ -148,6 +150,12 @@ export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
             <Button variant="contained" onClick={() => void run()} disabled={!canRun}>
               {admins.length ? "Create groups and admin accounts" : "Create groups"}
             </Button>
+            {access.status === "error" && (
+              <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                <Typography color="error.main">Insufficient permissions to continue</Typography>
+              </Box>
+            )}
             {admins.length === 0 && (
               <Box role="note" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                 <InfoOutlinedIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "info.main" }} />
@@ -168,6 +176,11 @@ export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
               </Button>
             )}
           </Box>
+        )}
+        {(access.status === "checking" || access.status === "error") && (
+          <Prerequisites id="create-admin-users-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+            <AzureAccessCheck access={access} resourceAccess errorStyle />
+          </Prerequisites>
         )}
       </Box>
     </Card>

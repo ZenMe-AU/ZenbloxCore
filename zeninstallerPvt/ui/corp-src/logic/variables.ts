@@ -22,6 +22,7 @@ export const PRIVATE_FRONTEND_KEYS = ["VITE_AZURE_CLIENT_ID", "SITE_STORAGE_ACCO
 // Filled in by hand on the frontend card — the build bakes it in, so it cannot be derived.
 export const FRONTEND_VARIABLE_KEYS = ["VITE_GITHUB_CLIENT_ID"] as const;
 export const AWS_VARIABLE_KEYS = ["AWS_ROLE_ARN"] as const;
+export const AWS_SSO_KEYS = ["AWS_ACCOUNT_ID"] as const;
 export const CORP_NAME_KEYS = ["NAME"] as const;
 export const TFSTATE_BACKEND_KEYS = ["TF_STATE_RESOURCE_GROUP", "TF_STATE_STORAGE_ACCOUNT", "TF_STATE_CONTAINER"] as const;
 export const DNS_KEYS = ["DNS"] as const;

@@ -6,9 +6,12 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
+import { ThemeProvider } from "@mui/material";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import CoreInfraCard from "../cards/CoreInfra/CoreInfraCard";
 import { useCoreInfraCard, type UseCoreInfraCard } from "../cards/CoreInfra/useCoreInfraCard";
 import type { AzureAccount } from "../types";
+import theme from "../theme";
 
 async function waitFor(assertion: () => void, timeoutMs = 2000) {
   const deadline = Date.now() + timeoutMs;
@@ -88,7 +91,8 @@ vi.mock("../api/azureGraph", () => ({
   getExistingSP: apiMocks.getExistingSP,
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../config/azureConfig", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../config/azureConfig")>()),
   get AZURE_CLIENT_ID() {
     return configMocks.azureClientId;
   },
@@ -151,6 +155,58 @@ describe("useCoreInfraCard", () => {
     apiMocks.ensureBlobDiagnostics.mockResolvedValue("created");
     apiMocks.findStorageAccountGroup.mockResolvedValue(null);
     apiMocks.storageAccountNameAvailable.mockResolvedValue(true);
+  });
+
+  it("shows failed resource access beside Create and in collapsible prerequisites below it", async () => {
+    apiMocks.ensureResourceGroupCreationAccess.mockRejectedValue(new Error("Missing role assignment access"));
+    let latest: UseCoreInfraCard | null = null;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const props = baseProps();
+    function Harness() {
+      const infra = useCoreInfraCard(props);
+      useEffect(() => { latest = infra; }, [infra]);
+      return (
+        <ThemeProvider theme={theme}>
+          <CoreInfraCard
+            card={{ cardId: "core_infra", status: infra.status, summary: infra.summary, locked: false, requirements: [],
+              unavailable: false, expanded: true, onToggle: vi.fn(), onRequirementClick: vi.fn() }}
+            infra={infra} azureAccount={props.azureAccount} corpName={props.corpName} subscriptionId={props.subscriptionId} spClientId={props.spClientId}
+            githubAccount={null} repoName="repo" selectedEnv={null}
+            variables={{ values: {}, loading: false, refreshing: false, error: false, onRefresh: async () => {}, onConfirmed: vi.fn() }}
+          />
+        </ThemeProvider>
+      );
+    }
+    try {
+      await act(async () => root.render(<Harness />));
+      await waitFor(() => expect(latest?.creationAccess.status).toBe("error"));
+      expect(latest?.status).toBe("error");
+      expect(latest?.summary).toBe("Insufficient permissions to continue");
+      const create = [...container.querySelectorAll("button")].find((button) => button.textContent === "Create core infrastructure")!;
+      const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="core-infra-prerequisites"]')!;
+      expect(create.disabled).toBe(true);
+      expect(create.parentElement?.textContent).toContain("Insufficient permissions to continue");
+      expect(create.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+      await act(async () => toggle.click());
+      expect(toggle.getAttribute("aria-expanded")).toBe("true");
+      const panel = container.querySelector('#core-infra-prerequisites[role="region"]')!;
+      expect(panel.textContent).toContain("Missing role assignment access");
+      expect([...container.querySelectorAll("button")].filter((button) => button.textContent === "Recheck resource access")).toHaveLength(1);
+      apiMocks.ensureResourceGroupCreationAccess.mockResolvedValue(undefined);
+      const retry = [...panel.querySelectorAll("button")].find((button) => button.textContent === "Recheck resource access")!;
+      await act(async () => retry.click());
+      await waitFor(() => expect(latest?.creationAccess.status).toBe("ready"));
+      expect(latest?.status).toBe("warning");
+      expect(create.disabled).toBe(false);
+      expect(create.parentElement?.textContent).not.toContain("Insufficient permissions to continue");
+      expect(container.querySelector('[aria-controls="core-infra-prerequisites"]')).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
   });
 
   it.each(["ARM", "Graph"])("keeps %s authorization failures in the appropriate access surface", async (service) => {

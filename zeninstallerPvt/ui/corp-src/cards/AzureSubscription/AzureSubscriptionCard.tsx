@@ -19,9 +19,10 @@ import CloudVariableDetail from "../CloudVariableDetail";
 import Card from "../../components/Card";
 import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
-import ExternalLink from "../../components/ExternalLink";
+// import ExternalLink from "../../components/ExternalLink";
 import Prerequisites from "../../components/Prerequisites";
-import { AZURE_PIM_ACTIVATION_URL, AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
+import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
+// import { AZURE_PIM_ACTIVATION_URL } from "../../logic/consoleUrls";
 
 type Props = {
   card: CardChrome;
@@ -206,7 +207,7 @@ export default function AzureSubscriptionCard({
             subscription.installerAccess.status === "error" ? (
               <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                 <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
-                <Typography color="error.main">You need at least Contributor + User Access Administrator access (or equivalent permissions).</Typography>
+                <Typography color="error.main">You need at least Reader access to this subscription (or equivalent permissions).</Typography>
               </Box>
             ) : subscriptionDrift ? (
               <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -232,12 +233,15 @@ export default function AzureSubscriptionCard({
                 }}>
                   <Box sx={{ color: "error.main" }}>
                     <Typography sx={{ whiteSpace: "pre-line" }}>{subscription.installerAccess.error}</Typography>
-                    <Typography>
-                      Ask a subscription administrator to grant access in IAM or activate your eligible role in PIM at{" "}
-                      <ExternalLink href={AZURE_PIM_ACTIVATION_URL} label="Activate an Azure resource role in PIM">
-                        PIM - My roles - Azure resources
-                      </ExternalLink>{" "}then retry.
-                    </Typography>
+                    {
+                      // The access error already says to ask an administrator or activate the role in PIM.
+                      // <Typography>
+                      //   Ask a subscription administrator to grant access in IAM or activate your eligible role in PIM at{" "}
+                      //   <ExternalLink href={AZURE_PIM_ACTIVATION_URL} label="Activate an Azure resource role in PIM">
+                      //     PIM - My roles - Azure resources
+                      //   </ExternalLink>{" "}then retry.
+                      // </Typography>
+                    }
                   </Box>
                 </Box>
                 <Button variant="contained" sx={{ mt: 1, py: 0.85, px: 2.5 }} onClick={subscription.installerAccess.retry}>

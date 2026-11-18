@@ -39,6 +39,7 @@ import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { APP_SCOPES, AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../../config/azureConfig";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { coreInfraAccess } from "./config";
 import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../../types";
 
 export type CoreInfraResult = {
@@ -122,9 +123,7 @@ export function useCoreInfraCard({
   const resourceGroupName = getCoreResourceGroupName(corpName);
   const lawName = getCoreLogAnalyticsName(corpName);
   const storageAccountName = storageOverride || variableValues.TF_STATE_STORAGE_ACCOUNT || getCoreStorageAccountName(corpName);
-  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId: corpName ? subscriptionId : "", tenantId }, {
-    card: "core", resourceGroup: resourceGroupName, workspace: lawName, storageAccount: storageAccountName,
-  });
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId: corpName ? subscriptionId : "", tenantId }, coreInfraAccess(resourceGroupName, lawName, storageAccountName));
   const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
 
   // Too long or bad characters are visible as you type; too short or taken is only known on confirm.
