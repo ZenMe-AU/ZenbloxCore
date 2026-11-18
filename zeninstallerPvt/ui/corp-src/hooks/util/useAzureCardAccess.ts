@@ -4,9 +4,12 @@
  */
 
 import { useCallback, useState } from "react";
-import { ensureCardResourceAccess, formatAzureAccessError, type CardResourceAccessRequest } from "../../api/azureArm";
+import { ensureCardResourceAccess, formatAzureAccessError } from "../../api/azureArm";
+import { ensureEntraActions } from "../../api/azureGraph";
+import { ensureScopeConsent } from "../../auth/msal";
+import { ROLE_READ_SCOPES } from "../../config/azureConfig";
 import { useSubscriptionAccess } from "./useAzureAccessCheck";
-import type { AzureTarget } from "../../types";
+import type { AzureTarget, CardResourceAccessRequest } from "../../types";
 
 function formatGraphAccessError(error: unknown): string {
   const details = error instanceof Error ? error.message : String(error);
@@ -26,7 +29,9 @@ export function useCardResourceAccess(target: AzureTarget, request: CardResource
   const { azureAccount, subscriptionId, tenantId } = target;
   const requestKey = JSON.stringify(request);
   const checkAccess = useCallback(async (account: NonNullable<AzureTarget["azureAccount"]>, subscription: string, tenant?: string) => {
-    await ensureCardResourceAccess(account, subscription, JSON.parse(requestKey) as CardResourceAccessRequest, tenant);
+    const request = JSON.parse(requestKey) as CardResourceAccessRequest;
+    await ensureCardResourceAccess(account, subscription, request, tenant);
+    if (request.entraRoles.length) await ensureEntraActions(account, request.entraRoles, tenant);
   }, [requestKey]);
   const access = useSubscriptionAccess(target, checkAccess, formatCardResourceAccessError);
   const [failure, setFailure] = useState<{
@@ -51,9 +56,14 @@ export function useCardResourceAccess(target: AzureTarget, request: CardResource
   }, [azureAccount, subscriptionId, tenantId, checkAccess, reportFailure]);
   const currentFailure = failure?.account === azureAccount && failure?.subscriptionId === subscriptionId &&
     failure?.tenantId === tenantId && failure?.checkAccess === checkAccess ? failure.message : null;
-  const retry = () => {
+  const rerun = () => {
     setFailure(null);
     access.retry();
+  };
+  // Recheck is a click, so it may redirect to grant the Entra role read scope; the automatic check stays silent.
+  const retry = () => {
+    if (!request.entraRoles.length || !azureAccount) return rerun();
+    void ensureScopeConsent(azureAccount, ROLE_READ_SCOPES, tenantId).then((redirecting) => redirecting || rerun(), reportFailure);
   };
   return {
     ...access,

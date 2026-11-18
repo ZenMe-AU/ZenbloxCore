@@ -33,6 +33,7 @@ export const ACCESS_PASS_SCOPES = [
 export const GROUPS_SCOPES = ["https://graph.microsoft.com/Group.ReadWrite.All"];
 export const CLAIMS_POLICY_SCOPES = ["https://graph.microsoft.com/Policy.ReadWrite.ApplicationConfiguration"]; // SAML claims of the AWS sign-in app.
 export const ROLE_MANAGEMENT_SCOPES = ["https://graph.microsoft.com/RoleManagement.ReadWrite.Directory"];
+export const ROLE_READ_SCOPES = ["https://graph.microsoft.com/RoleManagement.Read.Directory"];
 export const USER_SCOPES = ["https://graph.microsoft.com/User.ReadWrite.All"];
 
 // ── Individual Graph application permissions ───────────────────────────────────
@@ -49,6 +50,12 @@ export const GRAPH_PERMISSIONS = {
   PrivilegedAccessReadWriteAzureADGroup: "2f6817f8-7b12-4f0f-bc18-eeaf60705a9e",
   PolicyReadWriteApplicationConfiguration: "be74164b-cff1-491c-8741-e671cb536e13",
   DomainReadWriteAll: "7e05723c-0bb0-42da-be95-ae9f08a6e53c",
+  GroupReadAll: "5b567255-7703-4780-807c-7be8301ae99b",
+  UserReadAll: "df021288-bdef-4463-88db-98f22de89214",
+  ApplicationReadAll: "9a5d68dd-52b0-4cc2-bd40-abcf44ac3a30",
+  RoleManagementReadDirectory: "483bed4a-2ad3-4361-a73b-c83ccdbdc53c",
+  PolicyReadAuthenticationMethod: "8e3bc81b-d2f3-4b7b-838c-32c88218d2f0",
+  DomainReadAll: "dbb9058a-0e50-45d7-ae91-66909b5d4664",
 } as const;
 
 export type GraphPermissionKey = keyof typeof GRAPH_PERMISSIONS;
@@ -100,23 +107,7 @@ export const BACKEND_VERSION_KEYS = {
   builtAt: "BACKEND_BUILT_AT",
 } as const;
 
-// ── Resource provider namespaces ───────────────────────────────────────────────
-export const CORE_INFRA_PROVIDERS = ["Microsoft.OperationalInsights", "Microsoft.Insights", "Microsoft.Storage"] as const;
-export const DNS_PROVIDERS = ["Microsoft.Network", "Microsoft.OperationalInsights"] as const;
-export const REMOTE_TERMINAL_PROVIDERS = [
-  "Microsoft.OperationalInsights",
-  "Microsoft.Insights",
-  "Microsoft.Storage",
-  "Microsoft.SignalRService",
-  "Microsoft.Web",
-] as const;
-export const PRIVATE_FRONTEND_PROVIDERS = [
-  "Microsoft.OperationalInsights",
-  "Microsoft.Insights",
-  "Microsoft.Storage",
-  "Microsoft.SignalRService",
-  "Microsoft.Web",
-] as const;
-
 // ── Azure permission helpers ────────────────────────────
 export const readWrite = (...resources: string[]) => resources.flatMap((resource) => [`${resource}/read`, `${resource}/write`]);
+// Creating a missing resource group needs these at the subscription.
+export const RESOURCE_GROUP_ACCESS = readWrite("Microsoft.Resources/subscriptions/resourceGroups");

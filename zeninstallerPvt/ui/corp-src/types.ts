@@ -66,6 +66,39 @@ export interface CardHook {
   stage?: string;
 }
 
+// ─── Card access ──────────────────────────────────────────────────────────────
+
+// Where an ArmRole's actions are checked; a resource Azure doesn't have yet is checked at its nearest existing parent.
+export type ArmScope = "tenant" | "subscription" | Readonly<{
+  resourceGroup: string;
+  resource?: string; // under the group's providers, e.g. "Microsoft.Storage/storageAccounts/name/blobServices/default"
+  // true: use the group Azure already has the top-level resource in; a path such as "Microsoft.Web/sites/name": use that resource's group; else resourceGroup
+  locate?: boolean | string;
+  mustExist?: boolean; // fail instead of falling back when the resource doesn't exist
+}>;
+// Checked under its parent resource and in the same group; path is relative, e.g. "blobServices/default".
+// dataActions are data-plane actions such as reading table entities, checked at the same scope.
+export type ArmChild = Readonly<{ path: string; actions: readonly string[]; dataActions?: readonly string[]; children?: readonly ArmChild[] }>;
+// objectId is the Entra object id of the user, group or service principal whose role assignments are checked at scope; leave it out to check the signed-in user. Children inherit it.
+// createActions are checked at the subscription only while the scope's resource doesn't exist, e.g. its checkNameAvailability.
+export type ArmRole = Readonly<{ scope: ArmScope; objectId?: string; actions: readonly string[]; dataActions?: readonly string[]; createActions?: readonly string[]; children?: readonly ArmChild[] }>;
+
+// What a card needs; each card's config lists every field, empty when unused.
+export type CardResourceAccessRequest = Readonly<{
+  // Resource providers registered on the subscription before deploying.
+  // Azure portal: Subscriptions > (subscription) > Settings > Resource providers.
+  resourceProviders: readonly string[];
+  // Delegated scopes beyond sign-in the user must consent to (not checked yet).
+  // Entra admin center: Entra ID > Enterprise apps > (this installer) > Permissions > Grant admin consent.
+  appConsent: readonly string[];
+  // Azure actions per scope: "tenant", "subscription", a resource group, or a resource in one.
+  // Azure portal: (scope) > Access control (IAM) > Add role assignment; "tenant" is Management groups > Tenant Root Group.
+  armRoles: readonly ArmRole[];
+  // Entra actions the signed-in user needs.
+  // Entra admin center: Entra ID > Roles & admins > (role) > Add assignments.
+  entraRoles: readonly string[];
+}>;
+
 // ─── Composable hook shapes ───────────────────────────────────────────────────
 export interface LoginHook<TAccount> {
   account: TAccount | null;
@@ -200,7 +233,8 @@ export type StageDefinition = {
   deployWorkflowId: string; // Applies this stage's plan; dispatched with the stage's dir.
   prerequisites: Prerequisite[];
   optional?: boolean; // When true, a pending stage is treated as skipped rather than waiting.
-  azurePermissions?: readonly string[]; // Microsoft Graph application permission IDs required by this stage.
+  azurePermissions?: readonly string[]; // Microsoft Graph permissions deploying this stage needs; deploy runs as the signed-in user.
+  planPermissions?: readonly string[]; // Microsoft Graph application permission IDs AZURE_PLAN_CLIENT_ID needs to plan this stage.
 };
 
 export type PipelineConfig = {

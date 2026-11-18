@@ -99,7 +99,6 @@ vi.mock("../config/azureConfig", async (importOriginal) => ({
   get AZURE_CLIENT_ID() {
     return configMocks.azureClientId;
   },
-  DNS_PROVIDERS: ["Microsoft.Network"],
   ARM_SCOPES: ["arm.scope"],
   APP_SCOPES: ["app.scope"],
   DOMAIN_SCOPES: ["domain.scope"],

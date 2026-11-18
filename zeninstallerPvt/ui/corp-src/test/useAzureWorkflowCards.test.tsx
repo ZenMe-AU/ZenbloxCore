@@ -67,6 +67,7 @@ vi.mock("../api/azureGraph", () => ({
   createTemporaryAccessPassForUser: apiMocks.createTemporaryAccessPassForUser,
   temporaryAccessPassMethodExists: apiMocks.temporaryAccessPassMethodExists,
   getExistingSP: apiMocks.getExistingSP,
+  ensureEntraActions: async () => {},
   getAppNameByAppId: apiMocks.getAppNameByAppId,
   getExistingApp: apiMocks.getExistingApp,
   createAppRegistration: apiMocks.createAppRegistration,

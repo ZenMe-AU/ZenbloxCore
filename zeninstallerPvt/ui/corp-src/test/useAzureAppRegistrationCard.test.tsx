@@ -66,6 +66,7 @@ vi.mock("../api/azureArm", async (importOriginal) => ({
 
 vi.mock("../api/azureGraph", () => ({
   ensureServicePrincipalAccess: apiMocks.ensureServicePrincipalAccess,
+  ensureEntraActions: async () => {},
   getExistingApp: apiMocks.getExistingApp,
   getAppNameByAppId: apiMocks.getAppNameByAppId,
   createAppRegistration: apiMocks.createAppRegistration,

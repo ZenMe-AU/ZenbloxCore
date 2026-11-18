@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { CardResourceAccessRequest } from "../../api/azureArm";
+import type { ArmRole, CardResourceAccessRequest } from "../../types";
 // import { CORE_INFRA_PROVIDERS, DNS_PROVIDERS, PRIVATE_FRONTEND_PROVIDERS, REMOTE_TERMINAL_PROVIDERS, readWrite } from "../../config/azureConfig";
 
 // const providers = new Set([...CORE_INFRA_PROVIDERS, ...DNS_PROVIDERS, ...PRIVATE_FRONTEND_PROVIDERS, ...REMOTE_TERMINAL_PROVIDERS]);
@@ -62,5 +62,15 @@ import type { CardResourceAccessRequest } from "../../api/azureArm";
 //   ...readWrite("Microsoft.Authorization/roleAssignments"), "Microsoft.Authorization/roleDefinitions/read", // AzureAppRegistration, CreateAdminUsers
 // ];
 
-// This card only picks the subscription, so all it needs is to read it.
-export const azureSubscriptionAccess = (): CardResourceAccessRequest => ({ subscription: ["Microsoft.Resources/subscriptions/read"] });
+const RESOURCE_PROVIDERS: readonly string[] = [];
+const APP_CONSENT: readonly string[] = [];
+const ARM_ROLES: readonly ArmRole[] = [];
+const ENTRA_ROLES: readonly string[] = [];
+
+// This card only lists subscriptions to pick from, so it checks nothing.
+export const azureSubscriptionAccess = (): CardResourceAccessRequest => ({
+  resourceProviders: RESOURCE_PROVIDERS,
+  appConsent: APP_CONSENT,
+  armRoles: ARM_ROLES,
+  entraRoles: ENTRA_ROLES,
+});

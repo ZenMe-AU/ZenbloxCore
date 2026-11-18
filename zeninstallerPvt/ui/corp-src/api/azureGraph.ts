@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { getToken } from "../auth/msal";
+import { getToken, hasScopeConsent } from "../auth/msal";
 import { azFetch as gFetch, ARM, GRAPH } from "./azureFetch";
 import {
   APP_SCOPES,
@@ -14,10 +14,11 @@ import {
   ACCESS_PASS_SCOPES,
   GROUPS_SCOPES,
   ROLE_MANAGEMENT_SCOPES,
+  ROLE_READ_SCOPES,
   USER_SCOPES,
   CLAIMS_POLICY_SCOPES,
 } from "../config/azureConfig";
-import { RBAC_ROLE_IDS } from "../config/azureConfig";
+import { DIRECTORY_ROLE_IDS, RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
 import type { AzureAccount, AzureTenant } from "../types";
 
@@ -986,4 +987,31 @@ export async function hasAwsSsoRoleClaim(account: AzureAccount, spId: string, ro
   const token = await getToken(account, [...APP_SCOPES, ...CLAIMS_POLICY_SCOPES], overrideTenantId);
   const policy = await gFetch(token, GRAPH_BETA, `/servicePrincipals/${spId}/claimsPolicy`).catch(() => null);
   return JSON.stringify(policy ?? {}).includes(roleClaim);
+}
+
+// ── Entra role actions ────────────────────────────────────────────────────────
+
+// A role action ending in allTasks covers everything under it, e.g. users/allProperties/allTasks covers users/create.
+const coversEntraAction = (granted: string, needed: string) =>
+  granted === needed || (granted.endsWith("/allTasks") && needed.startsWith(granted.replace(/(\/allProperties)?\/allTasks$/, "/")));
+
+// Global Administrator passes outright: its action list leaves out some it can do, such as userCredentialPolicies.
+// ponytail: only built-in roles held tenant-wide count (directly, through a group, or activated in PIM); custom and admin-unit roles need roleAssignments.
+export async function ensureEntraActions(account: AzureAccount, actions: readonly string[], overrideTenantId?: string): Promise<void> {
+  if (!actions.length) return;
+  if (!(await hasScopeConsent(account, ROLE_READ_SCOPES, overrideTenantId))) {
+    throw new Error("ZenInstaller needs permission to read your Microsoft Entra roles (RoleManagement.Read.Directory, which needs admin consent). Recheck to grant it.");
+  }
+  const token = await getToken(account, ROLE_READ_SCOPES, overrideTenantId);
+  const roles: { value?: { roleTemplateId: string }[] } = await gFetch(token, GRAPH, "/me/transitiveMemberOf/microsoft.graph.directoryRole?$select=roleTemplateId");
+  const templateIds = (roles?.value ?? []).map((role) => role.roleTemplateId);
+  if (templateIds.includes(DIRECTORY_ROLE_IDS["Global Administrator"])) return;
+  const definitions: { rolePermissions: { allowedResourceActions: string[] }[] }[] = await Promise.all(
+    templateIds.map((id) => gFetch(token, GRAPH, `/roleManagement/directory/roleDefinitions/${id}?$select=rolePermissions`))
+  );
+  const granted = definitions.flatMap((definition) => definition.rolePermissions.flatMap((permission) => permission.allowedResourceActions));
+  const missing = actions.filter((needed) => !granted.some((action) => coversEntraAction(action, needed)));
+  if (missing.length) {
+    throw new Error(`Your account is missing these Microsoft Entra permissions:\n${missing.join("\n")}\n\nAssign or activate a Microsoft Entra role that includes them, such as Global Administrator, then recheck.`);
+  }
 }

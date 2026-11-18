@@ -30,9 +30,13 @@ import type {
   StageDefinition,
 } from "../../types";
 import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../../api";
-import { useAzurePermissions } from "../../hooks/util/useAzurePermissions";
+import { useAzurePermissions, useServicePrincipalId } from "../../hooks/util/useAzurePermissions";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
-import { subscriptionBudgetAccess } from "./stageConfig";
+import { planAppAccess, stageAccess, stageProviders } from "./stageConfig";
+import { useUnregisteredProviders, type UnregisteredProviders } from "../../hooks/util/useProviderRegistration";
+import WarningNotice from "../../components/WarningNotice";
+import Caption from "../../components/Caption";
+import { getApiStorageAccountName, getWebPubSubName } from "../../logic/naming";
 import { useRemoteTerminal } from "./useRemoteTerminal";
 import { assessPrerequisites, computePlanSummary, isPlanBehind, type PrerequisiteAssessment } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
@@ -455,7 +459,10 @@ function StageCardContent({
   runError,
   azureAccount,
   managementAccess,
-}: Props & { managementAccess?: CardResourceAccess }) {
+  planAccess,
+  planAppError,
+  providers,
+}: Props & { managementAccess?: CardResourceAccess; planAccess?: CardResourceAccess; planAppError?: string; providers?: UnregisteredProviders }) {
   const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [planOutputOpen, setPlanOutputOpen] = useState(false);
   const [planItems, setPlanItems] = useState<PlanItem[]>([]);
@@ -467,11 +474,11 @@ function StageCardContent({
 
   // One instance per card. The permissions come straight from this stage's definition, so there
   // is no shared pending flag to leak and no union of every stage's permissions to over-grant.
-  const azurePermissions = useAzurePermissions({
+  const planPermissions = useAzurePermissions({
     azureAccount,
-    spClientId: variableValues.AZURE_CLIENT_ID ?? "",
+    spClientId: variableValues.AZURE_PLAN_CLIENT_ID ?? "",
     tenantId: variableValues.AZURE_TENANT_ID || undefined,
-    permissions: stageDef.azurePermissions,
+    permissions: stageDef.planPermissions,
   });
   const remoteTerminal = useRemoteTerminal({
     account,
@@ -639,10 +646,37 @@ function StageCardContent({
               onRun={onRunStatusUpdate}
               running={statusUpdateRunning}
               countdown={statusUpdateCountdown}
-              disabled={statusUpdateDisabled}
+              disabled={statusUpdateDisabled || !!planPermissions.missing?.length || planAccess?.status === "error" || !!planAppError ||
+                (!!providers && providers.status !== "ready" && providers.status !== "idle")}
             />
             {runError && <ErrorText>{runError}</ErrorText>}
           </Box>
+          {planAppError && <ErrorText>{planAppError}</ErrorText>}
+          {planAccess && <AzureAccessCheck access={planAccess} resourceAccess errorStyle />}
+          {providers && (providers.status === "unregistered" || providers.status === "error") && (
+            <WarningNotice message={providers.error ??
+              "These Azure resource providers aren't registered yet. Terraform registers them when every plan starts, and the plan app can't, so planning is blocked until they are registered."}>
+              {!!providers.unregistered.length && <Caption>{providers.unregistered.join(", ")}</Caption>}
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => void (providers.unregistered.length ? providers.register() : providers.retry())}
+                disabled={providers.registering}
+                aria-busy={providers.registering}
+                sx={{ alignSelf: "flex-start", minWidth: 0, px: 1 }}
+              >
+                {providers.registering ? "Registering..." : providers.unregistered.length ? "Register providers" : "Recheck providers"}
+              </Button>
+            </WarningNotice>
+          )}
+          {!planPermissions.ready && (
+            <PermissionNotice
+              missing={planPermissions.missing}
+              error={planPermissions.error}
+              granting={planPermissions.granting}
+              onGrant={planPermissions.grant}
+            />
+          )}
         </Box>
 
         {(hasDetails || accessNotice) && (
@@ -655,16 +689,6 @@ function StageCardContent({
             accessNotice={accessNotice}
             accessError={accessError}
             onDeploy={onDeploy}
-            deployNotice={
-              !azurePermissions.ready && (
-                <PermissionNotice
-                  missing={azurePermissions.missing}
-                  error={azurePermissions.error}
-                  granting={azurePermissions.granting}
-                  onGrant={azurePermissions.grant}
-                />
-              )
-            }
             stagesStale={deployDisabled || (managementAccess != null && managementAccess.status !== "ready")}
             behind={isPlanBehind(stage, latestSha)}
             planSha={stage.planSha}
@@ -761,15 +785,35 @@ function StageCardContent({
 }
 
 function ArmStageCard(props: Props) {
+  const { variableValues } = props;
+  const subscriptionId = variableValues.AZURE_SUBSCRIPTION_ID ?? "";
+  // Named as the Remote terminal card names them.
+  const terminal = {
+    storageAccount: variableValues.API_STORAGE_ACCOUNT || getApiStorageAccountName(subscriptionId),
+    webPubSub: variableValues.WEBPUBSUB_ENDPOINT?.replace(/\.webpubsub\.azure\.com\/?$/i, "") || getWebPubSubName(subscriptionId),
+  };
   const managementAccess = useCardResourceAccess({
     azureAccount: props.azureAccount,
-    subscriptionId: props.variableValues.AZURE_SUBSCRIPTION_ID ?? "",
-    tenantId: props.variableValues.AZURE_TENANT_ID || undefined,
-  }, subscriptionBudgetAccess());
-  return <StageCardContent {...props} managementAccess={managementAccess} />;
+    subscriptionId,
+    tenantId: variableValues.AZURE_TENANT_ID || undefined,
+  }, stageAccess(props.stageDef.dir, terminal));
+  const planApp = useServicePrincipalId(props.azureAccount, variableValues.AZURE_PLAN_CLIENT_ID ?? "", variableValues.AZURE_TENANT_ID || undefined);
+  const tfState = { resourceGroup: variableValues.TF_STATE_RESOURCE_GROUP ?? "", storageAccount: variableValues.TF_STATE_STORAGE_ACCOUNT ?? "" };
+  // No subscription keeps the check idle, so a missing object id never falls back to checking the signed-in user.
+  const planAccess = useCardResourceAccess({
+    azureAccount: props.azureAccount,
+    subscriptionId: planApp.id && tfState.resourceGroup && tfState.storageAccount ? subscriptionId : "",
+    tenantId: variableValues.AZURE_TENANT_ID || undefined,
+  }, planAppAccess(planApp.id ?? "", tfState));
+  const providers = useUnregisteredProviders({
+    azureAccount: props.azureAccount,
+    subscriptionId,
+    tenantId: variableValues.AZURE_TENANT_ID || undefined,
+  }, stageProviders(props.stageDef.dir));
+  return <StageCardContent {...props} managementAccess={managementAccess} planAccess={planAccess} planAppError={planApp.error} providers={providers} />;
 }
 
+// Every deploy runs in the remote terminal, so every stage checks access.
 export default function StageCard(props: Props) {
-  if (props.stageDef.dir === "SubscriptionBudget") return <ArmStageCard {...props} />;
-  return <StageCardContent {...props} />;
+  return <ArmStageCard {...props} />;
 }

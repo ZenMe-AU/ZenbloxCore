@@ -96,7 +96,6 @@ vi.mock("../config/azureConfig", async (importOriginal) => ({
   get AZURE_CLIENT_ID() {
     return configMocks.azureClientId;
   },
-  CORE_INFRA_PROVIDERS: ["Microsoft.OperationalInsights", "Microsoft.Insights", "Microsoft.Storage"],
   ARM_SCOPES: ["arm.scope"],
   APP_SCOPES: ["app.scope"],
 }));

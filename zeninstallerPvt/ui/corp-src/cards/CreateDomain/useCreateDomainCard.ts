@@ -5,11 +5,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ensureScopeConsent, getMsal } from "../../auth/msal";
-import { APP_SCOPES, DNS_PROVIDERS, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_PERMISSIONS } from "../../config/azureConfig";
+import { APP_SCOPES, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_PERMISSIONS } from "../../config/azureConfig";
 import { ensureDnsZone, ensureDnsTxtRecord, ensureResourceGroup, ensureLogAnalyticsWorkspace, findDnsZone, listLocations, type AzureLocation } from "../../api/azureArm";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
-import { createDomainAccess } from "./config";
+import { RESOURCE_PROVIDERS, createDomainAccess } from "./config";
 import {
   getEntraDomain,
   createEntraDomain,
@@ -289,7 +289,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
 
       currentStep = "providers";
       updateStep("providers", "running");
-      const providers = await ensureRegistered(DNS_PROVIDERS);
+      const providers = await ensureRegistered(RESOURCE_PROVIDERS);
       updateStep(
         "providers",
         providers.registered.length === 0 ? "skipped" : "done",

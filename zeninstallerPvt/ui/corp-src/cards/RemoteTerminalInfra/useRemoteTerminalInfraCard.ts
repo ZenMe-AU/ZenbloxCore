@@ -34,7 +34,7 @@ import { createAppRegistration, createServicePrincipal, ensureFederatedCredentia
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
-import { remoteTerminalInfraAccess } from "./config";
+import { RESOURCE_PROVIDERS, remoteTerminalInfraAccess } from "./config";
 import {
   DEFAULT_AZURE_LOCATION,
   PRIVATE_APP_INSIGHTS,
@@ -50,7 +50,6 @@ import {
   functionAppFromApiUrl,
   getFederatedCredential,
 } from "../../logic/naming";
-import { REMOTE_TERMINAL_PROVIDERS } from "../../config/azureConfig";
 import { DEPLOYMENT_TERMINAL_KEYS } from "../../logic/variables";
 import type { Account, AzureConfigHook, AzureTarget, CardHook, CardStatus, SetupStep } from "../../types";
 
@@ -355,7 +354,7 @@ export function useRemoteTerminalInfraCard({
       updateStep("access", "done");
 
       updateStep("providers", "running");
-      const providers = await ensureRegistered(REMOTE_TERMINAL_PROVIDERS);
+      const providers = await ensureRegistered(RESOURCE_PROVIDERS);
       updateStep(
         "providers",
         providers.registered.length === 0 ? "skipped" : "done",
