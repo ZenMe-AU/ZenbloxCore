@@ -5,10 +5,10 @@
 
 import type { ActionType, ArmRole, CardResourceAccessRequest } from "../../types";
 import { readWrite } from "../../config/azureConfig";
-import { PRIVATE_RESOURCE_GROUP } from "../../logic/naming";
+// import { PRIVATE_RESOURCE_GROUP } from "../../logic/naming"; // Deprecated: the terminal backend now only needs a sign-in to its tenant; kept for reference.
 
-// The remote terminal's storage account (session table) and Web PubSub, from the Remote terminal card.
-export type TerminalNames = { storageAccount: string; webPubSub: string };
+// // The remote terminal's storage account (session table) and Web PubSub, from the Remote terminal card.
+// export type TerminalNames = { storageAccount: string; webPubSub: string }; // Deprecated: the terminal backend now only needs a sign-in to its tenant; kept for reference.
 
 const STAGE_RESOURCE_PROVIDERS: Readonly<Record<string, readonly string[]>> = {
   SubscriptionBudget: ["Microsoft.Consumption"],
@@ -17,24 +17,24 @@ const STAGE_RESOURCE_PROVIDERS: Readonly<Record<string, readonly string[]>> = {
 // What must be registered before a stage can plan; the Stage card offers to register what is missing.
 export const stageProviders = (dir: string): readonly string[] => STAGE_RESOURCE_PROVIDERS[dir] ?? [];
 const APP_CONSENT: readonly string[] = [];
-// Every deploy runs in the remote terminal, whose backend requires these of the caller.
-const terminalArmRoles = (n: TerminalNames): readonly ArmRole[] => [
-  {
-    scope: { resourceGroup: PRIVATE_RESOURCE_GROUP, resource: `Microsoft.Storage/storageAccounts/${n.storageAccount}`, locate: true, mustExist: true },
-    actions: [],
-    dataActions: [
-      ...readWrite("Microsoft.Storage/storageAccounts/tableServices/tables/entities"),
-      "Microsoft.Storage/storageAccounts/tableServices/tables/entities/delete",
-      "Microsoft.Storage/storageAccounts/tableServices/tables/entities/add/action",
-      "Microsoft.Storage/storageAccounts/tableServices/tables/entities/update/action",
-    ],
-  },
-  {
-    scope: { resourceGroup: PRIVATE_RESOURCE_GROUP, resource: `Microsoft.SignalRService/webPubSub/${n.webPubSub}`, locate: true, mustExist: true },
-    actions: [],
-    dataActions: ["Microsoft.SignalRService/WebPubSub/*"],
-  },
-];
+// // Every deploy runs in the remote terminal, whose backend requires these of the caller.
+// const terminalArmRoles = (n: TerminalNames): readonly ArmRole[] => [ // Deprecated: the terminal backend now only needs a sign-in to its tenant; kept for reference.
+//   {
+//     scope: { resourceGroup: PRIVATE_RESOURCE_GROUP, resource: `Microsoft.Storage/storageAccounts/${n.storageAccount}`, locate: true, mustExist: true },
+//     actions: [],
+//     dataActions: [
+//       ...readWrite("Microsoft.Storage/storageAccounts/tableServices/tables/entities"),
+//       "Microsoft.Storage/storageAccounts/tableServices/tables/entities/delete",
+//       "Microsoft.Storage/storageAccounts/tableServices/tables/entities/add/action",
+//       "Microsoft.Storage/storageAccounts/tableServices/tables/entities/update/action",
+//     ],
+//   },
+//   {
+//     scope: { resourceGroup: PRIVATE_RESOURCE_GROUP, resource: `Microsoft.SignalRService/webPubSub/${n.webPubSub}`, locate: true, mustExist: true },
+//     actions: [],
+//     dataActions: ["Microsoft.SignalRService/WebPubSub/*"],
+//   },
+// ];
 const STAGE_ARM_ROLES: Readonly<Record<string, readonly ArmRole[]>> = {
   SubscriptionBudget: [
     {
@@ -45,10 +45,11 @@ const STAGE_ARM_ROLES: Readonly<Record<string, readonly ArmRole[]>> = {
 };
 const STAGE_ENTRA_ROLES: Readonly<Record<string, readonly string[]>> = {};
 
-export const stageAccess = (dir: string, terminal: TerminalNames): CardResourceAccessRequest => ({
+export const stageAccess = (dir: string): CardResourceAccessRequest => ({
   resourceProviders: stageProviders(dir),
   appConsent: APP_CONSENT,
-  armRoles: [...(STAGE_ARM_ROLES[dir] ?? []), ...terminalArmRoles(terminal)],
+  // armRoles: [...(STAGE_ARM_ROLES[dir] ?? []), ...terminalArmRoles(terminal)], // Deprecated: the terminal backend now only needs a sign-in to its tenant; kept for reference.
+  armRoles: STAGE_ARM_ROLES[dir] ?? [],
   entraRoles: STAGE_ENTRA_ROLES[dir] ?? [],
 });
 

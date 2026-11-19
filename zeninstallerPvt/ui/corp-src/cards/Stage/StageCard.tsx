@@ -36,7 +36,7 @@ import { planAppAccess, stageAccess, stageProviders } from "./stageConfig";
 import { useUnregisteredProviders, type UnregisteredProviders } from "../../hooks/util/useProviderRegistration";
 import WarningNotice from "../../components/WarningNotice";
 import Caption from "../../components/Caption";
-import { getApiStorageAccountName, getWebPubSubName } from "../../logic/naming";
+// import { getApiStorageAccountName, getWebPubSubName } from "../../logic/naming"; // Deprecated: the terminal backend now only needs a sign-in to its tenant; kept for reference.
 import { useRemoteTerminal } from "./useRemoteTerminal";
 import { assessPrerequisites, computePlanSummary, isPlanBehind, type PrerequisiteAssessment } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
@@ -788,16 +788,16 @@ function StageCardContent({
 function ArmStageCard(props: Props) {
   const { variableValues } = props;
   const subscriptionId = variableValues.AZURE_SUBSCRIPTION_ID ?? "";
-  // Named as the Remote terminal card names them.
-  const terminal = {
-    storageAccount: variableValues.API_STORAGE_ACCOUNT || getApiStorageAccountName(subscriptionId),
-    webPubSub: variableValues.WEBPUBSUB_ENDPOINT?.replace(/\.webpubsub\.azure\.com\/?$/i, "") || getWebPubSubName(subscriptionId),
-  };
+  // // Named as the Remote terminal card names them.
+  // const terminal = { // Deprecated: the terminal backend now only needs a sign-in to its tenant; kept for reference.
+  //   storageAccount: variableValues.API_STORAGE_ACCOUNT || getApiStorageAccountName(subscriptionId),
+  //   webPubSub: variableValues.WEBPUBSUB_ENDPOINT?.replace(/\.webpubsub\.azure\.com\/?$/i, "") || getWebPubSubName(subscriptionId),
+  // };
   const managementAccess = useCardResourceAccess({
     azureAccount: props.azureAccount,
     subscriptionId,
     tenantId: variableValues.AZURE_TENANT_ID || undefined,
-  }, stageAccess(props.stageDef.dir, terminal));
+  }, stageAccess(props.stageDef.dir));
   const planApp = useServicePrincipalId(props.azureAccount, variableValues.AZURE_PLAN_CLIENT_ID ?? "", variableValues.AZURE_TENANT_ID || undefined);
   const tfState = { resourceGroup: variableValues.TF_STATE_RESOURCE_GROUP ?? "", storageAccount: variableValues.TF_STATE_STORAGE_ACCOUNT ?? "" };
   // No subscription keeps the check idle, so a missing object id never falls back to checking the signed-in user.
