@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Box, Button, ButtonBase, CircularProgress, Collapse, Divider, IconButton, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -458,10 +458,14 @@ function StageCardContent({
 }: Props & { managementAccess?: CardResourceAccess }) {
   const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [planOutputOpen, setPlanOutputOpen] = useState(false);
-  const [planItems, setPlanItems] = useState<PlanItem[]>([]);
-  const [planSummary, setPlanSummary] = useState<PlanSummary>({ create: 0, update: 0, delete: 0, replace: 0 });
-  const [planLoading, setPlanLoading] = useState(false);
-  const [planError, setPlanError] = useState<string | null>(null);
+  const planRequest = useMemo(() => {
+    if (!stage.planJsonId || stage.status !== "success" || !account) return null;
+    return { id: stage.planJsonId, account, repoName, runId: stage.runId, envId: selectedEnv?.id };
+  }, [stage.planJsonId, stage.status, account, repoName, stage.runId, selectedEnv?.id]);
+  const [planResult, setPlanResult] = useState<{
+    request: NonNullable<typeof planRequest>;
+  } & ({ items: PlanItem[]; summary: PlanSummary } | { error: string }) | null>(null);
+  const currentPlan = planRequest && planResult?.request === planRequest ? planResult : null;
   const [deployLog, setDeployLog] = useState<{ id: number; text: string | null } | null>(null);
   const [planLog, setPlanLog] = useState<{ id: number; text: string | null } | null>(null);
 
@@ -505,36 +509,23 @@ function StageCardContent({
 
   // Scope async results to the current report so a late fetch cannot restore an older plan.
   useEffect(() => {
-    if (!stage.planJsonId || stage.status !== "success" || !account || statusUpdateRunning) return;
+    if (!planRequest || statusUpdateRunning) return;
     let active = true;
-    const t = setTimeout(() => {
-      setPlanLoading(true);
-      // Remove the previous report while its replacement is being fetched.
-      setPlanItems([]);
-      setPlanError(null);
-    }, 0);
-    fetchPlan(stage.planJsonId, account, repoName)
+    fetchPlan(planRequest.id, planRequest.account, planRequest.repoName)
       .then((data) => {
         if (!active) return;
-        const fetched: PlanItem[] = data.resource_changes || [];
-        const s = computePlanSummary(fetched);
-        setPlanItems(fetched);
-        setPlanSummary(s);
-        setPlanError(null);
-        onPlanSummaryRef.current?.(s);
+        const items: PlanItem[] = data.resource_changes || [];
+        const summary = computePlanSummary(items);
+        setPlanResult({ request: planRequest, items, summary });
+        onPlanSummaryRef.current?.(summary);
       })
       .catch((err: Error) => {
-        if (active) setPlanError(err.message);
-      })
-      .finally(() => {
-        clearTimeout(t);
-        if (active) setPlanLoading(false);
+        if (active) setPlanResult({ request: planRequest, error: err.message });
       });
     return () => {
       active = false;
-      clearTimeout(t);
     };
-  }, [stage.planJsonId, stage.runId, stage.status, account, repoName, selectedEnv?.id, statusUpdateRunning]);
+  }, [planRequest, statusUpdateRunning]);
 
   useEffect(() => {
     const id = stage.deployLogId;
@@ -634,6 +625,22 @@ function StageCardContent({
               })}
             </Prerequisites>
           )}
+          {canRefreshPrerequisites && (
+            <Box role="group" aria-label="Refresh changed prerequisites" sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <RunStatusUpdateButton
+                onRun={onRunStatusUpdate}
+                running={statusUpdateRunning}
+                countdown={statusUpdateCountdown}
+                disabled={statusUpdateDisabled}
+                label="Refresh plan"
+              />
+              {runError && <ErrorText>{runError}</ErrorText>}
+            </Box>
+          )}
+        </Box>
+
+        {prerequisitesMet && (
+          <Box role="region" aria-label="Plan" sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
             <RunStatusUpdateButton
               onRun={onRunStatusUpdate}
@@ -643,14 +650,13 @@ function StageCardContent({
             />
             {runError && <ErrorText>{runError}</ErrorText>}
           </Box>
-        </Box>
 
         {(hasDetails || accessNotice) && (
           <StagePlanDetail
-            items={planItems}
-            summary={planSummary}
-            loading={planLoading}
-            error={planError}
+            items={currentPlan && "items" in currentPlan ? currentPlan.items : []}
+            summary={currentPlan && "summary" in currentPlan ? currentPlan.summary : { create: 0, update: 0, delete: 0, replace: 0 }}
+            loading={hasDetails && !currentPlan}
+            error={currentPlan && "error" in currentPlan ? currentPlan.error : null}
             planAvailable={hasDetails}
             accessNotice={accessNotice}
             accessError={accessError}
@@ -722,7 +728,8 @@ function StageCardContent({
                 </Collapse>
               </Box>
             )}
- 
+          </Box>
+        )}
 
         <RemoteTerminal session={remoteTerminal} />
 

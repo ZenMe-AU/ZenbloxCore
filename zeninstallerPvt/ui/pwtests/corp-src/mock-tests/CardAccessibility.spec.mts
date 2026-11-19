@@ -23,6 +23,39 @@ test.describe("Installer accessibility", () => {
     await expectAxeClean(page, "collapsed page");
   });
 
+  test("dragging a card title selects it without toggling the card", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto(CORP_URL);
+
+    const toggle = page.locator("#card-github_login h3 button");
+    const title = toggle.locator("span[title]").first();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await title.scrollIntoViewIfNeeded();
+    const { left, right, middle } = await title.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const bounds = range.getBoundingClientRect();
+      return { left: bounds.left + 1, right: bounds.right + 2, middle: bounds.top + bounds.height / 2 };
+    });
+
+    await page.mouse.move(left, middle);
+    await page.mouse.down();
+    await page.mouse.move(right, middle, { steps: 10 });
+    await page.mouse.up();
+    const titleText = await title.innerText();
+    expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(titleText);
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await page.keyboard.press("ControlOrMeta+C");
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(titleText);
+
+    await title.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await toggle.press("Enter");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await toggle.press("Space");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  });
+
   test("long collapsed summaries do not change card height or accessible name", async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.goto(CORP_URL);

@@ -696,6 +696,29 @@ describe("useCoreInfraCard", () => {
     });
   });
 
+  it("reports a missing company short code until it is configured", async () => {
+    // Keep setup guidance actionable before configuration, then restore the normal setup summary after entry.
+    let latest: UseCoreInfraCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(<HookHarness {...baseProps({ corpName: "" })} onUpdate={(value) => { latest = value; }} />);
+    });
+
+    expect(latest?.status).toBe("warning");
+    expect(latest?.summary).toBe("COMPANY_SHORT_CODE not set");
+
+    await act(async () => {
+      root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />);
+    });
+
+    expect(latest?.summary).toBe("Set up corp infrastructure");
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("computes warning/complete/error status and summary from config and done state", async () => {
     let latest: UseCoreInfraCard | null = null;
     const root = createRoot(document.createElement("div"));

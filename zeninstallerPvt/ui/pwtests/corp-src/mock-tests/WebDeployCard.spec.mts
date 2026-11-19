@@ -34,6 +34,8 @@ test("Does not record the new version after a failed blob upload", async ({ page
   await expect(card.getByText(/Mock blob upload denied/).first()).toBeVisible();
   expect(state.metadataWrites).toBe(0);
   await expect(card.getByText(/^Live on the site:/)).toContainText("nothing deployed");
+  await expect(card.getByRole("button", { name: "Deploy", exact: true })).toBeDisabled();
+  await card.getByRole("button", { name: "Recheck resource access", exact: true }).click();
   await expect(card.getByRole("button", { name: "Deploy", exact: true })).toBeEnabled();
   expect(unexpectedRequests).toEqual([]);
   await expectSnapshot(page, card, testInfo, "upload-denied", getViewportName(testInfo));
@@ -138,7 +140,7 @@ async function prepareWeb(
       if (request.method() === "GET") {
         state.metadataReads++;
         return route.fulfill({
-          status: state.metadataWrites ? 200 : 404,
+          status: 200,
           headers: { ...state.metadata, "access-control-expose-headers": "x-ms-meta-version, x-ms-meta-sha, x-ms-meta-builtat" },
         });
       }

@@ -27,7 +27,12 @@ import { VALID_ENVS } from "../../config/githubConfig";
 import { getFederatedCredential, getImmutableRepoSegment } from "../../logic/naming";
 import { setOidcImmutableSubject } from "../../api";
 
-export type AzureAppRegistrationResult = { clientId: string; tenantId: string; subscriptionIds: string[] };
+export type AzureAppRegistrationResult = {
+  clientId: string;
+  tenantId: string;
+  subscriptionIds: string[];
+  target?: { accountId: number; repoId: number; appName: string; environments: string[] };
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +61,7 @@ export interface UseAzureAppRegistrationCard extends CardHook, AzureConfigHook {
   tenantId?: string; // The resolved effective tenant — fed to useCoreInfraCard / useCreateDomainCard.
   rbacStatus: RbacCheckStatus;
   rbacMissingRoles: string[];
+  rbacError?: string | null;
   planClientIdMismatch: boolean; // AZURE_PLAN_CLIENT_ID has drifted from AZURE_CLIENT_ID (the app's own flow always keeps them equal).
   variablesComplete: boolean; // Both AZURE_APP_KEYS are saved on GitHub — reported by CloudVariableDetail via onVariablesComplete.
   onVariablesComplete: (complete: boolean) => void;
@@ -95,6 +101,7 @@ export function useAzureAppRegistrationCard({
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const [result, setResult] = useState<AzureAppRegistrationResult | null>(loadResult);
   const [variablesComplete, setVariablesComplete] = useState(false);
+  const [prefillingAppName, setPrefillingAppName] = useState(false);
   // Incremented on each successful run. Distinguishes "a run just finished" from "result exists",
   // which a persisted result makes indistinguishable on reload.
   const [runNonce, setRunNonce] = useState(0);
@@ -115,7 +122,7 @@ export function useAzureAppRegistrationCard({
   const planClientIdMismatch = !!spClientId && !!planClientId && spClientId !== planClientId;
 
   // Live check: does the app reg exist in this tenant, and does its SP hold RBAC on the selected subscription?
-  const { status: liveRbacStatus, missingRoles: liveRbacMissingRoles } = useRbacCheck({
+  const { status: liveRbacStatus, missingRoles: liveRbacMissingRoles, checking: rbacChecking, error: rbacError } = useRbacCheck({
     azureAccount,
     spClientId,
     subscriptionId,
@@ -131,11 +138,14 @@ export function useAzureAppRegistrationCard({
   const prefillAppName = useCallback(
     async (appId: string) => {
       if (!azureAccount || !appId) return;
+      setPrefillingAppName(true);
       try {
         const name = await getAppNameByAppId(azureAccount, appId, effectiveTenantId);
         if (name) setAppName(name);
       } catch {
         /* keep default name */
+      } finally {
+        setPrefillingAppName(false);
       }
     },
     [azureAccount, effectiveTenantId]
@@ -257,7 +267,10 @@ export function useAzureAppRegistrationCard({
       await ensureRbacRole(azureAccount, subscriptionId, spObjectId, "Reader", effectiveTenantId);
       updateStep("rbac", "done", subscriptionLabel || subscriptionId);
 
-      const r = { clientId: appId, tenantId: resolvedTenantId, subscriptionIds: [subscriptionId] };
+      const r = {
+        clientId: appId, tenantId: resolvedTenantId, subscriptionIds: [subscriptionId],
+        target: { accountId: githubAccount.id, repoId: githubRepoId, appName, environments: [...environments] },
+      };
       setResult(r);
       saveResult(r);
       setGrantedFor(`${subscriptionId}|${resolvedTenantId ?? ""}|${appId}`);
@@ -296,33 +309,48 @@ export function useAzureAppRegistrationCard({
     reportAccessFailure,
   ]);
 
-  const done = variablesComplete && rbacStatus === "ready" && !planClientIdMismatch;
-
   const azureConfigured = !!AZURE_CLIENT_ID;
+  const resultMatches = !!result && result.clientId === spClientId && result.tenantId === effectiveTenantId && result.subscriptionIds.includes(subscriptionId)
+    && result.target?.accountId === githubAccount?.id && result.target?.repoId === githubRepoId && result.target?.appName === appName
+    && result.target?.environments.length === environments.length && environments.every((environment) => result.target!.environments.includes(environment));
+  const activitySummary = running ? steps.find((step) => step.status === "running")?.label || "Creating app registration"
+    : managementAccess.status === "checking" ? "Checking Azure resource access"
+    : rbacChecking ? "Checking app registration access"
+    : prefillingAppName ? "Fetching app registration name" : null;
+  const failedStep = steps.find((step) => step.status === "error");
+  const done = azureConfigured && !!azureAccount && !!subscriptionId && !!githubAccount && resultMatches
+    && variablesComplete && rbacStatus === "ready" && !planClientIdMismatch
+    && managementAccess.status === "ready" && !activitySummary && !failedStep && !(rbacError && !rbacTrusted);
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
   const status: CardStatus = !azureConfigured
     ? "error"
-    : managementAccess.status === "error"
+    : activitySummary
+      ? "loading"
+    : failedStep || managementAccess.status === "error" || (rbacError && !rbacTrusted)
       ? "error"
-      : !variablesComplete
-        ? "warning"
-        : rbacStatus === "sp-not-found" || rbacStatus === "missing-role" || planClientIdMismatch
-          ? "warning" // vars saved but the app reg is gone from this tenant, the SP lost access, or AZURE_PLAN_CLIENT_ID drifted
-          : "complete"; // filled in — validated (true) or not yet run (null) both count as complete
+      : done ? "complete" : "warning";
   const summary = !azureConfigured
     ? "Unavailable"
+    : activitySummary
+      ? activitySummary
+    : failedStep
+      ? `Failed: ${failedStep.label}`
     : managementAccess.status === "error"
       ? "Insufficient permissions to continue"
+    : rbacError && !rbacTrusted
+      ? "Could not verify app registration access"
       : rbacStatus === "sp-not-found"
         ? "Not found in the selected tenant — recreate it"
         : rbacStatus === "missing-role"
           ? "Missing access on the selected subscription"
           : planClientIdMismatch
             ? "AZURE_PLAN_CLIENT_ID doesn't match AZURE_CLIENT_ID"
-            : result
-              ? "App registration ready"
-              : "Create the app registration";
+            : !resultMatches
+              ? "Create app registration"
+              : !variablesComplete
+                ? "Save app registration connection details"
+                : done ? "App registration ready" : "Verify app registration access";
 
   return {
     managementAccess: {
@@ -350,6 +378,7 @@ export function useAzureAppRegistrationCard({
     tenantId: effectiveTenantId,
     rbacStatus,
     rbacMissingRoles,
+    rbacError: rbacTrusted ? null : rbacError,
     planClientIdMismatch,
     variablesComplete,
     onVariablesComplete: setVariablesComplete,

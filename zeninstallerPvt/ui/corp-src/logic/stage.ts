@@ -141,7 +141,8 @@ export function getStageSummaryText(stage: Stage, summary: PlanSummary | undefin
       deployed: "Deployed",
       success: "Ready to deploy",
       failed: "Plan failed; check the GitHub Actions run", // The message identifies the failure without a redundant "Failed:" prefix.
-      pending: "Not yet executed",
+      // Point users at the available next action instead of only describing the stage's past state.
+      pending: "Get updated plan",
       skipped: "Skipped",
     } as Record<StageStatus, string>
   )[effectiveStatus];

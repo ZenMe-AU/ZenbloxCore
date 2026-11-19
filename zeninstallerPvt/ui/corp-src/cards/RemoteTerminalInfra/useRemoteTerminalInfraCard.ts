@@ -130,8 +130,10 @@ export function useRemoteTerminalInfraCard({
   githubEnvName,
 }: UseRemoteTerminalInfraCardParams): UseRemoteTerminalInfraCard {
   const [location, setLocation] = useState(DEFAULT_AZURE_LOCATION);
-  const [locations, setLocations] = useState<AzureLocation[]>([]);
-  const [locationsFailed, setLocationsFailed] = useState(false);
+  const [locationsResult, setLocationsResult] = useState<{
+    account: AzureTarget["azureAccount"]; subscriptionId: string; tenantId: string | undefined;
+    locations: AzureLocation[]; failed: boolean;
+  } | null>(null);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const { ensureRegistered } = useProviderRegistration({ azureAccount, subscriptionId, tenantId });
   const [result, setResult] = useState<RemoteTerminalInfraResult | null>(null);
@@ -257,17 +259,20 @@ export function useRemoteTerminalInfraCard({
   }, [azureAccount, subscriptionId, tenantId, functionAppName]);
 
   // Load the subscription's available regions once an account + subscription are known.
-  const locationsLoading = !!azureAccount && !!subscriptionId && locations.length === 0 && !locationsFailed;
+  const currentLocations = locationsResult?.account === azureAccount && locationsResult?.subscriptionId === subscriptionId && locationsResult?.tenantId === tenantId ? locationsResult : null;
+  const locations = currentLocations?.locations ?? [];
+  const locationsFailed = currentLocations?.failed ?? false;
+  const locationsLoading = azureConfigured && !currentLocations;
   useEffect(() => {
     if (!azureAccount || !subscriptionId) return;
     let cancelled = false;
     listLocations(azureAccount, subscriptionId, tenantId)
       .then((locs) => {
-        if (!cancelled) setLocations(locs);
+        if (!cancelled) setLocationsResult({ account: azureAccount, subscriptionId, tenantId, locations: locs, failed: false });
       })
       .catch(() => {
         // The text field below takes a region by hand when the list can't be loaded.
-        if (!cancelled) setLocationsFailed(true);
+        if (!cancelled) setLocationsResult({ account: azureAccount, subscriptionId, tenantId, locations: [], failed: true });
       });
     return () => {
       cancelled = true;
@@ -512,10 +517,18 @@ export function useRemoteTerminalInfraCard({
     webPubSubName,
   ]);
 
-  const status: CardStatus = !azureConfigured || creationAccess.status === "error" ? "error" : done ? "complete" : "warning";
+  const activitySummary = running ? steps.find((step) => step.status === "running")?.label || "Setting up the backend environment"
+    : creationAccess.status === "checking" ? "Checking Azure resource access"
+    : storageChecking ? "Checking storage account name"
+    : webPubSubChecking ? "Checking Web PubSub name"
+    : functionAppChecking ? "Checking Function App name"
+    : locationsLoading ? "Fetching Azure regions" : null;
+  const failedStep = steps.find((step) => step.status === "error");
+  const status: CardStatus = !azureConfigured ? "error" : activitySummary ? "loading" : failedStep || creationAccess.status === "error" ? "error" : done ? "complete" : "warning";
   const summary = !azureConfigured ? "Unavailable"
-    : creationAccess.status === "error" ? "Insufficient permissions to continue"
-      : done ? "Backend environment ready" : "Set up the backend environment";
+    : activitySummary || (failedStep ? `Failed: ${failedStep.label}` : null)
+      || (creationAccess.status === "error" ? "Insufficient permissions to continue" : null)
+      || (done ? "Backend environment ready" : "Set up the backend environment");
 
   return {
     cardId: "remote_terminal_infra" as const,

@@ -42,7 +42,9 @@ function Intro({ appName }: { appName: string }) {
 
 export default function BackendDeployCard({ card, backend, repoFullName }: Props) {
   const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
-  const { appName, latest, deployed, loadingLatest, loadingDeployed, deployedUnavailable, building, build, buildWorkflow, updateAvailable, error, steps, running, run } = backend;
+  const { appName, latest, deployed, loadingLatest, loadingDeployed, deployedUnavailable, building, build, buildWorkflow, updateAvailable, error, failedBuildRunId, steps, running, run } = backend;
+  // Prefer the failed run when present; the latest successful build is not the run that needs attention.
+  const workflowRunId = failedBuildRunId || latest?.runId;
 
   return (
     <Card
@@ -51,8 +53,8 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
           <ViewLink
-            href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)}
-            label={latest ? "Open latest backend workflow run" : "Open backend workflow in GitHub"}
+            href={workflowRunId ? getWorkflowRunUrl(repoFullName, workflowRunId) : getWorkflowUrl(repoFullName, buildWorkflow)}
+            label={failedBuildRunId ? "Open failed backend workflow run" : latest ? "Open latest backend workflow run" : "Open backend workflow in GitHub"}
           />
         ) : undefined
       }
@@ -91,10 +93,11 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           </Box>
         )}
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+        {/* Wait for both version reads before enabling actions so initial null state is not mistaken for current state. */}
+        <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
           <Button
             onClick={() => void build()}
-            disabled={building || running}
+            disabled={loadingLatest || building || running}
             variant="outlined"
             size="small"
             aria-busy={building}
@@ -115,7 +118,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
           </Button>
           <Button
             onClick={() => void run()}
-            disabled={!updateAvailable || running || building || backend.managementAccess.status !== "ready"}
+            disabled={!updateAvailable || loadingLatest || loadingDeployed || running || building || backend.managementAccess.status !== "ready"}
             variant="contained"
             size="small"
             aria-busy={running}
@@ -130,22 +133,26 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
             )}
           </Button>
 
-          {backend.managementAccess.status === "error" && (
+          {backend.accessNotice && (
             <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
-              <Typography color="error.main">Insufficient permissions to deploy</Typography>
+              {backend.accessNotice.severity === "error" ? (
+                <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+              ) : (
+                <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+              )}
+              <Typography color={backend.accessNotice.severity === "error" ? "error.main" : "warning.dark"}>{backend.accessNotice.summary}</Typography>
             </Box>
           )}
 
-          {/* Mutually exclusive with the prompt below, so both share the slot by the button. */}
-          {!loadingLatest && !deployedUnavailable && latest && !updateAvailable && (
+          {/* Show stable version guidance only; errors, active work, and incomplete reads take precedence. */}
+          {backend.showCurrent && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2", color: "success.main" }} />
               <Typography color="success.dark">The Function App is running the latest build.</Typography>
             </Box>
           )}
 
-          {!loadingLatest && !deployedUnavailable && updateAvailable && deployed && (
+          {backend.showReady && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
               <Typography color="warning.dark">Ready to deploy the new build</Typography>
@@ -164,7 +171,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
 
         {(backend.managementAccess.status === "checking" || backend.managementAccess.status === "error") && (
           <Prerequisites id="backend-deploy-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
-            <AzureAccessCheck access={backend.managementAccess} resourceAccess errorStyle />
+            <AzureAccessCheck access={backend.managementAccess} resourceAccess errorStyle={backend.accessNotice?.severity === "error"} />
           </Prerequisites>
         )}
       </Box>

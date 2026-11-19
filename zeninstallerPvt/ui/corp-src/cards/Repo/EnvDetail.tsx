@@ -4,7 +4,6 @@
  */
 
 import { Box, ButtonBase, CircularProgress, Typography } from "@mui/material";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import LockIcon from "@mui/icons-material/Lock";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -112,8 +111,10 @@ export default function EnvDetail({
             <CircularProgress aria-label="Loading GitHub environments" size={14} sx={{ color: "text.disabled" }} />
             <StatusText>Loading environments...</StatusText>
           </Box>
+        ) : refreshFailed ? (
+          <ErrorText>Could not load environments. Refresh to try again.</ErrorText>
         ) : filteredEnvs.length === 0 ? (
-          <Typography color="text.muted" role="status">
+          <Typography color="warning.dark" role="status">
             No PROD or TEST environment was found. In the repository, go to Settings &gt; Environments, create the required environment, then refresh.
           </Typography>
         ) : (
@@ -175,23 +176,23 @@ export default function EnvDetail({
       </Box>
 
       {/* Branch match error */}
-      {branchMatchError && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
-          <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "body2", color: "error.main", flexShrink: 0 }} />
-          <ErrorText>{branchMatchError}</ErrorText>
+      {!loading && !refreshFailed && !creatingBranch && branchMatchError && (
+        <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
+          <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main", flexShrink: 0 }} />
+          <Typography color="warning.dark">{branchMatchError}</Typography>
         </Box>
       )}
 
       {/* Branch match warning */}
-      {branchMatchWarning && (
+      {!loading && !refreshFailed && !creatingBranch && branchMatchWarning && (
         <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
           <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
-          <Typography color="warning.main">{branchMatchWarning}</Typography>
+          <Typography color="warning.dark">{branchMatchWarning}</Typography>
         </Box>
       )}
 
       {/* Create branch — only when the selected env has no matching branch */}
-      {showBranchCreate && (
+      {!loading && !refreshFailed && showBranchCreate && (
         <EnvBranchDetail
           targetBranch={selectedEnv!.name}
           branches={branches}

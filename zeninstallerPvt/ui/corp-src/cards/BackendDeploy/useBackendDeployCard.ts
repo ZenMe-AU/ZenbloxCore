@@ -13,6 +13,8 @@ import {
   type DeployedBackend,
 } from "../../api/azureArm";
 import { PRIVATE_RESOURCE_GROUP, functionAppFromApiUrl, getFunctionAppName } from "../../logic/naming";
+import { getDeployCardPresentation, shouldReportBuildFailure, type BuildFailureReport, type DeployCardPresentation } from "../../logic/buildStatus";
+import { getAzureAccessFailureKind } from "../../logic/azureAccessFailure";
 import { BACKEND_VERSION_KEYS } from "../../config/azureConfig";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
@@ -41,7 +43,7 @@ export interface UseBackendDeployCardParams {
 
 const BUILD_WORKFLOW = "buildBackend.yml";
 
-export interface UseBackendDeployCard extends CardHook, AzureConfigHook {
+export interface UseBackendDeployCard extends CardHook, AzureConfigHook, Omit<DeployCardPresentation, "status" | "summary"> {
   managementAccess: CardResourceAccess;
   readonly cardId: "backend_deploy";
   appName: string;
@@ -55,6 +57,8 @@ export interface UseBackendDeployCard extends CardHook, AzureConfigHook {
   buildWorkflow: string;
   updateAvailable: boolean;
   error: string | null;
+  // Identifies the run to open when the latest build attempt failed.
+  failedBuildRunId: string | null;
   cardRequirements: CardRequirements;
   cardDependencyLabel: string;
 }
@@ -83,7 +87,10 @@ export function useBackendDeployCard({
   const [deployedUnavailable, setDeployedUnavailable] = useState(false);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [building, setBuilding] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Keep the summary and run ID with the message so card status and its GitHub link describe the same error.
+  const [error, setError] = useState<{ message: string; summary: string; runId?: string } | null>(null);
+  // Remember the observed failure so polling can distinguish a new failure from the previous report.
+  const [lastFailure, setLastFailure] = useState<BuildFailureReport | null>(null);
   const deployedReadSequence = useRef(0);
 
   // The same name the Backend Environment card created; where it lives is asked of Azure, since it may be reused elsewhere.
@@ -96,10 +103,18 @@ export function useBackendDeployCard({
   );
   const ready = !!azureAccount && !!githubAccount && !!repoName && !!selectedEnv;
 
-  const readLatest = useCallback(async (): Promise<BackendBuild | null> => {
+  const readLatest = useCallback(async () => {
     if (!githubAccount || !repoName || !selectedEnv) return null;
-    const report = await fetchStageReport(githubAccount, repoName, selectedEnv.name, "backend", "build");
-    return (report?.stage as unknown as BackendBuild) ?? null;
+    // Read both task-specific reports so an unsuccessful run is visible without discarding the last usable artifact.
+    const [report, failure] = await Promise.all([
+      fetchStageReport(githubAccount, repoName, selectedEnv.name, "backend", "build"),
+      fetchStageReport(githubAccount, repoName, selectedEnv.name, "backend-failure", "build"),
+    ]);
+    return {
+      build: (report?.stage as unknown as BackendBuild) ?? null,
+      buildReportedAt: report?.createdAt ?? 0,
+      failure: failure ? { runId: (failure.stage as unknown as { runId: string }).runId, reportedAt: failure.createdAt } : null,
+    };
   }, [githubAccount, repoName, selectedEnv]);
 
   useEffect(() => {
@@ -108,10 +123,16 @@ export function useBackendDeployCard({
     void (async () => {
       setLoadingLatest(true);
       try {
-        const b = await readLatest();
-        if (!cancelled) setLatest(b);
+        const reports = await readLatest();
+        if (!cancelled && reports) {
+          setLatest(reports.build);
+          setLastFailure(reports.failure);
+          if (reports.failure && shouldReportBuildFailure(reports.failure, null, reports.build, reports.buildReportedAt)) {
+            setError({ message: "The backend build failed. Check the workflow run in GitHub.", summary: "Build error", runId: reports.failure.runId });
+          }
+        }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Could not read the latest build");
+        if (!cancelled) setError({ message: e instanceof Error ? e.message : "Could not read the latest build", summary: "Build status unavailable" });
       } finally {
         if (!cancelled) setLoadingLatest(false);
       }
@@ -136,8 +157,8 @@ export function useBackendDeployCard({
     } catch (e) {
       if (sequence !== deployedReadSequence.current) return;
       setDeployedUnavailable(true);
-      const message = e instanceof Error ? e.message : "Could not read the deployed version";
-      if (/^403 \/subscriptions\//.test(message)) reportAccessFailure(e);
+      const message = { message: e instanceof Error ? e.message : "Could not read the deployed version", summary: "Deployment error" };
+      if (getAzureAccessFailureKind(e) !== "request") reportAccessFailure(e);
       else setError(message);
     } finally {
       if (sequence === deployedReadSequence.current) setLoadingDeployed(false);
@@ -163,24 +184,30 @@ export function useBackendDeployCard({
       await triggerWorkflow(githubAccount, repoName, BUILD_WORKFLOW, selectedEnv.name, selectedEnv.name);
       for (const delay of POLL_DELAYS_MS) {
         await new Promise((r) => setTimeout(r, delay));
-        const next = await readLatest();
-        if (next && next.builtAt > before) {
-          setLatest(next);
+        const reports = await readLatest();
+        // A newly recorded failure completes the poll immediately; don't wait out every remaining interval.
+        if (reports?.failure && shouldReportBuildFailure(reports.failure, lastFailure, reports.build, reports.buildReportedAt)) {
+          setLastFailure(reports.failure);
+          setError({ message: "The backend build failed. Check the workflow run in GitHub.", summary: "Build error", runId: reports.failure.runId });
+          return;
+        }
+        if (reports?.build && reports.build.builtAt > before) {
+          setLatest(reports.build);
           return;
         }
       }
-      setError("The build is taking longer than expected — check GitHub Actions.");
+      setError({ message: "The build is taking longer than expected — check GitHub Actions.", summary: "Build status unavailable" });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to start the build");
+      setError({ message: e instanceof Error ? e.message : "Failed to start the build", summary: "Build error" });
     } finally {
       setBuilding(false);
     }
-  }, [githubAccount, repoName, selectedEnv, latest, readLatest]);
+  }, [githubAccount, repoName, selectedEnv, latest, readLatest, lastFailure]);
 
   const run = useCallback(async () => {
     if (!azureAccount || !githubAccount || !repoName || !latest || !appName) return;
     if (latest.artifactId == null) {
-      setError("The latest build did not publish a package artifact.");
+      setError({ message: "The latest build did not publish a package artifact.", summary: "Build error" });
       return;
     }
     setRunning(true);
@@ -234,8 +261,8 @@ export function useBackendDeployCard({
       await readDeployed();
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      if (/^403 \/subscriptions\//.test(message)) reportAccessFailure(e);
-      else setError(message);
+      if (getAzureAccessFailureKind(e) !== "request") reportAccessFailure(e);
+      setError({ message, summary: "Deployment error" });
       setSteps((prev) => prev.map((s) => (s.status === "running" ? { ...s, status: "error", detail: message } : s)));
     } finally {
       setRunning(false);
@@ -252,9 +279,13 @@ export function useBackendDeployCard({
   const done = !!deployed && !!latest && deployed.version === latest.version;
   const updateAvailable = !!latest && !done;
 
-  const status: CardStatus = !ready ? "idle" : managementAccess.status === "error" ? "error" : done ? "complete" : "warning";
-  const summary = !ready ? "Unavailable" : managementAccess.status === "error" ? "Insufficient permissions to deploy"
-    : done ? `Deployed ${latest?.sha.slice(0, 7)}` : updateAvailable ? "Update available" : "Build the backend";
+  const checking = loadingLatest || loadingDeployed;
+  // Loading and errors outrank version comparison, which can otherwise present an outdated ready/deployed state.
+  const presentation = getDeployCardPresentation({
+    ready, errorSummary: error?.summary, access: managementAccess,
+    busySummary: building ? "Building backend" : running ? "Deploying backend" : checking ? "Checking build and deployment" : undefined,
+    done, doneSummary: `Deployed ${latest?.sha.slice(0, 7)}`, updateAvailable, buildSummary: "Build the backend", versionUnavailable: deployedUnavailable,
+  });
 
   return {
     managementAccess: {
@@ -275,12 +306,12 @@ export function useBackendDeployCard({
     build,
     buildWorkflow: BUILD_WORKFLOW,
     updateAvailable,
-    error,
+    error: error?.message ?? null,
+    failedBuildRunId: error?.runId ?? null,
     steps,
     running,
     done,
-    status,
-    summary,
+    ...presentation,
     run,
     reset,
     cardRequirements: ["github_login", "repo", "azure_login", "remote_terminal_infra"],

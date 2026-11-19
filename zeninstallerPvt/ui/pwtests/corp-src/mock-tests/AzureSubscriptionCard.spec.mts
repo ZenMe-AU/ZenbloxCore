@@ -178,8 +178,8 @@ test("Failed variable writes allow retry", async ({ page, context }, testInfo) =
   });
   await page.reload();
   const reloadedCard = await expandAzureSubscriptionCard(page);
-  await expect(reloadedCard.getByText("AZURE_TENANT_ID", { exact: true }).locator("..").locator("..").getByRole("textbox")).toHaveValue(mockTenantId);
-  await expect(reloadedCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true }).locator("..").locator("..").getByRole("textbox")).toHaveValue(mockSubscriptionId);
+  await expect(reloadedCard.getByRole("textbox", { name: "AZURE_TENANT_ID", exact: true })).toHaveValue(mockTenantId);
+  await expect(reloadedCard.getByRole("textbox", { name: "AZURE_SUBSCRIPTION_ID", exact: true })).toHaveValue(mockSubscriptionId);
   await expectSnapshot(page, reloadedCard, testInfo, "variables-persist-after-retry", viewportName);
 });
 
@@ -211,8 +211,8 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await expectSnapshot(page, azureSubscriptionCard, testInfo, "end", viewportName);
     await page.reload();
     const persistedCard = await expandAzureSubscriptionCard(page);
-    await expect(persistedCard.getByText("AZURE_TENANT_ID", { exact: true }).locator("..").locator("..").getByRole("textbox")).toHaveValue(mockTenantId);
-    await expect(persistedCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true }).locator("..").locator("..").getByRole("textbox")).toHaveValue(mockSubscriptionId);
+    await expect(persistedCard.getByRole("textbox", { name: "AZURE_TENANT_ID", exact: true })).toHaveValue(mockTenantId);
+    await expect(persistedCard.getByRole("textbox", { name: "AZURE_SUBSCRIPTION_ID", exact: true })).toHaveValue(mockSubscriptionId);
     await expect(persistedCard.getByRole("button", { name: "Save variables" })).toBeDisabled();
     await expectSnapshot(page, persistedCard, testInfo, "persisted-after-reload", viewportName);
   });
@@ -269,8 +269,8 @@ async function prepareMockAzureSubscription(
   await expect(azureSubscriptionCard.getByRole("combobox").or(
     azureSubscriptionCard.getByText("This tenant has no subscriptions you can access.", { exact: true }),
   )).toBeVisible();
-  const tenantVariableInput = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true }).locator("../..").getByRole("textbox");
-  const subscriptionVariableInput = azureSubscriptionCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true }).locator("../..").getByRole("textbox");
+  const tenantVariableInput = azureSubscriptionCard.getByRole("textbox", { name: "AZURE_TENANT_ID", exact: true });
+  const subscriptionVariableInput = azureSubscriptionCard.getByRole("textbox", { name: "AZURE_SUBSCRIPTION_ID", exact: true });
   return {
     github, azure, azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput,
     saveButton: azureSubscriptionCard.getByRole("button", { name: "Save variables", exact: true }),
