@@ -177,7 +177,7 @@ export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
             )}
           </Box>
         )}
-        {(access.status === "checking" || access.status === "error") && (
+        {(access.status === "warning" || access.status === "error") && (
           <Prerequisites id="create-admin-users-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             <AzureAccessCheck access={access} resourceAccess errorStyle />
           </Prerequisites>

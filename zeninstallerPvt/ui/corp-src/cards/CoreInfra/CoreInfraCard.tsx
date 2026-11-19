@@ -304,7 +304,7 @@ export default function CoreInfraCard({
             )}
           </Box>
         )}
-        {ready && (infra.creationAccess.status === "checking" || infra.creationAccess.status === "error") && (
+        {ready && (infra.creationAccess.status === "warning" || infra.creationAccess.status === "error") && (
           <Prerequisites id="core-infra-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             <AzureAccessCheck access={infra.creationAccess} resourceAccess errorStyle />
           </Prerequisites>

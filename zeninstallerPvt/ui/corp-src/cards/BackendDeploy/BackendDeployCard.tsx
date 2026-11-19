@@ -162,7 +162,7 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
         )}
         <ProcessRetryNotice started={steps.length > 0} />
 
-        {(backend.managementAccess.status === "checking" || backend.managementAccess.status === "error") && (
+        {(backend.managementAccess.status === "warning" || backend.managementAccess.status === "error") && (
           <Prerequisites id="backend-deploy-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             <AzureAccessCheck access={backend.managementAccess} resourceAccess errorStyle />
           </Prerequisites>

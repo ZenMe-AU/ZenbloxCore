@@ -4,17 +4,19 @@
  */
 
 import { useEffect, useState } from "react";
-import { getToken } from "../../auth/msal";
+import { getToken, hasScopeConsent } from "../../auth/msal";
 import {
   armExists, ensureManagementAccess, ensureResourceGroupCreationAccess, findResourceGroupOf, formatAzureAccessError, getProviderRegistrationState,
   listRoleAssignments, readPermissionsAtScope, readRolePermissions, subscriptionScope, type ArmPermission, type ManagementAccessRequirement,
 } from "../../api/azureArm";
 import { ARM_SCOPES, RESOURCE_GROUP_ACCESS } from "../../config/azureConfig";
-import { roleIdsAtScope } from "../../logic/azureAccess";
+import { MissingAccessError, roleIdsAtScope } from "../../logic/azureAccess";
 import type { ArmRole, ArmScope, AzureAccount, AzureTarget, CardResourceAccessRequest } from "../../types";
 
+// TODO: turn status into a state machine.
 export type SubscriptionAccess = {
-  status: "idle" | "checking" | "ready" | "error";
+  // warning: the check ran and found something missing; error: it couldn't run.
+  status: "idle" | "checking" | "ready" | "warning" | "error";
   error: string | null;
   retry: () => void;
 };
@@ -74,14 +76,17 @@ type CardAccessCheck = {
   requirements: ManagementAccessRequirement[];
 };
 
+// What the checks found missing, all at once: roles (the message per principal), providers to register, scopes to consent to.
+export type CardAccessGaps = { missingRoles: string | null; unregisteredProviders: string[]; missingConsent: string[] };
+
 // Missing resources are checked at their existing parent; missing groups need subscription access.
 export async function ensureCardResourceAccess(
   account: AzureAccount, subscriptionId: string, request: CardResourceAccessRequest, overrideTenantId?: string
-): Promise<void> {
+): Promise<CardAccessGaps> {
   const check: CardAccessCheck = { account, subscriptionId, overrideTenantId, sub: subscriptionScope(subscriptionId), lookups: new Map(), requirements: [] };
   // Requirements per principal: "" is the signed-in user, else an Entra object id.
   const byPrincipal = new Map([["", check.requirements]]);
-  await requireProviders(check, request.resourceProviders);
+  const unregisteredProviders = await requireProviders(check, request.resourceProviders);
   for (const { scope, objectId = "", actions, dataActions, createActions } of request.armRoles.flatMap(withChildren)) {
     check.requirements = byPrincipal.get(objectId) ?? [];
     byPrincipal.set(objectId, check.requirements);
@@ -89,21 +94,34 @@ export async function ensureCardResourceAccess(
     check.requirements.push({ scope: at, actions, dataActions });
     if (createActions && typeof scope !== "string" && !at.endsWith(`/providers/${scope.resource}`)) check.requirements.push({ scope: check.sub, actions: createActions });
   }
+  // Missing roles are kept, not thrown, so providers and consent are still checked; a check that can't run still throws.
+  const missingRoles: string[] = [];
   for (const [objectId, requirements] of byPrincipal) {
-    await ensureManagementAccess(account, requirements, overrideTenantId, (scope) => permissionsAt(check, scope, objectId), objectId
-      ? `Principal ${objectId} needs these. Assign it a role that includes them at the listed scopes in Access control (IAM), then recheck.`
-      : undefined);
-  }
-}
-
-async function requireProviders(check: CardAccessCheck, providers: readonly string[]): Promise<void> {
-  if (!providers.length) return;
-  check.requirements.push({ scope: check.sub, actions: ["Microsoft.Resources/subscriptions/providers/read"] });
-  for (const namespace of providers) {
-    if (await getProviderRegistrationState(check.account, check.subscriptionId, namespace, check.overrideTenantId) !== "Registered") {
-      check.requirements.push({ scope: check.sub, actions: [`${namespace}/register/action`] });
+    try {
+      await ensureManagementAccess(account, requirements, overrideTenantId, (scope) => permissionsAt(check, scope, objectId), objectId
+        ? `Principal ${objectId} needs these. Assign it a role that includes them at the listed scopes in Access control (IAM), then recheck.`
+        : undefined);
+    } catch (err) {
+      if (!(err instanceof MissingAccessError)) throw err;
+      missingRoles.push(err.message);
     }
   }
+  // One scope at a time, so the list names exactly the ones without consent.
+  const consented = await Promise.all(request.appConsent.map((scope) => hasScopeConsent(account, [scope], overrideTenantId)));
+  return { missingRoles: missingRoles.join("\n\n") || null, unregisteredProviders, missingConsent: request.appConsent.filter((_, i) => !consented[i]) };
+}
+
+// A provider that isn't Registered needs its register action; returns the ones Azure says aren't registered.
+async function requireProviders(check: CardAccessCheck, providers: readonly string[]): Promise<string[]> {
+  if (!providers.length) return [];
+  check.requirements.push({ scope: check.sub, actions: ["Microsoft.Resources/subscriptions/providers/read"] });
+  const unregistered: string[] = [];
+  for (const namespace of providers) {
+    const state = await getProviderRegistrationState(check.account, check.subscriptionId, namespace, check.overrideTenantId);
+    if (state !== "Registered") check.requirements.push({ scope: check.sub, actions: [`${namespace}/register/action`] });
+    if (state === "NotRegistered" || state === "Unregistered") unregistered.push(namespace);
+  }
+  return unregistered;
 }
 
 // Each lookup runs once per check.

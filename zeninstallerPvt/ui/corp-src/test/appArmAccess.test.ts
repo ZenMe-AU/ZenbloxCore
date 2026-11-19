@@ -29,23 +29,23 @@ afterEach(() => vi.unstubAllGlobals());
 describe("ensureCardResourceAccess for another principal", () => {
   it("counts a role inherited from a management group", async () => {
     stubAssignments(["/providers/Microsoft.Management/managementGroups/root"]);
-    await expect(check(request)).resolves.toBeUndefined();
+    await expect(check(request)).resolves.toEqual({ missingRoles: null, unregisteredProviders: [], missingConsent: [] });
   });
 
   it("ignores a role held only on a resource group below the scope", async () => {
     stubAssignments(["/subscriptions/s/resourceGroups/rg"]);
-    await expect(check(request)).rejects.toThrow("Missing permissions: */read\n\nPrincipal sp needs these.");
+    await expect(check(request)).resolves.toMatchObject({ missingRoles: expect.stringContaining("Missing permissions: */read\n\nPrincipal sp needs these.") });
   });
 
   it("checks a child under the principal's resource for the same principal", async () => {
     stubAssignments(["/subscriptions/s"]);
     await expect(check([{ scope: { resourceGroup: "rg", resource: "Microsoft.Storage/storageAccounts/sa" }, objectId: "sp", actions: ["*/read"], children: [{ path: "blobServices/default", actions: ["*/read"] }] }]))
-      .resolves.toBeUndefined();
+      .resolves.toEqual({ missingRoles: null, unregisteredProviders: [], missingConsent: [] });
   });
 
   it("still checks the signed-in user's roles in the same request against the user", async () => {
     stubAssignments(["/subscriptions/s"]);
     await expect(check([...request, { scope: "subscription", actions: ["Microsoft.Resources/subscriptions/read"] }]))
-      .rejects.toThrow("Azure access required at /subscriptions/s\n\nMissing permissions: Microsoft.Resources/subscriptions/read\n\nAsk an administrator");
+      .resolves.toMatchObject({ missingRoles: expect.stringContaining("Azure access required at /subscriptions/s\n\nMissing permissions: Microsoft.Resources/subscriptions/read\n\nAsk an administrator") });
   });
 });

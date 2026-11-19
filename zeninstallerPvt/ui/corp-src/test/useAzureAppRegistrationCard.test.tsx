@@ -397,7 +397,7 @@ describe("useAzureAppRegistrationCard", () => {
       root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />);
     });
 
-    apiMocks.ensureCardResourceAccess.mockRejectedValueOnce(new Error("Missing roleAssignments/write"));
+    apiMocks.ensureCardResourceAccess.mockResolvedValueOnce({ missingRoles: "Missing roleAssignments/write", unregisteredProviders: [], missingConsent: [] });
     await act(async () => { await latest?.run(); });
     expect(latest?.steps[0]).toMatchObject({ id: "access", status: "error", detail: "Missing roleAssignments/write" });
     expect(apiMocks.ensureScopeConsent).not.toHaveBeenCalled();

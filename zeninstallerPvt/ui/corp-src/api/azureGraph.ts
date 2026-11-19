@@ -20,6 +20,7 @@ import {
 } from "../config/azureConfig";
 import { DIRECTORY_ROLE_IDS, RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
+import { MissingAccessError } from "../logic/azureAccess";
 import type { AzureAccount, AzureTenant } from "../types";
 
 // ── Subscriptions ──────────────────────────────────────────────────────────────
@@ -1000,7 +1001,7 @@ const coversEntraAction = (granted: string, needed: string) =>
 export async function ensureEntraActions(account: AzureAccount, actions: readonly string[], overrideTenantId?: string): Promise<void> {
   if (!actions.length) return;
   if (!(await hasScopeConsent(account, ROLE_READ_SCOPES, overrideTenantId))) {
-    throw new Error("ZenInstaller needs permission to read your Microsoft Entra roles (RoleManagement.Read.Directory, which needs admin consent). Recheck to grant it.");
+    throw new MissingAccessError("ZenInstaller needs permission to read your Microsoft Entra roles (RoleManagement.Read.Directory, which needs admin consent). Recheck to grant it.");
   }
   const token = await getToken(account, ROLE_READ_SCOPES, overrideTenantId);
   const roles: { value?: { roleTemplateId: string }[] } = await gFetch(token, GRAPH, "/me/transitiveMemberOf/microsoft.graph.directoryRole?$select=roleTemplateId");
@@ -1012,6 +1013,6 @@ export async function ensureEntraActions(account: AzureAccount, actions: readonl
   const granted = definitions.flatMap((definition) => definition.rolePermissions.flatMap((permission) => permission.allowedResourceActions));
   const missing = actions.filter((needed) => !granted.some((action) => coversEntraAction(action, needed)));
   if (missing.length) {
-    throw new Error(`Your account is missing these Microsoft Entra permissions:\n${missing.join("\n")}\n\nAssign or activate a Microsoft Entra role that includes them, such as Global Administrator, then recheck.`);
+    throw new MissingAccessError(`Your account is missing these Microsoft Entra permissions:\n${missing.join("\n")}\n\nAssign or activate a Microsoft Entra role that includes them, such as Global Administrator, then recheck.`);
   }
 }

@@ -255,7 +255,7 @@ export default function CreateDomainCard({
             )}
           </Box>
         )}
-        {ready && (createDomain.creationAccess.status === "checking" || createDomain.creationAccess.status === "error") && (
+        {ready && (createDomain.creationAccess.status === "warning" || createDomain.creationAccess.status === "error") && (
           <Prerequisites id="create-domain-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             <AzureAccessCheck access={createDomain.creationAccess} resourceAccess errorStyle />
           </Prerequisites>

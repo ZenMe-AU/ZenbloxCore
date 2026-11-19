@@ -575,7 +575,7 @@ function StageCardContent({
     </Typography>
   ) : undefined;
   const accessError = managementAccess?.status === "error";
-  const accessNotice = managementAccess && (managementAccess.status === "checking" || accessError)
+  const accessNotice = managementAccess && (managementAccess.status === "warning" || accessError)
     ? <AzureAccessCheck access={managementAccess} resourceAccess errorStyle />
     : undefined;
 
@@ -653,7 +653,8 @@ function StageCardContent({
           </Box>
           {planAppError && <ErrorText>{planAppError}</ErrorText>}
           {planAccess && <AzureAccessCheck access={planAccess} resourceAccess errorStyle />}
-          {providers && (providers.status === "unregistered" || providers.status === "error") && (
+          {/* The deploy access check already shows these providers with its own Register button. */}
+          {providers && (providers.status === "unregistered" || providers.status === "error") && !managementAccess?.unregisteredProviders.length && (
             <WarningNotice message={providers.error ??
               "These Azure resource providers aren't registered yet. Terraform registers them when every plan starts, and the plan app can't, so planning is blocked until they are registered."}>
               {!!providers.unregistered.length && <Caption>{providers.unregistered.join(", ")}</Caption>}

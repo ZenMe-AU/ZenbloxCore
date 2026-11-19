@@ -9,6 +9,7 @@ import { ARM_SCOPES, BACKEND_VERSION_KEYS, RBAC_ROLE_IDS } from "../config/azure
 import { deterministicUuid } from "../logic/crypto";
 import { createRandomUuid } from "../logic/randomUuid";
 import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
+import { MissingAccessError } from "../logic/azureAccess";
 import type { AzureAccount, RoleAssignment } from "../types";
 import { findListedResource } from "./azureArmHelper";
 
@@ -484,7 +485,7 @@ export async function ensureManagementAccess(account: AzureAccount, requirements
     }
   }
   if (missing.length) {
-    throw new Error(`${missing.join("\n\n")}\n\n${guidance}\nRecent role changes may take time to propagate. If prompted, sign in again.`);
+    throw new MissingAccessError(`${missing.join("\n\n")}\n\n${guidance}\nRecent role changes may take time to propagate. If prompted, sign in again.`);
   }
 }
 
