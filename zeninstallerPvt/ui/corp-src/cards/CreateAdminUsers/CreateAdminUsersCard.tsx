@@ -14,7 +14,7 @@ import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import AzureAccessCheck from "../../components/AzureAccessCheck";
 import Prerequisites from "../../components/Prerequisites";
 import StatusText from "../../components/StatusText";
-import WarningNotice from "../../components/WarningNotice";
+// import WarningNotice from "../../components/WarningNotice"; // Deprecated: only the commented-out consent notice used it; kept for reference.
 import StepRow from "../StepRow";
 import { warningMessageIconSx } from "../../config/styles";
 import type { CardChrome } from "../../types";
@@ -55,7 +55,7 @@ function Intro() {
 }
 
 export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
-  const { admins, rowErrors, addAdmin, missingGroups, existingAdmins, entraLicence, roleTarget, usePim, setUsePim, access, steps, running, canRun, run, reset, consentRequired, requestConsent, error } = adminUsers;
+  const { admins, rowErrors, addAdmin, missingGroups, existingAdmins, entraLicence, roleTarget, usePim, setUsePim, access, steps, running, canRun, run, reset, error } = adminUsers;
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(() => admins[0]?.key ?? null);
   const [editKey, setEditKey] = useState<string | null>(null);
@@ -68,14 +68,15 @@ export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
     <Card title={CREATE_ADMIN_USERS_TITLE} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro />
-        {consentRequired && (
-          <WarningNotice message="ZenInstaller needs your consent to manage Entra groups, users and directory roles.">
-            <Button size="small" variant="outlined" onClick={() => void requestConsent()} sx={{ alignSelf: "flex-start" }}>
-              Grant permissions
-            </Button>
-          </WarningNotice>
-        )}
-
+        {
+          // {consentRequired && ( // Deprecated: the access check's Grant consent covers these scopes; kept for reference.
+          //   <WarningNotice message="ZenInstaller needs your consent to manage Entra groups, users and directory roles.">
+          //     <Button size="small" variant="outlined" onClick={() => void requestConsent()} sx={{ alignSelf: "flex-start" }}>
+          //       Grant permissions
+          //     </Button>
+          //   </WarningNotice>
+          // )}
+        }
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <Typography color="text.muted">Is Entra Privileged Identity Management (PIM) available?</Typography>
           <LicenceOption

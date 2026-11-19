@@ -575,7 +575,7 @@ function StageCardContent({
     </Typography>
   ) : undefined;
   const accessError = managementAccess?.status === "error";
-  const accessNotice = managementAccess && (managementAccess.status === "warning" || accessError)
+  const accessNotice = managementAccess && (managementAccess.status === "checking" || managementAccess.status === "warning" || accessError)
     ? <AzureAccessCheck access={managementAccess} resourceAccess errorStyle />
     : undefined;
 
