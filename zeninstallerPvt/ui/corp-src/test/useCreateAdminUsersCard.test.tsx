@@ -51,11 +51,11 @@ vi.mock("../api/azureGraph", () => ({
   setUserManager: mocks.setUserManager,
   searchUsers: vi.fn(),
 }));
+vi.mock("../hooks/util/useAzureAccessCheck", async (importOriginal) => ({ ...await importOriginal<object>(), ensureCardResourceAccess: mocks.ensureCardResourceAccess }));
 vi.mock("../api/azureArm", async (importOriginal) => ({
   ...await importOriginal<typeof import("../api/azureArm")>(),
   ensureRbacRoleAtScope: mocks.ensureRbacRoleAtScope,
   ensureRbacRoleEligibility: mocks.ensureRbacRoleEligibility,
-  ensureCardResourceAccess: mocks.ensureCardResourceAccess,
 }));
 vi.mock("../config/azureConfig", async (importOriginal) => ({
   ...await importOriginal<typeof import("../config/azureConfig")>(),

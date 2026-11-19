@@ -65,9 +65,9 @@ vi.mock("../auth/msal", () => ({
   ensureScopeConsent: apiMocks.ensureScopeConsent,
 }));
 
+vi.mock("../hooks/util/useAzureAccessCheck", async (importOriginal) => ({ ...await importOriginal<object>(), ensureCardResourceAccess: apiMocks.ensureResourceGroupCreationAccess }));
 vi.mock("../api/azureArm", async (importOriginal) => ({
   ...await importOriginal<typeof import("../api/azureArm")>(),
-  ensureCardResourceAccess: apiMocks.ensureResourceGroupCreationAccess,
   ensureResourceGroupCreationAccess: apiMocks.ensureResourceGroupCreationAccess,
   getProviderRegistrationState: apiMocks.getProviderRegistrationState,
   registerProvider: apiMocks.registerProvider,

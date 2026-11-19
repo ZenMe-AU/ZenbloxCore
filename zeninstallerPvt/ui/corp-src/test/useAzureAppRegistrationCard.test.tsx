@@ -59,9 +59,9 @@ vi.mock("../api", () => ({
   setOidcImmutableSubject: apiMocks.setOidcImmutableSubject,
 }));
 
+vi.mock("../hooks/util/useAzureAccessCheck", async (importOriginal) => ({ ...await importOriginal<object>(), ensureCardResourceAccess: apiMocks.ensureCardResourceAccess }));
 vi.mock("../api/azureArm", async (importOriginal) => ({
   ...await importOriginal<typeof import("../api/azureArm")>(),
-  ensureCardResourceAccess: apiMocks.ensureCardResourceAccess,
 }));
 
 vi.mock("../api/azureGraph", () => ({

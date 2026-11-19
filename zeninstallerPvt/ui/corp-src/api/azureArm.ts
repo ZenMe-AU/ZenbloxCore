@@ -9,11 +9,8 @@ import { ARM_SCOPES, BACKEND_VERSION_KEYS, RBAC_ROLE_IDS } from "../config/azure
 import { deterministicUuid } from "../logic/crypto";
 import { createRandomUuid } from "../logic/randomUuid";
 import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
-import type { AzureAccount, CardResourceAccessRequest as CardAccessRequest } from "../types";
-import {
-  findListedResource as findListed, permissionsAt, readPermissionsAtScope as readPermissions, resolveScope, withChildren,
-  type ArmPermission, type CardAccessCheck as AccessCheck, type ManagementAccessRequirement,
-} from "./azureArmHelper";
+import type { AzureAccount, RoleAssignment } from "../types";
+import { findListedResource } from "./azureArmHelper";
 
 // ── Function App code deployment ──────────────────────────────────────────────
 
@@ -274,74 +271,76 @@ export async function resourceGroupExists(account: AzureAccount, subscriptionId:
 
 // ── Azure Access Checks ─────────────────────────────────────────────────────────────
 
-// One resource a card needs: children sit under it and use its api, alongside sits in the same resource group.
-/** @deprecated Replaced by CardResourceAccessRequest and ArmRole in types.ts. */
-export type ResourceAccess = {
-  type: string;
-  api: string; // ARM api-version for this type
-  name: string;
-  actions: readonly string[];
-  locate?: boolean; // checked in the group Azure already has it in, else the card's resource group
-  mustExist?: boolean;
-  whenCreating?: readonly string[]; // subscription actions needed only while it doesn't exist
-  children?: readonly { path: string; actions: readonly string[]; probe?: false }[];
-  alongside?: readonly { type: string; api: string; name: string; actions: readonly string[] }[];
-};
+// Deprecated: Replaced by CardResourceAccessRequest and ArmRole in types.ts; kept for reference.
+// // One resource a card needs: children sit under it and use its api, alongside sits in the same resource group.
+// export type ResourceAccess = {
+//   type: string;
+//   api: string; // ARM api-version for this type
+//   name: string;
+//   actions: readonly string[];
+//   locate?: boolean; // checked in the group Azure already has it in, else the card's resource group
+//   mustExist?: boolean;
+//   whenCreating?: readonly string[]; // subscription actions needed only while it doesn't exist
+//   children?: readonly { path: string; actions: readonly string[]; probe?: false }[];
+//   alongside?: readonly { type: string; api: string; name: string; actions: readonly string[] }[];
+// };
 
-// The card decides what it needs; this layer only works out where each action is checked.
-/** @deprecated Replaced by CardResourceAccessRequest and ArmRole in types.ts. */
-export type CardResourceAccessRequest = {
-  subscription?: readonly string[];
-  tenantRoot?: readonly string[];
-  resourceGroup?: string;
-  createGroup?: { providers: readonly string[]; actions?: readonly string[] }; // actions sit at the group, or the subscription before it exists
-  resources?: readonly ResourceAccess[];
-};
+// Deprecated: Replaced by CardResourceAccessRequest and ArmRole in types.ts; kept for reference.
+// // The card decides what it needs; this layer only works out where each action is checked.
+// export type CardResourceAccessRequest = {
+//   subscription?: readonly string[];
+//   tenantRoot?: readonly string[];
+//   resourceGroup?: string;
+//   createGroup?: { providers: readonly string[]; actions?: readonly string[] }; // actions sit at the group, or the subscription before it exists
+//   resources?: readonly ResourceAccess[];
+// };
 
-// Shared state for one card access check: existence probes are cached, requirements accumulate in order.
-/** @deprecated Replaced by CardResourceAccessRequest and ArmRole in types.ts. */
-type CardAccessCheck = {
-  account: AzureAccount;
-  subscriptionId: string;
-  overrideTenantId?: string;
-  group: string;
-  sub: string;
-  token: string;
-  existence: Map<string, boolean>;
-  requirements: ManagementAccessRequirement[];
-};
+// Deprecated: Replaced by CardResourceAccessRequest and ArmRole in types.ts; kept for reference.
+// // Shared state for one card access check: existence probes are cached, requirements accumulate in order.
+// type CardAccessCheck = {
+//   account: AzureAccount;
+//   subscriptionId: string;
+//   overrideTenantId?: string;
+//   group: string;
+//   sub: string;
+//   token: string;
+//   existence: Map<string, boolean>;
+//   requirements: ManagementAccessRequirement[];
+// };
 
-// Missing resources are checked at their existing parent; missing groups need subscription access.
-export async function ensureCardResourceAccess(
-  account: AzureAccount, subscriptionId: string, request: CardAccessRequest, overrideTenantId?: string
-): Promise<void> {
-  const check: AccessCheck = { account, subscriptionId, overrideTenantId, sub: subscriptionScope(subscriptionId), lookups: new Map(), requirements: [] };
-  // Requirements per principal: "" is the signed-in user, else an Entra object id.
-  const byPrincipal = new Map([["", check.requirements]]);
-  await requireProviders(check, request.resourceProviders);
-  for (const { scope, objectId = "", actions, dataActions, createActions } of request.armRoles.flatMap(withChildren)) {
-    check.requirements = byPrincipal.get(objectId) ?? [];
-    byPrincipal.set(objectId, check.requirements);
-    const at = await resolveScope(check, scope);
-    check.requirements.push({ scope: at, actions, dataActions });
-    if (createActions && typeof scope !== "string" && !at.endsWith(`/providers/${scope.resource}`)) check.requirements.push({ scope: check.sub, actions: createActions });
-  }
-  for (const [objectId, requirements] of byPrincipal) {
-    await ensureManagementAccess(account, requirements, overrideTenantId, (scope) => permissionsAt(check, scope, objectId), objectId
-      ? `Principal ${objectId} needs these. Assign it a role that includes them at the listed scopes in Access control (IAM), then recheck.`
-      : undefined);
-  }
-}
+// Deprecated: Moved to hooks/util/useAzureAccessCheck.ts; kept for reference.
+// // Missing resources are checked at their existing parent; missing groups need subscription access.
+// export async function ensureCardResourceAccess(
+//   account: AzureAccount, subscriptionId: string, request: CardAccessRequest, overrideTenantId?: string
+// ): Promise<void> {
+//   const check: AccessCheck = { account, subscriptionId, overrideTenantId, sub: subscriptionScope(subscriptionId), lookups: new Map(), requirements: [] };
+//   // Requirements per principal: "" is the signed-in user, else an Entra object id.
+//   const byPrincipal = new Map([["", check.requirements]]);
+//   await requireProviders(check, request.resourceProviders);
+//   for (const { scope, objectId = "", actions, dataActions, createActions } of request.armRoles.flatMap(withChildren)) {
+//     check.requirements = byPrincipal.get(objectId) ?? [];
+//     byPrincipal.set(objectId, check.requirements);
+//     const at = await resolveScope(check, scope);
+//     check.requirements.push({ scope: at, actions, dataActions });
+//     if (createActions && typeof scope !== "string" && !at.endsWith(`/providers/${scope.resource}`)) check.requirements.push({ scope: check.sub, actions: createActions });
+//   }
+//   for (const [objectId, requirements] of byPrincipal) {
+//     await ensureManagementAccess(account, requirements, overrideTenantId, (scope) => permissionsAt(check, scope, objectId), objectId
+//       ? `Principal ${objectId} needs these. Assign it a role that includes them at the listed scopes in Access control (IAM), then recheck.`
+//       : undefined);
+//   }
+// }
 
-async function requireProviders(check: AccessCheck, providers: readonly string[]): Promise<void> {
-  if (!providers.length) return;
-  check.requirements.push({ scope: check.sub, actions: ["Microsoft.Resources/subscriptions/providers/read"] });
-  for (const namespace of providers) {
-    if (await getProviderRegistrationState(check.account, check.subscriptionId, namespace, check.overrideTenantId) !== "Registered") {
-      check.requirements.push({ scope: check.sub, actions: [`${namespace}/register/action`] });
-    }
-  }
-}
+// Deprecated: Moved to hooks/util/useAzureAccessCheck.ts; kept for reference.
+// async function requireProviders(check: AccessCheck, providers: readonly string[]): Promise<void> {
+//   if (!providers.length) return;
+//   check.requirements.push({ scope: check.sub, actions: ["Microsoft.Resources/subscriptions/providers/read"] });
+//   for (const namespace of providers) {
+//     if (await getProviderRegistrationState(check.account, check.subscriptionId, namespace, check.overrideTenantId) !== "Registered") {
+//       check.requirements.push({ scope: check.sub, actions: [`${namespace}/register/action`] });
+//     }
+//   }
+// }
 
 // Checks only the signed-in caller's subscription-level resource-group creation action.
 export async function ensureResourceGroupCreationAccess(account: AzureAccount, subscriptionId: string, overrideTenantId?: string): Promise<void> {
@@ -349,7 +348,7 @@ export async function ensureResourceGroupCreationAccess(account: AzureAccount, s
       Access to an individual resource group is not sufficient. Ask a subscription administrator to grant access in IAM
       or activate your eligible role in PIM at ${AZURE_PIM_ACTIVATION_URL} then retry.`;
   try {
-    const permissions = await readPermissions(account, subscriptionScope(subscriptionId), overrideTenantId);
+    const permissions = await readPermissionsAtScope(account, subscriptionScope(subscriptionId), overrideTenantId);
     if (grantsArmAction(permissions, "Microsoft.Resources/subscriptions/resourceGroups/write")) return;
   } catch (err) {
     throw new Error(`Could not verify resource-group creation access. ${guidance} Details: ${err instanceof Error ? err.message : String(err)}`);
@@ -381,8 +380,10 @@ function grantsArmAction(permissions: ArmPermission[], action: string, data = fa
     : permission.actions.some(matches) && !permission.notActions?.some(matches));
 }
 
+export type ArmPermission = { actions: string[]; notActions?: string[]; dataActions?: string[]; notDataActions?: string[] };
+export type ManagementAccessRequirement = { scope: string; actions: readonly string[]; dataActions?: readonly string[] };
+
 // Reads the signed-in caller's management grants at a management group, subscription, group, or resource scope.
-/** @deprecated Moved to azureArmHelper.ts. */
 export async function readPermissionsAtScope(account: AzureAccount, scope: string, overrideTenantId?: string): Promise<ArmPermission[]> {
   if (!/^\/subscriptions\/[^/?#]+(?:\/resourceGroups\/[^/?#]+(?:\/providers\/[^?#]+)?)?$/i.test(scope) &&
       !/^\/providers\/Microsoft\.Management\/managementGroups\/[^/?#]+$/i.test(scope)) {
@@ -397,9 +398,10 @@ export async function readPermissionsAtScope(account: AzureAccount, scope: strin
     if (visited.has(path)) throw new Error("Azure returned a looping subscription permissions URL");
     visited.add(path);
     const page: { value: ArmPermission[]; nextLink?: string } = await gFetch(token, ARM, path, { cache: "no-store" });
+    const strings = (list: unknown) => Array.isArray(list) && list.every((action) => typeof action === "string");
     if (!page || !Array.isArray(page.value) || page.value.some((permission) =>
-      !permission || !Array.isArray(permission.actions) || !permission.actions.every((action) => typeof action === "string") ||
-      (permission.notActions !== undefined && (!Array.isArray(permission.notActions) || !permission.notActions.every((action) => typeof action === "string")))
+      !permission || !strings(permission.actions) ||
+      [permission.notActions, permission.dataActions, permission.notDataActions].some((list) => list !== undefined && !strings(list))
     )) throw new Error("Azure returned an invalid subscription permissions response");
     permissions.push(...page.value);
     if (page.nextLink) {
@@ -411,6 +413,37 @@ export async function readPermissionsAtScope(account: AzureAccount, scope: strin
     }
   }
   return permissions;
+}
+
+// Role assignments of a principal (by Entra object id, groups included) that assignedTo returns for a scope: at, above and below it.
+export async function listRoleAssignments(token: string, objectId: string, scope: string): Promise<RoleAssignment[]> {
+  const assignments: RoleAssignment[] = [];
+  for (let path: string | null = `${scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${objectId}')`; path;) {
+    const page: { value: { properties: RoleAssignment }[]; nextLink?: string } = await gFetch(token, ARM, path);
+    assignments.push(...page.value.map(({ properties }) => properties));
+    const next = page.nextLink ? new URL(page.nextLink) : null;
+    path = next && `${next.pathname}${next.search}`;
+  }
+  return assignments;
+}
+
+// What a role definition grants.
+export async function readRolePermissions(token: string, roleId: string): Promise<ArmPermission[]> {
+  const role: { properties: { permissions: ArmPermission[] } } = await gFetch(token, ARM, `${roleId}?api-version=2022-04-01`);
+  return role.properties.permissions;
+}
+
+// The group Azure already has a top-level resource in, found by type and name without a per-type api-version.
+export async function findResourceGroupOf(token: string, subscriptionId: string, resource: string): Promise<string | undefined> {
+  const [namespace, type, name] = resource.split("/");
+  const filter = encodeURIComponent(`resourceType eq '${namespace}/${type}' and name eq '${name}'`);
+  const found = await findListedResource(token, `/subscriptions/${subscriptionId}/resources?$filter=${filter}&api-version=2021-04-01`, name);
+  return found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1];
+}
+
+// Whether ARM has anything at this path; a 404 means no.
+export async function armExists(token: string, path: string): Promise<boolean> {
+  return !!await armGet(token, path);
 }
 
 export function formatAzureAccessError(error: unknown): string {
@@ -426,7 +459,7 @@ Recent role changes may take time to propagate. If prompted, sign in again.`;
 
 // Evaluates the authenticated caller's grants, not another principal's role assignments or data access.
 export async function ensureManagementAccess(account: AzureAccount, requirements: readonly ManagementAccessRequirement[], overrideTenantId?: string,
-  read = (scope: string) => readPermissions(account, scope, overrideTenantId),
+  read = (scope: string) => readPermissionsAtScope(account, scope, overrideTenantId),
   guidance = `Ask an administrator for the required access at the listed scopes or activate eligible roles in PIM at ${AZURE_PIM_ACTIVATION_URL} and recheck.`
 ): Promise<void> {
   const byScope = new Map<string, { actions: Set<string>; dataActions: Set<string> }>();
@@ -455,72 +488,72 @@ export async function ensureManagementAccess(account: AzureAccount, requirements
   }
 }
 
-/** @deprecated Replaced by resolveScope in azureArmHelper.ts. */
-async function scopeExists(check: CardAccessCheck, scope: string, apiVersion: string): Promise<boolean> {
-  if (!check.existence.has(scope)) check.existence.set(scope, !!await armGet(check.token, `${scope}?api-version=${apiVersion}`));
-  return check.existence.get(scope)!;
-}
+// Deprecated: Replaced by resolveScope in hooks/util/useAzureAccessCheck.ts; kept for reference.
+// async function scopeExists(check: CardAccessCheck, scope: string, apiVersion: string): Promise<boolean> {
+//   if (!check.existence.has(scope)) check.existence.set(scope, !!await armGet(check.token, `${scope}?api-version=${apiVersion}`));
+//   return check.existence.get(scope)!;
+// }
 
-// Requires the actions at the resource itself or at its nearest existing parent when creating it.
-/** @deprecated Replaced by resolveScope in azureArmHelper.ts. */
-async function requireAtResource(check: CardAccessCheck, scope: string, api: string, actions: readonly string[], mustExist = false): Promise<void> {
-  let target = scope;
-  if (!await scopeExists(check, scope, api)) {
-    if (mustExist) throw new Error(`Azure resource ${scope} does not exist. Run its environment setup card first.`);
-    const group = scope.match(/^\/subscriptions\/[^/]+\/resourceGroups\/[^/]+/i)?.[0];
-    if (!group) throw new Error(`Cannot determine parent resource group for ${scope}`);
-    target = await scopeExists(check, group, "2021-04-01") ? group : check.sub;
-    let parent = scope.replace(/\/[^/]+\/[^/]+$/, "");
-    while ((parent.split("/providers/")[1]?.split("/").length ?? 0) >= 3) {
-      if (await scopeExists(check, parent, api)) {
-        target = parent;
-        break;
-      }
-      parent = parent.replace(/\/[^/]+\/[^/]+$/, "");
-    }
-    if (target === check.sub) check.requirements.push({ scope: check.sub, actions: ["Microsoft.Resources/subscriptions/resourceGroups/read", "Microsoft.Resources/subscriptions/resourceGroups/write"] });
-  }
-  check.requirements.push({ scope: target, actions });
-}
+// Deprecated: Replaced by resolveScope in hooks/util/useAzureAccessCheck.ts; kept for reference.
+// // Requires the actions at the resource itself or at its nearest existing parent when creating it.
+// async function requireAtResource(check: CardAccessCheck, scope: string, api: string, actions: readonly string[], mustExist = false): Promise<void> {
+//   let target = scope;
+//   if (!await scopeExists(check, scope, api)) {
+//     if (mustExist) throw new Error(`Azure resource ${scope} does not exist. Run its environment setup card first.`);
+//     const group = scope.match(/^\/subscriptions\/[^/]+\/resourceGroups\/[^/]+/i)?.[0];
+//     if (!group) throw new Error(`Cannot determine parent resource group for ${scope}`);
+//     target = await scopeExists(check, group, "2021-04-01") ? group : check.sub;
+//     let parent = scope.replace(/\/[^/]+\/[^/]+$/, "");
+//     while ((parent.split("/providers/")[1]?.split("/").length ?? 0) >= 3) {
+//       if (await scopeExists(check, parent, api)) {
+//         target = parent;
+//         break;
+//       }
+//       parent = parent.replace(/\/[^/]+\/[^/]+$/, "");
+//     }
+//     if (target === check.sub) check.requirements.push({ scope: check.sub, actions: ["Microsoft.Resources/subscriptions/resourceGroups/read", "Microsoft.Resources/subscriptions/resourceGroups/write"] });
+//   }
+//   check.requirements.push({ scope: target, actions });
+// }
 
-/** @deprecated Replaced by resolveScope in azureArmHelper.ts. */
-export async function requireGroupAndProviders(check: CardAccessCheck, { providers, actions }: NonNullable<CardResourceAccessRequest["createGroup"]>): Promise<void> {
-  const { account, subscriptionId, overrideTenantId, group, sub, requirements } = check;
-  const rg = resourceGroupScope(subscriptionId, group);
-  const groupExists = await scopeExists(check, rg, "2021-04-01");
-  if (!groupExists) {
-    await ensureResourceGroupCreationAccess(account, subscriptionId, overrideTenantId);
-    requirements.push({ scope: sub, actions: ["Microsoft.Resources/subscriptions/resourceGroups/write"] });
-  } else {
-    requirements.push({ scope: rg, actions: ["Microsoft.Resources/subscriptions/resourceGroups/read"] });
-  }
-  if (actions) requirements.push({ scope: groupExists ? rg : sub, actions });
-  requirements.push({ scope: sub, actions: ["Microsoft.Resources/subscriptions/providers/read"] });
-  for (const namespace of providers) {
-    if (await getProviderRegistrationState(account, subscriptionId, namespace, overrideTenantId) !== "Registered") {
-      requirements.push({ scope: sub, actions: [`${namespace}/register/action`] });
-    }
-  }
-}
+// Deprecated: Replaced by resolveScope in hooks/util/useAzureAccessCheck.ts; kept for reference.
+// export async function requireGroupAndProviders(check: CardAccessCheck, { providers, actions }: NonNullable<CardResourceAccessRequest["createGroup"]>): Promise<void> {
+//   const { account, subscriptionId, overrideTenantId, group, sub, requirements } = check;
+//   const rg = resourceGroupScope(subscriptionId, group);
+//   const groupExists = await scopeExists(check, rg, "2021-04-01");
+//   if (!groupExists) {
+//     await ensureResourceGroupCreationAccess(account, subscriptionId, overrideTenantId);
+//     requirements.push({ scope: sub, actions: ["Microsoft.Resources/subscriptions/resourceGroups/write"] });
+//   } else {
+//     requirements.push({ scope: rg, actions: ["Microsoft.Resources/subscriptions/resourceGroups/read"] });
+//   }
+//   if (actions) requirements.push({ scope: groupExists ? rg : sub, actions });
+//   requirements.push({ scope: sub, actions: ["Microsoft.Resources/subscriptions/providers/read"] });
+//   for (const namespace of providers) {
+//     if (await getProviderRegistrationState(account, subscriptionId, namespace, overrideTenantId) !== "Registered") {
+//       requirements.push({ scope: sub, actions: [`${namespace}/register/action`] });
+//     }
+//   }
+// }
 
-/** @deprecated Replaced by resolveScope in azureArmHelper.ts. */
-export async function requireResource(check: CardAccessCheck, resource: ResourceAccess): Promise<void> {
-  const { type, api, name, actions, locate, mustExist, whenCreating, children = [], alongside = [] } = resource;
-  const { subscriptionId, sub, requirements } = check;
-  const found = locate ? await findListedResource(check.token, `${sub}/providers/${type}?api-version=${api}`, name) : null;
-  const group = resourceGroupScope(subscriptionId, found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1] ?? check.group);
-  const scope = `${group}/providers/${type}/${name}`;
-  if (whenCreating && !await scopeExists(check, scope, api)) requirements.push({ scope: sub, actions: whenCreating });
-  await requireAtResource(check, scope, api, actions, mustExist);
-  for (const child of children) {
-    // probe: false is for children with no GET, such as POST-only app settings; the parent establishes the scope.
-    if (child.probe === false) requirements.push({ scope: `${scope}/${child.path}`, actions: child.actions });
-    else await requireAtResource(check, `${scope}/${child.path}`, api, child.actions);
-  }
-  for (const other of alongside) {
-    await requireAtResource(check, `${group}/providers/${other.type}/${other.name}`, other.api, other.actions);
-  }
-}
+// Deprecated: Replaced by resolveScope in hooks/util/useAzureAccessCheck.ts; kept for reference.
+// export async function requireResource(check: CardAccessCheck, resource: ResourceAccess): Promise<void> {
+//   const { type, api, name, actions, locate, mustExist, whenCreating, children = [], alongside = [] } = resource;
+//   const { subscriptionId, sub, requirements } = check;
+//   const found = locate ? await findListedResource(check.token, `${sub}/providers/${type}?api-version=${api}`, name) : null;
+//   const group = resourceGroupScope(subscriptionId, found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1] ?? check.group);
+//   const scope = `${group}/providers/${type}/${name}`;
+//   if (whenCreating && !await scopeExists(check, scope, api)) requirements.push({ scope: sub, actions: whenCreating });
+//   await requireAtResource(check, scope, api, actions, mustExist);
+//   for (const child of children) {
+//     // probe: false is for children with no GET, such as POST-only app settings; the parent establishes the scope.
+//     if (child.probe === false) requirements.push({ scope: `${scope}/${child.path}`, actions: child.actions });
+//     else await requireAtResource(check, `${scope}/${child.path}`, api, child.actions);
+//   }
+//   for (const other of alongside) {
+//     await requireAtResource(check, `${group}/providers/${other.type}/${other.name}`, other.api, other.actions);
+//   }
+// }
 
 // ── Log Analytics workspace ────────────────────────────────────────────────────
 
@@ -698,30 +731,30 @@ export async function findDnsZone(
 
 type StorageAccountRow = { id?: string; name?: string; properties?: { primaryEndpoints?: { web?: string } } };
 
-/** @deprecated Moved to azureArmHelper.ts. */
-async function findListedResource<T extends { id?: string; name?: string }>(token: string, firstPath: string, name: string): Promise<T | null> {
-  const visited = new Set<string>();
-  let path: string | null = firstPath;
-  while (path) {
-    if (visited.has(path)) throw new Error("Azure returned a looping resource list URL");
-    visited.add(path);
-    const page = await armGet(token, path) as { value?: T[]; nextLink?: string } | null;
-    if (!page) return null;
-    if (!Array.isArray(page.value) || page.value.some((resource) =>
-      typeof resource?.name !== "string" || typeof resource?.id !== "string"
-    )) throw new Error("Azure returned an invalid resource list response");
-    const found = page.value.find((resource) => resource.name?.toLowerCase() === name.toLowerCase());
-    if (found) return found;
-    if (!page.nextLink) return null;
-    const next = new URL(page.nextLink, ARM);
-    if (next.origin !== ARM) throw new Error("Azure returned an unexpected resource list URL");
-    path = `${next.pathname}${next.search}`;
-  }
-  return null;
-}
+// Deprecated: Moved to azureArmHelper.ts; kept for reference.
+// async function findListedResource<T extends { id?: string; name?: string }>(token: string, firstPath: string, name: string): Promise<T | null> {
+//   const visited = new Set<string>();
+//   let path: string | null = firstPath;
+//   while (path) {
+//     if (visited.has(path)) throw new Error("Azure returned a looping resource list URL");
+//     visited.add(path);
+//     const page = await armGet(token, path) as { value?: T[]; nextLink?: string } | null;
+//     if (!page) return null;
+//     if (!Array.isArray(page.value) || page.value.some((resource) =>
+//       typeof resource?.name !== "string" || typeof resource?.id !== "string"
+//     )) throw new Error("Azure returned an invalid resource list response");
+//     const found = page.value.find((resource) => resource.name?.toLowerCase() === name.toLowerCase());
+//     if (found) return found;
+//     if (!page.nextLink) return null;
+//     const next = new URL(page.nextLink, ARM);
+//     if (next.origin !== ARM) throw new Error("Azure returned an unexpected resource list URL");
+//     path = `${next.pathname}${next.search}`;
+//   }
+//   return null;
+// }
 
 async function findStorageAccount(token: string, subscriptionId: string, name: string): Promise<StorageAccountRow | null> {
-  return findListed<StorageAccountRow>(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Storage/storageAccounts?api-version=2023-01-01`, name);
+  return findListedResource<StorageAccountRow>(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Storage/storageAccounts?api-version=2023-01-01`, name);
 }
 
 // checkNameAvailability never says who holds a name; this is what tells "ours, elsewhere" apart.
@@ -992,7 +1025,7 @@ const WEB_API = "2023-12-01";
 
 export async function findWebPubSubGroup(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<string | null> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
-  const found = await findListed(token, `/subscriptions/${subscriptionId}/providers/Microsoft.SignalRService/webPubSub?api-version=${WEBPUBSUB_API}`, name);
+  const found = await findListedResource(token, `/subscriptions/${subscriptionId}/providers/Microsoft.SignalRService/webPubSub?api-version=${WEBPUBSUB_API}`, name);
   return found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1] ?? null;
 }
 
@@ -1015,7 +1048,7 @@ export async function webPubSubNameAvailable(
 
 export async function findFunctionAppGroup(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<string | null> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
-  const found = await findListed(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Web/sites?api-version=${WEB_API}`, name);
+  const found = await findListedResource(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Web/sites?api-version=${WEB_API}`, name);
   return found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1] ?? null;
 }
 

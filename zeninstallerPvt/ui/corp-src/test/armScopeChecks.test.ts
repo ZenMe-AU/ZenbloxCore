@@ -5,7 +5,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AccountInfo } from "@azure/msal-browser";
-import { ensureCardResourceAccess } from "../api/azureArm";
+import { ensureCardResourceAccess } from "../hooks/util/useAzureAccessCheck";
 import type { ArmRole } from "../types";
 
 vi.mock("../auth/msal", () => ({ getToken: async () => "token" }));

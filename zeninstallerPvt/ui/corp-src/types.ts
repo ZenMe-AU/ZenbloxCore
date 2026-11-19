@@ -82,6 +82,8 @@ export type ArmChild = Readonly<{ path: string; actions: readonly string[]; data
 // objectId is the Entra object id of the user, group or service principal whose role assignments are checked at scope; leave it out to check the signed-in user. Children inherit it.
 // createActions are checked at the subscription only while the scope's resource doesn't exist, e.g. its checkNameAvailability.
 export type ArmRole = Readonly<{ scope: ArmScope; objectId?: string; actions: readonly string[]; dataActions?: readonly string[]; createActions?: readonly string[]; children?: readonly ArmChild[] }>;
+// One Azure role assignment: the scope it was made at and the role definition it grants.
+export type RoleAssignment = { scope: string; roleDefinitionId: string };
 
 // What a card needs; each card's config lists every field, empty when unused.
 export type CardResourceAccessRequest = Readonly<{

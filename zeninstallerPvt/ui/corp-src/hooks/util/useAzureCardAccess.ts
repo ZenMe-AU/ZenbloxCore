@@ -4,11 +4,11 @@
  */
 
 import { useCallback, useState } from "react";
-import { ensureCardResourceAccess, formatAzureAccessError } from "../../api/azureArm";
+import { formatAzureAccessError } from "../../api/azureArm";
 import { ensureEntraActions } from "../../api/azureGraph";
 import { ensureScopeConsent } from "../../auth/msal";
 import { ROLE_READ_SCOPES } from "../../config/azureConfig";
-import { useSubscriptionAccess } from "./useAzureAccessCheck";
+import { ensureCardResourceAccess, useSubscriptionAccess } from "./useAzureAccessCheck";
 import type { AzureTarget, CardResourceAccessRequest } from "../../types";
 
 function formatGraphAccessError(error: unknown): string {
