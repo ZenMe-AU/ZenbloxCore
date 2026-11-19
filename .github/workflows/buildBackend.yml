@@ -98,3 +98,16 @@ jobs:
           dir: backend
           state: success
           payload: ${{ steps.report.outputs.payload }}
+
+          # Use the same task-specific failure report that the deploy card polls during a build.
+      - name: Record build failure
+        if: ${{ failure() }}
+            uses: ./.github/actions/record-deployment
+            with:
+              github_token: ${{ secrets.GITHUB_TOKEN }}
+              environment: ${{ inputs.github_env_name }}
+              ref: ${{ github.ref_name }}
+              kind: build
+              dir: backend-failure
+              state: failure
+              payload: '{"runId": "${{ github.run_id }}"}'

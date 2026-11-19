@@ -34,10 +34,12 @@ import {
   getCoreStorageAccountName,
 } from "../../logic/naming";
 import { createResultStorage } from "../../logic/resultStorage";
+import { getVariableDisplayName } from "../../logic/variables";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { APP_SCOPES, AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../../config/azureConfig";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
-import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { coreInfraAccess } from "./config";
 import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../../types";
 
 export type CoreInfraResult = {
@@ -121,9 +123,7 @@ export function useCoreInfraCard({
   const resourceGroupName = getCoreResourceGroupName(corpName);
   const lawName = getCoreLogAnalyticsName(corpName);
   const storageAccountName = storageOverride || variableValues.TF_STATE_STORAGE_ACCOUNT || getCoreStorageAccountName(corpName);
-  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId: corpName ? subscriptionId : "", tenantId }, {
-    card: "core", resourceGroup: resourceGroupName, workspace: lawName, storageAccount: storageAccountName,
-  });
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId: corpName ? subscriptionId : "", tenantId }, coreInfraAccess(resourceGroupName, lawName, storageAccountName));
   const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
 
   // Too long or bad characters are visible as you type; too short or taken is only known on confirm.
@@ -362,8 +362,10 @@ export function useCoreInfraCard({
   const azureConfigured = !!AZURE_CLIENT_ID;
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
-  const status: CardStatus = !azureConfigured ? "error" : done ? "complete" : "warning";
-  const summary = !azureConfigured ? "Unavailable" : done ? "Infrastructure ready" : "Set up corp infrastructure";
+  // Surface the missing company identifier as a fixable warning before infrastructure setup can proceed.
+  const missingCorpName = !corpName;
+  const status: CardStatus = !azureConfigured ? "error" : missingCorpName ? "warning" : done ? "complete" : "warning";
+  const summary = !azureConfigured ? "Unavailable" : missingCorpName ? `${getVariableDisplayName("NAME")} not set` : done ? "Infrastructure ready" : "Set up corp infrastructure";
 
   return {
     creationAccess,

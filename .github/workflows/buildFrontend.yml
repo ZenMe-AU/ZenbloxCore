@@ -109,3 +109,16 @@ jobs:
           dir: frontend
           state: success
           payload: ${{ steps.report.outputs.payload }}
+
+      # Publish a failure report so the frontend card can show and link the actual failed run.
+      - name: Record build failure
+        if: ${{ failure() }}
+        uses: ./.github/actions/record-deployment
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          environment: ${{ inputs.github_env_name }}
+          ref: ${{ github.ref_name }}
+          kind: build
+          dir: frontend-failure
+          state: failure
+          payload: '{"runId": "${{ github.run_id }}"}'

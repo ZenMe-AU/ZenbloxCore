@@ -5,11 +5,13 @@
 
 import { useEffect, useState } from "react";
 import { ensureResourceGroupCreationAccess, formatAzureAccessError } from "../../api/azureArm";
+import { getAzureAccessFailureKind, type AzureAccessFailureKind } from "../../logic/azureAccessFailure";
 import type { AzureAccount, AzureTarget } from "../../types";
 
 export type SubscriptionAccess = {
   status: "idle" | "checking" | "ready" | "error";
   error: string | null;
+  failureKind?: AzureAccessFailureKind | null;
   retry: () => void;
 };
 
@@ -28,6 +30,7 @@ export function useSubscriptionAccess(
     checkAccess: typeof checkAccess;
     attempt: number;
     error: string | null;
+    failureKind: AzureAccessFailureKind | null;
   } | null>(null);
 
   useEffect(() => {
@@ -35,12 +38,14 @@ export function useSubscriptionAccess(
     let cancelled = false;
     const check = async () => {
       let error: string | null = null;
+      let failureKind: AzureAccessFailureKind | null = null;
       try {
         await checkAccess(azureAccount, subscriptionId, tenantId);
       } catch (err) {
+        failureKind = getAzureAccessFailureKind(err);
         error = formatError(err) || "Could not verify subscription access. Recheck subscription access before creating resources.";
       }
-      if (!cancelled) setResult({ account: azureAccount, subscriptionId, tenantId, checkAccess, attempt, error });
+      if (!cancelled) setResult({ account: azureAccount, subscriptionId, tenantId, checkAccess, attempt, error, failureKind });
     };
     void check();
     return () => {
@@ -53,9 +58,9 @@ export function useSubscriptionAccess(
     result?.checkAccess === checkAccess && result?.attempt === attempt;
   const error = current ? result.error : null;
   const status = !azureAccount || !subscriptionId ? "idle" : !current ? "checking" : error ? "error" : "ready";
-  return { status, error, retry: () => setAttempt((previous) => previous + 1) };
+  return { status, error, failureKind: current ? result.failureKind : null, retry: () => setAttempt((previous) => previous + 1) };
 }
 
-export function useResourceGroupCreationAccess(target: AzureTarget): ResourceGroupCreationAccess {
+export function useAzureAccessCheck(target: AzureTarget): ResourceGroupCreationAccess {
   return useSubscriptionAccess(target, ensureResourceGroupCreationAccess);
 }

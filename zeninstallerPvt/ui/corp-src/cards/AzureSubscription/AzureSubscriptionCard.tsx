@@ -3,9 +3,10 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Box, Button, CircularProgress, Link, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import { warningMessageIconSx } from "../../config/styles";
 import type { Account, CardChrome, GhEnv } from "../../types";
 import type { UseAzureAccount } from "../AzureLogin/useAzureAccount";
@@ -18,8 +19,10 @@ import CloudVariableDetail from "../CloudVariableDetail";
 import Card from "../../components/Card";
 import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
-import ExternalLink from "../../components/ExternalLink";
-import { AZURE_PIM_ACTIVATION_URL, AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
+// import ExternalLink from "../../components/ExternalLink";
+import Prerequisites from "../../components/Prerequisites";
+import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
+// import { AZURE_PIM_ACTIVATION_URL } from "../../logic/consoleUrls";
 
 type Props = {
   card: CardChrome;
@@ -74,6 +77,7 @@ export default function AzureSubscriptionCard({
   onOpenAzureLogin,
   onUserInteract,
 }: Props) {
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const { tenants, manualTenantId } = azure;
   const { subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, subscriptionDrift, subscriptionNoAccess } = subscription;
 
@@ -179,8 +183,43 @@ export default function AzureSubscriptionCard({
           )}
         </Box>
 
+        {!selectedEnv && (
+          <Typography color="warning.main" role="status">
+            Select a repository & environment to save the tenant and subscription to GitHub.
+          </Typography>
+        )}
+
+        {/* Save AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID to the env's GitHub variables */}
+        {/* Save the tenant/subscription and preserve pending edits across refreshes within this selection. */}
+        <CloudVariableDetail
+          key={JSON.stringify([githubAccount?.id, repoName, selectedEnv?.name])}
+          account={githubAccount}
+          repo={repoName}
+          envName={selectedEnv?.name ?? null}
+          keys={AZURE_TARGET_KEYS}
+          variables={variables}
+          populate={populate}
+          preserveDirtyOnSync
+          hiddenKeys={["VITE_AZURE_TENANT_ID"]}
+          title="Saved to GitHub"
+          githubUrl={githubUrl}
+          saveHint={
+            subscription.installerAccess.status === "error" ? (
+              <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                <Typography color="error.main">You need at least Reader access to this subscription (or equivalent permissions).</Typography>
+              </Box>
+            ) : subscriptionDrift ? (
+              <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+                <Typography color="warning.main">Unsaved change — save to apply.</Typography>
+              </Box>
+            ) : undefined
+          }
+        />
+
         {(subscription.installerAccess.status === "checking" || subscription.installerAccess.status === "error") && (
-          <Box sx={{ minWidth: 0 }}>
+          <Prerequisites id="azure-subscription-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             {subscription.installerAccess.status === "checking" ? (
               <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress aria-label="Checking installer subscription access" size={12} />
@@ -189,18 +228,20 @@ export default function AzureSubscriptionCard({
             ) : (
               <>
                 <Box role="alert" sx={{
-                  backgroundColor: "background.default", border: "1px solid", borderColor: "warning.main",
+                  backgroundColor: "background.default", border: "1px solid", borderColor: "error.main",
                   borderRadius: 1, px: 2, py: 1.25, minWidth: 0, overflowWrap: "anywhere",
                 }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
-                    <Typography color="warning.dark">You may not have enough subscription access to complete the installer.</Typography>
-                  </Box>
-                  <Box sx={{ color: "warning.dark" }}>
+                  <Box sx={{ color: "error.main" }}>
                     <Typography sx={{ whiteSpace: "pre-line" }}>{subscription.installerAccess.error}</Typography>
-                    <ExternalLink href={AZURE_PIM_ACTIVATION_URL} label="Activate an Azure resource role in PIM">
-                      Activate eligible roles in PIM and recheck subscription access.
-                    </ExternalLink>
+                    {
+                      // The access error already says to ask an administrator or activate the role in PIM.
+                      // <Typography>
+                      //   Ask a subscription administrator to grant access in IAM or activate your eligible role in PIM at{" "}
+                      //   <ExternalLink href={AZURE_PIM_ACTIVATION_URL} label="Activate an Azure resource role in PIM">
+                      //     PIM - My roles - Azure resources
+                      //   </ExternalLink>{" "}then retry.
+                      // </Typography>
+                    }
                   </Box>
                 </Box>
                 <Button variant="contained" sx={{ mt: 1, py: 0.85, px: 2.5 }} onClick={subscription.installerAccess.retry}>
@@ -208,35 +249,8 @@ export default function AzureSubscriptionCard({
                 </Button>
               </>
             )}
-          </Box>
+          </Prerequisites>
         )}
-
-        {!selectedEnv && (
-          <Typography color="warning.main" role="status">
-            Select a repository & environment to save the tenant and subscription to GitHub.
-          </Typography>
-        )}
-
-        {/* Save AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID to the env's GitHub variables */}
-        <CloudVariableDetail
-          account={githubAccount}
-          repo={repoName}
-          envName={selectedEnv?.name ?? null}
-          keys={AZURE_TARGET_KEYS}
-          variables={variables}
-          populate={populate}
-          hiddenKeys={["VITE_AZURE_TENANT_ID"]}
-          title="Saved to GitHub"
-          githubUrl={githubUrl}
-          saveHint={
-            subscriptionDrift ? (
-              <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
-                <Typography color="warning.main">Unsaved change — save to apply.</Typography>
-              </Box>
-            ) : undefined
-          }
-        />
       </Box>
     </Card>
   );

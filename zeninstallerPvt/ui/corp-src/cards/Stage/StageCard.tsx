@@ -3,8 +3,8 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { Box, Button, ButtonBase, CircularProgress, Collapse, IconButton, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Box, Button, ButtonBase, CircularProgress, Collapse, Divider, IconButton, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -31,9 +31,10 @@ import type {
 } from "../../types";
 import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../../api";
 import { useAzurePermissions } from "../../hooks/util/useAzurePermissions";
-import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { subscriptionBudgetAccess } from "./stageConfig";
 import { useRemoteTerminal } from "./useRemoteTerminal";
-import { computePlanSummary, isPlanBehind } from "../../logic/stage";
+import { assessPrerequisites, computePlanSummary, isPlanBehind, type PrerequisiteAssessment } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl } from "../../logic/github";
@@ -46,7 +47,8 @@ import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
 import StagePlanDetail from "./StagePlanDetail";
 import RemoteTerminal from "./RemoteTerminal";
-import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 
 function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, CardStatus>, variableValues: Record<string, string>): boolean {
   switch (prereq.type) {
@@ -363,11 +365,13 @@ function RunStatusUpdateButton({
   running,
   countdown,
   disabled,
+  label = "Get Updated Plan",
 }: {
   onRun: () => Promise<void>;
   running: boolean;
   countdown: number;
   disabled: boolean;
+  label?: string;
 }) {
   return (
     <Button
@@ -393,7 +397,7 @@ function RunStatusUpdateButton({
           Running... {countdown >= 60 ? `${Math.ceil(countdown / 60)}m` : `${countdown}s`}
         </>
       ) : (
-        "Get Updated Plan"
+        label
       )}
     </Button>
   );
@@ -403,6 +407,7 @@ type Props = {
   card: CardChrome;
   stageDef: StageDefinition;
   stage: Stage;
+  prerequisiteAssessment?: PrerequisiteAssessment;
   latestSha?: string;
   deployDisabled: boolean;
   deployedEnv: Record<string, string> | null;
@@ -431,6 +436,7 @@ function StageCardContent({
   card,
   stageDef,
   stage,
+  prerequisiteAssessment,
   latestSha,
   deployDisabled,
   deployedEnv,
@@ -450,13 +456,16 @@ function StageCardContent({
   azureAccount,
   managementAccess,
 }: Props & { managementAccess?: CardResourceAccess }) {
-  const [expandedPrereqs, setExpandedPrereqs] = useState<Record<number, boolean>>({});
   const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [planOutputOpen, setPlanOutputOpen] = useState(false);
-  const [planItems, setPlanItems] = useState<PlanItem[]>([]);
-  const [planSummary, setPlanSummary] = useState<PlanSummary>({ create: 0, update: 0, delete: 0, replace: 0 });
-  const [planLoading, setPlanLoading] = useState(false);
-  const [planError, setPlanError] = useState<string | null>(null);
+  const planRequest = useMemo(() => {
+    if (!stage.planJsonId || stage.status !== "success" || !account) return null;
+    return { id: stage.planJsonId, account, repoName, runId: stage.runId, envId: selectedEnv?.id };
+  }, [stage.planJsonId, stage.status, account, repoName, stage.runId, selectedEnv?.id]);
+  const [planResult, setPlanResult] = useState<{
+    request: NonNullable<typeof planRequest>;
+  } & ({ items: PlanItem[]; summary: PlanSummary } | { error: string }) | null>(null);
+  const currentPlan = planRequest && planResult?.request === planRequest ? planResult : null;
   const [deployLog, setDeployLog] = useState<{ id: number; text: string | null } | null>(null);
   const [planLog, setPlanLog] = useState<{ id: number; text: string | null } | null>(null);
 
@@ -498,35 +507,25 @@ function StageCardContent({
     onPlanSummaryRef.current = onPlanSummary;
   });
 
-  const prevRepoName = useRef(repoName);
-  const lastPlanFetchKey = useRef<string | null>(null);
+  // Scope async results to the current report so a late fetch cannot restore an older plan.
   useEffect(() => {
-    if (!stage.planJsonId || stage.status !== "success" || !account) {
-      prevRepoName.current = repoName;
-      return;
-    }
-    if (repoName !== prevRepoName.current) return;
-    const key = `${account.id}_${repoName}_${stage.planJsonId}`;
-    if (key === lastPlanFetchKey.current) return;
-    lastPlanFetchKey.current = key;
-    prevRepoName.current = repoName;
-    const t = setTimeout(() => setPlanLoading(true), 0);
-    fetchPlan(stage.planJsonId, account, repoName)
+    if (!planRequest || statusUpdateRunning) return;
+    let active = true;
+    fetchPlan(planRequest.id, planRequest.account, planRequest.repoName)
       .then((data) => {
-        const fetched: PlanItem[] = data.resource_changes || [];
-        const s = computePlanSummary(fetched);
-        setPlanItems(fetched);
-        setPlanSummary(s);
-        setPlanError(null);
-        onPlanSummaryRef.current?.(s);
+        if (!active) return;
+        const items: PlanItem[] = data.resource_changes || [];
+        const summary = computePlanSummary(items);
+        setPlanResult({ request: planRequest, items, summary });
+        onPlanSummaryRef.current?.(summary);
       })
-      .catch((err: Error) => setPlanError(err.message))
-      .finally(() => {
-        clearTimeout(t);
-        setPlanLoading(false);
+      .catch((err: Error) => {
+        if (active) setPlanResult({ request: planRequest, error: err.message });
       });
-    return () => clearTimeout(t);
-  }, [stage.planJsonId, stage.status, account, repoName]);
+    return () => {
+      active = false;
+    };
+  }, [planRequest, statusUpdateRunning]);
 
   useEffect(() => {
     const id = stage.deployLogId;
@@ -547,6 +546,10 @@ function StageCardContent({
   const deployLogFetched = !!stage.deployLogId && deployLog?.id === stage.deployLogId;
   const planLogFetched = !!stage.planLogId && planLog?.id === stage.planLogId;
 
+  // Keep plan and deployment controls gated by the same live prerequisite state as the summary.
+  const prerequisites = prerequisiteAssessment ?? assessPrerequisites(stageDef.prerequisites, variableValues, cardStatus, deployedEnv);
+  const prerequisitesMet = !prerequisites.blocked;
+  const canRefreshPrerequisites = prerequisites.changed.length > 0 && prerequisites.missing.length === 0 && prerequisites.incomplete.length === 0;
   const hasDetails = stage.status === "success" && !!stage.planJsonId && stage.planJsonUrl !== "";
   const repoFullName = account && repoName ? `${account.login}/${repoName}` : null;
 
@@ -555,55 +558,25 @@ function StageCardContent({
       {stageDef.description}
     </Typography>
   ) : undefined;
+  const accessError = managementAccess?.status === "error";
+  const accessNotice = managementAccess && (managementAccess.status === "checking" || accessError)
+    ? <AzureAccessCheck access={managementAccess} resourceAccess errorStyle />
+    : undefined;
 
   return (
-    <Card title={stageDef.label} action={<Action repoFullName={repoFullName} runId={stage.runId} />} lockedIntro={intro} {...card}>
+    <Card
+      title={stageDef.label}
+      action={<Action repoFullName={repoFullName} runId={stage.runId} />}
+      lockedIntro={intro}
+      {...card}
+      status={!card.locked && !card.unavailable && accessError ? "error" : card.status}
+      summary={!card.locked && !card.unavailable && accessError ? "Insufficient permissions to deploy" : card.summary}
+    >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {intro}
-        {managementAccess && (
-          <>
-            <ResourceGroupCreationAccess access={managementAccess} resourceAccess />
-          </>
-        )}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           {stageDef.prerequisites.length > 0 && (
-            <Box>
-            <ButtonBase
-              disableRipple
-              onClick={() => setPrerequisitesOpen((open) => !open)}
-              aria-expanded={prerequisitesOpen}
-              aria-label={prerequisitesOpen ? "collapse" : "open prerequisites"}
-              aria-controls={`${stageDef.dir}-prerequisites`}
-              sx={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                userSelect: "none",
-                py: 0.25,
-                "&:hover .prerequisites-toggle-label, &:focus-visible .prerequisites-toggle-label": { color: "primary.main" },
-                "&:hover .prerequisites-toggle-line, &:focus-visible .prerequisites-toggle-line": { backgroundColor: "primary.main" },
-                "&:hover .prerequisites-toggle-icon, &:focus-visible .prerequisites-toggle-icon": { color: "primary.main" },
-              }}
-            >
-              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-              <Typography className="prerequisites-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
-                {prerequisitesOpen ? "hide prerequisites" : "view prerequisites"}
-              </Typography>
-              <KeyboardArrowDownIcon
-                className="prerequisites-toggle-icon"
-                sx={{
-                  typography: "body2",
-                  color: "text.muted",
-                  transform: prerequisitesOpen ? "rotate(180deg)" : "none",
-                  transition: "color 0.2s, transform 0.2s",
-                }}
-                aria-hidden="true"
-              />
-              <Box className="prerequisites-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-            </ButtonBase>
-            <Collapse in={prerequisitesOpen} timeout={300}>
-              <Box id={`${stageDef.dir}-prerequisites`} role="region" aria-label="Prerequisites" sx={{ display: "flex", flexDirection: "column", mt: 0.5 }}>
+            <Prerequisites id={`${stageDef.dir}-prerequisites`} open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)} stage>
               <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>
                 Prerequisites
               </Typography>
@@ -650,10 +623,24 @@ function StageCardContent({
                   </Box>
                 );
               })}
-              </Box>
-            </Collapse>
-          </Box>
+            </Prerequisites>
           )}
+          {canRefreshPrerequisites && (
+            <Box role="group" aria-label="Refresh changed prerequisites" sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <RunStatusUpdateButton
+                onRun={onRunStatusUpdate}
+                running={statusUpdateRunning}
+                countdown={statusUpdateCountdown}
+                disabled={statusUpdateDisabled}
+                label="Refresh plan"
+              />
+              {runError && <ErrorText>{runError}</ErrorText>}
+            </Box>
+          )}
+        </Box>
+
+        {prerequisitesMet && (
+          <Box role="region" aria-label="Plan" sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
             <RunStatusUpdateButton
               onRun={onRunStatusUpdate}
@@ -663,14 +650,16 @@ function StageCardContent({
             />
             {runError && <ErrorText>{runError}</ErrorText>}
           </Box>
-        </Box>
 
-        {hasDetails && (
+        {(hasDetails || accessNotice) && (
           <StagePlanDetail
-            items={planItems}
-            summary={planSummary}
-            loading={planLoading}
-            error={planError}
+            items={currentPlan && "items" in currentPlan ? currentPlan.items : []}
+            summary={currentPlan && "summary" in currentPlan ? currentPlan.summary : { create: 0, update: 0, delete: 0, replace: 0 }}
+            loading={hasDetails && !currentPlan}
+            error={currentPlan && "error" in currentPlan ? currentPlan.error : null}
+            planAvailable={hasDetails}
+            accessNotice={accessNotice}
+            accessError={accessError}
             onDeploy={onDeploy}
             deployNotice={
               !azurePermissions.ready && (
@@ -691,54 +680,58 @@ function StageCardContent({
 
         <RemoteTerminal session={remoteTerminal} />
 
-        {!hasDetails && stage.status !== "pending" && (
-          <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
-            No plan is available for this stage. Check the GitHub Actions run for errors, then create a new plan.
-          </Typography>
-        )}
-
-        {stage.status === "failed" && stage.planLogId && (
-          <Box>
-            <ButtonBase
-              disableRipple
-              onClick={() => setPlanOutputOpen((open) => !open)}
-              aria-expanded={planOutputOpen}
-              aria-controls={`${stageDef.dir}-plan-output`}
-              sx={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                userSelect: "none",
-                py: 0.25,
-                "&:hover .plan-output-toggle-label, &:focus-visible .plan-output-toggle-label": { color: "primary.main" },
-                "&:hover .plan-output-toggle-line, &:focus-visible .plan-output-toggle-line": { backgroundColor: "primary.main" },
-                "&:hover .plan-output-toggle-icon, &:focus-visible .plan-output-toggle-icon": { color: "primary.main" },
-              }}
-            >
-              <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-              <Typography className="plan-output-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
-                {planOutputOpen ? "hide result" : "view result"}
+            {!hasDetails && stage.status !== "pending" && (
+              <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
+                No plan is available for this stage. Check the GitHub Actions run for errors, then create a new plan.
               </Typography>
-              <KeyboardArrowDownIcon
-                className="plan-output-toggle-icon"
-                sx={{
-                  typography: "body2",
-                  color: "text.muted",
-                  transform: planOutputOpen ? "rotate(180deg)" : "none",
-                  transition: "color 0.2s, transform 0.2s",
-                }}
-                aria-hidden="true"
-              />
-              <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-            </ButtonBase>
-            <Collapse in={planOutputOpen} timeout={300}>
-              <Box id={`${stageDef.dir}-plan-output`} role="region" aria-label="Plan output">
-                <FailureLog fetched={planLogFetched} text={planLog?.text ?? null} />
+            )}
+
+            {stage.status === "failed" && stage.planLogId && (
+              <Box>
+                <ButtonBase
+                  disableRipple
+                  onClick={() => setPlanOutputOpen((open) => !open)}
+                  aria-expanded={planOutputOpen}
+                  aria-controls={`${stageDef.dir}-plan-output`}
+                  sx={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    userSelect: "none",
+                    py: 0.25,
+                    "&:hover .plan-output-toggle-label, &:focus-visible .plan-output-toggle-label": { color: "primary.main" },
+                    "&:hover .plan-output-toggle-line, &:focus-visible .plan-output-toggle-line": { backgroundColor: "primary.main" },
+                    "&:hover .plan-output-toggle-icon, &:focus-visible .plan-output-toggle-icon": { color: "primary.main" },
+                  }}
+                >
+                  <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+                  <Typography className="plan-output-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
+                    {planOutputOpen ? "hide result" : "view result"}
+                  </Typography>
+                  <KeyboardArrowDownIcon
+                    className="plan-output-toggle-icon"
+                    sx={{
+                      typography: "body2",
+                      color: "text.muted",
+                      transform: planOutputOpen ? "rotate(180deg)" : "none",
+                      transition: "color 0.2s, transform 0.2s",
+                    }}
+                    aria-hidden="true"
+                  />
+                  <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+                </ButtonBase>
+                <Collapse in={planOutputOpen} timeout={300}>
+                  <Box id={`${stageDef.dir}-plan-output`} role="region" aria-label="Plan output">
+                    <FailureLog fetched={planLogFetched} text={planLog?.text ?? null} />
+                  </Box>
+                </Collapse>
               </Box>
-            </Collapse>
+            )}
           </Box>
         )}
+
+        <RemoteTerminal session={remoteTerminal} />
 
         {(stage.deployedAt || stage.deployStatus) && (
           <Box>
@@ -774,17 +767,16 @@ function StageCardContent({
   );
 }
 
-function ArmStageCard({ resourceCard, ...props }: Props & { resourceCard: "subscriptionBudget" | "globalGroups" }) {
+function ArmStageCard(props: Props) {
   const managementAccess = useCardResourceAccess({
     azureAccount: props.azureAccount,
     subscriptionId: props.variableValues.AZURE_SUBSCRIPTION_ID ?? "",
     tenantId: props.variableValues.AZURE_TENANT_ID || undefined,
-  }, { card: resourceCard });
+  }, subscriptionBudgetAccess());
   return <StageCardContent {...props} managementAccess={managementAccess} />;
 }
 
 export default function StageCard(props: Props) {
-  if (props.stageDef.dir === "SubscriptionBudget") return <ArmStageCard {...props} resourceCard="subscriptionBudget" />;
-  if (props.stageDef.dir === "GlobalGroups") return <ArmStageCard {...props} resourceCard="globalGroups" />;
+  if (props.stageDef.dir === "SubscriptionBudget") return <ArmStageCard {...props} />;
   return <StageCardContent {...props} />;
 }

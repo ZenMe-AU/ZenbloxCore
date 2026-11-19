@@ -38,23 +38,6 @@ export const PIPELINES: Record<string, PipelineConfig> = {
           },
         ],
       },
-      {
-        dir: "GlobalGroups",
-        workflowId: PLAN_STAGE_WORKFLOW,
-        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
-        label: "Organisation security groups",
-        description: "Creates Entra security groups for privileged accounts, deployment, lead developers, and database administration. It nests groups and assigns directory and Azure roles to define access.",
-        azurePermissions: [
-          GRAPH_PERMISSIONS.GroupReadWriteAll,
-          GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
-          // TODO: confirm if PIM-managed group membership is needed (azuread_role_eligibility_schedule in c02 is commented out)
-          // GRAPH_PERMISSIONS.PrivilegedAccessReadWriteAzureADGroup,
-        ],
-        prerequisites: [
-          { type: "var", key: "NAME" },
-          { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
-        ],
-      },
       /*
        * RootRg was replaced by the Corp Domain Setup + Terraform Setup cards,
        * which create the same resources directly via ARM/Graph from the browser.

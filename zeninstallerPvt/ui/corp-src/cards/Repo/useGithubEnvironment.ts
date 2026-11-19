@@ -114,11 +114,11 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     } else if (result.status === "multiple") {
       setBranchMatchWarning(null);
       setBranchMatchError(`Multiple branches match environment "${selectedEnv.name}". Please resolve the conflict.`);
-      setStatus("error");
+      setStatus("warning");
     } else {
       setBranchMatchWarning(null);
       setBranchMatchError(`No branch found matching environment "${selectedEnv.name}".`);
-      setStatus("error");
+      setStatus("warning");
     }
   }, [selectedEnv, opts.branches]);
 
@@ -148,7 +148,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     branchMatchError,
     // Status
     envLoading,
-    status,
+    status: envRefreshFailed ? "error" : envLoading ? "loading" : status,
     envRefreshFailed,
     // Actions
     onRefresh,

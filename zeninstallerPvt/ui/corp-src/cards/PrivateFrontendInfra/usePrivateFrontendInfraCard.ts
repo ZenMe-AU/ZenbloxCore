@@ -23,7 +23,8 @@ import {
 import { createSpaAppRegistration, createServicePrincipal, ensureSpaRedirectUri, getExistingApp, getExistingSP } from "../../api/azureGraph";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
-import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useCardResourceAccess";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { privateFrontendInfraAccess } from "./config";
 import {
   DEFAULT_AZURE_LOCATION,
   DIAGNOSTIC_SETTING_NAME,
@@ -103,9 +104,7 @@ export function usePrivateFrontendInfraCard({
   const [siteStorageChecking, setSiteStorageChecking] = useState(false);
   const [siteStorageError, setSiteStorageError] = useState<string | null>(null);
   const webStorageAccountName = siteStorageOverride || variableValues.SITE_STORAGE_ACCOUNT || getWebStorageAccountName(subscriptionId);
-  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, {
-    card: "frontend", resourceGroup: resourceGroupName, workspace: lawName, storageAccount: webStorageAccountName,
-  });
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, privateFrontendInfraAccess(resourceGroupName, lawName, webStorageAccountName));
   const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
 
   const resultMatches = !!result && result.subscriptionId === subscriptionId;
@@ -353,8 +352,10 @@ export function usePrivateFrontendInfraCard({
     webStorageAccountName,
   ]);
 
-  const status: CardStatus = !azureConfigured ? "error" : done ? "complete" : "warning";
-  const summary = !azureConfigured ? "Unavailable" : done ? "Private environment ready" : "Set up the private environment";
+  const status: CardStatus = !azureConfigured || creationAccess.status === "error" ? "error" : done ? "complete" : "warning";
+  const summary = !azureConfigured ? "Unavailable"
+    : creationAccess.status === "error" ? "Insufficient permissions to continue"
+      : done ? "Private environment ready" : "Ready to create";
 
   return {
     cardId: "private_frontend_infra" as const,

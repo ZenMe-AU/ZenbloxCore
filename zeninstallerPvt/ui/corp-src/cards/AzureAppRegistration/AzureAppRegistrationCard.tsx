@@ -6,10 +6,12 @@
 import { useState, useEffect, useRef } from "react";
 import { Box, Button, ButtonBase, Collapse, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
-import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 import type { Account, CardChrome, GhEnv } from "../../types";
 import type { UseAzureAppRegistrationCard } from "./useAzureAppRegistrationCard";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
@@ -19,6 +21,7 @@ import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import FieldLabel from "../../components/FieldLabel";
 import StatusText from "../../components/StatusText";
+import ErrorText from "../../components/ErrorText";
 import { AZURE_APP_REGISTRATIONS_URL, getAppRegistrationUrl } from "./consoleUrls";
 import { AZURE_APP_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
@@ -71,6 +74,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
   } = appReg;
   const disabled = card.locked;
   const [varExpanded, setVarExpanded] = useState(false);
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const [bannerState, setBannerState] = useState<"none" | "saved" | "no-changes" | "error">("none");
   const prevRunNonceRef = useRef(runNonce);
@@ -178,9 +182,6 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
             <Intro />
           </Box>
 
-          <ResourceGroupCreationAccess access={appReg.managementAccess} resourceAccess />
-
-
           {/* Requires the Azure sign-in from the Azure login card */}
           {azureAccount && (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
@@ -259,6 +260,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
               )}
 
               {/* App name + create button */}
+              {!running && appReg.rbacError && <ErrorText>{appReg.rbacError}</ErrorText>}
               {steps.length === 0 && (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <Box>
@@ -283,9 +285,15 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                         px: 2.5,
                       }}
                     >
-                      {rbacMissing ? "Grant Reader access on this subscription" : "Create app registration"}
+                      {rbacMissing ? "Grant Reader access on this subscription" : appReg.done ? "Re-run app registration" : "Create app registration"}
                     </Button>
-                    {varHasAny && !rbacMissing && !spNotFound && (
+                    {appReg.managementAccess.status === "error" && (
+                      <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                        <Typography color="error.main">Insufficient permissions to continue</Typography>
+                      </Box>
+                    )}
+                    {varHasAny && !appReg.done && !rbacMissing && !spNotFound && (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                         <Typography color="warning.main">This replaces the saved Azure app IDs for the selected GitHub environment.</Typography>
@@ -318,6 +326,12 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                     </Button>
                   )}
                 </Box>
+              )}
+
+              {(appReg.managementAccess.status === "checking" || appReg.managementAccess.status === "error") && (
+                <Prerequisites id="azure-app-registration-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+                  <AzureAccessCheck access={appReg.managementAccess} resourceAccess errorStyle />
+                </Prerequisites>
               )}
             </Box>
           )}

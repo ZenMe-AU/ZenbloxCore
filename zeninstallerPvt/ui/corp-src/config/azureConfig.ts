@@ -33,6 +33,7 @@ export const ACCESS_PASS_SCOPES = [
 export const GROUPS_SCOPES = ["https://graph.microsoft.com/Group.ReadWrite.All"];
 export const CLAIMS_POLICY_SCOPES = ["https://graph.microsoft.com/Policy.ReadWrite.ApplicationConfiguration"]; // SAML claims of the AWS sign-in app.
 export const ROLE_MANAGEMENT_SCOPES = ["https://graph.microsoft.com/RoleManagement.ReadWrite.Directory"];
+export const USER_SCOPES = ["https://graph.microsoft.com/User.ReadWrite.All"];
 
 // ── Individual Graph application permissions ───────────────────────────────────
 
@@ -89,7 +90,7 @@ export const RBAC_ROLE_IDS: Record<string, string> = {
   "Storage Queue Data Contributor": "974c5e8b-45b9-4653-ba55-5f855dd0fb88",
   "Monitoring Metrics Publisher": "3913510d-42f4-4e42-8a64-420c390055eb",
   "Web PubSub Service Owner": "12cf5a90-567b-43ae-8102-96cf46c7d9b4",
-  // Owner: "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+  Owner: "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
 };
 
 // ── Function App settings the installer writes ─────────────────────────────────
@@ -117,59 +118,5 @@ export const PRIVATE_FRONTEND_PROVIDERS = [
   "Microsoft.Web",
 ] as const;
 
-// ── Subscription permission requirements ────────────────────────────
-const readWrite = (...resources: string[]) => resources.flatMap((resource) => [`${resource}/read`, `${resource}/write`]);
-const providers = new Set([...CORE_INFRA_PROVIDERS, ...DNS_PROVIDERS, ...PRIVATE_FRONTEND_PROVIDERS, ...REMOTE_TERMINAL_PROVIDERS]);
-export const SUBSCRIPTION_PERMISSIONS = {
-  resourceGroupsAndProviders: [
-    ...readWrite("Microsoft.Resources/subscriptions/resourceGroups"),
-    "Microsoft.Resources/subscriptions/providers/read",
-    ...Array.from(providers, (provider) => `${provider}/register/action`),
-  ],
-  storage: [
-    ...readWrite("Microsoft.Storage/storageAccounts", "Microsoft.Storage/storageAccounts/blobServices",
-      "Microsoft.Storage/storageAccounts/blobServices/containers", "Microsoft.Storage/storageAccounts/tableServices/tables"),
-    "Microsoft.Storage/checkNameAvailability/read",
-  ],
-  monitoring: readWrite(
-    "Microsoft.OperationalInsights/workspaces", "Microsoft.Insights/components", "Microsoft.Insights/diagnosticSettings"
-  ),
-  dns: readWrite(
-    "Microsoft.Network/dnsZones", "Microsoft.Network/dnsZones/TXT", "Microsoft.Network/dnsZones/CNAME"
-  ),
-  functionApps: [
-    ...readWrite("Microsoft.Web/serverfarms", "Microsoft.Web/sites", "Microsoft.Web/sites/config"),
-    "Microsoft.Web/sites/config/list/action", "Microsoft.Web/sites/publish/action", "Microsoft.Web/checkNameAvailability/read",
-  ],
-  webPubSub: [
-    ...readWrite("Microsoft.SignalRService/webPubSub", "Microsoft.SignalRService/webPubSub/hubs"),
-    "Microsoft.SignalRService/locations/checkNameAvailability/action",
-  ],
-  budgets: readWrite("Microsoft.Consumption/budgets"),
-  roleAssignments: [
-    ...readWrite("Microsoft.Authorization/roleAssignments"), "Microsoft.Authorization/roleDefinitions/read",
-  ],
-  deletionLocks: readWrite("Microsoft.Authorization/locks"),
-} as const;
-
-// Checked at the target resource, or its nearest existing parent when creating it.
-export const RESOURCE_PERMISSIONS = {
-  resourceGroup: readWrite("Microsoft.Resources/subscriptions/resourceGroups"),
-  storageAccount: readWrite("Microsoft.Storage/storageAccounts"),
-  blobService: readWrite("Microsoft.Storage/storageAccounts/blobServices"),
-  blobContainer: readWrite("Microsoft.Storage/storageAccounts/blobServices/containers"),
-  table: readWrite("Microsoft.Storage/storageAccounts/tableServices/tables"),
-  workspace: readWrite("Microsoft.OperationalInsights/workspaces"),
-  appInsights: readWrite("Microsoft.Insights/components"),
-  dnsZone: readWrite("Microsoft.Network/dnsZones"),
-  dnsTxt: readWrite("Microsoft.Network/dnsZones/TXT"),
-  webPubSub: readWrite("Microsoft.SignalRService/webPubSub"),
-  webPubSubHub: readWrite("Microsoft.SignalRService/webPubSub/hubs"),
-  functionApp: readWrite("Microsoft.Web/sites"),
-  functionAppSettings: ["Microsoft.Web/sites/config/list/action", "Microsoft.Web/sites/config/write"],
-  servicePlan: readWrite("Microsoft.Web/serverfarms"),
-  diagnostics: readWrite("Microsoft.Insights/diagnosticSettings"),
-  roleAssignments: SUBSCRIPTION_PERMISSIONS.roleAssignments,
-  deletionLocks: SUBSCRIPTION_PERMISSIONS.deletionLocks,
-  backendDeployment: ["Microsoft.Web/sites/publish/action", "Microsoft.Web/sites/deployments/read"],
-} as const;
+// ── Azure permission helpers ────────────────────────────
+export const readWrite = (...resources: string[]) => resources.flatMap((resource) => [`${resource}/read`, `${resource}/write`]);

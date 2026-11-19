@@ -25,6 +25,7 @@ export type CardId =
   | "create_domain"
   | "access_pass"
   | "global_groups"
+  | "create_admin_users"
   | "aws_login"
   | "privavd_gallery"
   | "privavd_image"

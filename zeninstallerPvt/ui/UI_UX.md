@@ -1,6 +1,6 @@
 # ZenInstaller UI/UX
 
-Analysis of the installer UI in `corp-src/` (the `zeninstallerPvt/ui` workspace folder): structure, interaction model, design system, accessibility and open issues. Companion documents: [README.md](README.md) (design decisions) and [CSS_STANDARDISATION.md](CSS_STANDARDISATION.md) (styling migration history).
+Analysis of the installer UI in `corp-src/` (the `zeninstallerPvt/ui` workspace folder): structure, interaction model, design system, accessibility and open issues. Companion document: [README.md](README.md) (design decisions); current UI behavior, styling, accessibility, verification and open issues are covered here.
 
 Stack: React + MUI (`createTheme` with CSS variables), Vite, no router (single page), xterm.js for the remote terminal.
 
@@ -101,7 +101,7 @@ classDiagram
 | `idle` | Not started / action needed | `#fed7aa` | hollow circle (orange) | `#b45309` |
 | `loading` | In progress | `#e2e8f0` | hollow circle (blue) | `#64748b` |
 | `complete` | Done | `#bbf7d0` | filled check (green) | `#15803d` |
-| `warning` | Needs attention (for stages: ready to deploy) | `#fed7aa` | warning triangle (orange) | `#b45309` |
+| `warning` | Needs attention or a recoverable action (stage: ready to deploy or unmet stage prerequisites) | `#fed7aa` | warning triangle (orange) | `#b45309` |
 | `error` | Failed | `#fecaca` | outlined `!` (red) | `#dc2626` |
 | `skipped` | Optional, not run | `#f1f5f9` | hollow circle (grey) | `#64748b` |
 | `unavailable` | Misconfigured (missing env var) | divider, muted | warning triangle (grey) | `#64748b` |
@@ -146,7 +146,7 @@ Key behaviours:
 - Outer element `id="card-<cardId>"` (test contract and jump-to target).
 - Clicking anywhere in the header toggles the card. The title and chevron are separate labelled, keyboard-operable controls; an expanded-card action stops propagation so it does not collapse the card.
 - Collapsed title and summary each occupy one line and ellipsize, keeping card faces the same height; full text remains in the DOM and accessible name, with a `title` attribute.
-- Expanded headers keep the summary beside the heading and wrap on narrow screens. Locked summaries show direct requirement labels such as "Sign in to AWS"; stage summaries name missing values, for example "Failed: CONTACT_EMAILS not set" or "AWS_ROLE_ARN not set", rather than a generic prerequisite prefix.
+- Expanded headers keep the summary beside the heading and wrap on narrow screens. Locked summaries show direct requirement labels such as "Sign in to AWS"; blocked stage summaries name missing values directly (for example, "CONTACT_EMAILS not set"), and failed-plan summaries say "Plan failed; check the GitHub Actions run" without a redundant "Failed:" prefix.
 - Both toggles carry `aria-expanded` and `aria-controls`; the chevron has an explicit `Expand/Collapse <title>` label.
 - A locked card still expands, to show its optional read-only introduction and unmet requirements; its live content is not rendered. Pipeline-stage descriptions are shown for both locked and unlocked stages.
 - Ripples are disabled; focus shows a 2px blue outline plus a 3px 12% halo.
@@ -229,15 +229,15 @@ Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRe
 | 3 | `azure_login` | Azure login | none | MSAL sign-in, tenant selection (or manual tenant id), sign-out | [AzureLogin](corp-src/cards/AzureLogin) |
 | 4 | `azure_subscription` | Choose Azure subscription | `azure_login`, `repo` | Pick subscription; saves ids as GitHub variables; drift detection | [AzureSubscription](corp-src/cards/AzureSubscription) |
 | 5 | `azure_app_registration` | Create an app registration in Azure | `github_login`, `azure_login`, `repo`, `azure_subscription` | Creates the GitHub-Actions service principal and federated credential; RBAC check | [AzureAppRegistration](corp-src/cards/AzureAppRegistration) |
-| 6 | `core_infra` | Terraform state backend | `azure_login`, `repo`, `azure_subscription`, `azure_app_registration` | Company short code, location; creates state storage; checklist of steps | [CoreInfra](corp-src/cards/CoreInfra) |
+| 6 | `core_infra` | Terraform state backend | `azure_login`, `repo`, `azure_subscription`, `azure_app_registration` | Company short code and location; identifies the missing short code as an actionable warning; creates state storage; checklist of steps | [CoreInfra](corp-src/cards/CoreInfra) |
 | 7 | `create_domain` | Core domain | `azure_login`, `repo`, `azure_subscription`, `core_infra` | Creates the corp domain resources | [CreateDomain](corp-src/cards/CreateDomain) |
 | 8 | `remote_terminal_infra` | Private Zeninstaller Backend Environment | `azure_login`, `azure_subscription`, `core_infra` | Provisions relay for the remote terminal; connection details | [RemoteTerminalInfra](corp-src/cards/RemoteTerminalInfra) |
-| 9 | `backend_deploy` | Private Zeninstaller Backend | `github_login`, `repo`, `azure_login`, `remote_terminal_infra` | Build and deploy the Function App backend | [BackendDeploy](corp-src/cards/BackendDeploy) |
+| 9 | `backend_deploy` | Private Zeninstaller Backend | `github_login`, `repo`, `azure_login`, `remote_terminal_infra` | Build and deploy the Function App backend; reports build/deployment state and links to a failed build run | [BackendDeploy](corp-src/cards/BackendDeploy) |
 | 10 | `private_frontend_infra` | Private hosting environment | `azure_login`, `azure_subscription` | Storage static site / hosting infra | [PrivateFrontendInfra](corp-src/cards/PrivateFrontendInfra) |
-| 11 | `web_deploy` | Private Zeninstaller Frontend | `github_login`, `repo`, `azure_login`, `private_frontend_infra` | Build and upload the frontend | [WebDeploy](corp-src/cards/WebDeploy) |
+| 11 | `web_deploy` | Private Zeninstaller Frontend | `github_login`, `repo`, `azure_login`, `private_frontend_infra` | Build and upload the frontend; records build configuration for drift checks and links to a failed build run | [WebDeploy](corp-src/cards/WebDeploy) |
 | 12 | `aws_login` | AWS login | none | Bootstrap access key, MFA code | [AwsLogin](corp-src/cards/AwsLogin) |
 | 13 | `aws_setup` | AWS setup | `aws_login`, `repo` | Creates IAM role for GitHub OIDC; connection details | [AwsSetup](corp-src/cards/AwsSetup) |
-| 14-19 | `stage_<dir>` | Azure subscription budget, Organisation security groups, User accounts and sign-in, AWS single sign-on with Entra ID, AWS single sign-on with Microsoft Entra ID P2, AWS CloudFront distribution | `repo` (+ per-stage prerequisites inside) | Stage-specific description, Terraform plan and review, then deploy through the remote terminal | [Stage](corp-src/cards/Stage) |
+| 14-19 | `stage_<dir>` | Azure subscription budget, Organisation security groups, User accounts and sign-in, AWS single sign-on with Entra ID, AWS single sign-on with Entra ID P2, AWS CloudFront distribution | `repo` (+ per-stage prerequisites inside) | Stage-specific description, Terraform plan and review, then deploy through the remote terminal | [Stage](corp-src/cards/Stage) |
 | 20 | `privavd_gallery` | PAW image gallery | `repo`, `core_infra` | Creates the Azure Compute Gallery and image definition used to publish the privileged access workstation image | [PrivAvdGallery](corp-src/cards/PrivAvdGallery) |
 | 21 | `privavd_image` | PAW golden image | `privavd_gallery` | Builds the Windows 11 privileged access workstation image with Packer and publishes a version to the gallery; the build takes about an hour | [PrivAvdImage](corp-src/cards/PrivAvdImage) |
 | 22 | `privavd_paw` | PAW Azure Virtual Desktop | `privavd_image` | Deploys the Azure Virtual Desktop host pool and session host from the newest replicated image version | [PrivAvdPaw](corp-src/cards/PrivAvdPaw) |
@@ -245,8 +245,8 @@ Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRe
 
 Notes:
 
-- `global_groups` ([GlobalGroups](corp-src/cards/GlobalGroups)) has a hook and component but is **not rendered** in `App.tsx`; the equivalent flow is the `GlobalGroups` stage.
-- Stage definitions live in [logic/pipeline.ts](corp-src/logic/pipeline.ts): `SubscriptionBudget`, `GlobalGroups`, `UserAccounts`, `AwsEntraSso`, `AwsEntraSsoP2`, `CloudFront`.
+- `global_groups` ([GlobalGroups](corp-src/cards/GlobalGroups)) has a hook and component but is **not rendered** in `App.tsx`; the same groups are now created by the `create_admin_users` card ([CreateAdminUsers](corp-src/cards/CreateAdminUsers)).
+- Stage definitions live in [logic/pipeline.ts](corp-src/logic/pipeline.ts): `SubscriptionBudget`, `UserAccounts`, `AwsEntraSso`, `AwsEntraSsoP2`, `CloudFront`.
 
 ---
 
@@ -278,6 +278,7 @@ sequenceDiagram
 
 - Two independent chains: GitHub (`account`, `repo`, `env`) and Azure (`tenant`, `subscription`). A 10s timeout guards each.
 - User interaction with a field cancels restoration of its keys (`urlRestore.cancel`).
+- An MSA or app-result tenant may prefill the Azure tenant field without confirming ARM access. Startup probes use a saved tenant selection; explicit tenant selection confirms only after ARM token acquisition succeeds, and a late startup probe cannot replace a tenant the user has since confirmed.
 - Expanded state key: `zeninstaller_corp_expanded_cards`.
 
 ### 5.2 Locked card to prerequisite
@@ -329,12 +330,14 @@ The order is a recommendation; the UI enforces only the per-card prerequisites i
 flowchart TD
   L{Repo ready?} -- no --> Lock[Locked: 'Select a repository & environment']
   L -- yes --> P[Prerequisites list: card / var / varGroup / stageVar]
-  P --> Edit[Expandable rows: view variables or edit stageVars and save to GitHub]
-  Edit --> Run[Button: Get Updated Plan]
+  P --> Edit[Expandable rows: view prerequisites or edit stageVars and save to GitHub]
+  Edit --> Ready{Prerequisites met?}
+  Ready -- no --> Blocked[Summary names missing values; plan actions and failure details stay hidden]
+  Ready -- yes --> Run[Button: Get Updated Plan]
   Run --> Perm[Ensure Graph permissions for the pipeline SP]
   Perm --> Wf[Dispatch plan workflow, countdown 'Running... 45s', poll for report]
   Wf --> Rep{Report}
-  Rep -- failed --> Fail[Status error + failure log]
+  Rep -- failed --> Fail[Error status + failure log]
   Rep -- success --> Plan[Plan detail: create/update/delete/replace pills + resource list]
   Plan --> Beh{Plan behind branch?}
   Beh -- yes --> Pill['not latest' pill with sha tooltip]
@@ -345,11 +348,31 @@ flowchart TD
   Edit -. variable differs from plan .-> Stale[Deploy disabled until plan refreshed]
 ```
 
-Stage status mapping ([logic/stage.ts](corp-src/logic/stage.ts)): `deployed` to `complete`, `success` (ready to deploy) to `warning`, `failed` to `error`, `skipped` to `skipped`, `pending` to `idle`, in-flight run to `idle` with "Status update required", loading to `loading`. "No changes" counts as deployed.
+Stage status mapping ([logic/stage.ts](corp-src/logic/stage.ts)): `deployed` to `complete`; `success` (ready to deploy) and unmet stage prerequisites to `warning`; failed plans to `error`; `skipped` to `skipped`; `pending` and stale plans to `idle`; loading to `loading`. A pending stage summary says "Get updated plan" to name its next action. "No changes" counts as deployed. The plan/status-update action, no-plan message, and plan failure output are shown only while current prerequisites are met. Missing values are checked after trimming whitespace, and stage-variable editors remain available to resolve blockers.
 
 Remote terminal ([RemoteTerminal.tsx](corp-src/cards/Stage/RemoteTerminal.tsx)): status bar (`role=status`) cycles `registering`, `dispatching`, `negotiating`, `connecting`, `connected`, `reconnecting`, `closed`, `error`; shows runner stage label, short session id, End session; a device-code panel with copyable code and link; then an xterm instance (120x24).
 
 ---
+
+### 5.5 GitHub environment-file decoding
+
+GitHub's Contents API returns environment-file content as Base64. The UI decodes the returned bytes as UTF-8 before parsing, preserving non-ASCII variable values instead of interpreting each byte as a character.
+
+### 5.6 Backend and frontend build/deploy cards
+
+The deployment cards consume an artifact and successful-build report for the selected GitHub environment. The backend build version is derived from the backend source tree and root lockfile; the frontend version also reflects the Vite configuration values baked into the site. Frontend reports retain those values so the card can identify configuration drift from the current GitHub variables.
+
+Each card reads the latest successful build report and a separate build-failure report. When a newer failure report is available, it is surfaced as an error with a link to that run, without discarding the last successful artifact; a subsequent successful build clears the failure state. Deployment access checks distinguish actionable authentication or permission blockers (warnings) from failures to verify access (errors); failed build and deployment attempts are also errors. The card status prioritizes errors and access warnings, then active checks/builds/deployments, before comparing the latest build with the deployed version. Actions stay disabled while the required status reads are in progress. Deployments record the live version in Azure so the cards can tell whether an update is needed across browser sessions.
+
+Core Infra summarizes a missing company short code as `COMPANY_SHORT_CODE not set`. A missing `VITE_GITHUB_CLIENT_ID` is likewise named directly by the frontend deployment card because the site requires it for sign-in.
+
+### 5.7 Repository and Azure setup readiness
+
+The Repository card treats clone, repository/template verification, and branch creation as active work. Unsupported templates, duplicate target names, and missing or ambiguous environment branches are warnings; a missing or ambiguous branch still blocks readiness, while a branch-casing warning does not. Repository verification/listing, cloning, branch-creation failures, and partial environment creation after a successful repository clone are errors. The partial environment-creation error remains visible outside the clone panel. Refresh retries repository validation and branch loading, and can reload accounts when none is selected.
+
+The app-registration card does not infer completion from a persisted result alone. Completion requires saved connection variables, successful access/RBAC checks, and a successful result scoped to the current client, tenant, subscription, account, repository, app name, and environments. Older unscoped results may prefill fields but do not establish completion. Current setup steps, access/RBAC checks, and app-name lookup take precedence over saved completion; once complete, the optional action is labelled "Re-run" and the replacement warning is suppressed.
+
+The backend-environment card likewise prioritizes active setup steps, access/name checks, and Azure-region lookup over saved completion. A completed region lookup with no returned regions is not treated as an ongoing load; users can enter a region manually if lookup fails.
 
 ## 6. Component inventory
 
@@ -402,6 +425,8 @@ Runnable process sections show the same retry guidance before and during executi
 
 Source of truth: [theme.ts](corp-src/theme.ts) (MUI theme, CSS variables) and [App.css](corp-src/App.css) (global helpers). Layout tokens `--card-w` (360px) and `--card-w-expanded` (1280px) are set in [corp.tsx](corp-src/corp.tsx) from [config/cardLayout.ts](corp-src/config/cardLayout.ts).
 
+Use theme CSS-variable tokens (`theme.vars.palette`) for custom or shared styles that must follow the selected color scheme; `theme.palette` can reflect the default scheme instead. `App.css` is the only first-party stylesheet and holds global rules; third-party stylesheets such as xterm's may be imported separately. Keep `sx` for layout and dynamic values rather than design tokens.
+
 ### 7.1 Colour
 
 | Token | Value | Use |
@@ -413,7 +438,7 @@ Source of truth: [theme.ts](corp-src/theme.ts) (MUI theme, CSS variables) and [A
 | `text` primary / secondary / muted | `#0f172a` / `#475569` / `#64748b` | body / supporting / hints, disabled |
 | `divider` | `#e2e8f0` | borders |
 | `background` default / paper | `#f8fafc` / `#ffffff` | light-scheme page / surfaces |
-| `card.*` | per-status border, icon, dark-contrast summary; muted bg `#f8fafc`; muted text `#94a3b8`; radius 10px; shadows | card chrome (typed `theme.palette.card`) |
+| `card.*` | per-status border, icon, dark-contrast summary; muted bg `#f8fafc`; muted text `#94a3b8`; radius 10px; shadows | card chrome (typed `theme.vars.palette.card`) |
 
 Visual language: light or dark slate-neutral schemes with a blue brand accent; the system-reported scheme is used by default, and explicit Light/Dark choices persist. Dark is the fallback only when the browser cannot expose its color-scheme preference; its page and surface backgrounds are `#080d0f` and `#1b2629`. Status is carried by a coloured 1px border, glyph, and text. The palette table above lists light-scheme values; `theme.ts` defines both schemes.
 
@@ -474,7 +499,7 @@ Muted card titles (`#94a3b8`) remain below 4.5:1 by design and are excluded from
 
 ### 8.3 Not yet validated
 
-Manual 200% zoom reflow, keyboard-only end-to-end run, screen-reader announcements, and Windows high-contrast checks (Step 10 in `CSS_STANDARDISATION.md`).
+Manual 200% zoom reflow, keyboard-only end-to-end run, screen-reader announcements, and Windows High Contrast checks remain unvalidated; see section 11.
 
 ### 8.4 Browser support
 
@@ -484,7 +509,7 @@ The UI targets modern evergreen browsers supported by Vite 7, React 19, and MUI 
 
 ## 9. Findings and recommendations
 
-Source reviewed 2026-11-11; none of these have been confirmed with assistive technology.
+Source reviewed 2026-11-16; none of these have been confirmed with assistive technology.
 
 | # | Severity | Finding | Recommendation |
 |---|---|---|---|
@@ -538,13 +563,30 @@ Remove-Item Env:UX_BROWSERS
 
 ---
 
+### 10.2 Verification on 2026-11-12
+
+- Focused Vitest run: 62 tests passed across four files, covering UTF-8 GitHub environment decoding, Azure tenant prefill/confirmation, stage prerequisite gating/status mapping, and light/dark status colors.
+- Editor diagnostics reported no errors in the modified files; `git diff --check` passed. This focused run does not replace the full-suite baseline or resolve the separately recorded Access Pass telemetry failures.
+
+### 10.3 Verification on 2026-11-16
+
+- Focused backend and frontend deploy-card Vitest tests cover build failures, retention of the latest successful artifact, recovery after a successful retry, and deployment status precedence. Core Infra tests cover the missing-company-short-code summary; stage summary tests cover the pending-stage action label.
+- Scoped ESLint checks and `git diff --check` pass for the changed UI implementation and tests. The backend workflow's newly added failure-report step still requires a GitHub Actions YAML validation; see remaining work.
+
+### 10.4 Verification on 2026-11-18
+
+- Deployment-card presentation distinguishes permission/authentication warnings from access-verification and build/deploy errors. Focused combined checks passed 132 unit tests and 12 Chromium computed-color checks.
+- Repository-card severity and readiness changes passed a focused 101-test repo/deploy/access suite; 8 Chromium computed-color checks passed across light/dark and desktop/mobile.
+- The latest broad UI unit baseline has 50 failing tests and 9 unhandled errors; deployment-test mock repairs reduce the failures to 46 without adding failures. Known TypeScript blockers remain in admin-user resource access typing and stale `ButtonStyles` fixtures/tests. Repository-hook lint findings and one app-component set-state-in-effect finding were confirmed against indexed originals; they are not results of this documentation update.
+
 ## 11. Remaining work
 
 - [x] Add and run representative Firefox/WebKit accessibility and keyboard smoke tests. All 14 opt-in cases pass; actual Safari and authenticated deployment flows remain unverified.
 - [x] Audit browser `dotenv` usage and characterize both API parsing paths. See section 10.1 for build warnings and six passing browser tests.
 - [ ] Replace the Node-oriented browser parser dependency after selecting and approving a compatible browser-only implementation; preserve the characterized `.env` semantics and deployment-side usage.
+- [ ] Confirm which serving layer adds frontend response headers, then define and verify a CSP compatible with Emotion's runtime style injection and the CSS custom properties set on `#root` by `corp.tsx`.
 - [x] Recheck the test-runner and shared-editor failures. Automatic JSX works; scheme-aware editor tokens and a missing mock-helper import are fixed. See dated results in section 10.1.
-- [ ] Fix the three current Access Pass telemetry error-path failures and triage unrelated lint findings separately.
+- [ ] Resolve the Access Pass telemetry error-path failures and triage the remaining unit-test, TypeScript, and lint baseline separately; see section 10.4 for the 2026-11-18 counts and known blockers.
 - [ ] Complete manual 200% browser zoom checks at desktop and narrow widths, and verify Windows High Contrast/reduced-motion behavior on a real platform. Playwright emulation and the 320px viewport check do not replace these checks.
 - [ ] Complete a representative keyboard-only deployment flow and verify live progress/error announcements with a supported screen reader.
 - [x] Implement focusable variable/plan explanations and input descriptions; retain existing `StepRow` state/progress semantics and `ConfigErrorNotice` relationships. Verify disabled controls in both schemes. Manual assistive-technology validation remains open above.
@@ -552,3 +594,12 @@ Remove-Item Env:UX_BROWSERS
 - [ ] Resolve the footer Contact and Terms placeholders before release, or remove those entry points.
 - [x] Hide the decorative header mark from assistive technology and add focus-navigation regressions; ensure touched help/clear/revert targets are at least 24px.
 - [ ] Decide whether broader touch-target changes or confirmations for destructive actions are needed; these product decisions remain deferred.
+- [ ] Validate the backend build workflow's failure-report step with GitHub Actions tooling; its current indentation appears inconsistent with the surrounding workflow steps.
+
+## 12. State and error handling
+
+Zeninstaller UI has a state-machine model at the design and presentation level: the docs define card states and transitions, and the code uses typed status values such as CardStatus and SetupStep (UI_UX.md:99, types.ts:22).
+
+But it is not strictly enforced as a state machine in the implementation. For example, the frontend deployment hook stores building, running, error, and step statuses separately; getDeployCardStatus derives the displayed status from those values, but doesn’t govern which transitions are allowed (useWebDeployCard.ts:88, buildStatus.ts:11). Likewise, the step updater accepts a status directly without validating transitions (useStepRunner.ts:22).
+
+Error handling is generally explicit: operations catch failures, set a user-facing summary and detail, mark the active step as errored, and clear running flags in finally. Some paths also distinguish actionable access warnings from actual errors. So the best characterization is state-machine-inspired, with deliberate status precedence and error handling, but not a centralized or transition-validated state machine.

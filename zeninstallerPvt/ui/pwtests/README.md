@@ -68,3 +68,9 @@ Enable it only with approval for those live changes.
 simulate authentication, builds, artifact downloads, deployment, and version
 read-back. They also cover missing artifacts, build failures, upload recovery,
 and signed-out gating without contacting external services.
+
+## Frontend deployment card mocks
+[WebDeployCard mock tests](./corp-src/mock-tests/WebDeployCard.spec.mts) model an
+existing, readable `$web` container with no version metadata before the first
+deployment. A 404 represents a missing container and blocks the access preflight.
+After a denied upload, resource access must be rechecked before deploying again.

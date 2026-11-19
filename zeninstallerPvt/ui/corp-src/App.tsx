@@ -20,6 +20,7 @@ import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
 import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
+import { useCreateAdminUsersCard } from "./cards/CreateAdminUsers/useCreateAdminUsersCard";
 import { useCoreInfraCard } from "./cards/CoreInfra/useCoreInfraCard";
 import { usePrivateFrontendInfraCard } from "./cards/PrivateFrontendInfra/usePrivateFrontendInfraCard";
 import { useRemoteTerminalInfraCard } from "./cards/RemoteTerminalInfra/useRemoteTerminalInfraCard";
@@ -54,6 +55,7 @@ import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalI
 import BackendDeployCard from "./cards/BackendDeploy/BackendDeployCard";
 import WebDeployCard from "./cards/WebDeploy/WebDeployCard";
 import CreateDomainCard from "./cards/CreateDomain/CreateDomainCard";
+import CreateAdminUsersCard from "./cards/CreateAdminUsers/CreateAdminUsersCard";
 import AccessPassCard from "./cards/AccessPass/AccessPassCard";
 // import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
 import AwsSsoCard from "./cards/AwsSso/AwsSsoCard";
@@ -226,6 +228,13 @@ function AppDashboard() {
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
     })
   );
+  const adminUsers = addCard(
+    useCreateAdminUsersCard({
+      azureAccount: azureLogin.account,
+      tenantId: azureLogin.confirmedTenantId,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
+    })
+  );
 
   const privAvdTarget = {
     account: githubRepoEnv.repo.selectedAccount,
@@ -366,6 +375,7 @@ function AppDashboard() {
       ["azure_app_registration", "Create an app registration in Azure"],
       ["core_infra", "Terraform state backend"],
       ["create_domain", "Core domain"],
+      ["create_admin_users", "Create admin users"],
       ["remote_terminal_infra", "Private Zeninstaller Backend Environment"],
       ["backend_deploy", "Private Zeninstaller Backend"],
       ["private_frontend_infra", "Frontend hosting environment"],
@@ -534,6 +544,8 @@ function AppDashboard() {
                 variables={githubVariables}
                 githubUrl={githubRepoEnv.githubEnvUrl}
               />
+
+              <CreateAdminUsersCard card={cardProps("create_admin_users")} adminUsers={adminUsers} />
 
               <RemoteTerminalInfraCard
                 card={cardProps("remote_terminal_infra")}

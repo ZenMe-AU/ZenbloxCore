@@ -6,11 +6,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseCreateDomainCard } from "./useCreateDomainCard";
 import StepRow from "../StepRow";
-import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 import Card from "../../components/Card";
 import { PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ProcessRetryNotice from "../../components/ProcessRetryNotice";
@@ -110,6 +112,7 @@ export default function CreateDomainCard({
   } = createDomain;
   const disabled = card.locked;
   const [editingLocation, setEditingLocation] = useState(false);
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const prevRunNonceRef = useRef(runNonce);
 
@@ -176,7 +179,6 @@ export default function CreateDomainCard({
         {/* Planned resources */}
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <ResourceGroupCreationAccess access={createDomain.creationAccess} resourceAccess />
             <Box>
               <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources to be created</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
@@ -214,6 +216,12 @@ export default function CreateDomainCard({
               >
                 {resourcesDone ? "Re-run" : "Set up core DNS domain"}
               </Button>
+              {createDomain.creationAccess.status === "error" && (
+                <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                  <Typography color="error.main">Insufficient permissions to continue</Typography>
+                </Box>
+              )}
               {checkingStatus && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                   <CircularProgress aria-label="Checking domain setup" size={12} />
@@ -246,6 +254,11 @@ export default function CreateDomainCard({
               </Button>
             )}
           </Box>
+        )}
+        {ready && (createDomain.creationAccess.status === "checking" || createDomain.creationAccess.status === "error") && (
+          <Prerequisites id="create-domain-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+            <AzureAccessCheck access={createDomain.creationAccess} resourceAccess errorStyle />
+          </Prerequisites>
         )}
         {verifiedDomains.length > 0 && (
           <Box>

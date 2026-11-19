@@ -5,11 +5,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseCoreInfraCard } from "./useCoreInfraCard";
 import StepRow from "../StepRow";
-import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ProcessRetryNotice from "../../components/ProcessRetryNotice";
@@ -99,6 +101,7 @@ export default function CoreInfraCard({
   const disabled = card.locked;
   const [editingLocation, setEditingLocation] = useState(false);
   const [editingStorage, setEditingStorage] = useState(false);
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const prevRunNonceRef = useRef(runNonce);
 
@@ -221,7 +224,6 @@ export default function CoreInfraCard({
         {/* Planned resources */}
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <ResourceGroupCreationAccess access={infra.creationAccess} resourceAccess />
             <Box>
               <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources to be created</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
@@ -259,18 +261,22 @@ export default function CoreInfraCard({
               </Box>
             </Box>
 
-            <Button
-              variant="contained"
-              onClick={run}
-              disabled={disabled || running || !location.trim() || editingStorage || infra.creationAccess.status !== "ready"}
-              sx={{
-                alignSelf: "flex-start",
-                py: 0.85,
-                px: 2.5,
-              }}
-            >
-              {done ? "Re-run" : "Create core infrastructure"}
-            </Button>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <Button
+                variant="contained"
+                onClick={run}
+                disabled={disabled || running || !location.trim() || editingStorage || infra.creationAccess.status !== "ready"}
+                sx={{ py: 0.85, px: 2.5 }}
+              >
+                {done ? "Re-run" : "Create core infrastructure"}
+              </Button>
+              {infra.creationAccess.status === "error" && (
+                <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                  <Typography color="error.main">Insufficient permissions to continue</Typography>
+                </Box>
+              )}
+            </Box>
           </Box>
         )}
 
@@ -297,6 +303,11 @@ export default function CoreInfraCard({
               </Button>
             )}
           </Box>
+        )}
+        {ready && (infra.creationAccess.status === "checking" || infra.creationAccess.status === "error") && (
+          <Prerequisites id="core-infra-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+            <AzureAccessCheck access={infra.creationAccess} resourceAccess errorStyle />
+          </Prerequisites>
         )}
       </Box>
     </Card>
