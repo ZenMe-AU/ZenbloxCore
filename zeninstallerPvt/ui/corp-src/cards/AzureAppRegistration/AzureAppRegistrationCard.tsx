@@ -134,7 +134,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
   const keyErrors = spNotFound ? { AZURE_CLIENT_ID: "Not found in the selected tenant", AZURE_PLAN_CLIENT_ID: "Not found in the selected tenant" } : undefined;
 
   return (
-    <Card title="Create an app registration in Azure" action={<Action clientId={appReg.spClientId} />} lockedIntro={<Intro />} {...card}>
+    <Card title="GitHub App Registration" action={<Action clientId={appReg.spClientId} />} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {/* ── Result banner (shown after create+auto-save completes) ── */}
         {bannerState !== "none" && (
