@@ -5,12 +5,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseCoreInfraCard } from "./useCoreInfraCard";
 import StepRow from "../StepRow";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_RESOURCE_GROUPS_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { resourceGroupScope } from "../../api/azureArm";
@@ -38,16 +42,23 @@ type Props = {
 
 function Intro({ containerName }: { containerName: string }) {
   return (
-    <Typography variant="body1" color="text.secondary">
-      Creates the root Azure resources — resource group, Log Analytics, Application Insights, the private storage account — then the{" "}
-      {containerName}{" "}
-      container Terraform uses for state, granting GitHub Actions access to it.
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+      Sets up core Azure resources for deployment: a resource group, Log Analytics, Application Insights, and a storage account for Terraform state. Terraform
+      state lives in the{" "}
+      <Box component="code" sx={{ typography: "body1" }}>
+        {containerName}
+      </Box>{" "}container, which GitHub Actions can access to plan and deploy consistently.
     </Typography>
   );
 }
 
 function Action({ resourceId }: { resourceId: string | null }) {
-  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_RESOURCE_GROUPS_URL} />;
+  return (
+    <ViewLink
+      href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_RESOURCE_GROUPS_URL}
+      label={resourceId ? "Open core resource in Azure" : "Browse Azure resource groups"}
+    />
+  );
 }
 
 export default function CoreInfraCard({
@@ -90,6 +101,7 @@ export default function CoreInfraCard({
   const disabled = card.locked;
   const [editingLocation, setEditingLocation] = useState(false);
   const [editingStorage, setEditingStorage] = useState(false);
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const prevRunNonceRef = useRef(runNonce);
 
@@ -156,6 +168,13 @@ export default function CoreInfraCard({
           variables={variables}
           populate={populate}
           title="Company short code"
+          keyHints={{
+            NAME: (
+              <Typography variant="body2" color="text.secondary">
+                Used to build Azure resource names, for example acme-law and acmepvt.
+              </Typography>
+            ),
+          }}
           githubUrl={githubUrl}
           autoSaveCounter={autoSaveCounter}
         />
@@ -206,7 +225,7 @@ export default function CoreInfraCard({
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Box>
-              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
+              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources to be created</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
                 <PlainRow label="Resource group" value={resourceGroupName} />
                 <PlainRow label="Log Analytics" value={lawName} />
@@ -242,18 +261,22 @@ export default function CoreInfraCard({
               </Box>
             </Box>
 
-            <Button
-              variant="contained"
-              onClick={run}
-              disabled={disabled || running || !location.trim() || editingStorage}
-              sx={{
-                alignSelf: "flex-start",
-                py: 0.85,
-                px: 2.5,
-              }}
-            >
-              {done ? "Re-run setup" : "Create core infrastructure"}
-            </Button>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <Button
+                variant="contained"
+                onClick={run}
+                disabled={disabled || running || !location.trim() || editingStorage || infra.creationAccess.status !== "ready"}
+                sx={{ py: 0.85, px: 2.5 }}
+              >
+                {done ? "Re-run" : "Create core infrastructure"}
+              </Button>
+              {infra.creationAccess.status === "error" && (
+                <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                  <Typography color="error.main">Insufficient permissions to continue</Typography>
+                </Box>
+              )}
+            </Box>
           </Box>
         )}
 
@@ -264,6 +287,7 @@ export default function CoreInfraCard({
               <StepRow key={s.id} step={s} />
             ))}
             {running && <StatusText>Running...</StatusText>}
+            <ProcessRetryNotice started={steps.length > 0} />
             {!running && (
               <Button
                 size="small"
@@ -279,6 +303,11 @@ export default function CoreInfraCard({
               </Button>
             )}
           </Box>
+        )}
+        {ready && (infra.creationAccess.status === "checking" || infra.creationAccess.status === "error") && (
+          <Prerequisites id="core-infra-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+            <AzureAccessCheck access={infra.creationAccess} resourceAccess errorStyle />
+          </Prerequisites>
         )}
       </Box>
     </Card>

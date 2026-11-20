@@ -20,6 +20,7 @@ import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
 import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
+import { useCreateAdminUsersCard } from "./cards/CreateAdminUsers/useCreateAdminUsersCard";
 import { useCoreInfraCard } from "./cards/CoreInfra/useCoreInfraCard";
 import { usePrivateFrontendInfraCard } from "./cards/PrivateFrontendInfra/usePrivateFrontendInfraCard";
 import { useRemoteTerminalInfraCard } from "./cards/RemoteTerminalInfra/useRemoteTerminalInfraCard";
@@ -28,6 +29,9 @@ import { useAccessPassCard } from "./cards/AccessPass/useAccessPassCard";
 // AWS login is unused since the AWS console sign-in stack replaced AWS setup.
 // import { useAwsLoginCard } from "./cards/AwsLogin/useAwsLoginCard";
 import { useWebDeployCard } from "./cards/WebDeploy/useWebDeployCard";
+import { useAvdGalleryCard } from "./cards/AvdGallery/useAvdGalleryCard";
+import { usePawImageCard } from "./cards/PawImage/usePawImageCard";
+import { usePawDeployCard } from "./cards/PawDeploy/usePawDeployCard";
 import { useAwsSsoCard } from "./cards/AwsSso/useAwsSsoCard";
 import { useAwsSsoStackCard } from "./cards/AwsSsoStack/useAwsSsoStackCard";
 import { isAwsAccountId } from "./config/awsConfig";
@@ -51,11 +55,15 @@ import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalI
 import BackendDeployCard from "./cards/BackendDeploy/BackendDeployCard";
 import WebDeployCard from "./cards/WebDeploy/WebDeployCard";
 import CreateDomainCard from "./cards/CreateDomain/CreateDomainCard";
+import CreateAdminUsersCard from "./cards/CreateAdminUsers/CreateAdminUsersCard";
 import AccessPassCard from "./cards/AccessPass/AccessPassCard";
 // import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
 import AwsSsoCard from "./cards/AwsSso/AwsSsoCard";
 import AwsSsoStackCard from "./cards/AwsSsoStack/AwsSsoStackCard";
 import StageCard from "./cards/Stage/StageCard";
+import AvdGalleryCard from "./cards/AvdGallery/AvdGalleryCard";
+import PawImageCard from "./cards/PawImage/PawImageCard";
+import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
@@ -220,6 +228,22 @@ function AppDashboard() {
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
     })
   );
+  const adminUsers = addCard(
+    useCreateAdminUsersCard({
+      azureAccount: azureLogin.account,
+      tenantId: azureLogin.confirmedTenantId,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
+    })
+  );
+
+  const privAvdTarget = {
+    account: githubRepoEnv.repo.selectedAccount,
+    repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
+    selectedEnv: githubRepoEnv.env.selectedEnv,
+  };
+  const avdGallery = addCard(useAvdGalleryCard(privAvdTarget));
+  const pawImage = addCard(usePawImageCard(privAvdTarget));
+  const pawDeploy = addCard(usePawDeployCard(privAvdTarget));
 
   const plan = useDeploymentPlan({
     account: githubRepoEnv.repo.selectedAccount,
@@ -269,6 +293,20 @@ function AppDashboard() {
   useEffect(() => {
     saveExpandedCards(Array.from(expandedIds));
   }, [expandedIds]);
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "c" || !event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.target instanceof HTMLElement && (event.target.isContentEditable || event.target.matches("input, textarea, select") || event.target.closest('[role="dialog"]'))) return;
+      event.preventDefault();
+      const panel = event.target instanceof HTMLElement ? event.target.closest('[id^="card-content-"]') : null;
+      const headingId = panel?.getAttribute("aria-labelledby");
+      if (headingId) document.getElementById(headingId)?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+      setExpandedIds(new Set());
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
   const toggle = (id: CardId) =>
     setExpandedIds((cur) => {
       const next = new Set(cur);
@@ -280,7 +318,11 @@ function AppDashboard() {
   // you came from stays open too.
   const openCard = (id: CardId) => {
     setExpandedIds((cur) => new Set(cur).add(id));
-    requestAnimationFrame(() => document.getElementById(`card-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    requestAnimationFrame(() => {
+      const card = document.getElementById(`card-${id}`);
+      card?.querySelector<HTMLButtonElement>("h3 button")?.focus({ preventScroll: true });
+      card?.scrollIntoView({ behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "center" });
+    });
   };
 
   const cardProps = (id: CardId): CardChrome => {
@@ -333,6 +375,7 @@ function AppDashboard() {
       ["azure_app_registration", "Create an app registration in Azure"],
       ["core_infra", "Terraform state backend"],
       ["create_domain", "Core domain"],
+      ["create_admin_users", "Create admin users"],
       ["remote_terminal_infra", "Private Zeninstaller Backend Environment"],
       ["backend_deploy", "Private Zeninstaller Backend"],
       ["private_frontend_infra", "Frontend hosting environment"],
@@ -351,6 +394,12 @@ function AppDashboard() {
       title: stageDef.label,
       done: card.status === "complete" || card.status === "skipped",
       chrome: card,
+    })),
+    ...[avdGallery, pawImage, pawDeploy].map(({ cardId, cardDependencyLabel, done }) => ({
+      id: cardId,
+      title: cardDependencyLabel,
+      done,
+      chrome: cardProps(cardId),
     })),
     {
       id: "access_pass" as const,
@@ -409,7 +458,7 @@ function AppDashboard() {
               </Typography>
             </Box>
             <CardIntro variant="body1" sx={{ lineHeight: 1.7, mt: 1, mb: 0 }}>
-              Complete the cards below in any order — each shows what it needs before it can run.
+              Complete the cards below in any order; each shows what it needs before it can run.
             </CardIntro>
           </Box>
 
@@ -496,6 +545,8 @@ function AppDashboard() {
                 githubUrl={githubRepoEnv.githubEnvUrl}
               />
 
+              <CreateAdminUsersCard card={cardProps("create_admin_users")} adminUsers={adminUsers} />
+
               <RemoteTerminalInfraCard
                 card={cardProps("remote_terminal_infra")}
                 infra={remoteTerminalInfra}
@@ -572,6 +623,27 @@ function AppDashboard() {
               {stageCards.map(({ key, ...stageCard }) => (
                 <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
               ))}
+
+              <AvdGalleryCard
+                card={cardProps("privavd_gallery")}
+                privAvd={avdGallery}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
+              <PawImageCard
+                card={cardProps("privavd_image")}
+                privAvd={pawImage}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
+              <PawDeployCard
+                card={cardProps("privavd_paw")}
+                privAvd={pawDeploy}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
 
               <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
             </Box>

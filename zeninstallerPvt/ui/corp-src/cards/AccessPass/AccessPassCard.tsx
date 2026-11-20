@@ -11,6 +11,7 @@ import StepRow from "../StepRow";
 import { logEvent } from "../../monitor/telemetry";
 import Card from "../../components/Card";
 import CopyRow from "../../components/CopyRow";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
@@ -52,15 +53,16 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
-      Create a Temporary Access Pass for a user managed by your signed-in account. This removes their existing sign-in methods, randomizes their password, and
-      issues a one-hour access pass.
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+      Create a one-hour Temporary Access Pass for a user you manage in Microsoft Entra. ZenInstaller removes the user's existing sign-in methods and resets
+      their password to a random value before issuing the pass. They may be unable to sign in until they use it, so confirm the user's identity and arrange to
+      deliver the pass securely.
     </Typography>
   );
 }
 
 function Action() {
-  return <ViewLink href={getEntraUsersUrl()} />;
+  return <ViewLink href={getEntraUsersUrl()} label="Open Entra users list" />;
 }
 
 /*
@@ -374,6 +376,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     <StepRow key={`${user.id}-${s.id}`} step={s} />
                                   ))}
                                   {running && <StatusText>Creating access pass...</StatusText>}
+                                  <ProcessRetryNotice started={showingSelectedUserSteps} />
                                   {!running && (
                                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.25 }}>
                                       {consentRequired && (
@@ -381,10 +384,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                           size="small"
                                           variant="outlined"
                                           onClick={() => void requestAccessPassConsent()}
-                                          sx={{
-                                            minWidth: 0,
-                                            px: 1,
-                                          }}
+                                          sx={{ minWidth: 0 }}
                                         >
                                           Grant consent
                                         </Button>
@@ -578,7 +578,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                     size="small"
                     variant="outlined"
                     onClick={() => void requestAccessPassConsent()}
-                    sx={{ minWidth: 0, px: 1 }}
+                    sx={{ minWidth: 0 }}
                   >
                     Grant consent
                   </Button>

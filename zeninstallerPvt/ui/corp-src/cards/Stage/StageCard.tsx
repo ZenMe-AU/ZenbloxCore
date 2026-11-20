@@ -3,15 +3,18 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Box, Button, CircularProgress, Tooltip, Typography } from "@mui/material";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Box, Button, ButtonBase, CircularProgress, Collapse, Divider, IconButton, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import BlockIcon from "@mui/icons-material/Block";
+import ClearIcon from "@mui/icons-material/Clear";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import UndoIcon from "@mui/icons-material/Undo";
+import DragHandleIcon from "@mui/icons-material/DragHandle";
 import type {
   Account,
   AzureAccount,
@@ -28,19 +31,24 @@ import type {
 } from "../../types";
 import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../../api";
 import { useAzurePermissions } from "../../hooks/util/useAzurePermissions";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { subscriptionBudgetAccess } from "./stageConfig";
 import { useRemoteTerminal } from "./useRemoteTerminal";
-import { computePlanSummary, isPlanBehind } from "../../logic/stage";
+import { assessPrerequisites, computePlanSummary, isPlanBehind, type PrerequisiteAssessment } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl } from "../../logic/github";
 import { MONO_FONT } from "../../config/styles";
 import Card from "../../components/Card";
-import VariablesCard from "../../components/VariablesCard";
+import FieldLabel from "../../components/FieldLabel";
+import InfoTip from "../../components/InfoTip";
 import PermissionNotice from "./PermissionNotice";
 import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
 import StagePlanDetail from "./StagePlanDetail";
 import RemoteTerminal from "./RemoteTerminal";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 
 function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, CardStatus>, variableValues: Record<string, string>): boolean {
   switch (prereq.type) {
@@ -72,6 +80,21 @@ function prereqLabel(prereq: Prerequisite, variableValues: Record<string, string
   }
 }
 
+function PrerequisiteStatusIcon({ met, changed }: { met: boolean; changed: boolean }) {
+  if (met && changed) {
+    return (
+      <InfoTip label="Changed since last plan" description="This value differs from the last plan. Refresh the plan before deploying.">
+        <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
+      </InfoTip>
+    );
+  }
+  return met ? (
+    <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main", flexShrink: 0 }} />
+  ) : (
+    <RadioButtonUncheckedIcon aria-hidden="true" sx={{ typography: "caption", color: "text.disabled", flexShrink: 0 }} />
+  );
+}
+
 function StageVarEditor({
   prereq,
   savedValues,
@@ -89,6 +112,7 @@ function StageVarEditor({
   selectedEnv: GhEnv | null;
   onVariableConfirmed: (key: string, value: string) => void;
 }) {
+  const descriptionPrefix = useId();
   const [localValues, setLocalValues] = useState<Record<string, string>>(savedValues);
   const [upsertStatuses, setUpsertStatuses] = useState<{ key: string; status: "success" | "error"; error?: string }[]>([]);
   const [updating, setUpdating] = useState(false);
@@ -129,57 +153,199 @@ function StageVarEditor({
   };
 
   return (
-    <Box sx={{ mt: 0.75 }}>
-      <VariablesCard
-        requiredKeys={prereq.keys}
-        savedValues={savedValues}
-        localValues={localValues}
-        upsertStatuses={upsertStatuses}
-        descriptions={prereq.descriptions}
-        deployedValues={deployedValues}
-        onChange={handleChange}
-        onRevert={handleRevert}
-      />
-      <Box sx={{ mt: 1.5 }}>
+    <>
+      {prereq.keys.map((key) => {
+        const savedValue = savedValues[key] ?? "";
+        const localValue = localValues[key] ?? "";
+        const isDirty = localValue !== savedValue;
+        const upsertStatus = upsertStatuses.find((status) => status.key === key);
+        const isError = upsertStatus?.status === "error";
+        const isDeployedDiff = deployedValues !== undefined && savedValue !== (deployedValues[key] ?? "");
+        const description = prereq.descriptions?.[key];
+
+        return (
+          <Box key={key} sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
+            <PrerequisiteStatusIcon met={!!savedValue.trim()} changed={isDeployedDiff && !isDirty && !isError} />
+            <FieldLabel htmlFor={`variable-${key}`} sx={{ mb: 0, minWidth: { xs: "8.5rem", sm: "11rem" }, flexShrink: 0 }}>
+              {key}:
+            </FieldLabel>
+            <TextField
+              id={`variable-${key}`}
+              className="corpEditor"
+              data-sensitive="true"
+              error={isError}
+              inputProps={{ "aria-describedby": description ? `${descriptionPrefix}-${key}` : undefined }}
+              placeholder="not set"
+              value={localValue}
+              onChange={(event) => handleChange(key, event.target.value)}
+              sx={{ flex: 1, minWidth: 0 }}
+              InputProps={{
+                endAdornment: (localValue || isDirty) ? (
+                  <InputAdornment position="end" sx={{ gap: 0 }}>
+                    {localValue && (
+                      <IconButton aria-label={`Clear ${key}`} size="small" onClick={() => handleChange(key, "")} sx={{ p: 0.25, minWidth: 24, minHeight: 24 }}>
+                        <ClearIcon sx={{ typography: "caption" }} />
+                      </IconButton>
+                    )}
+                    {isDirty && (
+                      <Tooltip title="Revert to saved value">
+                        <IconButton aria-label={`Revert ${key} to saved value`} size="small" onClick={() => handleRevert(key)} sx={{ p: 0.25, minWidth: 24, minHeight: 24 }}>
+                          <UndoIcon sx={{ typography: "caption" }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </InputAdornment>
+                ) : undefined,
+              }}
+            />
+            {description && (
+              <>
+                <Box component="span" id={`${descriptionPrefix}-${key}`} className="visually-hidden">{description}</Box>
+                <InfoTip label={`${key} information`} description={description}>
+                  <InfoOutlinedIcon aria-hidden="true" sx={{ typography: "caption", color: "text.secondary" }} />
+                </InfoTip>
+              </>
+            )}
+            {isDeployedDiff && !isDirty && !isError && (
+              <InfoTip label={`${key} differs from the last plan`} description={`Plan configured: ${deployedValues[key] || "(empty)"}`} sensitive>
+                <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
+              </InfoTip>
+            )}
+            {isError && <Typography color="error.main" role="alert">{upsertStatus.error ?? "Update failed"}</Typography>}
+            {upsertStatus?.status === "success" && <Typography role="status" aria-live="polite" color="success.dark">just updated</Typography>}
+          </Box>
+        );
+      })}
+      <Box sx={{ mt: 1 }}>
         <Button
           onClick={handleUpdate}
           disabled={updating || dirtyKeys.length === 0 || !selectedEnv}
           variant="contained"
           size="small"
-          sx={{
-            py: 0.75,
-            px: 2,
-          }}
         >
           {updating ? "Updating..." : dirtyKeys.length > 0 ? `Update ${dirtyKeys.length} variable${dirtyKeys.length !== 1 ? "s" : ""}` : "Update variables"}
         </Button>
       </Box>
-    </Box>
+    </>
   );
 }
 
 // Shared by the plan and deploy failures — both publish the same kind of single-file log artifact.
-function FailureLog({ fetched, text }: { fetched: boolean; text: string | null }) {
+export function FailureLog({ fetched, text }: { fetched: boolean; text: string | null }) {
+  const [height, setHeight] = useState<number | null>(null);
+  const [bounds, setBounds] = useState({ min: 160, max: 640 });
+  const drag = useRef<{ pointerId: number; startY: number; startHeight: number } | null>(null);
+  const contentId = useId();
+  const currentHeight = Math.min(bounds.max, Math.max(bounds.min, height ?? bounds.min));
+
+  useLayoutEffect(() => {
+    const updateBounds = () => {
+      const min = 10 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+      setBounds({ min, max: Math.max(min, Math.floor(window.innerHeight * 0.8)) });
+    };
+    updateBounds();
+    window.addEventListener("resize", updateBounds);
+    return () => window.removeEventListener("resize", updateBounds);
+  }, []);
+
   if (!fetched) return <StatusText>Loading log...</StatusText>;
   if (!text) return null;
   return (
     <Box
       sx={{
         mt: 0.5,
-        p: 1.25,
         borderRadius: "6px",
         backgroundColor: "background.default",
         border: "1px solid",
         borderColor: "error.light",
-        maxHeight: "10rem",
-        overflowY: "auto",
+        height: currentHeight,
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
       }}
-      role="alert"
-      aria-live="assertive"
     >
-      <Typography component="pre" color="error.dark" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...MONO_FONT }}>
-        {text}
-      </Typography>
+      <Box
+        id={contentId}
+        role="alert"
+        aria-live="assertive"
+        aria-label="Failure log output"
+        tabIndex={0}
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          p: 1.25,
+          "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: "-2px" },
+        }}
+      >
+        <Typography component="pre" color="error.dark" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-all", m: 0, ...MONO_FONT }}>
+          {text}
+        </Typography>
+      </Box>
+      <Tooltip title="Resize log output" arrow>
+        <Box
+          role="separator"
+          tabIndex={0}
+          aria-label="Resize log output"
+          aria-orientation="horizontal"
+          aria-controls={contentId}
+          aria-valuemin={bounds.min}
+          aria-valuemax={bounds.max}
+          aria-valuenow={currentHeight}
+          aria-valuetext={`${Math.round(currentHeight)} pixels high`}
+          onPointerDown={(event) => {
+            if (!event.isPrimary || event.button !== 0) return;
+            event.preventDefault();
+            event.currentTarget.focus({ preventScroll: true });
+            event.currentTarget.setPointerCapture(event.pointerId);
+            drag.current = { pointerId: event.pointerId, startY: event.clientY, startHeight: currentHeight };
+          }}
+          onPointerMove={(event) => {
+            if (drag.current?.pointerId !== event.pointerId) return;
+            setHeight(Math.min(bounds.max, Math.max(bounds.min, drag.current.startHeight + event.clientY - drag.current.startY)));
+          }}
+          onPointerUp={(event) => {
+            if (drag.current?.pointerId !== event.pointerId) return;
+            drag.current = null;
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+          }}
+          onPointerCancel={(event) => {
+            if (drag.current?.pointerId === event.pointerId) drag.current = null;
+          }}
+          onLostPointerCapture={(event) => {
+            if (drag.current?.pointerId === event.pointerId) drag.current = null;
+          }}
+          onKeyDown={(event) => {
+            const step = event.shiftKey ? 60 : 20;
+            let nextHeight: number;
+            switch (event.key) {
+              case "ArrowDown": nextHeight = currentHeight + step; break;
+              case "ArrowUp": nextHeight = currentHeight - step; break;
+              case "Home": nextHeight = bounds.min; break;
+              case "End": nextHeight = bounds.max; break;
+              default: return;
+            }
+            event.preventDefault();
+            setHeight(Math.min(bounds.max, Math.max(bounds.min, nextHeight)));
+          }}
+          sx={{
+            height: 24,
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "ns-resize",
+            touchAction: "none",
+            userSelect: "none",
+            color: "text.secondary",
+            "&:hover": { backgroundColor: "action.hover" },
+            "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: "-2px" },
+          }}
+        >
+          <DragHandleIcon aria-hidden="true" fontSize="small" />
+        </Box>
+      </Tooltip>
     </Box>
   );
 }
@@ -199,11 +365,13 @@ function RunStatusUpdateButton({
   running,
   countdown,
   disabled,
+  label = "Get Updated Plan",
 }: {
   onRun: () => Promise<void>;
   running: boolean;
   countdown: number;
   disabled: boolean;
+  label?: string;
 }) {
   return (
     <Button
@@ -229,7 +397,7 @@ function RunStatusUpdateButton({
           Running... {countdown >= 60 ? `${Math.ceil(countdown / 60)}m` : `${countdown}s`}
         </>
       ) : (
-        "Get Updated Plan"
+        label
       )}
     </Button>
   );
@@ -239,6 +407,7 @@ type Props = {
   card: CardChrome;
   stageDef: StageDefinition;
   stage: Stage;
+  prerequisiteAssessment?: PrerequisiteAssessment;
   latestSha?: string;
   deployDisabled: boolean;
   deployedEnv: Record<string, string> | null;
@@ -260,13 +429,14 @@ type Props = {
 
 function Action({ repoFullName, runId }: { repoFullName: string | null; runId?: string }) {
   if (!repoFullName || !runId) return null;
-  return <ViewLink href={getWorkflowRunUrl(repoFullName, runId)} />;
+  return <ViewLink href={getWorkflowRunUrl(repoFullName, runId)} label="Open plan run in GitHub" />;
 }
 
-export default function StageCard({
+function StageCardContent({
   card,
   stageDef,
   stage,
+  prerequisiteAssessment,
   latestSha,
   deployDisabled,
   deployedEnv,
@@ -284,12 +454,18 @@ export default function StageCard({
   statusUpdateDisabled,
   runError,
   azureAccount,
-}: Props) {
-  const [expandedPrereqs, setExpandedPrereqs] = useState<Record<number, boolean>>({});
-  const [planItems, setPlanItems] = useState<PlanItem[]>([]);
-  const [planSummary, setPlanSummary] = useState<PlanSummary>({ create: 0, update: 0, delete: 0, replace: 0 });
-  const [planLoading, setPlanLoading] = useState(false);
-  const [planError, setPlanError] = useState<string | null>(null);
+  managementAccess,
+}: Props & { managementAccess?: CardResourceAccess }) {
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
+  const [planOutputOpen, setPlanOutputOpen] = useState(false);
+  const planRequest = useMemo(() => {
+    if (!stage.planJsonId || stage.status !== "success" || !account) return null;
+    return { id: stage.planJsonId, account, repoName, runId: stage.runId, envId: selectedEnv?.id };
+  }, [stage.planJsonId, stage.status, account, repoName, stage.runId, selectedEnv?.id]);
+  const [planResult, setPlanResult] = useState<{
+    request: NonNullable<typeof planRequest>;
+  } & ({ items: PlanItem[]; summary: PlanSummary } | { error: string }) | null>(null);
+  const currentPlan = planRequest && planResult?.request === planRequest ? planResult : null;
   const [deployLog, setDeployLog] = useState<{ id: number; text: string | null } | null>(null);
   const [planLog, setPlanLog] = useState<{ id: number; text: string | null } | null>(null);
 
@@ -314,6 +490,15 @@ export default function StageCard({
   const onDeploy =
     trackDeploy &&
     (async () => {
+      if (managementAccess) {
+        if (managementAccess.status !== "ready") return;
+        try {
+          await managementAccess.check();
+        } catch {
+          // The access hook displays the verification failure and offers a recheck.
+          return;
+        }
+      }
       if (await remoteTerminal.start()) await trackDeploy();
     });
 
@@ -322,35 +507,25 @@ export default function StageCard({
     onPlanSummaryRef.current = onPlanSummary;
   });
 
-  const prevRepoName = useRef(repoName);
-  const lastPlanFetchKey = useRef<string | null>(null);
+  // Scope async results to the current report so a late fetch cannot restore an older plan.
   useEffect(() => {
-    if (!stage.planJsonId || stage.status !== "success" || !account) {
-      prevRepoName.current = repoName;
-      return;
-    }
-    if (repoName !== prevRepoName.current) return;
-    const key = `${account.id}_${repoName}_${stage.planJsonId}`;
-    if (key === lastPlanFetchKey.current) return;
-    lastPlanFetchKey.current = key;
-    prevRepoName.current = repoName;
-    const t = setTimeout(() => setPlanLoading(true), 0);
-    fetchPlan(stage.planJsonId, account, repoName)
+    if (!planRequest || statusUpdateRunning) return;
+    let active = true;
+    fetchPlan(planRequest.id, planRequest.account, planRequest.repoName)
       .then((data) => {
-        const fetched: PlanItem[] = data.resource_changes || [];
-        const s = computePlanSummary(fetched);
-        setPlanItems(fetched);
-        setPlanSummary(s);
-        setPlanError(null);
-        onPlanSummaryRef.current?.(s);
+        if (!active) return;
+        const items: PlanItem[] = data.resource_changes || [];
+        const summary = computePlanSummary(items);
+        setPlanResult({ request: planRequest, items, summary });
+        onPlanSummaryRef.current?.(summary);
       })
-      .catch((err: Error) => setPlanError(err.message))
-      .finally(() => {
-        clearTimeout(t);
-        setPlanLoading(false);
+      .catch((err: Error) => {
+        if (active) setPlanResult({ request: planRequest, error: err.message });
       });
-    return () => clearTimeout(t);
-  }, [stage.planJsonId, stage.status, account, repoName]);
+    return () => {
+      active = false;
+    };
+  }, [planRequest, statusUpdateRunning]);
 
   useEffect(() => {
     const id = stage.deployLogId;
@@ -371,8 +546,11 @@ export default function StageCard({
   const deployLogFetched = !!stage.deployLogId && deployLog?.id === stage.deployLogId;
   const planLogFetched = !!stage.planLogId && planLog?.id === stage.planLogId;
 
+  // Keep plan and deployment controls gated by the same live prerequisite state as the summary.
+  const prerequisites = prerequisiteAssessment ?? assessPrerequisites(stageDef.prerequisites, variableValues, cardStatus, deployedEnv);
+  const prerequisitesMet = !prerequisites.blocked;
+  const canRefreshPrerequisites = prerequisites.changed.length > 0 && prerequisites.missing.length === 0 && prerequisites.incomplete.length === 0;
   const hasDetails = stage.status === "success" && !!stage.planJsonId && stage.planJsonUrl !== "";
-
   const repoFullName = account && repoName ? `${account.login}/${repoName}` : null;
 
   const intro = stageDef.description ? (
@@ -380,146 +558,108 @@ export default function StageCard({
       {stageDef.description}
     </Typography>
   ) : undefined;
+  const accessError = managementAccess?.status === "error";
+  const accessNotice = managementAccess && (managementAccess.status === "checking" || accessError)
+    ? <AzureAccessCheck access={managementAccess} resourceAccess errorStyle />
+    : undefined;
 
   return (
-    <Card title={stageDef.label} action={<Action repoFullName={repoFullName} runId={stage.runId} />} lockedIntro={intro} {...card}>
+    <Card
+      title={stageDef.label}
+      action={<Action repoFullName={repoFullName} runId={stage.runId} />}
+      lockedIntro={intro}
+      {...card}
+      status={!card.locked && !card.unavailable && accessError ? "error" : card.status}
+      summary={!card.locked && !card.unavailable && accessError ? "Insufficient permissions to deploy" : card.summary}
+    >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         {intro}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-          <RunStatusUpdateButton
-            onRun={onRunStatusUpdate}
-            running={statusUpdateRunning}
-            countdown={statusUpdateCountdown}
-            disabled={statusUpdateDisabled}
-          />
-          {runError && <ErrorText>{runError}</ErrorText>}
-        </Box>
-
-        {stageDef.prerequisites.length > 0 && (
-          <Box>
-            <Typography
-              variant="sectionLabel"
-              sx={{ mb: 1 }}
-            >
-              Prerequisites
-            </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          {stageDef.prerequisites.length > 0 && (
+            <Prerequisites id={`${stageDef.dir}-prerequisites`} open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)} stage>
+              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>
+                Prerequisites
+              </Typography>
               {stageDef.prerequisites.map((prereq, i) => {
+                if (prereq.type === "varGroup") {
+                  return prereq.keys.map((key) => {
+                    const value = variableValues[key]?.trim() ?? "";
+                    const changed = deployedEnv != null && (variableValues[key] ?? "") !== (deployedEnv[key] ?? "");
+                    return (
+                      <Box key={`${stageDef.dir}-${key}`} sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
+                        <PrerequisiteStatusIcon met={!!value} changed={changed} />
+                        <Typography data-sensitive="true" color={value ? "text.secondary" : "text.muted"} sx={{ wordBreak: "break-all" }}>
+                          {key}: {value || "not set"}
+                        </Typography>
+                      </Box>
+                    );
+                  });
+                }
+
+                if (prereq.type === "stageVar") {
+                  return (
+                    <StageVarEditor
+                      key={`${stageDef.dir}-${i}`}
+                      prereq={prereq}
+                      savedValues={variableValues}
+                      deployedValues={deployedEnv ?? undefined}
+                      account={account}
+                      repo={repoName}
+                      selectedEnv={selectedEnv}
+                      onVariableConfirmed={onVariableConfirmed}
+                    />
+                  );
+                }
+
                 const met = checkPrerequisite(prereq, cardStatus, variableValues);
                 const label = prereqLabel(prereq, variableValues);
-                const isExpandable = prereq.type === "varGroup" || prereq.type === "stageVar";
-                const isOpen = !!expandedPrereqs[i];
-                const prereqHasDeployedDiff =
-                  deployedEnv != null &&
-                  (((prereq.type === "varGroup" || prereq.type === "stageVar") &&
-                    prereq.keys.some((k) => (variableValues[k] ?? "") !== (deployedEnv[k] ?? ""))) ||
-                    (prereq.type === "var" && (variableValues[prereq.key] ?? "") !== (deployedEnv[prereq.key] ?? "")));
+                const changed = prereq.type === "var" && deployedEnv != null && (variableValues[prereq.key] ?? "") !== (deployedEnv[prereq.key] ?? "");
                 return (
                   <Box key={`${stageDef.dir}-${i}`}>
-                    <Box
-                      component={isExpandable ? "button" : "div"}
-                      type={isExpandable ? "button" : undefined}
-                      aria-expanded={isExpandable ? isOpen : undefined}
-                      aria-controls={isExpandable ? `${stageDef.dir}-prerequisite-${i}` : undefined}
-                      onClick={isExpandable ? () => setExpandedPrereqs((prev) => ({ ...prev, [i]: !prev[i] })) : undefined}
-                      sx={{
-                        display: "flex",
-                        width: "100%",
-                        alignItems: "center",
-                        gap: 1,
-                        py: 0.5,
-                        px: isExpandable ? 0.75 : 0,
-                        mx: isExpandable ? -0.75 : 0,
-                        borderRadius: "6px",
-                        border: 0,
-                        backgroundColor: "transparent",
-                        textAlign: "left",
-                        font: "inherit",
-                        cursor: isExpandable ? "pointer" : "default",
-                        userSelect: "none",
-                        "&:hover": isExpandable ? { backgroundColor: "action.hover" } : {},
-                      }}
-                    >
-                      {met && prereqHasDeployedDiff ? (
-                        <Tooltip title="Changed since last plan" placement="top" arrow>
-                          <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main", flexShrink: 0 }} />
-                        </Tooltip>
-                      ) : met ? (
-                        <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main", flexShrink: 0 }} />
-                      ) : (
-                        <RadioButtonUncheckedIcon aria-hidden="true" sx={{ typography: "caption", color: "text.disabled", flexShrink: 0 }} />
-                      )}
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
+                      <PrerequisiteStatusIcon met={met} changed={changed} />
                       <Typography color={met ? "text.secondary" : "text.muted"} sx={{ flex: 1 }}>{label}</Typography>
-                      {isExpandable &&
-                        (isOpen ? <ExpandLessIcon aria-hidden="true" sx={{ typography: "body2", color: "text.disabled" }} /> : <ExpandMoreIcon aria-hidden="true" sx={{ typography: "body2", color: "text.disabled" }} />)}
                     </Box>
-
-                    {isExpandable && isOpen && (
-                      <Box id={`${stageDef.dir}-prerequisite-${i}`} role="region" aria-label={`${label} details`} sx={{ ml: 2.75, mt: 0.5, mb: 1 }}>
-                        {prereq.type === "varGroup" && (
-                          <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, overflow: "hidden" }}>
-                            {prereq.keys.map((k, ki) => (
-                              <Box
-                                key={k}
-                                sx={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: 1.5,
-                                  px: 2,
-                                  py: 0.75,
-                                  borderBottom: ki < prereq.keys.length - 1 ? "1px solid" : "none",
-                                  borderColor: "divider",
-                                  backgroundColor: ki % 2 === 0 ? "background.paper" : "background.default",
-                                }}
-                              >
-                                <Typography
-                                  sx={{
-                                    color: "text.secondary",
-                                    minWidth: "11rem",
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {k}
-                                </Typography>
-                                <Typography
-                                  sx={{
-                                    color: variableValues[k] ? "text.primary" : "text.disabled",
-                                    wordBreak: "break-all",
-                                    flex: 1,
-                                  }}
-                                >
-                                  {variableValues[k] || "not set"}
-                                </Typography>
-                              </Box>
-                            ))}
-                          </Box>
-                        )}
-                        {prereq.type === "stageVar" && (
-                          <StageVarEditor
-                            prereq={prereq}
-                            savedValues={variableValues}
-                            deployedValues={deployedEnv ?? undefined}
-                            account={account}
-                            repo={repoName}
-                            selectedEnv={selectedEnv}
-                            onVariableConfirmed={onVariableConfirmed}
-                          />
-                        )}
-                      </Box>
-                    )}
                   </Box>
                 );
               })}
+            </Prerequisites>
+          )}
+          {canRefreshPrerequisites && (
+            <Box role="group" aria-label="Refresh changed prerequisites" sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <RunStatusUpdateButton
+                onRun={onRunStatusUpdate}
+                running={statusUpdateRunning}
+                countdown={statusUpdateCountdown}
+                disabled={statusUpdateDisabled}
+                label="Refresh plan"
+              />
+              {runError && <ErrorText>{runError}</ErrorText>}
             </Box>
-          </Box>
-        )}
+          )}
+        </Box>
 
-        {hasDetails && (
+        {prerequisitesMet && (
+          <Box role="region" aria-label="Plan" sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+            <RunStatusUpdateButton
+              onRun={onRunStatusUpdate}
+              running={statusUpdateRunning}
+              countdown={statusUpdateCountdown}
+              disabled={statusUpdateDisabled}
+            />
+            {runError && <ErrorText>{runError}</ErrorText>}
+          </Box>
+
+        {(hasDetails || accessNotice) && (
           <StagePlanDetail
-            items={planItems}
-            summary={planSummary}
-            loading={planLoading}
-            error={planError}
+            items={currentPlan && "items" in currentPlan ? currentPlan.items : []}
+            summary={currentPlan && "summary" in currentPlan ? currentPlan.summary : { create: 0, update: 0, delete: 0, replace: 0 }}
+            loading={hasDetails && !currentPlan}
+            error={currentPlan && "error" in currentPlan ? currentPlan.error : null}
+            planAvailable={hasDetails}
+            accessNotice={accessNotice}
+            accessError={accessError}
             onDeploy={onDeploy}
             deployNotice={
               !azurePermissions.ready && (
@@ -531,7 +671,7 @@ export default function StageCard({
                 />
               )
             }
-            stagesStale={deployDisabled}
+            stagesStale={deployDisabled || (managementAccess != null && managementAccess.status !== "ready")}
             behind={isPlanBehind(stage, latestSha)}
             planSha={stage.planSha}
             latestSha={latestSha}
@@ -540,13 +680,58 @@ export default function StageCard({
 
         <RemoteTerminal session={remoteTerminal} />
 
-        {!hasDetails && stage.status !== "pending" && (
-          <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
-            No plan is available for this stage. Check the GitHub Actions run for errors, then create a new plan.
-          </Typography>
+            {!hasDetails && stage.status !== "pending" && (
+              <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
+                No plan is available for this stage. Check the GitHub Actions run for errors, then create a new plan.
+              </Typography>
+            )}
+
+            {stage.status === "failed" && stage.planLogId && (
+              <Box>
+                <ButtonBase
+                  disableRipple
+                  onClick={() => setPlanOutputOpen((open) => !open)}
+                  aria-expanded={planOutputOpen}
+                  aria-controls={`${stageDef.dir}-plan-output`}
+                  sx={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    userSelect: "none",
+                    py: 0.25,
+                    "&:hover .plan-output-toggle-label, &:focus-visible .plan-output-toggle-label": { color: "primary.main" },
+                    "&:hover .plan-output-toggle-line, &:focus-visible .plan-output-toggle-line": { backgroundColor: "primary.main" },
+                    "&:hover .plan-output-toggle-icon, &:focus-visible .plan-output-toggle-icon": { color: "primary.main" },
+                  }}
+                >
+                  <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+                  <Typography className="plan-output-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
+                    {planOutputOpen ? "hide result" : "view result"}
+                  </Typography>
+                  <KeyboardArrowDownIcon
+                    className="plan-output-toggle-icon"
+                    sx={{
+                      typography: "body2",
+                      color: "text.muted",
+                      transform: planOutputOpen ? "rotate(180deg)" : "none",
+                      transition: "color 0.2s, transform 0.2s",
+                    }}
+                    aria-hidden="true"
+                  />
+                  <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+                </ButtonBase>
+                <Collapse in={planOutputOpen} timeout={300}>
+                  <Box id={`${stageDef.dir}-plan-output`} role="region" aria-label="Plan output">
+                    <FailureLog fetched={planLogFetched} text={planLog?.text ?? null} />
+                  </Box>
+                </Collapse>
+              </Box>
+            )}
+          </Box>
         )}
 
-        {stage.status === "failed" && stage.planLogId && <FailureLog fetched={planLogFetched} text={planLog?.text ?? null} />}
+        <RemoteTerminal session={remoteTerminal} />
 
         {(stage.deployedAt || stage.deployStatus) && (
           <Box>
@@ -568,7 +753,7 @@ export default function StageCard({
               ) : null}
               {stage.deployedAt && <Typography color="text.secondary">{relativeTime(stage.deployedAt)}</Typography>}
               {/* The apply's own run, not the plan's — the header link points at the plan. */}
-              {repoFullName && stage.deployRunId && <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} />}
+              {repoFullName && stage.deployRunId && <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} label="Open deployment run in GitHub" />}
             </Box>
             {/* 13px icon + the 8px gap above. */}
             <Box sx={{ pl: "21px" }}>
@@ -580,4 +765,18 @@ export default function StageCard({
       </Box>
     </Card>
   );
+}
+
+function ArmStageCard(props: Props) {
+  const managementAccess = useCardResourceAccess({
+    azureAccount: props.azureAccount,
+    subscriptionId: props.variableValues.AZURE_SUBSCRIPTION_ID ?? "",
+    tenantId: props.variableValues.AZURE_TENANT_ID || undefined,
+  }, subscriptionBudgetAccess());
+  return <StageCardContent {...props} managementAccess={managementAccess} />;
+}
+
+export default function StageCard(props: Props) {
+  if (props.stageDef.dir === "SubscriptionBudget") return <ArmStageCard {...props} />;
+  return <StageCardContent {...props} />;
 }

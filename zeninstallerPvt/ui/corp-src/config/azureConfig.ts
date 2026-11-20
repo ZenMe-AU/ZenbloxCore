@@ -33,6 +33,7 @@ export const ACCESS_PASS_SCOPES = [
 export const GROUPS_SCOPES = ["https://graph.microsoft.com/Group.ReadWrite.All"];
 export const CLAIMS_POLICY_SCOPES = ["https://graph.microsoft.com/Policy.ReadWrite.ApplicationConfiguration"]; // SAML claims of the AWS sign-in app.
 export const ROLE_MANAGEMENT_SCOPES = ["https://graph.microsoft.com/RoleManagement.ReadWrite.Directory"];
+export const USER_SCOPES = ["https://graph.microsoft.com/User.ReadWrite.All"];
 
 // ── Individual Graph application permissions ───────────────────────────────────
 
@@ -89,7 +90,7 @@ export const RBAC_ROLE_IDS: Record<string, string> = {
   "Storage Queue Data Contributor": "974c5e8b-45b9-4653-ba55-5f855dd0fb88",
   "Monitoring Metrics Publisher": "3913510d-42f4-4e42-8a64-420c390055eb",
   "Web PubSub Service Owner": "12cf5a90-567b-43ae-8102-96cf46c7d9b4",
-  // Owner: "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+  Owner: "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
 };
 
 // ── Function App settings the installer writes ─────────────────────────────────
@@ -116,3 +117,6 @@ export const PRIVATE_FRONTEND_PROVIDERS = [
   "Microsoft.SignalRService",
   "Microsoft.Web",
 ] as const;
+
+// ── Azure permission helpers ────────────────────────────
+export const readWrite = (...resources: string[]) => resources.flatMap((resource) => [`${resource}/read`, `${resource}/write`]);

@@ -42,34 +42,22 @@ export default function Footer() {
         </Typography>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" }, gap: 2 }}>
           <Box>
-            <Typography component="h3" sx={{ fontWeight: 600, mb: 1 }}>
-              Keyboard shortcuts
-            </Typography>
             <Button variant="outlined" size="small" onClick={() => setShortcutsOpen(true)} aria-haspopup="dialog">
               View keyboard shortcuts
             </Button>
           </Box>
           <Box>
-            <Typography component="h3" sx={{ fontWeight: 600, mb: 1 }}>
-              Contact
-            </Typography>
             <Typography variant="body2" color="text.secondary">
               Contact information coming soon.
             </Typography>
           </Box>
           <Box>
-            <Typography component="h3" sx={{ fontWeight: 600, mb: 1 }}>
-              Policies
-            </Typography>
             <Link href={`${DOCS_BASE}/Privacy_Policy`}>Privacy policy</Link>
             <Typography variant="body2" color="text.secondary">
               Terms of use coming soon.
             </Typography>
           </Box>
           <Box>
-            <Typography component="h3" sx={{ fontWeight: 600, mb: 1 }}>
-              Support
-            </Typography>
             <Link href={`${DOCS_BASE}/`}>Support documentation</Link>
           </Box>
         </Box>
@@ -81,6 +69,8 @@ export default function Footer() {
           <Box component="dl" sx={{ display: "grid", gridTemplateColumns: "max-content minmax(0, 1fr)", columnGap: 2, rowGap: 1, m: 0 }}>
             <Typography component="dt" sx={{ fontWeight: 600 }}><Box component="kbd">?</Box></Typography>
             <Typography component="dd" sx={{ m: 0 }}>Open this shortcuts dialog, unless focus is in an editable field.</Typography>
+            <Typography component="dt" sx={{ fontWeight: 600 }}><Box component="kbd">Shift+C</Box></Typography>
+            <Typography component="dd" sx={{ m: 0 }}>Collapse all expanded cards, unless focus is in an editable field.</Typography>
             <Typography component="dt" sx={{ fontWeight: 600 }}><Box component="kbd">Tab / Shift+Tab</Box></Typography>
             <Typography component="dd" sx={{ m: 0 }}>Move focus forward or backward between controls.</Typography>
             <Typography component="dt" sx={{ fontWeight: 600 }}><Box component="kbd">Enter / Space</Box></Typography>

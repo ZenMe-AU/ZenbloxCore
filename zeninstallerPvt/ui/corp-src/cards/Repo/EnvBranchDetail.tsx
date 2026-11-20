@@ -45,10 +45,6 @@ export default function EnvBranchDetail({
           size="small"
           startIcon={creatingBranch ? <CircularProgress aria-label={`Creating branch ${targetBranch}`} size={12} /> : <AddIcon />}
           aria-busy={creatingBranch}
-          sx={{
-            py: 0.75,
-            px: 2,
-          }}
         >
           Create New Branch: {targetBranch}
         </Button>

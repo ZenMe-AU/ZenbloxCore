@@ -3,9 +3,10 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect } from "react";
-import { Box, Button, CircularProgress, MenuItem, Select, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
+import { Box, Button, CircularProgress, Link, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import { warningMessageIconSx } from "../../config/styles";
 import type { Account, CardChrome, GhEnv } from "../../types";
 import type { UseAzureAccount } from "../AzureLogin/useAzureAccount";
@@ -18,7 +19,10 @@ import CloudVariableDetail from "../CloudVariableDetail";
 import Card from "../../components/Card";
 import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
+// import ExternalLink from "../../components/ExternalLink";
+import Prerequisites from "../../components/Prerequisites";
 import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
+// import { AZURE_PIM_ACTIVATION_URL } from "../../logic/consoleUrls";
 
 type Props = {
   card: CardChrome;
@@ -53,7 +57,12 @@ function Intro() {
  * group; the selection is fed to the infra, domain, and app-registration cards.
  */
 function Action({ subscriptionId, tenantId }: { subscriptionId: string; tenantId?: string }) {
-  return <ViewLink href={subscriptionId ? getAzureSubscriptionUrl(tenantId, subscriptionId) : AZURE_SUBSCRIPTIONS_URL} />;
+  return (
+    <ViewLink
+      href={subscriptionId ? getAzureSubscriptionUrl(tenantId, subscriptionId) : AZURE_SUBSCRIPTIONS_URL}
+      label={subscriptionId ? "Open Azure subscription" : "Browse Azure subscriptions"}
+    />
+  );
 }
 
 export default function AzureSubscriptionCard({
@@ -68,6 +77,7 @@ export default function AzureSubscriptionCard({
   onOpenAzureLogin,
   onUserInteract,
 }: Props) {
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const { tenants, manualTenantId } = azure;
   const { subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, subscriptionDrift, subscriptionNoAccess } = subscription;
 
@@ -110,19 +120,14 @@ export default function AzureSubscriptionCard({
           <Typography color="text.muted">
             Tenant: <Box component="span" sx={{ color: "text.primary" }}>{tenantLabel}</Box>
           </Typography>
-          <Button
-            size="small"
+          <Link
+            component="button"
+            type="button"
             onClick={onOpenAzureLogin}
-            sx={{
-              minWidth: 0,
-              color: "primary.main",
-              py: 0,
-              px: 0.5,
-              "&:hover": { textDecoration: "underline" },
-            }}
+            sx={{ py: 0, px: 0.5, textAlign: "left" }}
           >
             Change on Azure login →
-          </Button>
+          </Link>
         </Box>
 
         {subsError && !subscriptionNoAccess && <Typography color="error.main" role="alert">{subsError}</Typography>}
@@ -185,18 +190,26 @@ export default function AzureSubscriptionCard({
         )}
 
         {/* Save AZURE_TENANT_ID + AZURE_SUBSCRIPTION_ID to the env's GitHub variables */}
+        {/* Save the tenant/subscription and preserve pending edits across refreshes within this selection. */}
         <CloudVariableDetail
+          key={JSON.stringify([githubAccount?.id, repoName, selectedEnv?.name])}
           account={githubAccount}
           repo={repoName}
           envName={selectedEnv?.name ?? null}
           keys={AZURE_TARGET_KEYS}
           variables={variables}
           populate={populate}
+          preserveDirtyOnSync
           hiddenKeys={["VITE_AZURE_TENANT_ID"]}
           title="Saved to GitHub"
           githubUrl={githubUrl}
           saveHint={
-            subscriptionDrift ? (
+            subscription.installerAccess.status === "error" ? (
+              <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                <Typography color="error.main">You need at least Reader access to this subscription (or equivalent permissions).</Typography>
+              </Box>
+            ) : subscriptionDrift ? (
               <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                 <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                 <Typography color="warning.main">Unsaved change — save to apply.</Typography>
@@ -204,6 +217,40 @@ export default function AzureSubscriptionCard({
             ) : undefined
           }
         />
+
+        {(subscription.installerAccess.status === "checking" || subscription.installerAccess.status === "error") && (
+          <Prerequisites id="azure-subscription-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+            {subscription.installerAccess.status === "checking" ? (
+              <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <CircularProgress aria-label="Checking installer subscription access" size={12} />
+                <Typography color="text.muted">Checking your subscription permissions for the Zenblox installer...</Typography>
+              </Box>
+            ) : (
+              <>
+                <Box role="alert" sx={{
+                  backgroundColor: "background.default", border: "1px solid", borderColor: "error.main",
+                  borderRadius: 1, px: 2, py: 1.25, minWidth: 0, overflowWrap: "anywhere",
+                }}>
+                  <Box sx={{ color: "error.main" }}>
+                    <Typography sx={{ whiteSpace: "pre-line" }}>{subscription.installerAccess.error}</Typography>
+                    {
+                      // The access error already says to ask an administrator or activate the role in PIM.
+                      // <Typography>
+                      //   Ask a subscription administrator to grant access in IAM or activate your eligible role in PIM at{" "}
+                      //   <ExternalLink href={AZURE_PIM_ACTIVATION_URL} label="Activate an Azure resource role in PIM">
+                      //     PIM - My roles - Azure resources
+                      //   </ExternalLink>{" "}then retry.
+                      // </Typography>
+                    }
+                  </Box>
+                </Box>
+                <Button variant="contained" sx={{ mt: 1, py: 0.85, px: 2.5 }} onClick={subscription.installerAccess.retry}>
+                  Recheck subscription access
+                </Button>
+              </>
+            )}
+          </Prerequisites>
+        )}
       </Box>
     </Card>
   );

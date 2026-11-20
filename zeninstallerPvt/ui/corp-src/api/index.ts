@@ -3,9 +3,9 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import * as B from "./backend";
-import { createGithubApi } from "./github";
-import type { ApiProvider } from "./github";
+import * as B from "./backend.js";
+import { createGithubApi } from "./github.js";
+import type { ApiProvider } from "./github.js";
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 /*
@@ -23,11 +23,11 @@ export const switchToBackend = () => {
 };
 
 // Re-export factory so callers can inspect / create a provider directly
-export { createGithubApi } from "./github";
-export type { ApiProvider } from "./github";
+export { createGithubApi } from "./github.js";
+export type { ApiProvider } from "./github.js";
 
 // fetchGithubUser — used with an explicit token before provider is set (initial PAT check)
-export { fetchGithubUser } from "./github";
+export { fetchGithubUser } from "./github.js";
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 

@@ -15,6 +15,23 @@ Always ensure the mock test is in alignment with the integration test for that c
 
 When reviewing and changing tests, work on one card at a time, completing the integration test and mock test before doing another card, under guidenance from the product owner.
 
+## Environment preflight
+
+Before running larger suites, run only `EnvironmentSmokeTest.spec.mts`:
+
+```powershell
+pnpm exec playwright test --config playwright.config.ts EnvironmentSmokeTest.spec.mts --workers=1
+```
+
+Run this command from the repository root with `BASE_URL=http://localhost:5173`
+set for the Playwright web server. The preflight reads Vite's development
+environment files in the UI workspace (including local overrides and process
+environment variables). It checks the required Azure client ID, optional setting
+formats, the GitHub OAuth client ID when the backend is enabled, and that the
+installer and Azure sign-in button render without uncaught JavaScript errors.
+Empty optional settings remain supported. It does not authenticate, provision
+resources, or prove that credentials, permissions, or remote services work.
+
 ## Authenticated Session State
 Session state is only needed for integration tests, not mock tests. 
 It's recommended to refresh the session state for GitHub and Azure whenever starting a new session of work on integration tests.
@@ -51,3 +68,9 @@ Enable it only with approval for those live changes.
 simulate authentication, builds, artifact downloads, deployment, and version
 read-back. They also cover missing artifacts, build failures, upload recovery,
 and signed-out gating without contacting external services.
+
+## Frontend deployment card mocks
+[WebDeployCard mock tests](./corp-src/mock-tests/WebDeployCard.spec.mts) model an
+existing, readable `$web` container with no version metadata before the first
+deployment. A 404 represents a missing container and blocks the access preflight.
+After a denied upload, resource access must be rechecked before deploying again.

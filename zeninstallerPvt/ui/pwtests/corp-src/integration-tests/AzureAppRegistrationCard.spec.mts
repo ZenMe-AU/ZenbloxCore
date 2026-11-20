@@ -5,15 +5,12 @@
 
 // UI component: ../../../corp-src/cards/AzureAppRegistrationCard.tsx
 import { expect, type Page, type TestInfo } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
-import { expectSnapshot, safePathSegment, expectVisibleWithin, attachJSCoverage } from "../../util/testHelper.ts";
+import { expectSnapshot, safePathSegment, expectVisibleWithin } from "../../../../../.playwright/testHelper.js";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
 import { expandAzureAppRegistrationCard, expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard } from "../util/cardHelper.mts";
-
-test.beforeEach(async ({ page }) => { await page.coverage.startJSCoverage({ resetOnNavigation: false }); });
-test.afterEach(async ({ page }, testInfo) => { await attachJSCoverage(page, testInfo); });
 
 test("Happy path", async ({ page, context }, testInfo) => {
   const { viewportName, repoName, appName } = await prepareTest(page, context, testInfo);
@@ -23,7 +20,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
 test("Reuses existing app", async ({ page, context }, testInfo) => {
   const { viewportName, repoName, appName } = await prepareTest(page, context, testInfo);
   const card = await prepareAppRegistrationCard(page, context, repoName);
-  const appNameInput = card.locator("input:visible").first();
+  const appNameInput = card.getByRole("textbox", { name: "App registration name", exact: true });
   await appNameInput.fill(appName);
   await card.getByRole("button", { name: "Create app registration" }).click();
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 300_000 });
@@ -55,6 +52,7 @@ async function prepareAppRegistrationCard(page: import("@playwright/test").Page,
   }
   await chooseExistingRepo(page, repoCard, repoName);
   await expect(repoCard.getByText("Loading environments...", { exact: true })).toBeHidden({ timeout: 120_000 });
+  // this part a bit flaky
   const prodEnvironment = repoCard.getByText("PROD", { exact: true });
   if (!(await prodEnvironment.isVisible())) {
     throw new Error(`The repository "${repoName}" does not have a visible PROD environment.`);
@@ -196,7 +194,7 @@ async function runHappyPath(page: Page, testInfo: TestInfo, { viewportName, repo
       step.skip(true, "Existing connection details are present; skipping create-new flow.");
     }
 
-    const appNameInput = appRegistrationCard.locator("input:visible").first();
+    const appNameInput = appRegistrationCard.getByRole("textbox", { name: "App registration name", exact: true });
     await expectVisibleWithin(appNameInput, "App registration name input", 50_000);
     await appNameInput.fill(appName);
     await expectSnapshot(page, appRegistrationCard, testInfo, "new-app-prefilled", viewportName);
@@ -225,7 +223,7 @@ async function runHappyPath(page: Page, testInfo: TestInfo, { viewportName, repo
       step.skip(true, "Overwrite warning is not present; there is nothing to overwrite.");
     }
 
-    const appNameInput = appRegistrationCard.locator("input:visible").first();
+    const appNameInput = appRegistrationCard.getByRole("textbox", { name: "App registration name", exact: true });
     await expectVisibleWithin(appNameInput, "App registration name input", 50_000);
     await appNameInput.fill(appName);
     await expectSnapshot(page, appRegistrationCard, testInfo, "existing-app-prefilled", viewportName);
@@ -259,6 +257,9 @@ async function runHappyPath(page: Page, testInfo: TestInfo, { viewportName, repo
     const clientIds = await connectionInputs.evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value.trim()));
     expect(clientIds[0], "AZURE_CLIENT_ID should be populated").not.toBe("");
     expect(clientIds[1], "AZURE_PLAN_CLIENT_ID should be populated").toBe(clientIds[0]);
+    await expect(appRegistrationCard.getByRole("textbox", { name: "AZURE_CLIENT_ID", exact: true })).toHaveValue(clientIds[0]);
+    await expect(appRegistrationCard.getByRole("textbox", { name: "AZURE_PLAN_CLIENT_ID", exact: true })).toHaveValue(clientIds[0]);
+    await expect(appRegistrationCard.locator('button[aria-controls="azure-app-registration-connection-details"]')).toHaveAttribute("aria-expanded", "true");
     await expect(appRegistrationCard.getByText("2 not configured", { exact: true })).toHaveCount(0);
     await expectSnapshot(page, appRegistrationCard, testInfo, "end", viewportName);
   });

@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { Box, IconButton, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -13,6 +13,7 @@ import UndoIcon from "@mui/icons-material/Undo";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { alpha } from "@mui/material/styles";
 import FieldLabel from "./FieldLabel";
+import InfoTip from "./InfoTip";
 import type { UpsertStatus } from "../types";
 import { getVariableDisplayName } from "../logic/variables";
 
@@ -47,6 +48,7 @@ function VariableRow({
   onChange: (key: string, value: string) => void;
   onRevert: (key: string) => void;
 }) {
+  const descriptionId = useId();
   const isSuccess = upsertStatus?.status === "success";
   const isError = upsertStatus?.status === "error" || !!error;
   // Value differs from what was last planned (corp.env snapshot)
@@ -83,9 +85,9 @@ function VariableRow({
             {getVariableDisplayName(varKey)}
           </FieldLabel>
           {description && (
-            <Tooltip title={description} placement="top" arrow>
-              <InfoOutlinedIcon sx={{ typography: "caption", color: (theme) => theme.palette.card.mutedIcon, cursor: "help", "&:hover": { color: (theme) => theme.palette.card.mutedIconHover } }} />
-            </Tooltip>
+            <InfoTip label={`${getVariableDisplayName(varKey)} information`} description={description}>
+              <InfoOutlinedIcon aria-hidden="true" sx={{ typography: "caption", color: "text.secondary" }} />
+            </InfoTip>
           )}
         </Box>
 
@@ -95,6 +97,7 @@ function VariableRow({
           data-editor-state={isError ? "error" : isDirty ? "dirty" : undefined}
           data-sensitive="true"
           error={isError}
+          inputProps={{ "aria-describedby": description ? descriptionId : undefined }}
           placeholder="not set"
           value={localValue}
           onChange={(e) => onChange(varKey, e.target.value)}
@@ -104,13 +107,13 @@ function VariableRow({
               localValue || isDirty ? (
                 <InputAdornment position="end" sx={{ gap: 0 }}>
                   {localValue && (
-                    <IconButton aria-label={`Clear ${getVariableDisplayName(varKey)}`} size="small" onClick={() => onChange(varKey, "")} sx={{ color: (theme) => theme.palette.text.muted, p: 0.25, "&:hover": { color: (theme) => theme.palette.text.secondary } }}>
+                    <IconButton aria-label={`Clear ${getVariableDisplayName(varKey)}`} size="small" onClick={() => onChange(varKey, "")} sx={{ color: (theme) => theme.palette.text.muted, p: 0.25, minWidth: 24, minHeight: 24, "&:hover": { color: (theme) => theme.palette.text.secondary } }}>
                       <ClearIcon sx={{ typography: "caption" }} />
                     </IconButton>
                   )}
                   {isDirty && (
                     <Tooltip title="Revert to saved value">
-                      <IconButton aria-label={`Revert ${getVariableDisplayName(varKey)} to saved value`} size="small" onClick={() => onRevert(varKey)} sx={{ color: (theme) => theme.palette.text.muted, p: 0.25, "&:hover": { color: (theme) => theme.palette.warning.main } }}>
+                      <IconButton aria-label={`Revert ${getVariableDisplayName(varKey)} to saved value`} size="small" onClick={() => onRevert(varKey)} sx={{ color: (theme) => theme.palette.text.muted, p: 0.25, minWidth: 24, minHeight: 24, "&:hover": { color: (theme) => theme.palette.warning.main } }}>
                         <UndoIcon sx={{ typography: "caption" }} />
                       </IconButton>
                     </Tooltip>
@@ -121,13 +124,13 @@ function VariableRow({
         />
 
         {isDeployedDiff && !isDirty && !isError && (
-          <Tooltip title={`Plan configured: ${deployedValues![varKey] || "(empty)"}`} placement="top" arrow>
-            <WarningAmberIcon sx={{ typography: "caption", color: (theme) => theme.palette.warning.main, flexShrink: 0 }} />
-          </Tooltip>
+          <InfoTip label={`${getVariableDisplayName(varKey)} differs from the last plan`} description={`Plan configured: ${deployedValues![varKey] || "(empty)"}`} sensitive>
+            <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "warning.main" }} />
+          </InfoTip>
         )}
 
         {willOverwrite && !isError && (
-          <Tooltip title={`Replaces saved value: ${savedValue}`} placement="top" arrow>
+          <InfoTip label={`${getVariableDisplayName(varKey)} overwrites a saved value`} description={`Replaces saved value: ${savedValue}`} sensitive>
             <Box
               sx={{
                 display: "inline-flex",
@@ -146,7 +149,7 @@ function VariableRow({
               <WarningAmberIcon sx={{ typography: "caption" }} />
               overwrites
             </Box>
-          </Tooltip>
+          </InfoTip>
         )}
 
         {isError && (
@@ -205,6 +208,7 @@ function VariableRow({
         )}
       </Box>
 
+      {description && <Box component="span" id={descriptionId} className="visually-hidden">{description}</Box>}
       {/* Light divider so the hint reads as part of this row rather than the solid line between rows. */}
       {hint && <Box sx={{ borderTop: 1, borderColor: "divider", pt: 0.75 }}>{hint}</Box>}
     </Box>

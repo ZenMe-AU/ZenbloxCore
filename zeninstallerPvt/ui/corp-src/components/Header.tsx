@@ -37,6 +37,7 @@ export default function Header() {
       }}
     >
       <Box
+        aria-hidden="true"
         sx={{
           width: 28,
           height: 28,

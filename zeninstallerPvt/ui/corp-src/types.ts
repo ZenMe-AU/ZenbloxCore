@@ -25,7 +25,11 @@ export type CardId =
   | "create_domain"
   | "access_pass"
   | "global_groups"
+  | "create_admin_users"
   | "aws_login"
+  | "privavd_gallery"
+  | "privavd_image"
+  | "privavd_paw"
   | "aws_sso"
   | "aws_sso_stack"
   | `stage_${string}`;

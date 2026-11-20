@@ -5,9 +5,9 @@
 
 // UI component: ../../../corp-src/cards/AzureSubscription/AzureSubscriptionCard.tsx
 import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL } from "../../testInit";
-import { attachJSCoverage, expectSnapshot } from "../../util/testHelper.ts";
+import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
 import {
   installMockAzure,
   installMockGitHub,
@@ -19,14 +19,6 @@ import {
   type MockAzureState,
 } from "../util/mockTestHelper.mts";
 import { expandAzureLoginCard, expandAzureSubscriptionCard } from "../util/cardHelper.mts";
-
-test.beforeEach(async ({ page }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
-});
-
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
-});
 
 test("Happy path", async ({ page, context }, testInfo) => {
   await runHappyPath({ page, context }, testInfo);
@@ -129,6 +121,32 @@ test("Switching tenants resets subscription list", async ({ page, context }, tes
   await expectSnapshot(page, result.azureSubscriptionCard, testInfo, "tenant-switch-subscription", viewportName);
 });
 
+test("Refreshing GitHub variables preserves a pending subscription selection", async ({ page, context }, testInfo) => {
+  const viewportName = getViewportName(testInfo);
+  const result = await prepareMockAzureSubscription(page, context, `mock-subscription-refresh-${viewportName.toLowerCase()}`, {
+    initialVariables: savedAzureVariables,
+    initialAzureState: {
+      subscriptions: [
+        { subscriptionId: mockSubscriptionId, displayName: "Mock subscription", tenantId: mockTenantId, state: "Enabled" },
+        { subscriptionId: mockSecondSubscriptionId, displayName: "Mock second subscription", tenantId: mockTenantId, state: "Enabled" },
+      ],
+    },
+  });
+  await result.azureSubscriptionCard.getByRole("combobox").click();
+  await page.getByRole("option", { name: /Mock second subscription/ }).click();
+  await expect(result.subscriptionVariableInput).toHaveValue(mockSecondSubscriptionId);
+
+  result.github.variables.AZURE_SUBSCRIPTION_ID = "changed-on-github";
+  await result.azureSubscriptionCard.getByRole("button", { name: "Refresh" }).click();
+  await expect(result.azureSubscriptionCard.getByRole("button", { name: "Done" })).toBeVisible();
+  await expect(result.subscriptionVariableInput).toHaveValue(mockSecondSubscriptionId);
+  const saveButton = result.azureSubscriptionCard.getByRole("button", { name: "Save 1 variable" });
+  await expect(saveButton).toBeEnabled();
+  await saveButton.click();
+  await expect.poll(() => result.github.variables.AZURE_SUBSCRIPTION_ID).toBe(mockSecondSubscriptionId);
+  await expect(result.azureSubscriptionCard.getByText("Unsaved change — save to apply.", { exact: true })).toHaveCount(0);
+});
+
 test("Failed variable writes allow retry", async ({ page, context }, testInfo) => {
   const viewportName = getViewportName(testInfo);
   const result = await prepareMockAzureSubscription(page, context, `mock-subscription-save-error-${viewportName.toLowerCase()}`);
@@ -160,8 +178,8 @@ test("Failed variable writes allow retry", async ({ page, context }, testInfo) =
   });
   await page.reload();
   const reloadedCard = await expandAzureSubscriptionCard(page);
-  await expect(reloadedCard.getByText("AZURE_TENANT_ID", { exact: true }).locator("..").locator("..").getByRole("textbox")).toHaveValue(mockTenantId);
-  await expect(reloadedCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true }).locator("..").locator("..").getByRole("textbox")).toHaveValue(mockSubscriptionId);
+  await expect(reloadedCard.getByRole("textbox", { name: "AZURE_TENANT_ID", exact: true })).toHaveValue(mockTenantId);
+  await expect(reloadedCard.getByRole("textbox", { name: "AZURE_SUBSCRIPTION_ID", exact: true })).toHaveValue(mockSubscriptionId);
   await expectSnapshot(page, reloadedCard, testInfo, "variables-persist-after-retry", viewportName);
 });
 
@@ -193,8 +211,8 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
     await expectSnapshot(page, azureSubscriptionCard, testInfo, "end", viewportName);
     await page.reload();
     const persistedCard = await expandAzureSubscriptionCard(page);
-    await expect(persistedCard.getByText("AZURE_TENANT_ID", { exact: true }).locator("..").locator("..").getByRole("textbox")).toHaveValue(mockTenantId);
-    await expect(persistedCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true }).locator("..").locator("..").getByRole("textbox")).toHaveValue(mockSubscriptionId);
+    await expect(persistedCard.getByRole("textbox", { name: "AZURE_TENANT_ID", exact: true })).toHaveValue(mockTenantId);
+    await expect(persistedCard.getByRole("textbox", { name: "AZURE_SUBSCRIPTION_ID", exact: true })).toHaveValue(mockSubscriptionId);
     await expect(persistedCard.getByRole("button", { name: "Save variables" })).toBeDisabled();
     await expectSnapshot(page, persistedCard, testInfo, "persisted-after-reload", viewportName);
   });
@@ -251,8 +269,8 @@ async function prepareMockAzureSubscription(
   await expect(azureSubscriptionCard.getByRole("combobox").or(
     azureSubscriptionCard.getByText("This tenant has no subscriptions you can access.", { exact: true }),
   )).toBeVisible();
-  const tenantVariableInput = azureSubscriptionCard.getByText("AZURE_TENANT_ID", { exact: true }).locator("../..").getByRole("textbox");
-  const subscriptionVariableInput = azureSubscriptionCard.getByText("AZURE_SUBSCRIPTION_ID", { exact: true }).locator("../..").getByRole("textbox");
+  const tenantVariableInput = azureSubscriptionCard.getByRole("textbox", { name: "AZURE_TENANT_ID", exact: true });
+  const subscriptionVariableInput = azureSubscriptionCard.getByRole("textbox", { name: "AZURE_SUBSCRIPTION_ID", exact: true });
   return {
     github, azure, azureSubscriptionCard, tenantVariableInput, subscriptionVariableInput,
     saveButton: azureSubscriptionCard.getByRole("button", { name: "Save variables", exact: true }),

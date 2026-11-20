@@ -4,7 +4,6 @@
  */
 
 import { Box, ButtonBase, CircularProgress, Typography } from "@mui/material";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import LockIcon from "@mui/icons-material/Lock";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -79,10 +78,10 @@ export default function EnvDetail({
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Typography variant="body1" color="text.secondary">
           Pick the environment to configure.{" "}
-          <Box component="span" sx={{ fontWeight: 600 }}>
+          <Box component="span">
             {validEnvs.join(", ")}
           </Box>{" "}
-          are set up separately — everything below applies to the one you pick.
+          are configured independently, with their own settings and deployments. PROD is the live deployment; TEST is for validating changes. Everything below applies only to the environment you select.
         </Typography>
         {!lockedByPR && (
           <RefreshButton
@@ -112,8 +111,10 @@ export default function EnvDetail({
             <CircularProgress aria-label="Loading GitHub environments" size={14} sx={{ color: "text.disabled" }} />
             <StatusText>Loading environments...</StatusText>
           </Box>
+        ) : refreshFailed ? (
+          <ErrorText>Could not load environments. Refresh to try again.</ErrorText>
         ) : filteredEnvs.length === 0 ? (
-          <Typography color="text.muted" role="status">
+          <Typography color="warning.dark" role="status">
             No PROD or TEST environment was found. In the repository, go to Settings &gt; Environments, create the required environment, then refresh.
           </Typography>
         ) : (
@@ -131,14 +132,17 @@ export default function EnvDetail({
                     display: isSelected || !lockedByPR ? "inline-flex" : "none",
                     alignItems: "center",
                     gap: 0.75,
-                    px: 2,
-                    py: 0.75,
-                    borderRadius: 1,
+                    minHeight: 32,
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: 0.75,
                     border: "1px solid",
                     borderColor: isSelected ? "primary.main" : "divider",
                     backgroundColor: isSelected ? "primary.main" : "background.paper",
                     color: isSelected ? "primary.contrastText" : "text.secondary",
                     fontWeight: isSelected ? 700 : 400,
+                    typography: "button",
+                    lineHeight: 1.25,
                     userSelect: "none",
                     transition: "all 0.15s",
                     "&:hover": !lockedByPR
@@ -172,23 +176,23 @@ export default function EnvDetail({
       </Box>
 
       {/* Branch match error */}
-      {branchMatchError && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
-          <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "body2", color: "error.main", flexShrink: 0 }} />
-          <ErrorText>{branchMatchError}</ErrorText>
+      {!loading && !refreshFailed && !creatingBranch && branchMatchError && (
+        <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
+          <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main", flexShrink: 0 }} />
+          <Typography color="warning.dark">{branchMatchError}</Typography>
         </Box>
       )}
 
       {/* Branch match warning */}
-      {branchMatchWarning && (
+      {!loading && !refreshFailed && !creatingBranch && branchMatchWarning && (
         <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
           <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
-          <Typography color="warning.main">{branchMatchWarning}</Typography>
+          <Typography color="warning.dark">{branchMatchWarning}</Typography>
         </Box>
       )}
 
       {/* Create branch — only when the selected env has no matching branch */}
-      {showBranchCreate && (
+      {!loading && !refreshFailed && showBranchCreate && (
         <EnvBranchDetail
           targetBranch={selectedEnv!.name}
           branches={branches}

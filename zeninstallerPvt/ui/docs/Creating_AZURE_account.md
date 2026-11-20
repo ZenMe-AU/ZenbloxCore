@@ -1,6 +1,6 @@
 # How to Create a Free Azure Account
 
-This guide walks through the steps required to create a Microsoft Entra ID tenant while signing up for an Azure free trial.
+This guide walks through the steps required to create a Microsoft Entra ID tenant (the directory that holds your organization's users, groups, and apps) while signing up for an Azure free trial.
 
 ## Start the Azure Free Trial
 
@@ -69,7 +69,7 @@ These do not affect your ability to proceed.
 
 ## Step 3 of 3 — Payment Verification
 
-Azure requires a valid payment method to prevent fraud and confirm identity. **You will not be charged unless you later upgrade to Pay As You Go.**
+Azure may require a valid payment method to verify your identity and billing account. Signup offers and eligibility vary by region and account. If you select a pay-as-you-go subscription, paid usage can incur charges; review current pricing and terms before deploying resources.
 
 ![Payment verification form](images/azure-account/image4.png)
 
@@ -93,6 +93,31 @@ Once submitted, Microsoft will validate your card and complete the tenant creati
 
 After all three steps are successfully submitted:
 
-- Your **Azure subscription** is created
+- Your **Azure subscription** (the billing and resource-management boundary for Azure services) is created
 - Your **Microsoft Entra ID tenant** is provisioned
 - You can immediately begin configuring users, groups, applications, and security settings
+
+## Permissions for installer resource groups
+
+When you select a subscription in **Choose Azure subscription**, the installer automatically checks your subscription-level Azure permissions for
+resource provisioning (storage, monitoring, DNS, Functions and Web PubSub), provider registration, budgets, role assignments, and deletion locks.
+Missing permissions or a failed verification produce a warning, including the missing actions and guidance to obtain **Owner**, or **Contributor +
+User Access Administrator** (or equivalent permissions), at subscription scope. Use **Recheck subscription access** after granting or activating access.
+The warning is advisory: you can still select and save the subscription.
+
+Passing this check is not a guarantee of completing every installer stage. Entra directory roles/admin consent, storage data permissions,
+tenant-root management-group access, AWS/GitHub access, Azure policies, deny assignments, and role-assignment conditions are not verified here.
+
+The Core domain, Terraform state backend, Frontend hosting environment, and Private Zeninstaller Backend Environment cards check your signed-in account's
+effective permissions as soon as your Azure account and subscription are selected, before you click the resource creation button. The button stays
+disabled while access is being checked or is missing. Access feedback appears above **Resources to be created**, with an outlined warning and a
+**Recheck subscription access** button. Use it after activating a role or receiving access; changing the
+account, tenant, or subscription automatically starts a new check. Access is checked again when setup starts.
+You need **Contributor** access on that subscription, or equivalent
+resource-group creation permissions such as **Owner**. Access scoped only to an existing resource group is not sufficient.
+
+If the check fails, ask a subscription administrator to grant access under **Subscription > Access control (IAM)**, or activate an eligible role in
+**Privileged Identity Management (PIM)**, then retry the card. If access cannot be verified, the card stops and shows the verification error.
+
+This check covers resource-group creation only. Role assignments, resource locks, Entra domain/app management, and admin consent still require their
+own additional permissions.

@@ -12,7 +12,11 @@ import { readBlobWithProgress, type DownloadProgress } from "../logic/download";
 const GH = "https://api.github.com";
 
 function decodeContent(encoded: string): string {
-  return atob(encoded.replace(/\n/g, ""));
+  // GitHub's content field is Base64-encoded. atob returns those bytes as a binary string,
+  // so decode the bytes as UTF-8 before parsing to preserve non-ASCII environment values.
+  const binary = atob(encoded.replace(/\n/g, ""));
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 // ─── Standalone — used before provider is set (initial login check) ───────────
@@ -33,8 +37,8 @@ export type RemoteLoginDispatch = {
   ref: string;
   sessionId: string;
   dir: string;
-  // The plan run whose tfplan the workflow applies once the sign-in completes.
-  planRunId: string;
+  // The plan run whose tfplan the workflow applies once the sign-in completes; workflows that run without a plan omit it.
+  planRunId?: string;
 };
 
 export function createGithubApi(token: string) {
@@ -371,6 +375,7 @@ export function createGithubApi(token: string) {
       // dir is left out of the JSON when undefined; workflows without a dir input reject unknown inputs.
       body: JSON.stringify({ ref, inputs: { github_env_name: githubEnvName, dir } }),
     });
+    if (res.status === 404) throw new Error(`Build workflow for ${workflowId} is not found.`);
     if (!res.ok) throw new Error(`Failed to trigger workflow: ${res.status}`);
   }
 

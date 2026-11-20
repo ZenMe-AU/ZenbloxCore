@@ -34,6 +34,7 @@ type EditableNameRowProps = {
   value: string;
   onChange: (name: string) => void;
   error?: string | null; // e.g. the name is taken somewhere in Azure (global uniqueness check)
+  hint?: string;
   checking: boolean;
   check: () => Promise<boolean>;
   editing: boolean;
@@ -41,7 +42,7 @@ type EditableNameRowProps = {
   width: number;
 };
 
-export function EditableNameRow({ label, value, onChange, error, checking, check, editing, setEditing, width }: EditableNameRowProps) {
+export function EditableNameRow({ label, value, onChange, error, hint, checking, check, editing, setEditing, width }: EditableNameRowProps) {
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
@@ -53,6 +54,7 @@ export function EditableNameRow({ label, value, onChange, error, checking, check
               value={value}
               onChange={(e) => onChange(e.target.value)}
               error={!!error}
+              helperText={error ?? hint}
               sx={{ width, ...compactInputSx }}
               className="corpTechnicalInput"
               inputProps={{ "aria-label": label }}
@@ -77,7 +79,7 @@ export function EditableNameRow({ label, value, onChange, error, checking, check
           </>
         )}
       </Box>
-      {error && <ErrorText>{error}</ErrorText>}
+      {error && !editing && <ErrorText>{error}</ErrorText>}
     </Box>
   );
 }

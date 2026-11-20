@@ -9,9 +9,11 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { UseWebDeployCard } from "./useWebDeployCard";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
 import StatusText from "../../components/StatusText";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import CloudVariableDetail from "../CloudVariableDetail";
@@ -37,10 +39,9 @@ function SiteLink({ label, color, href }: { label: string; color: string; href: 
 
 function Intro({ storageAccountName }: { storageAccountName: string }) {
   return (
-    <Typography variant="body1" color="text.secondary">
-      Builds the Zeninstaller frontend in GitHub Actions, then writes the files straight from this browser into the{" "}
-      $web container of {storageAccountName || "the site's storage account"}.
-    </Typography>
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+  GitHub Actions builds the ZenInstaller frontend. ZenInstaller downloads the build and uploads its files from this browser to the $web container in {storageAccountName || "the site's storage account"}. Build and deploy are separate, so you can review a build before publishing it.
+</Typography>
   );
 }
 
@@ -67,6 +68,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
     build,
     buildWorkflow,
     updateAvailable,
+    failedBuildRunId,
     missingGithubClientId,
     staleVariables,
     error,
@@ -77,6 +79,9 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
 
   // Carries this page's query across so the site opens on the same repo and environment.
   const siteLink = siteUrl ? `${siteUrl}/${window.location.search}` : null;
+  // Prefer a failed run link over the last successful build's run link.
+  const workflowRunId = failedBuildRunId || latest?.runId;
+
 
   return (
     <Card
@@ -84,7 +89,10 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
       action={
         repoFullName ? (
           // Before anything has built there is no run to point at, so the workflow's page stands in.
-          <ViewLink href={latest ? getWorkflowRunUrl(repoFullName, latest.runId) : getWorkflowUrl(repoFullName, buildWorkflow)} />
+          <ViewLink
+            href={workflowRunId ? getWorkflowRunUrl(repoFullName, workflowRunId) : getWorkflowUrl(repoFullName, buildWorkflow)}
+            label={failedBuildRunId ? "Open failed frontend workflow run" : latest ? "Open latest web workflow run" : "Open web workflow in GitHub"}
+          />
         ) : undefined
       }
       lockedIntro={<Intro storageAccountName={storageAccountName} />}
@@ -92,6 +100,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <Intro storageAccountName={storageAccountName} />
+        <AzureAccessCheck access={web.managementAccess} resourceAccess errorStyle={web.accessNotice?.severity === "error"} />
 
         <CloudVariableDetail
           account={githubAccount}
@@ -133,6 +142,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
 
         <Box>
           <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Versions</Typography>
+        {/* Wait for build and deployment reads so an incomplete comparison cannot expose stale actions or status. */}
           <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
             <Typography color="text.muted">
               Latest build:{" "}
@@ -159,10 +169,10 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           </Box>
         )}
 
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
           <Button
             onClick={() => void build()}
-            disabled={building || running || missingGithubClientId}
+            disabled={loadingLatest || building || running || missingGithubClientId}
             variant="outlined"
             size="small"
             aria-busy={building}
@@ -183,7 +193,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           </Button>
           <Button
             onClick={() => void run()}
-            disabled={!updateAvailable || running || building || missingGithubClientId}
+            disabled={!updateAvailable || loadingLatest || loadingDeployed || running || building || missingGithubClientId || web.managementAccess.status !== "ready"}
             variant="contained"
             size="small"
             aria-busy={running}
@@ -198,7 +208,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             )}
           </Button>
 
-          {!loadingLatest && updateAvailable && deployed && (
+          {web.showReady && (
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
               <Typography color="warning.dark">Ready to deploy the new build</Typography>
@@ -206,9 +216,8 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
           )}
         </Box>
 
-        {/* All clear: the box carries the link, since that is where the reader goes next. Otherwise the
-            endpoint still exists as soon as the storage account does, so the link shows on its own. */}
-        {!loadingLatest && latest && !updateAvailable ? (
+        {/* Only show a stable deployment result after reads and operations finish; the endpoint link can remain visible meanwhile. */}
+        {web.showCurrent ? (
           <Box sx={{ backgroundColor: "background.default", border: "1px solid", borderColor: "success.light", borderRadius: 1, px: 2, py: 1.25 }}>
             <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               <CheckCircleIcon aria-hidden="true" sx={{ typography: "body2", color: "success.main" }} />
@@ -232,6 +241,7 @@ export default function WebDeployCard({ card, web, repoFullName, githubAccount, 
             {running && <StatusText>Deploying frontend...</StatusText>}
           </Box>
         )}
+        <ProcessRetryNotice started={steps.length > 0} />
       </Box>
     </Card>
   );

@@ -6,17 +6,22 @@
 import { useState, useEffect, useRef } from "react";
 import { Box, Button, ButtonBase, Collapse, TextField, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 import type { Account, CardChrome, GhEnv } from "../../types";
 import type { UseAzureAppRegistrationCard } from "./useAzureAppRegistrationCard";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import StepRow from "../StepRow";
 import Card from "../../components/Card";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import FieldLabel from "../../components/FieldLabel";
 import StatusText from "../../components/StatusText";
+import ErrorText from "../../components/ErrorText";
 import { AZURE_APP_REGISTRATIONS_URL, getAppRegistrationUrl } from "./consoleUrls";
 import { AZURE_APP_KEYS } from "../../logic/variables";
 import CloudVariableDetail from "../CloudVariableDetail";
@@ -34,16 +39,19 @@ type Props = {
 
 function Intro() {
   return (
-    <Typography variant="body1" color="text.secondary">
-      Create a Microsoft Entra app registration for GitHub Actions. ZenInstaller configures GitHub OIDC trust for the selected environment, so workflows can sign
-      in without a stored client secret, and grants the app Reader access to the selected Azure subscription for Terraform plans. The app ID is saved to that
-      environment. This does not grant deployment permissions; deployments are applied separately through the remote-terminal flow.
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+      Creates a Microsoft Entra app for GitHub Actions to use when previewing Azure changes with Terraform. The app can view resources in the selected subscription, but it can’t change them. ZenInstaller saves its ID in two settings for the selected GitHub environment. Use the remote terminal to apply changes.
     </Typography>
   );
 }
 
 function Action({ clientId }: { clientId: string }) {
-  return <ViewLink href={clientId ? getAppRegistrationUrl(clientId) : AZURE_APP_REGISTRATIONS_URL} />;
+  return (
+    <ViewLink
+      href={clientId ? getAppRegistrationUrl(clientId) : AZURE_APP_REGISTRATIONS_URL}
+      label={clientId ? "Open app registration in Azure" : "Browse Azure app registrations"}
+    />
+  );
 }
 
 export default function AzureAppRegistrationCard({ card, appReg, githubAccount, repoName, selectedEnv, subscriptionId, variables, githubUrl }: Props) {
@@ -66,6 +74,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
   } = appReg;
   const disabled = card.locked;
   const [varExpanded, setVarExpanded] = useState(false);
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const [bannerState, setBannerState] = useState<"none" | "saved" | "no-changes" | "error">("none");
   const prevRunNonceRef = useRef(runNonce);
@@ -251,6 +260,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
               )}
 
               {/* App name + create button */}
+              {!running && appReg.rbacError && <ErrorText>{appReg.rbacError}</ErrorText>}
               {steps.length === 0 && (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <Box>
@@ -269,15 +279,21 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                     <Button
                       variant="contained"
                       onClick={handleRun}
-                      disabled={disabled || !subscriptionId || !appName.trim()}
+                      disabled={disabled || !subscriptionId || !appName.trim() || appReg.managementAccess.status !== "ready"}
                       sx={{
                         py: 0.85,
                         px: 2.5,
                       }}
                     >
-                      {rbacMissing ? "Grant Reader access on this subscription" : "Create app registration"}
+                      {rbacMissing ? "Grant Reader access on this subscription" : appReg.done ? "Re-run app registration" : "Create app registration"}
                     </Button>
-                    {varHasAny && !rbacMissing && !spNotFound && (
+                    {appReg.managementAccess.status === "error" && (
+                      <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                        <Typography color="error.main">Insufficient permissions to continue</Typography>
+                      </Box>
+                    )}
+                    {varHasAny && !appReg.done && !rbacMissing && !spNotFound && (
                       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                         <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
                         <Typography color="warning.main">This replaces the saved Azure app IDs for the selected GitHub environment.</Typography>
@@ -294,6 +310,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                     <StepRow key={s.id} step={s} />
                   ))}
                   {running && <StatusText>Running...</StatusText>}
+                  <ProcessRetryNotice started={steps.length > 0} />
                   {!running && (
                     <Button
                       size="small"
@@ -310,6 +327,12 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                   )}
                 </Box>
               )}
+
+              {(appReg.managementAccess.status === "checking" || appReg.managementAccess.status === "error") && (
+                <Prerequisites id="azure-app-registration-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+                  <AzureAccessCheck access={appReg.managementAccess} resourceAccess errorStyle />
+                </Prerequisites>
+              )}
             </Box>
           )}
         </Box>
@@ -320,22 +343,33 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
           onClick={() => setVarExpanded((expanded) => !expanded)}
           aria-expanded={varExpanded}
           aria-controls="azure-app-registration-connection-details"
-          sx={{ width: "100%", display: "flex", alignItems: "center", gap: 1.5, userSelect: "none", py: 0.25 }}
+          sx={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            userSelect: "none",
+            py: 0.25,
+            "&:hover .connection-toggle-label, &:focus-visible .connection-toggle-label": { color: "primary.main" },
+            "&:hover .connection-toggle-line, &:focus-visible .connection-toggle-line": { backgroundColor: "primary.main" },
+            "&:hover .connection-toggle-icon, &:focus-visible .connection-toggle-icon": { color: "primary.main" },
+          }}
         >
-          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
-          <Typography color="text.muted" sx={{ whiteSpace: "nowrap" }}>
+          <Box className="connection-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+          <Typography className="connection-toggle-label" color="text.muted" sx={{ whiteSpace: "nowrap", transition: "color 0.2s" }}>
             {varExpanded ? "collapse" : "open to enter application connection detail"}
           </Typography>
           <KeyboardArrowDownIcon
+            className="connection-toggle-icon"
             sx={{
               typography: "caption",
               color: "text.muted",
               transform: varExpanded ? "rotate(180deg)" : "none",
-              transition: "transform 0.2s",
+              transition: "color 0.2s, transform 0.2s",
             }}
             aria-hidden="true"
           />
-          <Box sx={{ flex: 1, height: "1px", backgroundColor: "divider" }} />
+          <Box className="connection-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
         </ButtonBase>
 
         {/* ── Variable editor (unmountOnExit=false keeps in-progress draft edits and auto-save state alive while collapsed) ── */}

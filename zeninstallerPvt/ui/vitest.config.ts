@@ -10,6 +10,7 @@ export default defineConfig({
   test: {
     projects: [
       defineProject({
+        esbuild: { jsx: "automatic" },
         optimizeDeps: {
           include: ["react", "react-dom", "react-dom/client", "react/jsx-dev-runtime"],
         },
@@ -23,6 +24,7 @@ export default defineConfig({
         },
       }),
       defineProject({
+        esbuild: { jsx: "automatic" },
         optimizeDeps: {
           include: ["react", "react-dom", "react-dom/client", "react/jsx-dev-runtime"],
         },

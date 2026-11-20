@@ -31,6 +31,7 @@ export const AZURE_SUBSCRIPTIONS_URL = `${AZURE_PORTAL}/#servicemenu/Microsoft_A
 export const AZURE_RESOURCE_GROUPS_URL = `${AZURE_PORTAL}/#servicemenu/Microsoft_Azure_Resources/ResourceManager/resourcegroups`;
 export const AZURE_DNS_ZONES_URL = `${AZURE_PORTAL}/#view/HubsExtension/AssetMenuBlade/~/PublicDnsZones/assetName/NetworkFoundation/extensionName/Microsoft_Azure_Network`;
 export const AZURE_APP_REGISTRATIONS_URL = `${AZURE_PORTAL}/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade`;
+export const AZURE_PIM_ACTIVATION_URL = `${AZURE_PORTAL}/#view/Microsoft_Azure_PIMCommon/ActivationMenuBlade/~/azurerbac`;
 
 export function getEntraOverviewUrl(): string {
   return `${ENTRA}/#view/Microsoft_AAD_IAM/TenantOverview.ReactView`;

@@ -8,6 +8,8 @@ import { ensureScopeConsent, getMsal } from "../../auth/msal";
 import { APP_SCOPES, DNS_PROVIDERS, DOMAIN_SCOPES, GRANT_CONSENT_SCOPES, GRAPH_PERMISSIONS } from "../../config/azureConfig";
 import { ensureDnsZone, ensureDnsTxtRecord, ensureResourceGroup, ensureLogAnalyticsWorkspace, findDnsZone, listLocations, type AzureLocation } from "../../api/azureArm";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { createDomainAccess } from "./config";
 import {
   getEntraDomain,
   createEntraDomain,
@@ -46,6 +48,7 @@ export interface UseCreateDomainCardParams extends AzureSpTarget {
 
 // steps / running / run / reset come from AzureConfigHook.
 export interface UseCreateDomainCard extends CardHook, AzureConfigHook {
+  creationAccess: CardResourceAccess;
   readonly cardId: "create_domain";
   checkingStatus: boolean;
   checkStatusError: string | null;
@@ -113,6 +116,8 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
 
   const resourceGroupName = getCoreResourceGroupName(corpName);
   const lawName = getCoreLogAnalyticsName(corpName);
+  const creationAccess = useCardResourceAccess({ azureAccount, subscriptionId: corpName && dnsName ? subscriptionId : "", tenantId }, createDomainAccess(resourceGroupName, lawName, dnsName));
+  const { check: checkResourceAccess, reportFailure: reportAccessFailure } = creationAccess;
 
   /*
    * Once a subscription is known, check Graph directly for verified+primary status instead of
@@ -256,6 +261,7 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     setVerifyError(null);
 
     const initialSteps: SetupStep[] = [
+      { id: "access", label: "Check Azure resource access", status: "pending" },
       { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
       { id: "providers", label: "Register required Azure resource providers", status: "pending" },
       { id: "rg", label: `Create resource group ${resourceGroupName}`, status: "pending" },
@@ -269,8 +275,12 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     ];
     setSteps(initialSteps);
 
-    let currentStep = "consent";
+    let currentStep = "access";
     try {
+      updateStep("access", "running");
+      await checkResourceAccess();
+      updateStep("access", "done");
+
       currentStep = "consent";
       updateStep("consent", "running");
       const graphScopes = [...new Set([...DOMAIN_SCOPES, ...GRANT_CONSENT_SCOPES, ...APP_SCOPES])];
@@ -371,7 +381,8 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
       setRunNonce((n) => n + 1);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
-      if (isConsentError(msg)) {
+      if (/^403 \/subscriptions\//.test(msg)) reportAccessFailure(err);
+      if (currentStep !== "access" && isConsentError(msg)) {
         updateStep(currentStep, "error", "Additional consent required — redirecting to Microsoft...");
         const requestConsent = currentStep === "grant" ? requestGrantConsent : requestDomainConsent;
         await requestConsent().catch(() => updateStep(currentStep, "error", "Consent redirect failed — try again"));
@@ -398,6 +409,8 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
     requestDomainConsent,
     requestGrantConsent,
     ensureRegistered,
+    checkResourceAccess,
+    reportAccessFailure,
   ]);
 
   // Verifies the domain (if needed) and promotes it to primary — one button drives both.
@@ -468,10 +481,13 @@ export function useCreateDomainCard({ azureAccount, subscriptionId, corpName, dn
   const azureConfigured = !!AZURE_CLIENT_ID;
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not,
   // which overrides this status to "idle" regardless of what's computed here.
-  const status: CardStatus = !azureConfigured ? "error" : done ? "complete" : "warning";
-  const summary = !azureConfigured ? "Unavailable" : done ? (isPrimary ? "Domain verified and primary" : "Domain verified") : "Set up the corp domain";
+  const status: CardStatus = !azureConfigured || creationAccess.status === "error" ? "error" : done ? "complete" : "warning";
+  const summary = !azureConfigured ? "Unavailable"
+    : creationAccess.status === "error" ? "Insufficient permissions to continue"
+      : done ? (isPrimary ? "Domain verified and primary" : "Domain verified") : "Set up the corp domain";
 
   return {
+    creationAccess,
     cardId: "create_domain" as const,
     verifiedDomains,
     checkingStatus,

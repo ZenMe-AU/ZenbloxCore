@@ -29,7 +29,7 @@ function Intro() {
  */
 function Action({ repoFullName }: { repoFullName: string | null }) {
   if (!repoFullName) return null;
-  return <ViewLink href={getRepoUrl(repoFullName)} />;
+  return <ViewLink href={getRepoUrl(repoFullName)} label="Open GitHub repository" />;
 }
 
 export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
@@ -52,15 +52,17 @@ export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
         onIncludeAllBranchChange={repo.setIncludeAllBranch}
         cloning={repo.cloning}
         cloneError={repo.cloneError}
+        cloneValidationWarning={repo.cloneValidationWarning}
         onClone={repo.onClone}
         createEnvs={repo.createEnvs}
         onCreateEnvsChange={repo.setCreateEnvs}
         cloneEnvWarning={repo.cloneEnvWarning}
         repoLoading={repo.repoLoading}
         repoRefreshFailed={repo.repoRefreshFailed}
+        repoError={repo.repoError}
         onRefresh={repo.onRefresh}
       />
-      {!repo.selectedRepo?.isNew && (
+      {repo.status === "complete" && repo.templateStatus === "ready" && (
         <Box sx={{ mt: 2.5, pt: 2.5, borderTop: "1px solid", borderColor: "divider" }}>
           <EnvDetail
             envList={env.envList}

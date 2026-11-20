@@ -5,24 +5,22 @@
 
 // UI component: ../../../corp-src/cards/Repo/RepoDetail.tsx
 import { expect } from "@playwright/test";
-import { getViewportName, test } from "../util/viewportFixture.mts";
+import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL, GITHUB_API_URL, GITHUB_API_URL_REGEX } from "../../testInit";
 import { createNewRepo, selectCloneOption } from "../util/testHelper.mts";
-import { attachJSCoverage, expectSnapshot, expectVisibleWithin, logMockAPI } from "../../util/testHelper.ts";
+import { expectSnapshot, expectVisibleWithin, logMockAPI } from "../../../../../.playwright/testHelper.js";
 import { installMockGitHub, installRelayNetworkGuard } from "../util/mockTestHelper.mts";
 import { expandRepoCard } from "../util/cardHelper.mts";
 
 const unexpectedByPage = new WeakMap<import("@playwright/test").Page, string[]>();
 
 test.beforeEach(async ({ page, context }) => {
-  await page.coverage.startJSCoverage({ resetOnNavigation: false });
   unexpectedByPage.set(page, await installRelayNetworkGuard(context));
   await installMockGitHub(page, context);
   await page.goto(CORP_URL);
 });
 
-test.afterEach(async ({ page }, testInfo) => {
-  await attachJSCoverage(page, testInfo);
+test.afterEach(async ({ page }) => {
   expect(unexpectedByPage.get(page), "No unexpected external requests").toEqual([]);
 });
 
@@ -75,11 +73,11 @@ test("Branch creation failure can be retried", async ({ page }, testInfo) => {
   await card.getByText("PROD", { exact: true }).click();
   const create = card.getByRole("button", { name: "Create New Branch: PROD", exact: true });
   await create.click();
-  await expect(card.getByText("Failed to create branch", { exact: true })).toBeVisible();
+  await expect(card.getByRole("alert").filter({ hasText: /^Failed to create branch$/ })).toBeVisible();
   await expect(create).toBeEnabled();
   await create.click();
   await expect(create).toBeHidden();
-  await expect(card.getByText("Failed to create branch", { exact: true })).toHaveCount(0);
+  await expect(card.getByRole("alert").filter({ hasText: /^Failed to create branch$/ })).toHaveCount(0);
   expect(attempts).toBe(2);
   await expectSnapshot(page, card, testInfo, "branch-recovered", viewportName);
 });
@@ -140,9 +138,9 @@ test("Shows an error when cloning the template fails", async ({ page }, testInfo
   await expect(cloneOption).toBeVisible();
   await cloneOption.click();
   await expect(cloneOption).toBeHidden();
-  const cloneButton = repoCard.getByRole("button", { name: "Clone Repository" });
+  const cloneButton = repoCard.getByRole("button", { name: "Clone Repository", exact: true });
   await cloneButton.click();
-  await expect(repoCard.getByText("Clone failed", { exact: true })).toBeVisible();
+  await expect(repoCard.getByRole("alert").and(repoCard.getByText("Clone failed", { exact: true }))).toBeVisible();
   await expect(cloneButton).toBeEnabled();
   expect(cloneRequests).toBe(1);
   await expectSnapshot(page, repoCard, testInfo, "clone-failed", viewportName);
@@ -289,8 +287,8 @@ test("Selecting repo not a clone of source repo", async ({ page }, testInfo) => 
   await expect(repoInput).toHaveAttribute("aria-expanded", "false");
   await expect(repoCard.getByText("Not a clone", { exact: true })).toBeVisible();
   await expect(repoCard.getByText("This repo is not a clone of the template. Only repos cloned from ZenMe-AU/ZenbloxCore can be used.")).toBeVisible();
-  await expectVisibleWithin(repoCard.getByText(/^No PROD or TEST environment was found/), "Text: No environment found.", 500000);
-  await expect(repoCard.getByText(/^No PROD or TEST environment was found/)).toBeVisible();
+  await expect(repoCard.getByText(/^No PROD or TEST environment was found/)).toHaveCount(0);
+  await expect(repoCard.getByText("Pick the environment to configure.")).toHaveCount(0);
   await expectSnapshot(page, repoCard, testInfo, "invalid-repo-mock", viewportName);
 });
 
@@ -398,7 +396,7 @@ async function runHappyPath({ page }: { page: import("@playwright/test").Page },
     await expect(PROD).toBeVisible();
     await expect(TEST).toBeVisible();
     await PROD.click();
-    const missingProdBranch = repoCard.getByText(/^No branch found matching environment "PROD"\.$/);
+    const missingProdBranch = repoCard.getByRole("status").filter({ hasText: /^No branch found matching environment "PROD"\.$/ });
     await expect(missingProdBranch).toBeVisible();
     const createProdButton = repoCard.getByRole("button", { name: "Create New Branch: PROD" });
     await expectVisibleWithin(createProdButton, "Button: Create New Branch: PROD", 30_000);
@@ -416,7 +414,7 @@ async function runHappyPath({ page }: { page: import("@playwright/test").Page },
     await expect(PROD).toBeVisible();
     await expect(TEST).toBeVisible();
     await TEST.click();
-    const missingTestBranch = repoCard.getByText(/^No branch found matching environment "TEST"\.$/);
+    const missingTestBranch = repoCard.getByRole("status").filter({ hasText: /^No branch found matching environment "TEST"\.$/ });
     await expect(missingTestBranch).toBeVisible();
     const createTestButton = repoCard.getByRole("button", { name: "Create New Branch: TEST" });
     await expectVisibleWithin(createTestButton, "Button: Create New Branch: TEST", 30_000);

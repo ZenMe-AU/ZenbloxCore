@@ -1,6 +1,6 @@
 # Privacy Policy for ZenInstaller
 
-Effective date: 2026-08-15
+Effective date: 2026-10-28
 
 ## Overview
 
@@ -12,30 +12,24 @@ ZenInstaller may process the following information that you provide:
 
 - Access keys and similar credentials entered by you to connect to third-party services.
 - Project or configuration information you enter into the application.
+- An email address you enter in the optional GitHub signup helper.
 
 ## How Access Keys Are Handled
-
 - Access keys are collected only to perform the actions you request in the app.
 - Access keys are **not stored on ZenInstaller servers**.
 - Access keys are stored only in your browser session storage during your active session.
 
-## Where Data Is Stored
+## Browser Storage and Credentials
 
-- Information provided by you is stored only in your browser's session storage.
-- Session storage is local to your browser session and is not persisted by ZenInstaller on the server.
-
-## Retention
-
-- Data in session storage is retained only for the duration of your browser session.
-- When the session ends (for example, when the browser/tab session is closed), that stored information is removed by the browser.
+Authentication tokens and session credentials are held in browser session storage (temporary storage isolated to the browser tab). Session storage is cleared when the browser session ends.
 
 ## Data Sharing
 
-ZenInstaller does not sell your personal information. Because user-provided session data is not stored on ZenInstaller servers, ZenInstaller does not retain that data for sharing after your session.
+ZenInstaller does not sell your personal information. When you choose to use a third-party service, information needed for that action is sent to that service under its own privacy policy. In the optional GitHub signup helper, the email address is held in the page and sent directly to GitHub only when you select Continue; ZenInstaller does not create a GitHub account or send that email to its backend.
 
 ## Security
 
-ZenInstaller is designed to minimize data retention by avoiding server-side storage of access keys and session input. However, no system can guarantee absolute security, and you should protect your device and browser session.
+ZenInstaller is designed to minimize data retention by avoiding server-side storage of access keys and session input. However, no system can guarantee absolute security, and you should protect your device and browser session. You are responsible for protecting your device, browser session, accounts, and credentials.
 
 ## Third-Party Services
 
@@ -47,4 +41,4 @@ This Privacy Policy may be updated from time to time. Updates will be reflected 
 
 ## Contact
 
-For questions about this Privacy Policy, contact the ZenInstaller maintainers through the project support channel.
+For questions about this Privacy Policy, contact Zenme Pty Ltd at [info@zenme.com.au](mailto:info@zenme.com.au).

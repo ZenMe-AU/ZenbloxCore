@@ -15,13 +15,6 @@ export const borderTint = (borderColor: string, surfaceColor: string, percent: n
 
 export const borderHoverTint = (borderColor: string, surfaceColor: string) => borderTint(borderColor, surfaceColor, 20);
 
-export const warningMessageIconSx = {
-  fontSize: 16,
-  flexShrink: 0,
-  alignSelf: "center",
-  verticalAlign: "middle",
-} as const;
-
 // Slim "Refresh" text button used by every card that re-fetches remote state.
 export const refreshBtnSx = {
   flexShrink: 0,
@@ -29,7 +22,9 @@ export const refreshBtnSx = {
   "&:hover": { color: "text.secondary" },
 };
 
-// Compatibility shims for cards migrating to theme typography variants.
-export const labelSx = {
-  typography: "fieldLabel",
-};
+export const warningMessageIconSx = {
+  fontSize: 16,
+  flexShrink: 0,
+  alignSelf: "center",
+  verticalAlign: "middle",
+} as const;

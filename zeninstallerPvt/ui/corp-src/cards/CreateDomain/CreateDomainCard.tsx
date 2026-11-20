@@ -6,12 +6,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseCreateDomainCard } from "./useCreateDomainCard";
 import StepRow from "../StepRow";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import Prerequisites from "../../components/Prerequisites";
 import Card from "../../components/Card";
 import { PlainRow, SelectionRow } from "../../components/ResourceRows";
+import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_DNS_ZONES_URL, getAzureResourceUrl } from "../../logic/consoleUrls";
 import { dnsZoneScope } from "../../api/azureArm";
@@ -43,7 +47,7 @@ function Intro({ dnsName }: { dnsName: string }) {
   return (
     <Typography variant="body1" color="text.secondary">
       Creates the DNS zone for <b>{dnsName || "your domain"}</b>, adds it to Entra ID as a custom domain, then verifies it and, if you choose, sets it as
-      primary.
+      primary. You need Contributor access (or equivalent such as Owner) on the selected subscription to create resource groups. 
     </Typography>
   );
 }
@@ -60,7 +64,12 @@ function PrimaryCheckbox({ checked, disabled, dnsName, onChange }: { checked: bo
 }
 
 function Action({ resourceId }: { resourceId: string | null }) {
-  return <ViewLink href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_DNS_ZONES_URL} />;
+  return (
+    <ViewLink
+      href={resourceId ? getAzureResourceUrl(undefined, resourceId) : AZURE_DNS_ZONES_URL}
+      label={resourceId ? "Open DNS zone in Azure" : "Browse Azure DNS zones"}
+    />
+  );
 }
 
 export default function CreateDomainCard({
@@ -103,6 +112,7 @@ export default function CreateDomainCard({
   } = createDomain;
   const disabled = card.locked;
   const [editingLocation, setEditingLocation] = useState(false);
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const prevRunNonceRef = useRef(runNonce);
 
@@ -165,11 +175,12 @@ export default function CreateDomainCard({
           </Box>
         )}
         {checkStatusError && <ErrorText>Couldn't check existing setup: {checkStatusError}</ErrorText>}
+
         {/* Planned resources */}
         {ready && steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Box>
-              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources</Typography>
+              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources to be created</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
                 <PlainRow label="Resource group" value={createDomain.resourceGroupName} />
                 <PlainRow label="Log Analytics" value={createDomain.lawName} />
@@ -197,14 +208,20 @@ export default function CreateDomainCard({
               <Button
                 variant="contained"
                 onClick={run}
-                disabled={disabled || running || !location.trim()}
+                disabled={disabled || running || !location.trim() || createDomain.creationAccess.status !== "ready"}
                 sx={{
                   py: 0.85,
                   px: 2.5,
                 }}
               >
-                {resourcesDone ? "Re-run setup" : "Set up core DNS domain"}
+                {resourcesDone ? "Re-run" : "Set up core DNS domain"}
               </Button>
+              {createDomain.creationAccess.status === "error" && (
+                <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                  <Typography color="error.main">Insufficient permissions to continue</Typography>
+                </Box>
+              )}
               {checkingStatus && (
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                   <CircularProgress aria-label="Checking domain setup" size={12} />
@@ -221,6 +238,7 @@ export default function CreateDomainCard({
               <StepRow key={s.id} step={s} />
             ))}
             {running && <StatusText>Running...</StatusText>}
+            <ProcessRetryNotice started={steps.length > 0} />
             {!running && (
               <Button
                 size="small"
@@ -236,6 +254,11 @@ export default function CreateDomainCard({
               </Button>
             )}
           </Box>
+        )}
+        {ready && (createDomain.creationAccess.status === "checking" || createDomain.creationAccess.status === "error") && (
+          <Prerequisites id="create-domain-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+            <AzureAccessCheck access={createDomain.creationAccess} resourceAccess errorStyle />
+          </Prerequisites>
         )}
         {verifiedDomains.length > 0 && (
           <Box>
