@@ -12,6 +12,7 @@ import { Box, Button, ThemeProvider, ToggleButton } from "@mui/material";
 import PrivateFrontendInfraCard from "../cards/PrivateFrontendInfra/PrivateFrontendInfraCard";
 import RemoteTerminalInfraCard from "../cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
 import type { SetupStep } from "../types";
+import type { CardResourceAccess } from "../hooks/util/useAzureCardAccess";
 import theme from "../theme";
 
 describe("compact button styling", () => {
@@ -74,6 +75,7 @@ describe("compact button styling", () => {
           locations: [], locationsLoading: false,
           resourceGroupName: "test-private-rg", lawName: "test-private-law",
           result: null, resultMatches: false,
+          creationAccess: { status: "ready", error: null, failureKind: null, retry: vi.fn(), check: vi.fn(), reportFailure: vi.fn(), missingRoles: null, missingEntra: null, unregisteredProviders: [], registeringProviders: false, registerProviders: async () => {}, missingConsent: [], grantConsent: vi.fn() } as CardResourceAccess,
         };
         const commonProps = {
           subscriptionId: "test-subscription", githubAccount: null,

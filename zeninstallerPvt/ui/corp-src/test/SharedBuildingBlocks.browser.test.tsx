@@ -47,7 +47,7 @@ describe("shared UI building blocks", () => {
         const root = createRoot(container);
         const storageKey = `setup-activity-${mode}-${width}`;
         localStorage.removeItem(storageKey);
-        const access: CardResourceAccess = { status: "ready", error: null, failureKind: null, retry: vi.fn(), check: vi.fn(), reportFailure: vi.fn() };
+        const access: CardResourceAccess = { status: "ready", error: null, failureKind: null, retry: vi.fn(), check: vi.fn(), reportFailure: vi.fn(), missingRoles: null, missingEntra: null, unregisteredProviders: [], registeringProviders: false, registerProviders: async () => {}, missingConsent: [], grantConsent: vi.fn() };
         const common = { status: "warning" as CardStatus, summary: "", done: false, steps: [] as SetupStep[], running: false, run: async () => {}, reset: vi.fn(), runNonce: 0, cardRequirements: [], cardDependencyLabel: "Set up" };
         const appReg: UseAzureAppRegistrationCard = {
           ...common, cardId: "azure_app_registration", summary: "Create app registration", managementAccess: access,
@@ -228,6 +228,7 @@ describe("shared UI building blocks", () => {
         localStorage.removeItem(storageKey);
         const access: CardResourceAccess = {
           status: "error", failureKind: "permission", error: "Activate the required Azure role", retry: vi.fn(), check: vi.fn(), reportFailure: vi.fn(),
+          missingRoles: null, missingEntra: null, unregisteredProviders: [], registeringProviders: false, registerProviders: async () => {}, missingConsent: [], grantConsent: vi.fn(),
         };
         const latest = { version: "2", sha: "123456789", runId: "12", artifactId: 4, builtAt: 20 };
         const variables = { values: { VITE_GITHUB_CLIENT_ID: "client" }, loading: false, refreshing: false, error: false, onRefresh: async () => {}, onConfirmed: vi.fn() };

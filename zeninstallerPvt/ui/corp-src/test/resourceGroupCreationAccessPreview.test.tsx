@@ -7,14 +7,14 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Button, ThemeProvider } from "@mui/material";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useResourceGroupCreationAccess, type ResourceGroupCreationAccess as Access } from "../hooks/util/useResourceGroupCreationAccess";
-import ResourceGroupCreationAccess from "../components/ResourceGroupCreationAccess";
+import { useAzureAccessCheck, type ResourceGroupCreationAccess as Access } from "../hooks/util/useAzureAccessCheck";
+import AzureAccessCheck from "../components/AzureAccessCheck";
 import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
 import type { AzureAccount, AzureTarget } from "../types";
 import theme from "../theme";
 
 const check = vi.hoisted(() => vi.fn());
-vi.mock("../api/azureArm", () => ({ ensureResourceGroupCreationAccess: check }));
+vi.mock("../api/azureArm", async (importOriginal) => ({ ...await importOriginal<object>(), ensureResourceGroupCreationAccess: check }));
 
 const account = { tenantId: "tenant-1" } as AzureAccount;
 const target = { azureAccount: account, subscriptionId: "sub-1", tenantId: "tenant-1" };
@@ -23,13 +23,13 @@ let root: Root;
 let container: HTMLDivElement;
 
 function Harness(props: AzureTarget) {
-  const access = useResourceGroupCreationAccess(props);
+  const access = useAzureAccessCheck(props);
   useEffect(() => {
     latest = access;
   }, [access]);
   return (
     <ThemeProvider theme={theme}>
-      <ResourceGroupCreationAccess access={access} />
+      <AzureAccessCheck access={access} />
       <Button data-testid="create" disabled={access.status !== "ready"}>Create resources</Button>
     </ThemeProvider>
   );
