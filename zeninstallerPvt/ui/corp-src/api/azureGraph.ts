@@ -753,7 +753,7 @@ export async function getUserByUpn(account: AzureAccount, upn: string, overrideT
 // Graph requires a password; nobody is shown it, since the account's first sign-in uses a Temporary Access Pass.
 export async function createUser(
   account: AzureAccount,
-  params: { userPrincipalName: string; displayName: string; givenName: string; surname: string; mobilePhone?: string; mailNickname: string; password: string },
+  params: { userPrincipalName: string; displayName: string; givenName: string; surname: string; mobilePhone?: string; employeeId?: string; mailNickname: string; password: string },
   overrideTenantId?: string
 ): Promise<EntraUserRef> {
   const token = await getToken(account, USER_SCOPES, overrideTenantId);
@@ -778,18 +778,25 @@ export async function searchUsers(account: AzureAccount, query: string, override
   }));
 }
 
-export type AdminAccount = EntraUser & { manager: string | null }; // The manager's display name.
+// The signed-in user as that tenant sees them; a guest there has its own id.
+export async function getSignedInUser(account: AzureAccount, overrideTenantId?: string): Promise<EntraUser> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  const u: { id: string; displayName?: string; userPrincipalName: string } = await gFetch(token, GRAPH, "/me?$select=id,displayName,userPrincipalName");
+  return { id: u.id, displayName: u.displayName ?? u.userPrincipalName, userPrincipalName: u.userPrincipalName };
+}
+
+export type AdminAccount = EntraUser & { manager: string | null; managerId: string | null; employeeId: string | null }; // manager is the manager's display name.
 export type AdminPair = { user: AdminAccount; privileged: AdminAccount };
 
 // Every page of users matching the filter, with their manager's name.
 async function listUsersWithManager(token: string, filter: string): Promise<AdminAccount[]> {
   const users: AdminAccount[] = [];
-  let path: string | null = `/users?$filter=${encodeURIComponent(filter)}&$select=id,displayName,userPrincipalName&$expand=manager($select=displayName)&$top=100`;
+  let path: string | null = `/users?$filter=${encodeURIComponent(filter)}&$select=id,displayName,userPrincipalName,employeeId&$expand=manager($select=id,displayName)&$top=100`;
   while (path) {
-    const page: { value?: { id: string; displayName?: string; userPrincipalName: string; manager?: { displayName?: string } }[]; "@odata.nextLink"?: string } =
+    const page: { value?: { id: string; displayName?: string; userPrincipalName: string; employeeId?: string | null; manager?: { id?: string; displayName?: string } }[]; "@odata.nextLink"?: string } =
       await gFetch(token, GRAPH, path);
     for (const u of page?.value ?? []) {
-      users.push({ id: u.id, displayName: u.displayName ?? u.userPrincipalName, userPrincipalName: u.userPrincipalName, manager: u.manager?.displayName ?? null });
+      users.push({ id: u.id, displayName: u.displayName ?? u.userPrincipalName, userPrincipalName: u.userPrincipalName, manager: u.manager?.displayName ?? null, managerId: u.manager?.id ?? null, employeeId: u.employeeId ?? null });
     }
     const next = page?.["@odata.nextLink"];
     if (next && !next.startsWith(`${GRAPH}/`)) throw new Error("Graph returned an unexpected users URL");
@@ -798,20 +805,54 @@ async function listUsersWithManager(token: string, filter: string): Promise<Admi
   return users;
 }
 
-// An adm_ account plus the account with the same UPN minus adm_ is an admin this card made.
-export async function listAdminPairs(account: AzureAccount, overrideTenantId?: string): Promise<AdminPair[]> {
+// // An adm_ account plus the account with the same UPN minus adm_ is an admin this card made. // Deprecated: admins pair by employee ID and groups now; kept for reference.
+// export async function listAdminPairs(account: AzureAccount, overrideTenantId?: string): Promise<AdminPair[]> {
+//   const token = await getToken(account, USER_SCOPES, overrideTenantId);
+//   const privileged = await listUsersWithManager(token, "startswith(userPrincipalName,'adm_')");
+//   const users = new Map<string, AdminAccount>();
+//   for (let i = 0; i < privileged.length; i += 15) {
+//     // Graph takes at most 15 values in one in().
+//     const upns = privileged.slice(i, i + 15).map((p) => `'${p.userPrincipalName.slice(4).replace(/'/g, "''")}'`);
+//     for (const u of await listUsersWithManager(token, `userPrincipalName in (${upns.join(",")})`)) users.set(u.userPrincipalName.toLowerCase(), u);
+//   }
+//   return privileged
+//     .flatMap((p) => {
+//       const user = users.get(p.userPrincipalName.slice(4).toLowerCase());
+//       return user ? [{ user, privileged: p }] : [];
+//     })
+//     .sort((a, b) => a.user.displayName.localeCompare(b.user.displayName));
+// }
+
+// An admin this card made: an adm_ account in every privileged group, managed by a user account in every user group, both with the same employee ID.
+export async function listAdminPairs(
+  account: AzureAccount,
+  groups: { user: readonly string[]; privileged: readonly string[] },
+  overrideTenantId?: string
+): Promise<AdminPair[]> {
   const token = await getToken(account, USER_SCOPES, overrideTenantId);
-  const privileged = await listUsersWithManager(token, "startswith(userPrincipalName,'adm_')");
-  const users = new Map<string, AdminAccount>();
+  const groupIds = new Map(await Promise.all([...groups.user, ...groups.privileged].map(async (name) => [name, (await getGroupByName(account, name, overrideTenantId))?.id] as const)));
+  // Nobody is in a group that doesn't exist yet.
+  const inGroups = async (u: AdminAccount, names: readonly string[]) =>
+    (await Promise.all(names.map((name) => groupIds.get(name)).map((id) => !!id && isGroupMember(account, id, u.id, overrideTenantId)))).every(Boolean);
+  const onlyIn = async (users: AdminAccount[], names: readonly string[]) => {
+    const keep = await Promise.all(users.map((u) => inGroups(u, names)));
+    return users.filter((_, i) => keep[i]);
+  };
+  const idOf = (u: AdminAccount) => u.employeeId?.trim().toLowerCase() ?? "";
+
+  const privileged = await onlyIn((await listUsersWithManager(token, "startswith(userPrincipalName,'adm_')")).filter(idOf), groups.privileged);
+  const privilegedIds = new Set(privileged.map((p) => p.id));
+  const found: AdminAccount[] = [];
   for (let i = 0; i < privileged.length; i += 15) {
     // Graph takes at most 15 values in one in().
-    const upns = privileged.slice(i, i + 15).map((p) => `'${p.userPrincipalName.slice(4).replace(/'/g, "''")}'`);
-    for (const u of await listUsersWithManager(token, `userPrincipalName in (${upns.join(",")})`)) users.set(u.userPrincipalName.toLowerCase(), u);
+    const ids = privileged.slice(i, i + 15).map((p) => `'${(p.employeeId ?? "").trim().replace(/'/g, "''")}'`);
+    found.push(...(await listUsersWithManager(token, `employeeId in (${ids.join(",")})`)).filter((u) => !privilegedIds.has(u.id)));
   }
+  const users = new Map((await onlyIn(found, groups.user)).map((u) => [u.id, u]));
   return privileged
     .flatMap((p) => {
-      const user = users.get(p.userPrincipalName.slice(4).toLowerCase());
-      return user ? [{ user, privileged: p }] : [];
+      const user = p.managerId ? users.get(p.managerId) : undefined;
+      return user && idOf(user) === idOf(p) ? [{ user, privileged: p }] : [];
     })
     .sort((a, b) => a.user.displayName.localeCompare(b.user.displayName));
 }

@@ -65,11 +65,14 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
   editing: boolean;
   onEditToggle: () => void;
 }) {
-  const { admins, rowErrors, updateAdmin, removeAdmin, searchUsers, domains, primaryDomain, existingAdmins, licenceError, running, consentRequired } = adminUsers;
+  const { admins, rowErrors, rowWarnings, duplicateUpns, takenUpns, updateAdmin, removeAdmin, searchUsers, signedInUser, domains, primaryDomain, existingAdmins, licenceError, running, consentRequired } = adminUsers;
   const r = resolveAdmin(a);
   const defaultName = resolveAdmin({ ...a, displayName: null }).displayName;
   const defaultUpn = resolveAdmin({ ...a, username: null }).username;
   const domain = a.domain ?? primaryDomain;
+  // Red for a UPN an earlier row uses, amber for one Entra already has.
+  const upnColor = (name: string) =>
+    duplicateUpns[a.key]?.upn === name.trim() ? "error.main" : takenUpns.has(`${name.trim()}@${domain}`.toLowerCase()) ? "warning.dark" : undefined;
   // Consent has its own notice.
   const domainNote = domains || consentRequired ? null : licenceError ? `Couldn't read the domains: ${licenceError}` : "Reading the domains...";
   return (
@@ -88,6 +91,11 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
           {rowErrors[a.key] && (
             <Typography color="error.main" noWrap sx={{ minWidth: 0 }}>
               {rowErrors[a.key]}
+            </Typography>
+          )}
+          {rowWarnings[a.key] && (
+            <Typography data-sensitive="true" color="warning.dark" noWrap sx={{ minWidth: 0 }}>
+              {rowWarnings[a.key]}
             </Typography>
           )}
           <Arrow open={open} />
@@ -126,6 +134,16 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
               value={a.mobile}
               onChange={(e) => updateAdmin(a.key, { mobile: e.target.value })}
               inputProps={{ "data-sensitive": true }}
+              disabled={running}
+              sx={{ flex: 1 }}
+            />
+            <TextField
+              size="small"
+              label="Employee ID"
+              autoComplete="off"
+              value={a.employeeId}
+              onChange={(e) => updateAdmin(a.key, { employeeId: e.target.value })}
+              inputProps={{ maxLength: 16, "data-sensitive": true }} // Graph's limit.
               disabled={running}
               sx={{ flex: 1 }}
             />
@@ -170,6 +188,7 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
                             value={r.username}
                             onChange={(e) => updateAdmin(a.key, { username: e.target.value })}
                             disabled={running}
+                            error={upnColor(r.username) === "error.main"}
                             inputProps={{ "aria-label": `User ${index + 1} UPN`, "data-sensitive": true }}
                             InputProps={{
                               endAdornment: a.username !== null && a.username !== defaultUpn && (
@@ -178,7 +197,7 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
                                 </InputAdornment>
                               ),
                             }}
-                            sx={{ flexBasis: "100%" }} // The @domain goes on the next line.
+                            sx={{ flexBasis: "100%", "& input": { color: upnColor(r.username) } }} // The @domain goes on the next line.
                           />
                           <Typography color="text.secondary">@</Typography>
                           <DomainSelect
@@ -212,7 +231,7 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
                     </>
                   ) : (
                     <>
-                      <TableCell data-sensitive="true" sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>{r.username ? `${r.username}@${domain}` : "—"}</TableCell>
+                      <TableCell data-sensitive="true" sx={{ color: upnColor(r.username) ?? "text.secondary", overflowWrap: "anywhere" }}>{r.username ? `${r.username}@${domain}` : "—"}</TableCell>
                       <TableCell data-sensitive="true" sx={{ color: "text.secondary" }}>{r.displayName || "—"}</TableCell>
                     </>
                   )}
@@ -222,6 +241,7 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
                       self={a.key}
                       privileged={false}
                       value={a.manager}
+                      fallback={signedInUser && { label: `${signedInUser.displayName} (${signedInUser.userPrincipalName})`, group: "Signed-in user", id: signedInUser.id }}
                       admins={admins}
                       existing={existingAdmins ?? []}
                       search={searchUsers}
@@ -232,8 +252,11 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
                 </TableRow>
                 <TableRow>
                   <TableCell sx={{ color: "text.primary", whiteSpace: "nowrap" }}>Privileged account</TableCell>
-                  <TableCell data-sensitive="true" sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>{r.privilegedUsername ? `${r.privilegedUsername}@${domain}` : "—"}</TableCell>
+                  <TableCell data-sensitive="true" sx={{ color: upnColor(r.privilegedUsername) ?? "text.secondary", overflowWrap: "anywhere" }}>{r.privilegedUsername ? `${r.privilegedUsername}@${domain}` : "—"}</TableCell>
                   <TableCell data-sensitive="true" sx={{ color: "text.secondary" }}>{r.privilegedDisplayName || "—"}</TableCell>
+                  {/* The adm_ account's manager is always this admin's user account. */}
+                  <TableCell data-sensitive="true" sx={{ color: "text.secondary", overflowWrap: "anywhere" }}>{r.username ? `${r.username}@${domain}` : "User account"}</TableCell>
+                  {/* Deprecated: the adm_ account's manager is always its user account, so there's nothing to pick; kept for reference.
                   <TableCell>
                     <ManagerPicker
                       label={`User ${index + 1} privileged account manager`}
@@ -246,7 +269,7 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
                       onChange={(privilegedManager) => updateAdmin(a.key, { privilegedManager })}
                       disabled={running}
                     />
-                  </TableCell>
+                  </TableCell> */}
                 </TableRow>
               </TableBody>
             </Table>

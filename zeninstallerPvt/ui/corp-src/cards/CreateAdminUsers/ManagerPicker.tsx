@@ -16,15 +16,23 @@ function managerLabel(m: ManagerChoice, admins: AdminRow[], privileged: boolean)
   return (privileged ? r.privilegedDisplayName : r.displayName.trim()) || "New user";
 }
 
-const sameManager = (a: ManagerChoice, b: ManagerChoice) =>
-  a.kind === b.kind && (a.kind === "row" ? a.key === (b as typeof a).key : a.id === (b as typeof a).id);
+// What an empty pick means: the signed-in user, or this admin's user account. id is the Entra user it is, so it isn't listed twice.
+export type ManagerFallback = { label: string; group: string; id?: string };
 
-// Another admin in this list (new or existing), or an Entra user found by name or UPN, of the same kind (adm_ or not); empty means no manager.
-export default function ManagerPicker({ label, self, privileged, value, admins, existing, search, onChange, disabled }: {
+// The fallback stands in for a null pick.
+type Option = ManagerChoice | { kind: "fallback" };
+const FALLBACK: Option = { kind: "fallback" };
+
+const sameManager = (a: Option, b: Option) =>
+  a.kind === b.kind && (a.kind === "fallback" || (a.kind === "row" ? a.key === (b as typeof a).key : a.id === (b as typeof a).id));
+
+// The fallback, an admin above this one in the list or already in Entra, or an Entra user found by name or UPN, of the same kind (adm_ or not).
+export default function ManagerPicker({ label, self, privileged, value, fallback, admins, existing, search, onChange, disabled }: {
   label: string;
   self: string;
   privileged: boolean;
   value: ManagerChoice | null;
+  fallback: ManagerFallback | null; // Null until it's known.
   admins: AdminRow[];
   existing: AdminPair[];
   search: (query: string) => Promise<EntraUser[]>;
@@ -44,33 +52,38 @@ export default function ManagerPicker({ label, self, privileged, value, admins, 
     };
   }, [q, search]);
   // An existing admin's account of the same kind.
-  const listed = existing.map((x) => (privileged ? x.privileged : x.user));
-  const listedIds = new Set(listed.map((u) => u.id));
-  const options: ManagerChoice[] = [
-    ...admins.filter((o) => o.key !== self).map((o) => ({ kind: "row" as const, key: o.key })),
+  const listed = existing.map((x) => (privileged ? x.privileged : x.user)).filter((u) => u.id !== fallback?.id);
+  const listedIds = new Set([...listed.map((u) => u.id), ...(fallback?.id ? [fallback.id] : [])]);
+  // Only admins above, so each manager is created before their reports.
+  const above = admins.slice(0, Math.max(0, admins.findIndex((o) => o.key === self)));
+  const options: Option[] = [
+    ...(fallback ? [FALLBACK] : []),
+    ...above.map((o) => ({ kind: "row" as const, key: o.key })),
     ...listed.map(({ id, displayName, userPrincipalName }) => ({ kind: "entra" as const, id, displayName, userPrincipalName })),
     ...(q.length >= 2 && found.query === q ? found.users : [])
       .filter((u) => /^adm_/i.test(u.userPrincipalName) === privileged && !listedIds.has(u.id))
       .map((u) => ({ kind: "entra" as const, ...u })),
   ];
-  const inList = (m: ManagerChoice) => m.kind === "row" || listedIds.has(m.id);
+  const inList = (m: Option) => m.kind !== "entra" || listedIds.has(m.id);
   // Keeps a picked Entra user listed after the search results change.
   if (value && !options.some((o) => sameManager(o, value))) options.push(value);
-  const text = (m: ManagerChoice) => (m.kind === "entra" ? `${m.displayName} (${m.userPrincipalName})` : managerLabel(m, admins, privileged));
+  const text = (m: Option) =>
+    m.kind === "fallback" ? (fallback?.label ?? "") : m.kind === "entra" ? `${m.displayName} (${m.userPrincipalName})` : managerLabel(m, admins, privileged);
   return (
     <Autocomplete
       size="small"
       options={options}
-      value={value}
-      onChange={(_, m) => onChange(m)}
+      value={value ?? (fallback ? FALLBACK : null)}
+      onChange={(_, m) => onChange(m && m.kind !== "fallback" ? m : null)}
+      disableClearable={!value} // Clearing goes back to the fallback.
       onInputChange={(_, v, reason) => setQuery(reason === "input" ? v : "")}
-      groupBy={(m) => (inList(m) ? "In this list" : "Entra users")}
+      groupBy={(m) => (m.kind === "fallback" ? (fallback?.group ?? "") : inList(m) ? "In this list" : "Entra users")}
       getOptionLabel={text}
       isOptionEqualToValue={sameManager}
       filterOptions={(opts, { inputValue }) => opts.filter((m) => !inList(m) || text(m).toLowerCase().includes(inputValue.trim().toLowerCase()))}
       noOptionsText="Type a name or UPN to search Entra"
       disabled={disabled}
-      renderInput={(params) => <TextField {...params} placeholder="No manager" inputProps={{ ...params.inputProps, "aria-label": label, "data-sensitive": true }} />}
+      renderInput={(params) => <TextField {...params} placeholder="Signed-in user" inputProps={{ ...params.inputProps, "aria-label": label, "data-sensitive": true }} />}
     />
   );
 }

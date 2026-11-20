@@ -50,30 +50,20 @@ export type AdminGroup = {
 export const PRIVILEGED_GROUP = "PrivilegedAccounts";
 
 export const ADMIN_GROUPS: AdminGroup[] = [
-  { name: "PawUsers", description: "Signs in to the PAW desktop", memberOf: [], roles: [] },
   { name: "PrivilegedAccountApproved", description: "This group indicates that user has been approved to have a privileged account. This approval will be renewed during access review sessions that are run every 6 months.", memberOf: [], roles: [] },
   {
     name: PRIVILEGED_GROUP,
     description: "All enabled privileged accounts",
-    memberOf: ["PawUsers"],
+    memberOf: [],
     roleAssignable: true,
     roles: [{ directoryRole: "Global Administrator" }, { azureRole: "Owner", scope: "root" }],
   },
-  { name: "DbAdmin-Dev", description: "DB admins for Dev environments", memberOf: [], roles: [] },
-  { name: "DbAdmin-Test", description: "DB admins for Test environments", memberOf: [], roles: [] },
-  { name: "DbAdmin-Prod", description: "DB admins for Prod environments", memberOf: [], roles: [] },
   {
     name: "ResourceGroupDeployer",
     description:
       "This group should be assigned as owner of the subscription and should be added as member of all administration groups that are required to deploy resources in the environment",
-    memberOf: ["DbAdmin-Dev", "DbAdmin-Test", "DbAdmin-Prod"],
+    memberOf: [],
     roles: [{ azureRole: "Owner", scope: "subscription" }],
-  },
-  {
-    name: "LeadDeveloper",
-    description: "This group is used to assign environment administration permissions to lead developers.",
-    memberOf: ["ResourceGroupDeployer"],
-    roles: [],
   },
 ];
 

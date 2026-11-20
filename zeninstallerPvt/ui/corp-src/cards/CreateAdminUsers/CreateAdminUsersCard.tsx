@@ -32,7 +32,7 @@ type Props = {
 };
 
 const INTRO_POINTS = [
-  "Creates the security groups, with their nesting and roles.",
+  "Creates the security groups and their roles.",
   "Each admin gets a cloud-only user account and a privileged adm_ account.",
   "Needs Global Administrator in Entra, and Owner or User Access Administrator on the subscription and the tenant root management group.",
 ];

@@ -15,6 +15,7 @@ import {
   getGroupByName,
   getUserByUpn,
   getEntraLicence,
+  getSignedInUser,
   getUserManagerId,
   isGroupMember,
   listAdminPairs,
@@ -55,11 +56,12 @@ export type AdminRow = {
   givenName: string; // Legal name, as on the passport.
   surname: string;
   mobile: string;
+  employeeId: string; // The same on both accounts.
   displayName: string | null; // Null follows the default; the same for username.
   username: string | null; // The user account's UPN, before the @; the privileged account is always adm_ + this.
   domain: string | null; // After the @, for both accounts; null for the primary domain.
-  manager: ManagerChoice | null; // The user account's manager; null for none.
-  privilegedManager: ManagerChoice | null; // The adm_ account's manager, another adm_ account.
+  manager: ManagerChoice | null; // The user account's manager; null for the signed-in user. Another admin in this list must be above this one.
+  // privilegedManager: ManagerChoice | null; // Deprecated: the adm_ account's manager is always its user account; kept for reference.
 };
 
 export type ResolvedAdmin = { displayName: string; username: string; privilegedUsername: string; privilegedDisplayName: string };
@@ -89,10 +91,14 @@ export type UseCreateAdminUsersCard = CardHook & {
   readonly cardId: "create_admin_users";
   admins: AdminRow[];
   rowErrors: Record<string, string>;
+  rowWarnings: Record<string, string>; // A row whose UPN Entra already has; the run reuses that account instead of creating one.
+  duplicateUpns: Record<string, { upn: string; row: number }>; // A row whose UPN an earlier row already uses.
+  takenUpns: Set<string>; // Lowercase UPNs from the rows that Entra already has.
   addAdmin: () => string; // Returns the new row's key.
   updateAdmin: (key: string, patch: Partial<Omit<AdminRow, "key">>) => void;
   removeAdmin: (key: string) => void;
   searchUsers: (query: string) => Promise<EntraUser[]>; // For the manager picker.
+  signedInUser: EntraUser | null; // Every user account's default manager; null until read.
   domains: VerifiedDomain[] | null; // The tenant's verified domains; null until read.
   primaryDomain: string; // Empty until the domains are read.
   missingGroups: string[] | null; // Null until Entra was read.
@@ -121,28 +127,59 @@ const newAdmin = (): AdminRow => ({
   givenName: "",
   surname: "",
   mobile: "",
+  employeeId: "",
   displayName: null,
   username: null,
   domain: null,
   manager: null,
-  privilegedManager: null,
+  // privilegedManager: null, // Deprecated: the adm_ account's manager is always its user account; kept for reference.
 });
+
+// Whether any group sits in another; the nesting step shows only then.
+const NESTED = ADMIN_GROUPS.some((g) => g.memberOf.length > 0);
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-export function adminRowErrors(admins: AdminRow[]): Record<string, string> {
+// Each row with a UPN an earlier row already uses: that UPN, before the @, as typed, and the earlier row's number.
+export function duplicateUpns(admins: AdminRow[]): Record<string, { upn: string; row: number }> {
+  const seen = new Map<string, number>();
+  const duplicates: Record<string, { upn: string; row: number }> = {};
+  admins.forEach((a, i) => {
+    const r = resolveAdmin(a);
+    const names = [r.username, r.privilegedUsername].map((n) => n.trim()).filter(Boolean);
+    const upn = names.find((n) => seen.has(n.toLowerCase()));
+    if (upn) duplicates[a.key] = { upn, row: seen.get(upn.toLowerCase()) ?? 0 };
+    for (const n of names) if (!seen.has(n.toLowerCase())) seen.set(n.toLowerCase(), i + 1);
+  });
+  return duplicates;
+}
+
+// existing: admins already in Entra; their employee IDs are taken, except by a rerun for the same user account.
+export function adminRowErrors(admins: AdminRow[], existing: readonly AdminPair[] = [], primaryDomain = ""): Record<string, string> {
   const errors: Record<string, string> = {};
-  const seen = new Set<string>();
+  // const seen = new Set<string>(); // Deprecated: duplicateUpns finds the repeats; kept for reference.
+  const duplicates = duplicateUpns(admins);
+  const employeeIds = new Set<string>();
   for (const a of admins) {
     const r = resolveAdmin(a);
-    const names = [r.username, r.privilegedUsername].map((n) => n.trim().toLowerCase());
+    // const names = [r.username, r.privilegedUsername].map((n) => n.trim().toLowerCase()); // Deprecated: duplicateUpns finds the repeats; kept for reference.
+    const duplicate = duplicates[a.key];
+    const employeeId = a.employeeId.trim().toLowerCase();
+    const upn = `${r.username.trim()}@${a.domain ?? primaryDomain}`.toLowerCase();
+    const owner = !!(a.domain ?? primaryDomain) && existing.find((x) => x.user.employeeId?.trim().toLowerCase() === employeeId && x.user.userPrincipalName.toLowerCase() !== upn);
     if (!a.givenName.trim() || !a.surname.trim()) errors[a.key] = "Enter the first name and surname.";
     else if (!MOBILE.test(a.mobile.trim())) errors[a.key] = "Enter a mobile number, e.g. +61 400 000 000.";
+    else if (!a.employeeId.trim()) errors[a.key] = "Enter the employee ID.";
+    else if (employeeIds.has(a.employeeId.trim().toLowerCase())) errors[a.key] = "Each admin needs their own employee ID.";
+    else if (owner) errors[a.key] = `Employee ID ${a.employeeId.trim()} belongs to ${owner.user.userPrincipalName}, an existing admin.`;
     else if (!r.displayName.trim()) errors[a.key] = "Enter a display name.";
     else if (!USERNAME.test(r.username.trim())) errors[a.key] = "Use letters, numbers, dots, hyphens or underscores in the UPN.";
-    else if (names.some((n) => seen.has(n))) errors[a.key] = "Each account needs its own UPN.";
-    else if ([a.manager, a.privilegedManager].some((m) => m?.kind === "row" && !admins.some((o) => o.key === m.key))) errors[a.key] = "Pick another manager; that user was removed.";
-    for (const n of names) seen.add(n);
+    // else if (names.some((n) => seen.has(n))) errors[a.key] = "Each account needs its own UPN."; // Deprecated: the error names the UPN and the other row now; kept for reference.
+    else if (duplicate) errors[a.key] = `User ${duplicate.row} already uses ${duplicate.upn}; each account needs its own UPN.`;
+    // else if ([a.manager, a.privilegedManager].some((m) => m?.kind === "row" && !admins.some((o) => o.key === m.key))) errors[a.key] = "Pick another manager; that user was removed."; // Deprecated: only the user account has a pick; kept for reference.
+    else if ([a.manager].some((m) => m?.kind === "row" && !admins.some((o) => o.key === m.key))) errors[a.key] = "Pick another manager; that user was removed.";
+    // for (const n of names) seen.add(n); // Deprecated: duplicateUpns finds the repeats; kept for reference.
+    employeeIds.add(a.employeeId.trim().toLowerCase());
   }
   return errors;
 }
@@ -151,6 +188,8 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   const [admins, setAdmins] = useState<AdminRow[]>(() => [newAdmin()]);
   const [missingGroups, setMissingGroups] = useState<string[] | null>(null);
   const [existingAdmins, setExistingAdmins] = useState<AdminPair[] | null>(null);
+  const [signedInUser, setSignedInUser] = useState<EntraUser | null>(null);
+  const [takenUpns, setTakenUpns] = useState<Set<string>>(new Set()); // Lowercase UPNs from the rows that Entra already has.
   const [checkKey, setCheckKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [entraLicence, setEntraLicence] = useState<LicenceState>(null);
@@ -165,11 +204,12 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   useEffect(() => {
     if (!azureAccount || !tenantId) return;
     let cancelled = false;
-    Promise.all([Promise.all(ADMIN_GROUPS.map((g) => getGroupByName(azureAccount, g.name, tid))), listAdminPairs(azureAccount, tid)]).then(
-      ([found, pairs]) => {
+    Promise.all([Promise.all(ADMIN_GROUPS.map((g) => getGroupByName(azureAccount, g.name, tid))), listAdminPairs(azureAccount, { user: USER_ACCOUNT_GROUPS, privileged: PRIVILEGED_ACCOUNT_GROUPS }, tid), getSignedInUser(azureAccount, tid)]).then(
+      ([found, pairs, me]) => {
         if (cancelled) return;
         setMissingGroups(ADMIN_GROUPS.filter((_, i) => !found[i]).map((g) => g.name));
         setExistingAdmins(pairs);
+        setSignedInUser(me);
         setError(null);
       },
       (err) => {
@@ -222,18 +262,45 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   const roleTarget: RoleTarget = licenceAllows("p1", entraLicence) ? "group" : "users";
   const usePim = licenceAllows(PIM_OPTION.needs, entraLicence) && (pimChoice ?? true);
   const access = useCardResourceAccess({ azureAccount, subscriptionId, tenantId: tid }, createAdminUsersAccess(usePim));
-  const rowErrors = adminRowErrors(admins);
-  const canRun = !running && !!primaryDomain && access.status === "ready" && licenceAllows("none", entraLicence) && Object.keys(rowErrors).length === 0;
+  const rowErrors = adminRowErrors(admins, existingAdmins ?? [], primaryDomain);
+  // Each row's user and adm_ UPNs.
+  const rowUpns = (a: AdminRow) => {
+    const r = resolveAdmin(a);
+    const domain = a.domain ?? primaryDomain;
+    return r.username.trim() && domain ? [`${r.username.trim()}@${domain}`, `${r.privilegedUsername.trim()}@${domain}`] : [];
+  };
+  const upns = [...new Set(admins.flatMap(rowUpns))].join(" ");
+  // Looks the UPNs up in Entra once typing stops.
+  useEffect(() => {
+    if (!azureAccount || !upns) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      const list = upns.split(" ");
+      void Promise.all(list.map((upn) => getUserByUpn(azureAccount, upn, tid).then((u) => !!u, () => false))).then((found) => {
+        if (!cancelled) setTakenUpns(new Set(list.filter((_, i) => found[i]).map((upn) => upn.toLowerCase())));
+      });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [azureAccount, tid, upns]);
+  // A warning, not an error: a rerun finds the accounts it already made.
+  const rowWarnings = Object.fromEntries(admins.flatMap((a) => {
+    const existing = rowUpns(a).filter((upn) => takenUpns.has(upn.toLowerCase()));
+    return existing.length && !rowErrors[a.key] ? [[a.key, `Already in Entra: ${existing.join(", ")}. Running reuses ${existing.length > 1 ? "these accounts" : "this account"} instead of creating one.`]] : [];
+  }));
+  const canRun = !running && !!primaryDomain && !!signedInUser && access.status === "ready" && licenceAllows("none", entraLicence) && Object.keys(rowErrors).length === 0;
 
   const run = useCallback(async () => {
-    if (!azureAccount || !tenantId || !canRun) return;
+    if (!azureAccount || !tenantId || !signedInUser || !canRun) return;
     // Every admin gets a user account and an adm_ account, each in its fixed groups.
     const accounts = admins.flatMap((a) => {
       const r = resolveAdmin(a);
       const domain = a.domain ?? primaryDomain;
       return [
-        { a, kind: "user", upn: `${r.username.trim()}@${domain}`, displayName: r.displayName.trim(), groups: USER_ACCOUNT_GROUPS, manager: a.manager },
-        { a, kind: "priv", upn: `${r.privilegedUsername.trim()}@${domain}`, displayName: r.privilegedDisplayName, groups: PRIVILEGED_ACCOUNT_GROUPS, manager: a.privilegedManager },
+        { a, kind: "user", upn: `${r.username.trim()}@${domain}`, displayName: r.displayName.trim(), groups: USER_ACCOUNT_GROUPS },
+        { a, kind: "priv", upn: `${r.privilegedUsername.trim()}@${domain}`, displayName: r.privilegedDisplayName, groups: PRIVILEGED_ACCOUNT_GROUPS },
       ];
     });
     // Assigned to users, the accounts hold PrivilegedAccounts' directory roles; with PIM its roles are eligible.
@@ -251,10 +318,10 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     setSteps(
       [
         { id: "groups", label: "Create the security groups" },
-        { id: "nesting", label: "Nest the groups" },
+        ...(NESTED ? [{ id: "nesting", label: "Nest the groups" }] : []),
         ...roleSteps.map(({ id, label }) => ({ id, label })),
         ...accounts.map((acc) => ({ id: `${acc.kind}:${acc.a.key}`, label: `Create ${acc.upn}` })),
-        ...(accounts.some((acc) => acc.manager) ? [{ id: "managers", label: "Set the managers" }] : []),
+        // ...(accounts.some((acc) => acc.manager) ? [{ id: "managers", label: "Set the managers" }] : []), // Deprecated: each account's manager is set as it is created; kept for reference.
       ].map((s) => ({ ...s, status: "pending" as const }))
     );
     setRunning(true);
@@ -286,7 +353,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
         return;
       }
 
-      updateStep("nesting", "running");
+      updateStep("nesting", "running"); // A no-op without the step.
       try {
         let added = 0;
         for (const g of ADMIN_GROUPS) {
@@ -321,10 +388,24 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
         }
       }
 
-      const users = new Map<string, { id: string; existed: boolean }>(); // Step id → account, also for managers picked from this list.
+      // Step id → account; a manager from this list is above its reports, so it's created first.
+      const users = new Map<string, { id: string; existed: boolean; displayName: string }>();
+      // An adm_ account's manager is the same admin's user account; a user account's is the pick, else the signed-in user.
+      // A pick from this list is that admin's user account.
+      const managerOf = (a: AdminRow, kind: string) => {
+        if (kind === "priv") return users.get(`user:${a.key}`);
+        if (!a.manager) return signedInUser;
+        return a.manager.kind === "row" ? users.get(`user:${a.manager.key}`) : a.manager;
+      };
       for (const { a, kind, upn, displayName, groups } of accounts) {
         const stepId = `${kind}:${a.key}`;
         updateStep(stepId, "running");
+        // No account is created without a manager.
+        const manager = managerOf(a, kind);
+        if (!manager) {
+          updateStep(stepId, "error", kind === "priv" ? "Not created, because the user account failed" : "Not created, because its manager's account failed");
+          continue;
+        }
         try {
           let user = await getUserByUpn(azureAccount, upn, tid);
           const existed = !!user;
@@ -337,49 +418,59 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
                 givenName: a.givenName.trim(),
                 surname: a.surname.trim(),
                 mobilePhone: a.mobile.trim(),
+                employeeId: a.employeeId.trim(),
                 mailNickname: upn.split("@")[0].replace(/[^a-zA-Z0-9]/g, "").toLowerCase(),
                 password: generateRandomPassword(30),
               },
               tid
             );
           }
+          // Graph can't set the manager in the create call; if this fails, a rerun finds the account without one and sets it.
+          // An existing account keeps the manager it has.
+          const kept = existed && !!(await getUserManagerId(azureAccount, user.id, tid));
+          if (!kept) await setUserManager(azureAccount, user.id, manager.id, tid);
+          users.set(stepId, { id: user.id, existed, displayName }); // Has a manager, so its reports can be created.
           for (const name of groups) {
             if (!(await isGroupMember(azureAccount, ids.get(name)!, user.id, tid))) await addGroupMember(azureAccount, ids.get(name)!, user.id, tid);
           }
-          users.set(stepId, { id: user.id, existed });
           const roles = groups.includes(PRIVILEGED_GROUP) ? userRoles : [];
           const ensureRole = usePim ? ensureDirectoryRoleEligibility : ensureDirectoryRoleAssignment;
           for (const role of roles) await ensureRole(azureAccount, user.id, DIRECTORY_ROLE_IDS[role], tid);
-          const membership = [groups.length ? `member of ${groups.join(", ")}` : "in no groups", ...roles.map((r) => (usePim ? `eligible for ${r}` : r))].join(", ");
-          updateStep(stepId, "done", existed ? `Already existed, now ${membership}` : `Created, ${membership}`);
+          const membership = [
+            kept ? "manager kept" : `manager ${manager.displayName}`,
+            groups.length ? `member of ${groups.join(", ")}` : "in no groups",
+            ...roles.map((r) => (usePim ? `eligible for ${r}` : r)),
+          ].join(", ");
+          updateStep(stepId, "done", existed ? `Already existed, ${membership}` : `Created, ${membership}`);
         } catch (err) {
           fail(stepId, err);
         }
       }
 
-      if (accounts.some((acc) => acc.manager)) {
-        updateStep("managers", "running");
-        try {
-          let set = 0;
-          for (const { a, kind, manager: m } of accounts) {
-            const user = users.get(`${kind}:${a.key}`);
-            if (!user || !m) continue; // Its account failed, or it has no manager.
-            const managerId = m.kind === "row" ? users.get(`${kind}:${m.key}`)?.id : m.id; // From this list: their account of the same kind.
-            // An existing account keeps the manager it has.
-            if (!managerId || (user.existed && (await getUserManagerId(azureAccount, user.id, tid)))) continue;
-            await setUserManager(azureAccount, user.id, managerId, tid);
-            set++;
-          }
-          updateStep("managers", set ? "done" : "skipped", set ? `Set for ${set} user${set > 1 ? "s" : ""}` : "Already set");
-        } catch (err) {
-          fail("managers", err);
-        }
-      }
+      // Deprecated: each account's manager is set as it is created; kept for reference.
+      // if (accounts.some((acc) => acc.manager)) {
+      //   updateStep("managers", "running");
+      //   try {
+      //     let set = 0;
+      //     for (const { a, kind, manager: m } of accounts) {
+      //       const user = users.get(`${kind}:${a.key}`);
+      //       if (!user || !m) continue; // Its account failed, or it has no manager.
+      //       const managerId = m.kind === "row" ? users.get(`${kind}:${m.key}`)?.id : m.id; // From this list: their account of the same kind.
+      //       // An existing account keeps the manager it has.
+      //       if (!managerId || (user.existed && (await getUserManagerId(azureAccount, user.id, tid)))) continue;
+      //       await setUserManager(azureAccount, user.id, managerId, tid);
+      //       set++;
+      //     }
+      //     updateStep("managers", set ? "done" : "skipped", set ? `Set for ${set} user${set > 1 ? "s" : ""}` : "Already set");
+      //   } catch (err) {
+      //     fail("managers", err);
+      //   }
+      // }
     } finally {
       setRunning(false);
       setCheckKey((k) => k + 1);
     }
-  }, [azureAccount, tenantId, tid, canRun, primaryDomain, admins, subscriptionId, roleTarget, usePim, setSteps, setRunning, updateStep]);
+  }, [azureAccount, tenantId, tid, canRun, signedInUser, primaryDomain, admins, subscriptionId, roleTarget, usePim, setSteps, setRunning, updateStep]);
 
   // const requestConsent = useCallback(async () => { // Deprecated: the access check's Grant consent covers these scopes; kept for reference.
   //   if (!azureAccount) return;
@@ -413,10 +504,14 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     done,
     admins,
     rowErrors,
+    rowWarnings,
+    duplicateUpns: duplicateUpns(admins),
+    takenUpns,
     addAdmin,
     updateAdmin,
     removeAdmin,
     searchUsers: findUsers,
+    signedInUser,
     domains,
     primaryDomain,
     missingGroups,
