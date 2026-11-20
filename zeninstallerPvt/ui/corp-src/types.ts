@@ -30,6 +30,7 @@ export type CardId =
   | "privavd_gallery"
   | "privavd_image"
   | "privavd_paw"
+  | "proto_card"
   | "aws_sso"
   | "aws_sso_stack"
   | `stage_${string}`;
