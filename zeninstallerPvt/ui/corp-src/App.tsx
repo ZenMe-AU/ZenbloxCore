@@ -10,6 +10,7 @@ import { type CardChrome, type CardHook, type CardId } from "./types";
 import { groupSx } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./cards/GithubLogin/useGithubLoginCard";
+import ProtoCard from "./cards/ProtoCard/ProtoCard";
 import { useGithubSignupCard } from "./cards/GithubSignup/useGithubSignupCard";
 import { useRepoCard } from "./cards/Repo/useRepoCard";
 import { useGithubVariables } from "./hooks/useGithubVariables";
@@ -67,6 +68,7 @@ import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
+import { useProtoCard } from "./cards/ProtoCard/useProtoCard";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -81,6 +83,8 @@ function AppDashboard() {
     return newCard;
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
+  addCard(useProtoCard());
+
   const githubLogin = addCard(useGithubLoginCard());
   const githubSignup = addCard(useGithubSignupCard(githubLogin.done));
 
@@ -485,6 +489,9 @@ function AppDashboard() {
                 />
               </Box>
 
+              <ProtoCard card={cardProps("proto_card")} />
+
+
               <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
 
               <GithubSignupCard card={cardProps("github_signup")} signup={githubSignup} onOpenLogin={() => openCard("github_login")} />
@@ -646,6 +653,7 @@ function AppDashboard() {
               />
 
               <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
+
             </Box>
           </Box>
         </Box >
