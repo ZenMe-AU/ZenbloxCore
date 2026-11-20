@@ -34,7 +34,7 @@ export type CardId =
   | "aws_sso"
   | "aws_sso_stack"
   | `stage_${string}`;
-export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped" | "unavailable";
+export type CardStatus = "idle" | "loading" | "complete" | "warning" | "error" | "skipped" | "unavailable" | "locked";
 
 export type CardRequirements = CardId[]; //["github_login","repo"]
 

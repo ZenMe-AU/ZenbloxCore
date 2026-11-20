@@ -83,7 +83,7 @@ function AppDashboard() {
     return newCard;
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
-  addCard(useProtoCard());
+  const protoCard = addCard(useProtoCard());
 
   const githubLogin = addCard(useGithubLoginCard());
   const githubSignup = addCard(useGithubSignupCard(githubLogin.done));
@@ -489,8 +489,7 @@ function AppDashboard() {
                 />
               </Box>
 
-              <ProtoCard card={cardProps("proto_card")} />
-
+              <ProtoCard card={cardProps("proto_card")} protoCard={protoCard} />
 
               <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
 
