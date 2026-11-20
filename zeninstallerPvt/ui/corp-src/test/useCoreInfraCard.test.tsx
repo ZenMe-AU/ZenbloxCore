@@ -63,9 +63,9 @@ const { configMocks } = vi.hoisted(() => ({
   },
 }));
 
+vi.mock("../hooks/util/useAzureAccessCheck", async (importOriginal) => ({ ...await importOriginal<object>(), ensureCardResourceAccess: apiMocks.ensureResourceGroupCreationAccess }));
 vi.mock("../api/azureArm", async (importOriginal) => ({
   ...await importOriginal<typeof import("../api/azureArm")>(),
-  ensureCardResourceAccess: apiMocks.ensureResourceGroupCreationAccess,
   ensureResourceGroupCreationAccess: apiMocks.ensureResourceGroupCreationAccess,
   getProviderRegistrationState: apiMocks.getProviderRegistrationState,
   registerProvider: apiMocks.registerProvider,
@@ -96,7 +96,6 @@ vi.mock("../config/azureConfig", async (importOriginal) => ({
   get AZURE_CLIENT_ID() {
     return configMocks.azureClientId;
   },
-  CORE_INFRA_PROVIDERS: ["Microsoft.OperationalInsights", "Microsoft.Insights", "Microsoft.Storage"],
   ARM_SCOPES: ["arm.scope"],
   APP_SCOPES: ["app.scope"],
 }));

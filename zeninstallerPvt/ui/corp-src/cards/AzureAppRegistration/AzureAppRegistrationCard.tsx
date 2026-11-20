@@ -328,7 +328,7 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
                 </Box>
               )}
 
-              {(appReg.managementAccess.status === "checking" || appReg.managementAccess.status === "error") && (
+              {(appReg.managementAccess.status === "warning" || appReg.managementAccess.status === "error") && (
                 <Prerequisites id="azure-app-registration-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
                   <AzureAccessCheck access={appReg.managementAccess} resourceAccess errorStyle />
                 </Prerequisites>

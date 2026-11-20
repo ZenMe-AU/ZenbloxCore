@@ -193,7 +193,7 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
           </Box>
         )}
 
-        {(infra.creationAccess.status === "checking" || infra.creationAccess.status === "error") && (
+        {(infra.creationAccess.status === "warning" || infra.creationAccess.status === "error") && (
           <Prerequisites id="remote-terminal-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             <AzureAccessCheck access={infra.creationAccess} resourceAccess errorStyle />
           </Prerequisites>

@@ -42,27 +42,30 @@ export const PIPELINES: Record<string, PipelineConfig> = {
        * RootRg was replaced by the Corp Domain Setup + Terraform Setup cards,
        * which create the same resources directly via ARM/Graph from the browser.
        */
-      {
-        dir: "UserAccounts",
-        workflowId: PLAN_STAGE_WORKFLOW,
-        deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
-        label: "User accounts and sign-in",
-        description: "Creates user accounts from your user list, sets up the security groups and memberships you specify, assigns each user's configured directory roles, enables FIDO2 as an authentication method, and verifies and sets your DNS domain as the tenant's primary domain.",
-        azurePermissions: [
-          GRAPH_PERMISSIONS.GroupReadWriteAll,
-          GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
-          GRAPH_PERMISSIONS.UserReadWriteAll,
-          GRAPH_PERMISSIONS.RoleManagementReadWriteDirectory,
-          GRAPH_PERMISSIONS.UserAuthenticationMethodReadWriteAll,
-          GRAPH_PERMISSIONS.PolicyReadWriteAuthenticationMethod,
-          GRAPH_PERMISSIONS.DomainReadWriteAll,
-        ],
-        prerequisites: [
-          { type: "var", key: "NAME" },
-          { type: "var", key: "DNS" },
-          { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
-        ],
-      },
+       /*
+       * UserAccount replaced by the create admin user card
+       */
+      // {
+      //   dir: "UserAccounts",
+      //   workflowId: PLAN_STAGE_WORKFLOW,
+      //   deployWorkflowId: DEPLOY_STAGE_WORKFLOW,
+      //   label: "User accounts and sign-in",
+      //   description: "Creates user accounts from your user list, sets up the security groups and memberships you specify, assigns each user's configured directory roles, enables FIDO2 as an authentication method, and verifies and sets your DNS domain as the tenant's primary domain.",
+      //   azurePermissions: [
+      //     GRAPH_PERMISSIONS.GroupReadWriteAll,
+      //     GRAPH_PERMISSIONS.GroupMemberReadWriteAll,
+      //     GRAPH_PERMISSIONS.UserReadWriteAll,
+      //     GRAPH_PERMISSIONS.RoleManagementReadWriteDirectory,
+      //     GRAPH_PERMISSIONS.UserAuthenticationMethodReadWriteAll,
+      //     GRAPH_PERMISSIONS.PolicyReadWriteAuthenticationMethod,
+      //     GRAPH_PERMISSIONS.DomainReadWriteAll,
+      //   ],
+      //   prerequisites: [
+      //     { type: "var", key: "NAME" },
+      //     { type: "var", key: "DNS" },
+      //     { type: "varGroup", keys: AZURE_VARIABLE_KEYS, label: "Azure variables configured" },
+      //   ],
+      // },
       /*
        * AwsEntraSso and AwsEntraSsoP2 were replaced by the AWS single sign-on and AWS console
        * sign-in stack cards, which set up the Entra app from the browser and AWS through CloudFormation.

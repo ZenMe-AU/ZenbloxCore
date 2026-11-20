@@ -62,13 +62,14 @@ vi.mock("../api", () => ({
   setOidcImmutableSubject: apiMocks.setOidcImmutableSubject,
 }));
 
+vi.mock("../hooks/util/useAzureAccessCheck", async (importOriginal) => ({ ...await importOriginal<object>(), ensureCardResourceAccess: apiMocks.ensureCardResourceAccess }));
 vi.mock("../api/azureArm", async (importOriginal) => ({
   ...await importOriginal<typeof import("../api/azureArm")>(),
-  ensureCardResourceAccess: apiMocks.ensureCardResourceAccess,
 }));
 
 vi.mock("../api/azureGraph", () => ({
   ensureServicePrincipalAccess: apiMocks.ensureServicePrincipalAccess,
+  ensureEntraActions: async () => {},
   getExistingApp: apiMocks.getExistingApp,
   getAppNameByAppId: apiMocks.getAppNameByAppId,
   createAppRegistration: apiMocks.createAppRegistration,
@@ -532,7 +533,7 @@ describe("useAzureAppRegistrationCard", () => {
       root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />);
     });
 
-    apiMocks.ensureCardResourceAccess.mockRejectedValueOnce(new Error("Missing roleAssignments/write"));
+    apiMocks.ensureCardResourceAccess.mockResolvedValueOnce({ missingRoles: "Missing roleAssignments/write", unregisteredProviders: [], missingConsent: [] });
     await act(async () => { await latest?.run(); });
     expect(latest?.steps[0]).toMatchObject({ id: "access", status: "error", detail: "Missing roleAssignments/write" });
     expect(apiMocks.ensureScopeConsent).not.toHaveBeenCalled();

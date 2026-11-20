@@ -3,8 +3,8 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback } from "react";
-import { getProviderRegistrationState, registerProvider } from "../../api/azureArm";
+import { useCallback, useEffect, useState } from "react";
+import { formatAzureAccessError, getProviderRegistrationState, listUnregisteredProviders, registerProvider } from "../../api/azureArm";
 import type { AzureAccount } from "../../types";
 
 const POLL_START_MS = 2000;
@@ -51,3 +51,48 @@ export function useProviderRegistration({ azureAccount, subscriptionId, tenantId
 
   return { ensureRegistered };
 }
+
+// Which of these aren't registered yet, and a click that registers them; idle until there is an account and subscription.
+export function useUnregisteredProviders(target: UseProviderRegistrationParams, namespaces: readonly string[]) {
+  const { azureAccount, subscriptionId, tenantId } = target;
+  const { ensureRegistered } = useProviderRegistration(target);
+  const [attempt, setAttempt] = useState(0);
+  const [registering, setRegistering] = useState(false);
+  const [result, setResult] = useState<{ key: string; unregistered: string[]; error: string | null } | null>(null);
+  const list = namespaces.join(",");
+  const key = `${azureAccount?.homeAccountId}|${subscriptionId}|${tenantId}|${list}|${attempt}`;
+
+  useEffect(() => {
+    if (!azureAccount || !subscriptionId || !list) return;
+    let cancelled = false;
+    listUnregisteredProviders(azureAccount, subscriptionId, list.split(","), tenantId).then(
+      (unregistered) => { if (!cancelled) setResult({ key, unregistered, error: null }); },
+      (error: unknown) => { if (!cancelled) setResult({ key, unregistered: [], error: formatAzureAccessError(error) }); }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [azureAccount, subscriptionId, tenantId, list, key]);
+
+  const current = result?.key === key ? result : null;
+  const register = async () => {
+    if (!current?.unregistered.length) return;
+    setRegistering(true);
+    try {
+      await ensureRegistered(current.unregistered);
+      setAttempt((n) => n + 1);
+    } catch (error) {
+      setResult({ ...current, error: formatAzureAccessError(error) });
+    } finally {
+      setRegistering(false);
+    }
+  };
+  const status = !azureAccount || !subscriptionId ? "idle" as const
+    : !list ? "ready" as const
+    : !current ? "checking" as const
+    : current.error ? "error" as const
+    : current.unregistered.length ? "unregistered" as const : "ready" as const;
+  return { status, unregistered: current?.unregistered ?? [], error: current?.error ?? null, registering, register, retry: () => setAttempt((n) => n + 1) };
+}
+
+export type UnregisteredProviders = ReturnType<typeof useUnregisteredProviders>;

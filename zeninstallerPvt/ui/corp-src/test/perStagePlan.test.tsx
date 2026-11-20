@@ -239,11 +239,11 @@ describe("Run Status Update triggers one stage", () => {
     const empty = { create: 0, update: 0, delete: 0, replace: 0 };
     await act(async () => {
       plan().setStageSummary("SubscriptionBudget", empty);
-      plan().setStageSummary("GlobalGroups", empty);
+      plan().setStageSummary("CloudFront", empty);
     });
     await act(async () => plan().onRun("SubscriptionBudget"));
     expect(plan().stageSummaries.SubscriptionBudget).toBeUndefined();
-    expect(plan().stageSummaries.GlobalGroups).toEqual(empty);
+    expect(plan().stageSummaries.CloudFront).toEqual(empty);
   });
 
   it("invalidates another stage's summary when its report identity changes", async () => {
@@ -252,9 +252,9 @@ describe("Run Status Update triggers one stage", () => {
     await act(async () => plan().setStageSummary("SubscriptionBudget", { create: 0, update: 0, delete: 0, replace: 0 }));
     vi.useFakeTimers();
     try {
-      await act(async () => plan().onRun("GlobalGroups"));
+      await act(async () => plan().onRun("CloudFront"));
       reportFor("SubscriptionBudget", "plan", { stage: "SubscriptionBudget", status: "success", runId: "new", planJsonId: 2 });
-      reportFor("GlobalGroups", "plan", { stage: "GlobalGroups", status: "success", runId: "groups" }, Date.now() + 150_000);
+      reportFor("CloudFront", "plan", { stage: "CloudFront", status: "success", runId: "groups" }, Date.now() + 150_000);
       await act(async () => vi.advanceTimersByTimeAsync(151_000));
       expect(plan().stages.find((stage) => stage.stage === "SubscriptionBudget")?.runId).toBe("new");
       expect(plan().stageSummaries.SubscriptionBudget).toBeUndefined();
@@ -359,10 +359,10 @@ describe("a run belongs to the card that started it", () => {
     const plan = await mount();
 
     await act(async () => {
-      await plan().onRun("UserAccounts");
+      await plan().onRun("CloudFront");
     });
 
-    expect(plan().runs["UserAccounts"].error).toBe("Failed to trigger workflow");
+    expect(plan().runs["CloudFront"].error).toBe("Failed to trigger workflow");
     expect(plan().runs["SubscriptionBudget"]).toBeUndefined();
   });
 

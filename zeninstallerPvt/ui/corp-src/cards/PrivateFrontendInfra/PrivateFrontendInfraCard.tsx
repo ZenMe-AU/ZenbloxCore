@@ -176,7 +176,7 @@ export default function PrivateFrontendInfraCard({
           </Box>
         )}
 
-        {(infra.creationAccess.status === "checking" || infra.creationAccess.status === "error") && (
+        {(infra.creationAccess.status === "warning" || infra.creationAccess.status === "error") && (
           <Prerequisites id="private-frontend-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             <AzureAccessCheck access={infra.creationAccess} resourceAccess errorStyle />
           </Prerequisites>

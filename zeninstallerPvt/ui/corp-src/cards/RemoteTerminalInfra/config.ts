@@ -3,40 +3,81 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { CardResourceAccessRequest } from "../../api/azureArm";
-import { REMOTE_TERMINAL_PROVIDERS, readWrite } from "../../config/azureConfig";
+import type { ArmRole, CardResourceAccessRequest } from "../../types";
+import { APP_SCOPES, readWrite } from "../../config/azureConfig";
 import { TERMINAL_DEPLOY_CONTAINER, TERMINAL_HUB, TERMINAL_SESSION_TABLE } from "../../logic/naming";
 
 const ROLE_ASSIGNMENTS = [...readWrite("Microsoft.Authorization/roleAssignments"), "Microsoft.Authorization/roleDefinitions/read"];
 
 type Names = { resourceGroup: string; workspace: string; storageAccount: string; appInsights: string; webPubSub: string; functionApp: string; servicePlan: string };
 
-// Azure permissions this card needs to create the backend: storage, App Insights, Web PubSub and the Function App with its plan.
-export const remoteTerminalInfraAccess = (n: Names): CardResourceAccessRequest => ({
-  resourceGroup: n.resourceGroup,
-  createGroup: { providers: REMOTE_TERMINAL_PROVIDERS },
-  resources: [
-    { type: "Microsoft.OperationalInsights/workspaces", api: "2022-10-01", name: n.workspace, actions: readWrite("Microsoft.OperationalInsights/workspaces") },
+export const RESOURCE_PROVIDERS: readonly string[] = [
+  "Microsoft.OperationalInsights",
+  "Microsoft.Insights",
+  "Microsoft.Storage",
+  "Microsoft.SignalRService",
+  "Microsoft.Web",
+];
+const APP_CONSENT: readonly string[] = APP_SCOPES;
+const armRoles = (n: Names): readonly ArmRole[] => {
+  const { resourceGroup } = n;
+  return [
     {
-      type: "Microsoft.Storage/storageAccounts", api: "2023-01-01", name: n.storageAccount, locate: true,
+      scope: { resourceGroup },
+      actions: ["Microsoft.Resources/subscriptions/resourceGroups/read"],
+    },
+    {
+      scope: { resourceGroup, resource: `Microsoft.OperationalInsights/workspaces/${n.workspace}` },
+      actions: readWrite("Microsoft.OperationalInsights/workspaces"),
+    },
+    {
+      scope: { resourceGroup, resource: `Microsoft.Storage/storageAccounts/${n.storageAccount}`, locate: true },
+      createActions: ["Microsoft.Storage/checkNameAvailability/read"],
       actions: [...readWrite("Microsoft.Storage/storageAccounts"), ...ROLE_ASSIGNMENTS],
-      whenCreating: ["Microsoft.Storage/checkNameAvailability/read"],
       children: [
-        { path: `blobServices/default/containers/${TERMINAL_DEPLOY_CONTAINER}`, actions: readWrite("Microsoft.Storage/storageAccounts/blobServices/containers") },
-        { path: `tableServices/default/tables/${TERMINAL_SESSION_TABLE}`, actions: readWrite("Microsoft.Storage/storageAccounts/tableServices/tables") },
+        {
+          path: `blobServices/default/containers/${TERMINAL_DEPLOY_CONTAINER}`,
+          actions: readWrite("Microsoft.Storage/storageAccounts/blobServices/containers"),
+        },
+        {
+          path: `tableServices/default/tables/${TERMINAL_SESSION_TABLE}`,
+          actions: readWrite("Microsoft.Storage/storageAccounts/tableServices/tables"),
+        },
       ],
     },
-    { type: "Microsoft.Insights/components", api: "2020-02-02", name: n.appInsights, actions: [...readWrite("Microsoft.Insights/components"), ...ROLE_ASSIGNMENTS] },
     {
-      type: "Microsoft.SignalRService/webPubSub", api: "2023-02-01", name: n.webPubSub, locate: true,
+      scope: { resourceGroup, resource: `Microsoft.Insights/components/${n.appInsights}` },
+      actions: [...readWrite("Microsoft.Insights/components"), ...ROLE_ASSIGNMENTS],
+    },
+    {
+      scope: { resourceGroup, resource: `Microsoft.SignalRService/webPubSub/${n.webPubSub}`, locate: true },
+      createActions: ["Microsoft.SignalRService/locations/checkNameAvailability/action"],
       actions: [...readWrite("Microsoft.SignalRService/webPubSub"), ...ROLE_ASSIGNMENTS],
-      whenCreating: ["Microsoft.SignalRService/locations/checkNameAvailability/action"],
-      children: [{ path: `hubs/${TERMINAL_HUB}`, actions: readWrite("Microsoft.SignalRService/webPubSub/hubs") }],
+      children: [
+        {
+          path: `hubs/${TERMINAL_HUB}`,
+          actions: readWrite("Microsoft.SignalRService/webPubSub/hubs"),
+        },
+      ],
     },
     {
-      type: "Microsoft.Web/sites", api: "2023-12-01", name: n.functionApp, locate: true, actions: readWrite("Microsoft.Web/sites"),
-      whenCreating: ["Microsoft.Web/checkNameAvailability/read"],
-      alongside: [{ type: "Microsoft.Web/serverfarms", api: "2023-12-01", name: n.servicePlan, actions: readWrite("Microsoft.Web/serverfarms") }],
+      scope: { resourceGroup, resource: `Microsoft.Web/sites/${n.functionApp}`, locate: true },
+      createActions: ["Microsoft.Web/checkNameAvailability/read"],
+      actions: readWrite("Microsoft.Web/sites"),
     },
-  ],
+    {
+      // The card puts the plan in the Function App's group.
+      scope: { resourceGroup, resource: `Microsoft.Web/serverfarms/${n.servicePlan}`, locate: `Microsoft.Web/sites/${n.functionApp}` },
+      actions: readWrite("Microsoft.Web/serverfarms"),
+    },
+  ];
+};
+const ENTRA_ROLES: readonly string[] = [];
+
+// Azure permissions this card needs to create the backend: storage, App Insights, Web PubSub and the Function App with its plan.
+export const remoteTerminalInfraAccess = (n: Names): CardResourceAccessRequest => ({
+  resourceProviders: RESOURCE_PROVIDERS,
+  appConsent: APP_CONSENT,
+  armRoles: armRoles(n),
+  entraRoles: ENTRA_ROLES,
 });

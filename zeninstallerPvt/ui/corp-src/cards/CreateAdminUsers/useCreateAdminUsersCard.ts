@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { getMsal } from "../../auth/msal";
+// import { getMsal } from "../../auth/msal"; // Deprecated: the access check's Grant consent covers these scopes; kept for reference.
 import { AZURE_CLIENT_ID, DIRECTORY_ROLE_IDS } from "../../config/azureConfig";
 import {
   addGroupMember,
@@ -34,7 +34,7 @@ import { createRandomUuid } from "../../logic/randomUuid";
 import type { AzureAccount, CardHook, CardStatus, SetupStep } from "../../types";
 import {
   ADMIN_GROUPS,
-  ADMIN_USERS_SCOPES,
+  // ADMIN_USERS_SCOPES, // Deprecated: the access check's Grant consent covers these scopes; kept for reference.
   createAdminUsersAccess,
   CREATE_ADMIN_USERS_TITLE,
   PRIVILEGED_ACCOUNT_GROUPS,
@@ -109,7 +109,7 @@ export type UseCreateAdminUsersCard = CardHook & {
   run: () => Promise<void>;
   reset: () => void;
   consentRequired: boolean;
-  requestConsent: () => Promise<void>;
+  // requestConsent: () => Promise<void>; // Deprecated: the access check's Grant consent covers these scopes; kept for reference.
   error: string | null; // Reading the groups or admins failed.
 };
 
@@ -381,15 +381,15 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     }
   }, [azureAccount, tenantId, tid, canRun, primaryDomain, admins, subscriptionId, roleTarget, usePim, setSteps, setRunning, updateStep]);
 
-  const requestConsent = useCallback(async () => {
-    if (!azureAccount) return;
-    const msal = await getMsal();
-    await msal?.acquireTokenRedirect({
-      scopes: ADMIN_USERS_SCOPES,
-      account: azureAccount,
-      authority: `https://login.microsoftonline.com/${tenantId || azureAccount.tenantId}`,
-    });
-  }, [azureAccount, tenantId]);
+  // const requestConsent = useCallback(async () => { // Deprecated: the access check's Grant consent covers these scopes; kept for reference.
+  //   if (!azureAccount) return;
+  //   const msal = await getMsal();
+  //   await msal?.acquireTokenRedirect({
+  //     scopes: ADMIN_USERS_SCOPES,
+  //     account: azureAccount,
+  //     authority: `https://login.microsoftonline.com/${tenantId || azureAccount.tenantId}`,
+  //   });
+  // }, [azureAccount, tenantId]);
 
   const done = !!missingGroups && missingGroups.length === 0;
   const failed = !!error || steps.some((s) => s.status === "error");
@@ -433,7 +433,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     run,
     reset: resetSteps,
     consentRequired,
-    requestConsent,
+    // requestConsent, // Deprecated: the access check's Grant consent covers these scopes; kept for reference.
     error,
   };
 }

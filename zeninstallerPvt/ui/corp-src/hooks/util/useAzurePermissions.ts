@@ -32,6 +32,23 @@ async function findMissing(azureAccount: AzureAccount, spClientId: string, tenan
   return { spId: sp.id, missing: permissions.filter((id) => !assigned.has(id)) };
 }
 
+// The service principal object id behind an app registration's client id, e.g. to check that app's Azure role assignments.
+export function useServicePrincipalId(azureAccount: AzureAccount | null, clientId: string, tenantId?: string): { id?: string; error?: string } {
+  const key = `${azureAccount?.homeAccountId}|${clientId}|${tenantId}`;
+  const [result, setResult] = useState<{ key: string; id?: string; error?: string }>();
+  useEffect(() => {
+    if (!azureAccount || !clientId) return;
+    let cancelled = false;
+    getExistingSP(azureAccount, clientId, tenantId).then(
+      (sp) => !cancelled && setResult(sp ? { key, id: sp.id } : { key, error: `App ${clientId} has no service principal in this tenant. Run the Azure app registration card first.` }),
+      (e) => !cancelled && setResult({ key, error: e instanceof Error ? e.message : String(e) }));
+    return () => {
+      cancelled = true;
+    };
+  }, [azureAccount, clientId, tenantId, key]);
+  return result?.key === key ? result : {};
+}
+
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : "Failed to check the pipeline's Graph permissions");
 
 export function useAzurePermissions({ azureAccount, spClientId, tenantId, permissions = NONE }: UseAzurePermissionsParams): UseAzurePermissions {

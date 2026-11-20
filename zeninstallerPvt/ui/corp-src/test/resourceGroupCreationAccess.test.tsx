@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../auth/msal", () => ({
   getToken: mocks.getToken,
   ensureScopeConsent: mocks.ensureScopeConsent,
+  hasScopeConsent: async () => true,
 }));
 vi.mock("../api/azureFetch", () => ({
   ARM: "https://management.azure.com",

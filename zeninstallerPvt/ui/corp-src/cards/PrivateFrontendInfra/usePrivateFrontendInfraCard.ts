@@ -24,7 +24,7 @@ import { createSpaAppRegistration, createServicePrincipal, ensureSpaRedirectUri,
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
-import { privateFrontendInfraAccess } from "./config";
+import { RESOURCE_PROVIDERS, privateFrontendInfraAccess } from "./config";
 import {
   DEFAULT_AZURE_LOCATION,
   DIAGNOSTIC_SETTING_NAME,
@@ -33,7 +33,7 @@ import {
   PRIVATE_RESOURCE_GROUP,
   getWebStorageAccountName,
 } from "../../logic/naming";
-import { PRIVATE_INSTALLER_DELEGATED, PRIVATE_FRONTEND_PROVIDERS, STORAGE_SCOPES } from "../../config/azureConfig";
+import { PRIVATE_INSTALLER_DELEGATED, STORAGE_SCOPES } from "../../config/azureConfig";
 import { ensureScopeConsent } from "../../auth/msal";
 import { createResultStorage } from "../../logic/resultStorage";
 import type { AzureConfigHook, AzureTarget, CardHook, CardStatus, SetupStep } from "../../types";
@@ -242,7 +242,7 @@ export function usePrivateFrontendInfraCard({
       updateStep("access", "done");
 
       updateStep("providers", "running");
-      const providers = await ensureRegistered(PRIVATE_FRONTEND_PROVIDERS);
+      const providers = await ensureRegistered(RESOURCE_PROVIDERS);
       updateStep(
         "providers",
         providers.registered.length === 0 ? "skipped" : "done",

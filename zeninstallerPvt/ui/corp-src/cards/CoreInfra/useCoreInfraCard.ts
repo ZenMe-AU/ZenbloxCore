@@ -36,10 +36,10 @@ import {
 import { createResultStorage } from "../../logic/resultStorage";
 import { getVariableDisplayName } from "../../logic/variables";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
-import { APP_SCOPES, AZURE_CLIENT_ID, CORE_INFRA_PROVIDERS } from "../../config/azureConfig";
+import { APP_SCOPES, AZURE_CLIENT_ID } from "../../config/azureConfig";
 import { useProviderRegistration } from "../../hooks/util/useProviderRegistration";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
-import { coreInfraAccess } from "./config";
+import { RESOURCE_PROVIDERS, coreInfraAccess } from "./config";
 import type { AzureConfigHook, AzureSpTarget, CardHook, CardRequirements, CardStatus, SetupStep } from "../../types";
 
 export type CoreInfraResult = {
@@ -255,7 +255,7 @@ export function useCoreInfraCard({
 
       currentStep = "providers";
       updateStep("providers", "running");
-      const providers = await ensureRegistered(CORE_INFRA_PROVIDERS);
+      const providers = await ensureRegistered(RESOURCE_PROVIDERS);
       updateStep(
         "providers",
         providers.registered.length === 0 ? "skipped" : "done",
