@@ -12,6 +12,7 @@ import {
   createUser,
   ensureDirectoryRoleAssignment,
   ensureDirectoryRoleEligibility,
+  ensureFido2Enabled,
   getGroupByName,
   getUserByUpn,
   getEntraLicence,
@@ -320,6 +321,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
         { id: "groups", label: "Create the security groups" },
         ...(NESTED ? [{ id: "nesting", label: "Nest the groups" }] : []),
         ...roleSteps.map(({ id, label }) => ({ id, label })),
+        { id: "fido2", label: "Allow passkey (FIDO2) sign-in" },
         ...accounts.map((acc) => ({ id: `${acc.kind}:${acc.a.key}`, label: `Create ${acc.upn}` })),
         // ...(accounts.some((acc) => acc.manager) ? [{ id: "managers", label: "Set the managers" }] : []), // Deprecated: each account's manager is set as it is created; kept for reference.
       ].map((s) => ({ ...s, status: "pending" as const }))
@@ -386,6 +388,15 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
         } catch (err) {
           fail(id, err);
         }
+      }
+
+      // The accounts sign in with passkeys; they're still created if this fails.
+      updateStep("fido2", "running");
+      try {
+        const turnedOn = await ensureFido2Enabled(azureAccount, tid); // Tenant-wide; the targets it already has stay.
+        updateStep("fido2", turnedOn ? "done" : "skipped", turnedOn ? "Turned on" : "Already on");
+      } catch (err) {
+        fail("fido2", err);
       }
 
       // Step id → account; a manager from this list is above its reports, so it's created first.

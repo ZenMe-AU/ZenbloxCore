@@ -21,6 +21,7 @@ const { mocks } = vi.hoisted(() => ({
     addGroupMember: vi.fn(),
     ensureDirectoryRoleAssignment: vi.fn(),
     ensureDirectoryRoleEligibility: vi.fn(),
+    ensureFido2Enabled: vi.fn(),
     ensureRbacRoleEligibility: vi.fn(),
     ensureRbacRoleAtScope: vi.fn(),
     getUserByUpn: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock("../api/azureGraph", () => ({
   addGroupMember: mocks.addGroupMember,
   ensureDirectoryRoleAssignment: mocks.ensureDirectoryRoleAssignment,
   ensureDirectoryRoleEligibility: mocks.ensureDirectoryRoleEligibility,
+  ensureFido2Enabled: mocks.ensureFido2Enabled,
   getUserByUpn: mocks.getUserByUpn,
   createUser: mocks.createUser,
   getEntraLicence: mocks.getEntraLicence,
@@ -122,6 +124,7 @@ describe("useCreateAdminUsersCard", () => {
     mocks.ensureRbacRoleAtScope.mockResolvedValue("exists");
     mocks.ensureDirectoryRoleEligibility.mockResolvedValue("created");
     mocks.ensureRbacRoleEligibility.mockResolvedValue("created");
+    mocks.ensureFido2Enabled.mockResolvedValue(true);
     mocks.getUserByUpn.mockImplementation(async (_a, upn: string) => (upn === "Ann.Lee@corp.com" ? { id: "u-Ann.Lee@corp.com", userPrincipalName: upn } : null));
     mocks.createUser.mockImplementation(async (_a, params: { userPrincipalName: string }) => ({ id: `u-${params.userPrincipalName}`, userPrincipalName: params.userPrincipalName }));
     mocks.getEntraLicence.mockResolvedValue("p1");
@@ -220,6 +223,9 @@ describe("useCreateAdminUsersCard", () => {
     expect(mocks.createGroup.mock.calls[0][1]).toMatchObject({ displayName: "PrivilegedAccounts", isAssignableToRole: true });
     // No group sits in another, so there is no nesting step.
     expect(card.current.steps.map((s) => s.id)).not.toContain("nesting");
+    // Passkeys are allowed before the accounts are made.
+    expect(card.current.steps.find((s) => s.id === "fido2")).toMatchObject({ status: "done", detail: "Turned on" });
+    expect(card.current.steps.findIndex((s) => s.id === "fido2")).toBeLessThan(card.current.steps.findIndex((s) => s.id.startsWith("user:")));
     expect(mocks.addGroupMember.mock.calls.filter((c) => String(c[1]).startsWith("id-") && String(c[2]).startsWith("id-"))).toEqual([]);
     expect(mocks.ensureDirectoryRoleAssignment).toHaveBeenCalledWith(expect.anything(), "id-PrivilegedAccounts", "62e90394-69f5-4237-9190-012177145e10", "tenant-1");
     expect(mocks.ensureRbacRoleAtScope).toHaveBeenCalledWith(
@@ -398,6 +404,24 @@ describe("useCreateAdminUsersCard", () => {
     expect(card.current.steps.find((s) => s.id === "groups")).toMatchObject({ status: "error", detail: "Insufficient privileges" });
     expect(card.current.steps.filter((s) => s.id !== "groups").every((s) => s.status === "pending")).toBe(true);
     expect(mocks.ensureDirectoryRoleAssignment).not.toHaveBeenCalled();
+  });
+
+  it("still creates the accounts when passkeys can't be allowed, and skips it when they already are", async () => {
+    mocks.ensureFido2Enabled.mockRejectedValueOnce(new Error("403 Forbidden"));
+    const card = renderCard();
+    await waitFor(() => expect(card.current.primaryDomain).toBe("corp.com"));
+    act(() => card.current.updateAdmin(card.current.admins[0].key, { givenName: "Bob", surname: "Wu", mobile: "+61 400 000 002", employeeId: "E002" }));
+    await act(async () => {
+      await card.current.run();
+    });
+    expect(card.current.steps.find((s) => s.id === "fido2")).toMatchObject({ status: "error", detail: "403 Forbidden" });
+    expect(card.current.steps.filter((s) => s.id.startsWith("user:") || s.id.startsWith("priv:")).map((s) => s.status)).toEqual(["done", "done"]);
+
+    mocks.ensureFido2Enabled.mockResolvedValueOnce(false);
+    await act(async () => {
+      await card.current.run();
+    });
+    expect(card.current.steps.find((s) => s.id === "fido2")).toMatchObject({ status: "skipped", detail: "Already on" });
   });
 
   it("asks for consent when the licence can't be read without it, and shows any other reason", async () => {

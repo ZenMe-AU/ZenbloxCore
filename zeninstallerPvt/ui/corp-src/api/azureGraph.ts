@@ -12,6 +12,7 @@ import {
   ORGANIZATION_SCOPES,
   GRANT_CONSENT_SCOPES,
   ACCESS_PASS_SCOPES,
+  AUTH_METHODS_POLICY_SCOPES,
   GROUPS_SCOPES,
   ROLE_MANAGEMENT_SCOPES,
   ROLE_READ_SCOPES,
@@ -446,6 +447,21 @@ export async function ensureTemporaryAccessPassEnabled(account: AzureAccount, ov
       "@odata.type": "#microsoft.graph.temporaryAccessPassAuthenticationMethodConfiguration",
       state: "enabled",
     }),
+  });
+  return true;
+}
+
+const FIDO2_POLICY_PATH = "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/Fido2";
+
+// Lets users register passkeys (FIDO2), enabling the method if it's off; who it targets and which keys it allows stay as they are.
+// Returns true if it needed to be enabled, false if it already was.
+export async function ensureFido2Enabled(account: AzureAccount, overrideTenantId?: string): Promise<boolean> {
+  const token = await getToken(account, AUTH_METHODS_POLICY_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, FIDO2_POLICY_PATH);
+  if (data.state === "enabled") return false;
+  await gFetch(token, GRAPH, FIDO2_POLICY_PATH, {
+    method: "PATCH",
+    body: JSON.stringify({ "@odata.type": "#microsoft.graph.fido2AuthenticationMethodConfiguration", state: "enabled" }),
   });
   return true;
 }

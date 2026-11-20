@@ -5,11 +5,11 @@
 
 import type { ArmRole, CardResourceAccessRequest } from "../../types";
 import type { EntraLicence } from "../../api/azureGraph";
-import { GROUPS_SCOPES, ORGANIZATION_SCOPES, ROLE_MANAGEMENT_SCOPES, USER_SCOPES, readWrite } from "../../config/azureConfig";
+import { AUTH_METHODS_POLICY_SCOPES, GROUPS_SCOPES, ORGANIZATION_SCOPES, ROLE_MANAGEMENT_SCOPES, USER_SCOPES, readWrite } from "../../config/azureConfig";
 
 export const CREATE_ADMIN_USERS_TITLE = "Create admin users";
 
-export const ADMIN_USERS_SCOPES = [...GROUPS_SCOPES, ...USER_SCOPES, ...ROLE_MANAGEMENT_SCOPES, ...ORGANIZATION_SCOPES];
+export const ADMIN_USERS_SCOPES = [...GROUPS_SCOPES, ...USER_SCOPES, ...ROLE_MANAGEMENT_SCOPES, ...ORGANIZATION_SCOPES, ...AUTH_METHODS_POLICY_SCOPES]; // The last turns on passkeys (FIDO2).
 
 // Azure permissions to assign Owner to the admin groups on the subscription and the tenant root management group.
 const ROLE_ASSIGNMENTS = readWrite("Microsoft.Authorization/roleAssignments");
