@@ -3,14 +3,128 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { createGithubApi, fetchGithubUser } from "../../api/github";
+import { BACKEND_CONFIGURED, exchangeGithubCode, verifyAuthWithToken } from "../../api/backend";
+import { appUrl, requestAuthorizationCode, takePendingCode } from "../../logic/oauth";
+import { read, remove } from "../../logic/browserStore";
+import { clearStoredToken, getStoredToken, setLoginStatus, setStoredToken } from "../../logic/tokenStore";
+import type { LoginStatus } from "../../logic/tokenStore";
 import {
-  cardLifecycleReducer,
-  initialCardLifecycle,
-  type CardLifecycle,
-  type CardLifecycleContext,
-} from "../../components/cardLifecycle";
-import type { UseGithubLoginCard } from "./useGithubLoginCard";
+  GITHUB_AUTHORIZE_URL,
+  GITHUB_CLIENT_ID,
+  GITHUB_SCOPES,
+} from "../../config/githubConfig";
+import type { CardHook, CardStatus, LoginHook, User } from "../../types";
+import type { BaseCardContext } from "../../components/BaseCard";
+import { cardLifecycleReducer, initialCardLifecycle, type CardLifecycle, type CardLifecycleContext } from "../../components/basecardlifecycle";
+
+const AUTH_RECORD_KEY = "zeninstaller_github_login_v2_auth";
+const GITHUB_PROVIDER = "github_login_v2";
+const GITHUB_TOKEN_KEY = "github_login_v2_access_token";
+const GITHUB_TOKEN_KEYS = [GITHUB_TOKEN_KEY, "github_login_v2_pat_token"] as const;
+const GITHUB_VERIFIER_KEY = "github_login_v2_pkce_verifier";
+const SESSION_EXPIRED_EVENT = "auth:session-expired:github_login_v2";
+type GithubTokenKey = (typeof GITHUB_TOKEN_KEYS)[number];
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+export type GithubAuthRecord = { mode: "direct"; token: string } | { mode: "backend" };
+
+export interface GithubLoginContext extends CardHook, LoginHook<User> {
+  readonly cardId: "github_login_v2";
+  sessionExpired: boolean;
+  redirecting: "login" | "logout" | null;
+  verifying: boolean;
+  status: CardStatus; // "loading" while the auth check is in-flight; "complete" once signed in; "idle" otherwise.
+  cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Sign in to GitHub")
+
+  mode: GithubAuthRecord["mode"] | null;
+  setMode: (mode: GithubAuthRecord["mode"]) => void;
+  backendAvailable: boolean; // False without VITE_API_URL: the OAuth flow has no backend to exchange the code.
+  token: string | null;
+  setToken: (token: string | null) => void;
+}
+
+// ─── Sign-in ──────────────────────────────────────────────────────────────────
+// The GitHub sign-in itself. The mechanism is in logic/oauth, the constants in config/githubConfig.
+
+function setGithubLoginStatus(status: LoginStatus): void {
+  setLoginStatus(GITHUB_PROVIDER, status);
+}
+
+export function clearGithubToken(key?: GithubTokenKey): void {
+  setGithubLoginStatus(null);
+  if (key) {
+    clearStoredToken(key);
+    return;
+  }
+  for (const k of GITHUB_TOKEN_KEYS) clearStoredToken(k);
+  remove(GITHUB_VERIFIER_KEY);
+}
+
+async function requestCode(): Promise<void> {
+  return requestAuthorizationCode({
+    provider: GITHUB_PROVIDER,
+    authorizeUrl: GITHUB_AUTHORIZE_URL,
+    clientId: GITHUB_CLIENT_ID,
+    scope: GITHUB_SCOPES,
+    verifierKey: GITHUB_VERIFIER_KEY,
+  });
+}
+
+// Trades the code GitHub redirected back with for a token, and remembers it.
+async function exchangeToken(code: string): Promise<string> {
+  const verifier = read(GITHUB_VERIFIER_KEY) ?? "";
+  const data = await exchangeGithubCode({
+    client_id: GITHUB_CLIENT_ID,
+    code,
+    code_verifier: verifier,
+    redirect_uri: appUrl(),
+  });
+  if (!data.access_token) throw new Error(data.error ?? "Token exchange failed");
+  setStoredToken(GITHUB_TOKEN_KEY, data.access_token);
+  remove(GITHUB_VERIFIER_KEY);
+  return data.access_token;
+}
+
+// Signing out is entirely local, so anything left behind is a token someone could reuse.
+function clearStoredCredentials(): void {
+  clearGithubToken();
+}
+
+// Whichever sign-in left a token behind — the OAuth one, or a pasted personal access token.
+function readStoredToken(): string | null {
+  return getStoredToken(GITHUB_TOKEN_KEYS);
+}
+
+function verifyGithub(token: string, mode: GithubAuthRecord["mode"]) {
+  return mode === "direct"
+    ? createGithubApi(token).verifyAuth()
+    : verifyAuthWithToken(token, SESSION_EXPIRED_EVENT);
+}
+
+// Narrowed to this provider so callers do not have to know the discriminator.
+function takeGithubCode(): string | null {
+  return takePendingCode(GITHUB_PROVIDER);
+}
+
+// ─── Storage ──────────────────────────────────────────────────────────────────
+export function readGithubAuthRecord(): GithubAuthRecord | null {
+  const raw = sessionStorage.getItem(AUTH_RECORD_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as GithubAuthRecord;
+  } catch {
+    return null;
+  }
+}
+
+function writeGithubAuthRecord(record: GithubAuthRecord | null): void {
+  if (record === null) sessionStorage.removeItem(AUTH_RECORD_KEY);
+  else sessionStorage.setItem(AUTH_RECORD_KEY, JSON.stringify(record));
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 type AuthPhase = "ready" | "action" | "complete" | "error";
 
@@ -48,24 +162,209 @@ function reconcileLifecycle(context: CardLifecycleContext, phase: AuthPhase): Ca
   return current;
 }
 
-export function useGithubLoginCardV2(auth: UseGithubLoginCard) {
+export function useGithubLoginCardV2() {
+  const [loggingIn, setLoggingIn] = useState(true);
+  const [account, setAccount] = useState<User | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false); // TODO: check if this is still needed
+  const [redirecting, setRedirecting] = useState<"login" | "logout" | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [mode, setMode] = useState<GithubAuthRecord["mode"]>(BACKEND_CONFIGURED ? "backend" : "direct");
+  const [token, setToken] = useState<string | null>(null);
+  const loginConfigRef = useRef<GithubAuthRecord>(BACKEND_CONFIGURED ? { mode: "backend" } : { mode: "direct", token: "" });
+
+  const setModeState = useCallback((nextMode: GithubAuthRecord["mode"]) => {
+    if (nextMode === "backend" && !BACKEND_CONFIGURED) return;
+    setMode(nextMode);
+
+    if (nextMode === "backend") {
+      loginConfigRef.current = { mode: nextMode };
+    } else {
+      loginConfigRef.current = {
+        mode: nextMode,
+        token: loginConfigRef.current.mode === "direct" ? loginConfigRef.current.token : "",
+      };
+    }
+  }, []);
+
+  const setTokenState = useCallback((nextToken: string | null) => {
+    setToken(nextToken);
+
+    if (loginConfigRef.current.mode === "direct") {
+      loginConfigRef.current = {
+        mode: "direct",
+        token: nextToken ?? "",
+      };
+    }
+  }, []);
+
+  // Verify session on mount
+  useEffect(() => {
+    async function init() {
+      // ── Returning from GitHub: oauthReturn already put the URL back, so only the code is left ──
+      const code = takeGithubCode();
+      if (code) {
+        // Distinguishes trading the code from the ordinary session check; both keep loggingIn true.
+        setRedirecting("login");
+        try {
+          const token = await exchangeToken(code);
+          writeGithubAuthRecord({ mode: "backend" });
+          setModeState("backend");
+          // Asked directly because the proxy's own identity check is what we are establishing here.
+          setVerifying(true);
+          const data = await fetchGithubUser(token);
+          setAccount({ login: data.login });
+          setGithubLoginStatus("success");
+        } catch (e) {
+          console.error("GitHub token exchange failed:", e);
+          setSessionExpired(true);
+        } finally {
+          setVerifying(false);
+          setRedirecting(null);
+          setLoggingIn(false);
+        }
+        return;
+      }
+
+      const record = readGithubAuthRecord();
+      if (record?.mode === "backend" && !BACKEND_CONFIGURED) {
+        writeGithubAuthRecord(null);
+        setLoggingIn(false);
+        return;
+      }
+      if (!record) {
+        setLoggingIn(false);
+        return;
+      }
+      setModeState(record.mode);
+      // Either way the browser holds the token; the mode decides who spends it on GitHub's API.
+      const token = record.mode === "direct" ? record.token : readStoredToken();
+      if (!token) {
+        setLoggingIn(false);
+        return;
+      }
+      if (record.mode === "direct") {
+        setTokenState(token);
+      }
+      setVerifying(true);
+      try {
+        const data = await verifyGithub(token, record.mode);
+        setAccount({ login: data.login });
+        setGithubLoginStatus("success");
+        setSessionExpired(false);
+      } catch {
+        setAccount(null);
+        setSessionExpired(true);
+      } finally {
+        setVerifying(false);
+        setLoggingIn(false);
+      }
+    }
+    init();
+  }, [setModeState, setTokenState]);
+
+  // TODO: check if this is still needed
+  // Listen for server-side session expiry events
+  useEffect(() => {
+    const handler = () => setSessionExpired(true);
+    window.addEventListener(SESSION_EXPIRED_EVENT, handler);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handler);
+  }, []);
+
+  const login = useCallback(async () => {
+    const config = loginConfigRef.current;
+    switch (config.mode) {
+      case "direct":
+        if (!config.token) {
+          // TODO: PATerror
+          console.error("Missing PAT");
+          return;
+        }
+        break;
+
+      case "backend":
+        if (!BACKEND_CONFIGURED) {
+          console.error("Backend sign-in needs VITE_API_URL");
+          return;
+        }
+        // No stored token: send the user to GitHub and pick things up in the callback above.
+        setRedirecting("login");
+        await requestCode();
+        return;
+    }
+
+    setRedirecting("login");
+    setVerifying(true);
+    try {
+      writeGithubAuthRecord(config);
+      setSessionExpired(false);
+      const data = await verifyGithub(config.token, "direct");
+      setAccount({ login: data.login });
+      setGithubLoginStatus("success");
+      setRedirecting(null);
+    } catch {
+      setAccount(null);
+      console.error("Login failed");
+      setSessionExpired(true);
+      setRedirecting(null);
+    } finally {
+      setVerifying(false);
+      setLoggingIn(false);
+    }
+  }, []);
+
+  // Nothing server-side to end: the token lived here, so dropping it is the whole of signing out.
+  const logout = useCallback(async () => {
+    writeGithubAuthRecord(null);
+    clearStoredCredentials();
+    setAccount(null);
+    setSessionExpired(false);
+    setTokenState(null);
+  }, [setTokenState]);
+
+  const status: CardStatus = loggingIn ? "loading" : account ? "complete" : "idle";
+  const summary = account ? `Signed in as ${account.login}` : "Connect your GitHub account";
+
+  const cardDependencyLabel: string = "Sign in to GitHub";
+
+  const githubLoginContext: GithubLoginContext = {
+    // cardHook
+    cardId: "github_login_v2" as const,
+    status,
+    summary,
+    cardDependencyLabel,
+    done: status === "complete",
+    // loginHook
+    account,
+    loggingIn,
+    login,
+    logout,
+    refresh: login,
+    // extra
+    sessionExpired,
+    redirecting,
+    verifying,
+    mode,
+    setMode: setModeState,
+    backendAvailable: BACKEND_CONFIGURED,
+    token,
+    setToken: setTokenState,
+  };
   const [state, setState] = useState<{ phase: AuthPhase | null; context: CardLifecycleContext }>({
     phase: null,
     context: initialCardLifecycle,
   });
-  const { redirecting, loggingIn, verifying, account, sessionExpired } = auth;
   const phase: AuthPhase | null = redirecting === "login" || verifying
     ? "action"
     : loggingIn ? null : account ? "complete" : sessionExpired ? "error" : "ready";
   if (phase !== null && phase !== state.phase) {
     setState({ phase, context: reconcileLifecycle(state.context, phase) });
   }
-  const baseCardContext = { cardId: auth.cardId, title: "GitHub login 2", summary: auth.summary, ...state.context };
+  const baseCardContext = { cardId: githubLoginContext.cardId, title: "GitHub login 2", summary, ...state.context } satisfies BaseCardContext;
   return {
-    ...auth,
+    ...githubLoginContext,
     baseCardContext,
-    githubLoginContext: auth,
-    shared: { title: baseCardContext.title, status: baseCardContext.lifecycle },
+    githubLoginContext,
+    shared: { title: baseCardContext.title, status: baseCardContext.lifecycle, githubAccount: account },
   };
 }
 

@@ -3,10 +3,10 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { CardLifecycle } from "./components/cardLifecycle";
-import type { CardId, CardStatus } from "./types";
+import type { CardLifecycle } from "./components/basecardlifecycle";
+import type { CardId, CardStatus, User } from "./types";
 
-export type SharedCard = Readonly<{ title: string; status: CardStatus | CardLifecycle }>;
+export type SharedCard = Readonly<{ title: string; status: CardStatus | CardLifecycle; githubAccount?: Readonly<User> | null }>;
 type CardEntry = Readonly<{ initialised: false }> | (Readonly<{ initialised: true }> & SharedCard);
 type SharedSnapshot = Readonly<{ cards: Readonly<Partial<Record<CardId, CardEntry>>> }>;
 type CardEvent = Readonly<{ type: "added" | "initialised" | "updated"; cardId: CardId }>;
@@ -29,13 +29,20 @@ export function createSharedContext() {
     // Called after the card hook returns and React commits; initialised is not lifecycle ready.
     update: (cardId: CardId, shared: SharedCard) => {
       const current = snapshot.cards[cardId];
+      const entry: CardEntry = {
+        initialised: true,
+        title: shared.title,
+        status: shared.status,
+        ...("githubAccount" in shared ? { githubAccount: shared.githubAccount ? { login: shared.githubAccount.login } : null } : {}),
+      };
       if (!current) {
         publish({ type: "added", cardId }, { initialised: false });
-        publish({ type: "initialised", cardId }, { initialised: true, ...shared });
+        publish({ type: "initialised", cardId }, entry);
       } else if (!current.initialised) {
-        publish({ type: "initialised", cardId }, { initialised: true, ...shared });
-      } else if (current.title !== shared.title || current.status !== shared.status) {
-        publish({ type: "updated", cardId }, { initialised: true, ...shared });
+        publish({ type: "initialised", cardId }, entry);
+      } else if (current.title !== shared.title || current.status !== shared.status
+        || current.githubAccount?.login !== shared.githubAccount?.login || ("githubAccount" in current) !== ("githubAccount" in shared)) {
+        publish({ type: "updated", cardId }, entry);
       }
     },
   };

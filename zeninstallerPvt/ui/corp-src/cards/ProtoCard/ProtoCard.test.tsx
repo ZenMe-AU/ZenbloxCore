@@ -8,7 +8,7 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
-import { canCardTransition, type CardLifecycle } from "../../components/cardLifecycle";
+import { canCardTransition, type CardLifecycle } from "../../components/basecardlifecycle";
 import { createSharedContext } from "../../sharedContext";
 import theme from "../../theme";
 import ProtoCard from "./ProtoCard";

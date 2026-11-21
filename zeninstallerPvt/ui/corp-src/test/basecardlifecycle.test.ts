@@ -4,7 +4,7 @@
  */
 
 import { expect, it } from "vitest";
-import { cardLifecycleReducer, initialCardLifecycle } from "../components/cardLifecycle";
+import { cardLifecycleReducer, initialCardLifecycle } from "../components/basecardlifecycle";
 
 it("applies permitted lifecycle transitions and rejects invalid ones", () => {
   expect(() => cardLifecycleReducer(initialCardLifecycle, { type: "transition", lifecycle: "complete" })).toThrow();

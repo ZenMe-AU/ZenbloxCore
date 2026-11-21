@@ -57,7 +57,12 @@ describe("App - Home Page", () => {
       });
       const store = vi.mocked(createSharedContext).mock.results.at(-1)!.value;
       expect(store.getSnapshot().cards.github_signup).toMatchObject({ initialised: true, title: "Test shared signup" });
-      await expect.poll(() => store.getSnapshot().cards.github_login).toMatchObject({ initialised: true, title: "GitHub login", status: "ready" });
+      expect(container.querySelector("#card-title-github_login")?.textContent).toContain("GitHub login");
+      expect(container.querySelector("#card-title-github_login_v2")?.textContent).toContain("GitHub login 2");
+      expect(store.getSnapshot().cards.github_login).toBeUndefined();
+      await expect.poll(() => store.getSnapshot().cards.github_login_v2).toMatchObject({
+        initialised: true, title: "GitHub login 2", status: "ready", githubAccount: null,
+      });
       expect(store.getSnapshot().cards.azure_login).toBeUndefined();
       await expect.poll(() => store.getSnapshot().cards.proto_card, { timeout: 5000 }).toMatchObject({
         initialised: true,

@@ -8,10 +8,9 @@ import {
   cardLifecycleReducer,
   initialCardLifecycle,
   type CardLifecycle,
-  type CardLifecycleContext,
   type CardLifecycleEvent,
-} from "../../components/cardLifecycle";
-import type { CardId } from "../../types";
+} from "../../components/basecardlifecycle";
+import type { BaseCardContext } from "../../components/BaseCard";
 
 export const initialState: ProtoState = {
   baseCardContext: {
@@ -44,7 +43,7 @@ type ProtoCardContext = {
 
 export type ProtoState = {
   appContext: AppContext;
-  baseCardContext: CardLifecycleContext & { cardId: CardId; title: string };
+  baseCardContext: BaseCardContext;
   protoCardContext: ProtoCardContext;
 };
 

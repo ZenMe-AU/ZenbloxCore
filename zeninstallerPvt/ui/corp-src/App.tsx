@@ -76,7 +76,6 @@ import { createSharedContext, type SharedCard } from "./sharedContext";
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 const EXPANDED_CARDS_KEY = "zeninstaller_corp_expanded_cards";
-const USE_GITHUB_LOGIN_V2 = true;
 const { save: saveExpandedCards, load: loadExpandedCards } = createResultStorage<CardId[]>(EXPANDED_CARDS_KEY);
 
 function AppDashboard() {
@@ -92,7 +91,8 @@ function AppDashboard() {
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const protoCard = addCard(useProtoCard(sharedStore));
 
-  const githubLogin = addCard(useGithubLoginCardV2(useGithubLoginCard()));
+  const githubLogin = addCard(useGithubLoginCard());
+  const githubLoginV2 = addCard(useGithubLoginCardV2());
   const githubSignup = addCard(useGithubSignupCard(githubLogin.done));
 
   const githubRepoEnv = addCard(
@@ -502,9 +502,8 @@ function AppDashboard() {
 
               <ProtoCard cardChrome={cardProps(protoCard.baseCardContext.cardId)} protoCard={protoCard} />
 
-              {USE_GITHUB_LOGIN_V2
-                ? <GithubLoginCardV2 cardChrome={cardProps("github_login")} auth={githubLogin} />
-                : <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />}
+              <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
+              <GithubLoginCardV2 cardChrome={cardProps("github_login_v2")} auth={githubLoginV2} />
 
               <GithubSignupCard card={cardProps("github_signup")} signup={githubSignup} onOpenLogin={() => openCard("github_login")} />
 

@@ -34,9 +34,9 @@ export const MS_TOKEN_HEADER = "Zb.Msal.Authorization";
 // token, so the caller names them rather than handing one over.
 export type AuthedInit = RequestInit & { msScopes?: string[] };
 
-export async function fetchWithAuth(input: string, init: AuthedInit = {}): Promise<Response> {
+export async function fetchWithAuth(input: string, init: AuthedInit = {}, githubAuth?: { token: string; expiryEvent: string }): Promise<Response> {
   const { msScopes, ...requestInit } = init;
-  const token = getStoredToken(GITHUB_TOKEN_KEYS);
+  const token = githubAuth ? githubAuth.token : getStoredToken(GITHUB_TOKEN_KEYS);
   const headers: Record<string, string> = {
     ...((requestInit.headers as Record<string, string>) ?? {}),
     ...(token ? { [GH_TOKEN_HEADER]: `Bearer ${token}` } : {}),
@@ -45,7 +45,7 @@ export async function fetchWithAuth(input: string, init: AuthedInit = {}): Promi
   };
   const res = await fetch(input, { ...requestInit, headers });
   // A Microsoft 401 says nothing about the GitHub session, and this event is what marks it expired.
-  if (res.status === 401 && !msScopes) window.dispatchEvent(new CustomEvent("auth:session-expired"));
+  if (res.status === 401 && !msScopes) window.dispatchEvent(new CustomEvent(githubAuth?.expiryEvent ?? "auth:session-expired"));
   return res;
 }
 
@@ -69,6 +69,13 @@ export async function exchangeGithubCode(body: {
 
 export async function verifyAuth(): Promise<{ login: string }> {
   const res = await fetchWithAuth(`${url}/getUser`);
+  if (!res.ok) throw new Error("Unauthorized");
+  const data = await res.json();
+  return data.user;
+}
+
+export async function verifyAuthWithToken(token: string, expiryEvent: string): Promise<{ login: string }> {
+  const res = await fetchWithAuth(`${url}/getUser`, {}, { token, expiryEvent });
   if (!res.ok) throw new Error("Unauthorized");
   const data = await res.json();
   return data.user;

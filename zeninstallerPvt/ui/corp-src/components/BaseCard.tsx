@@ -13,13 +13,17 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { alpha, useTheme } from "@mui/material/styles";
 import { borderHoverTint, borderTint } from "../config/styles";
-import type { CardLifecycle } from "./cardLifecycle";
+import type { CardId } from "../types";
+import type { CardLifecycle, CardLifecycleContext } from "./basecardlifecycle";
 
-type Props = {
-  cardId: string;
+export type BaseCardContext = CardLifecycleContext & {
+  cardId: CardId;
   title: string;
   summary?: string;
-  lifecycle: CardLifecycle;
+};
+
+type Props = {
+  baseCardContext: BaseCardContext;
   expanded: boolean;
   onToggle: () => void;
   action?: ReactNode;
@@ -38,8 +42,9 @@ const lifecycleLabels: Record<CardLifecycle, string> = {
 };
 
 export default function BaseCard({
-  cardId, title, summary, lifecycle, expanded, onToggle, action, descriptionId, children,
+  baseCardContext, expanded, onToggle, action, descriptionId, children,
 }: Props) {
+  const { cardId, title, summary, lifecycle } = baseCardContext;
   const theme = useTheme();
   const colors = theme.vars.palette.card;
   const colorKey = lifecycle === "blocked" ? "idle" : lifecycle === "ready" || lifecycle === "action" || lifecycle === "commit" ? "warning" : lifecycle;

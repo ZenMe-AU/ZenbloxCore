@@ -13,6 +13,7 @@ export type AzureTenant = { tenantId: string; displayName: string; defaultDomain
 export type CardId =
   | "github_signup"
   | "github_login"
+  | "github_login_v2"
   | "azure_login"
   | "repo"
   | "azure_subscription"

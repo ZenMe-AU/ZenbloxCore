@@ -7,7 +7,7 @@ import { useRef, useState } from "react";
 import { stringify } from "yaml";
 import { Box, Button, Checkbox, CircularProgress, FormControlLabel, Link, Typography, useTheme } from "@mui/material";
 import BaseCard from "../../components/BaseCard";
-import type { CardLifecycle } from "../../components/cardLifecycle";
+import type { CardLifecycle } from "../../components/basecardlifecycle";
 import CollapsiblePanel from "../../components/CollapsiblePanel";
 import ViewLink from "../../components/ViewLink";
 import type { CardChrome } from "../../types";
@@ -355,10 +355,7 @@ export default function ProtoCard({ cardChrome, protoCard }: Props) {
 
   return (
     <BaseCard
-      cardId={baseCardContext.cardId}
-      title={baseCardContext.title}
-      summary={baseCardContext.summary}
-      lifecycle={baseCardContext.lifecycle}
+      baseCardContext={baseCardContext}
       expanded={cardChrome.expanded}
       onToggle={cardChrome.onToggle}
       action={baseCardContext.lifecycle !== "loading" && !showBlockedContent

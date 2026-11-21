@@ -64,3 +64,30 @@ it("lets ProtoCard observe existing and later card data and status changes", asy
     await act(async () => root.unmount());
   }
 });
+
+it("publishes GitHub account changes without exposing credentials", async () => {
+  const store = createSharedContext();
+  const root = createRoot(document.createElement("div"));
+  let latest: UseProtoCard | undefined;
+  function Harness() {
+    latest = useProtoCard(store);
+    return null;
+  }
+  try {
+    await act(async () => root.render(<Harness />));
+    const shared = { title: "GitHub login 2", status: "complete" as const, githubAccount: { login: "first", token: "secret" }, token: "secret" };
+    await act(async () => store.update("github_login_v2", shared));
+    expect(latest?.sharedContext.cards.github_login_v2).toEqual({
+      initialised: true, title: "GitHub login 2", status: "complete", githubAccount: { login: "first" },
+    });
+    const snapshot = store.getSnapshot();
+    await act(async () => store.update("github_login_v2", { ...shared, githubAccount: { login: "first" } }));
+    expect(store.getSnapshot()).toBe(snapshot);
+    await act(async () => store.update("github_login_v2", { ...shared, githubAccount: { login: "second" } }));
+    expect(latest?.sharedContext.cards.github_login_v2).toMatchObject({ githubAccount: { login: "second" } });
+    await act(async () => store.update("github_login_v2", { ...shared, githubAccount: null }));
+    expect(latest?.sharedContext.cards.github_login_v2).toMatchObject({ githubAccount: null });
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
