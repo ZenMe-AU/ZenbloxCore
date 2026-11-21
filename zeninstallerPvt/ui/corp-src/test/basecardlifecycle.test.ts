@@ -4,7 +4,28 @@
  */
 
 import { expect, it } from "vitest";
-import { cardLifecycleReducer, initialCardLifecycle } from "../components/basecardlifecycle";
+import { createAppContext } from "../appContext";
+import { cardLifecycleReducer, checkPrerequisites, initialCardLifecycle } from "../components/useBaseCard";
+
+it("checks registered, initialised and complete prerequisites and rejects self-dependencies", () => {
+  const store = createAppContext();
+  const baseCardContext = {
+    cardId: "proto_card", title: "ProtoCard", lifecycle: "loading",
+    prerequisiteIds: ["", "  ", " github_login_v2 ", "repo_v2", "proto_card", "unknown"],
+  } as const;
+  const check = () => checkPrerequisites(store.getSnapshot(), baseCardContext);
+  expect(check()).toEqual(["github_login_v2", "repo_v2", "proto_card", "unknown"]);
+  const unsubscribe = store.subscribe((event) => {
+    if (event.type === "added") expect(check()).toContain(event.cardId);
+  });
+  store.update("github_login_v2", { title: "Login", status: "complete" });
+  store.update("repo_v2", { title: "Repository", status: "ready" });
+  store.update("proto_card", { title: "ProtoCard", status: "complete" });
+  expect(check()).toEqual(["repo_v2", "proto_card", "unknown"]);
+  store.update("repo_v2", { title: "Repository", status: "complete" });
+  expect(check()).toEqual(["proto_card", "unknown"]);
+  unsubscribe();
+});
 
 it("applies permitted lifecycle transitions and rejects invalid ones", () => {
   expect(() => cardLifecycleReducer(initialCardLifecycle, { type: "transition", lifecycle: "complete" })).toThrow();

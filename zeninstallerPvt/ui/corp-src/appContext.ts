@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { CardLifecycle } from "./components/basecardlifecycle";
+import type { CardLifecycle } from "./components/useBaseCard";
 import type { Account, CardId, CardStatus, GhEnv, RepoOption, User } from "./types";
 
 export class SensitiveToken {

@@ -13,14 +13,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { alpha, useTheme } from "@mui/material/styles";
 import { borderHoverTint, borderTint } from "../config/styles";
-import type { CardId } from "../types";
-import type { CardLifecycle, CardLifecycleContext } from "./basecardlifecycle";
-
-export type BaseCardContext = CardLifecycleContext & {
-  cardId: CardId;
-  title: string;
-  summary?: string;
-};
+import type { BaseCardContext, CardLifecycle } from "./useBaseCard";
 
 type Props = {
   baseCardContext: BaseCardContext;

@@ -3,15 +3,20 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useReducer, useSyncExternalStore } from "react";
 import type { CardHook, CardStatus } from "../../types";
 import type { SharedCard, AppContext } from "../../appContext";
-import type { BaseCardContext } from "../../components/BaseCard";
-import { cardLifecycleReducer, initialCardLifecycle, type CardLifecycle, type CardLifecycleContext } from "../../components/basecardlifecycle";
+import type { BaseCardContext, CardLifecycle } from "../../components/useBaseCard";
 import { createRepoApi } from "./api";
 import { useGithubRepo, type UseGithubRepo } from "./useGithubRepo";
 import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
 import { getEnvSettingsUrl } from "../../logic/github";
+import {
+  getRepoPrerequisites,
+  initialRepoCardContext,
+  initialRepoCardLifecycle,
+  repoCardLifecycleReducer,
+} from "./stateMachine";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -25,40 +30,13 @@ export interface UseRepoCardV2 extends CardHook {
   env: UseGithubEnvironment;
 }
 
-function checkPrerequisites(appContext: ReturnType<AppContext["getSnapshot"]>) {
-  const login = appContext.cards.github_login_v2;
-  if (!login?.initialised || login.status !== "complete" || !login.githubAccount || !login.githubToken || !login.githubMode) return null;
-  return { user: login.githubAccount, token: login.githubToken, mode: login.githubMode };
-}
-
-function reconcileLifecycle(context: CardLifecycleContext, phase: CardLifecycle): CardLifecycleContext {
-  let current = context;
-  const transition = (lifecycle: CardLifecycle) => {
-    current = cardLifecycleReducer(current, { type: "transition", lifecycle });
-  };
-  if (current.lifecycle === phase) return current;
-  if (current.lifecycle === "blocked" || current.lifecycle === "complete" || current.lifecycle === "error") transition("loading");
-  if ((phase === "loading" || phase === "blocked" || phase === "ready") && current.lifecycle !== "loading") {
-    transition("error");
-    transition("loading");
-  }
-  if (phase === "blocked" || phase === "ready") transition(phase);
-  if (phase === "action") transition("action");
-  if (phase === "complete") {
-    if (current.lifecycle === "ready") transition("action");
-    if (current.lifecycle === "loading" || current.lifecycle === "action") transition("commit");
-    transition("complete");
-  }
-  if (phase === "error") {
-    if (current.lifecycle === "loading") transition("action");
-    transition("error");
-  }
-  return current;
-}
-
 export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
-  const prerequisites = checkPrerequisites(appContext);
+  const [state, dispatchLifecycle] = useReducer(repoCardLifecycleReducer, initialRepoCardLifecycle);
+  const initialBaseCardContext = {
+    ...initialRepoCardContext, ...state.context,
+  } satisfies BaseCardContext;
+  const prerequisites = getRepoPrerequisites(appContext, initialBaseCardContext);
   const token = prerequisites?.token;
   const mode = prerequisites?.mode;
   const user = prerequisites?.user ?? null;
@@ -117,14 +95,10 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
   const githubEnvUrl = githubRepo.repoFullName && env.selectedEnv ? getEnvSettingsUrl(githubRepo.repoFullName, env.selectedEnv.id) : undefined;
   const done = isRepoReady && isEnvReady && !errorSummary && !busySummary;
   const phase: CardLifecycle = !prerequisites ? "blocked" : errorSummary ? "error" : busySummary ? "action" : done ? "complete" : "ready";
-  const [state, setState] = useState<{ phase: CardLifecycle; context: CardLifecycleContext }>({
-    phase: "loading", context: initialCardLifecycle,
-  });
-  if (phase !== state.phase) setState({ phase, context: reconcileLifecycle(state.context, phase) });
+  if (phase !== state.phase) dispatchLifecycle({ type: "phase-changed", phase });
   const baseCardContext = {
-    cardId: "repo_v2", title: "Repository & environment 2",
+    ...initialBaseCardContext,
     summary: phase === "blocked" ? "Sign in to GitHub login 2" : summary,
-    ...state.context,
   } satisfies BaseCardContext;
 
   return {
@@ -143,8 +117,7 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
     },
     status,
     summary,
-    cardRequirements: ["github_login_v2"],
-    cardDependencyLabel: done ? null : isRepoReady ? "Choose an environment" : "Select a repository & environment",
+    cardDependencyLabel: baseCardContext.title,
     done,
   };
 }

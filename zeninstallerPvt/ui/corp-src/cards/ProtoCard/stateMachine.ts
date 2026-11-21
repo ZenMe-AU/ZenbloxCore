@@ -9,30 +9,29 @@ import {
   initialCardLifecycle,
   type CardLifecycle,
   type CardLifecycleEvent,
-} from "../../components/basecardlifecycle";
-import type { BaseCardContext } from "../../components/BaseCard";
+} from "../../components/useBaseCard";
+import type { BaseCardContext } from "../../components/useBaseCard";
 
 export const initialState: ProtoState = {
   baseCardContext: {
     cardId: "proto_card",
     title: "ProtoCard prototype card",
+    prerequisiteIds: ["", ""],
     ...initialCardLifecycle,
   },
   protoCardContext: {
     forceUnlocked: false,
-    prerequisiteIds: ["", ""],
     unmetCardPrerequisites: [],
   },
 };
 
 type ProtoCardContext = {
   forceUnlocked: boolean;
-  prerequisiteIds: [string, string];
   unmetCardPrerequisites: string[];
 };
 
 export type ProtoState = {
-  baseCardContext: BaseCardContext;
+  baseCardContext: Omit<BaseCardContext, "prerequisiteIds"> & { prerequisiteIds: [string, string] };
   protoCardContext: ProtoCardContext;
 };
 
@@ -66,12 +65,11 @@ export function canTransition(state: ProtoState, lifecycle: CardLifecycle): bool
 export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
   switch (event.type) {
     case "card-prerequisite": {
-      const prerequisiteIds: [string, string] = [...state.protoCardContext.prerequisiteIds];
+      const prerequisiteIds: [string, string] = [...state.baseCardContext.prerequisiteIds];
       prerequisiteIds[event.index] = event.cardId;
       return {
         ...state,
-        protoCardContext: { ...state.protoCardContext, prerequisiteIds },
-        baseCardContext: { ...state.baseCardContext, ...initialCardLifecycle },
+        baseCardContext: { ...state.baseCardContext, prerequisiteIds, ...initialCardLifecycle },
       };
     }
     case "sync-card-prerequisites":

@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useReducer, useState, useRef } from "react";
 import { createGithubApi, fetchGithubUser } from "../../api/github";
 import { BACKEND_CONFIGURED, exchangeGithubCode, verifyAuthWithToken } from "../../api/backend";
 import { appUrl, requestAuthorizationCode, takePendingCode } from "../../logic/oauth";
@@ -16,9 +16,13 @@ import {
   GITHUB_SCOPES,
 } from "../../config/githubConfig";
 import type { CardHook, CardStatus, LoginHook, User } from "../../types";
-import type { BaseCardContext } from "../../components/BaseCard";
+import type { BaseCardContext } from "../../components/useBaseCard";
 import { SensitiveToken } from "../../appContext";
-import { cardLifecycleReducer, initialCardLifecycle, type CardLifecycle, type CardLifecycleContext } from "../../components/basecardlifecycle";
+import {
+  getGithubLoginPhase,
+  githubLoginLifecycleReducer,
+  initialGithubLoginLifecycle,
+} from "./stateMachine";
 
 const AUTH_RECORD_KEY = "zeninstaller_github_login_v2_auth";
 const GITHUB_PROVIDER = "github_login_v2";
@@ -124,42 +128,6 @@ function writeGithubAuthRecord(record: GithubAuthRecord | null): void {
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
-
-type AuthPhase = "ready" | "action" | "complete" | "error";
-
-function reconcileLifecycle(context: CardLifecycleContext, phase: AuthPhase): CardLifecycleContext {
-  let current = context;
-  const transition = (lifecycle: CardLifecycle) => {
-    current = cardLifecycleReducer(current, { type: "transition", lifecycle });
-  };
-  if (current.lifecycle === phase) return current;
-
-  if (current.lifecycle === "blocked" || current.lifecycle === "complete" || current.lifecycle === "error") transition("loading");
-
-  switch (phase) {
-    case "ready":
-      if (current.lifecycle === "action" || current.lifecycle === "commit") {
-        // The shared lifecycle has no direct cancellation transition.
-        transition("error");
-        transition("loading");
-      }
-      if (current.lifecycle === "loading") transition("ready");
-      break;
-    case "action":
-      if (current.lifecycle === "loading" || current.lifecycle === "ready") transition("action");
-      break;
-    case "complete":
-      if (current.lifecycle === "ready") transition("action");
-      if (current.lifecycle === "loading" || current.lifecycle === "action") transition("commit");
-      if (current.lifecycle === "commit") transition("complete");
-      break;
-    case "error":
-      if (current.lifecycle === "loading") transition("action");
-      if (current.lifecycle === "ready" || current.lifecycle === "action" || current.lifecycle === "commit") transition("error");
-      break;
-  }
-  return current;
-}
 
 export function useGithubLoginCardV2() {
   const [loggingIn, setLoggingIn] = useState(true);
@@ -391,17 +359,12 @@ export function useGithubLoginCardV2() {
     token,
     setToken: setTokenState,
   };
-  const [state, setState] = useState<{ phase: AuthPhase | null; context: CardLifecycleContext }>({
-    phase: null,
-    context: initialCardLifecycle,
-  });
-  const phase: AuthPhase | null = redirecting === "login" || verifying
-    ? "action"
-    : loggingIn ? null : account ? "complete" : sessionExpired ? "error" : "ready";
+  const [state, dispatchLifecycle] = useReducer(githubLoginLifecycleReducer, initialGithubLoginLifecycle);
+  const phase = getGithubLoginPhase({ redirecting, verifying, loggingIn, account, sessionExpired });
   if (phase !== null && phase !== state.phase) {
-    setState({ phase, context: reconcileLifecycle(state.context, phase) });
+    dispatchLifecycle({ type: "phase-changed", phase });
   }
-  const baseCardContext = { cardId: githubLoginContext.cardId, title: "GitHub login 2", summary, ...state.context } satisfies BaseCardContext;
+  const baseCardContext = { cardId: githubLoginContext.cardId, title: "GitHub login 2", prerequisiteIds: [], summary, ...state.context } satisfies BaseCardContext;
   return {
     ...githubLoginContext,
     baseCardContext,

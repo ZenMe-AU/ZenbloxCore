@@ -7,7 +7,7 @@ import { useRef, useState } from "react";
 import { stringify } from "yaml";
 import { Box, Button, CircularProgress, Link, TextField, Typography, useTheme } from "@mui/material";
 import BaseCard from "../../components/BaseCard";
-import type { CardLifecycle } from "../../components/basecardlifecycle";
+import type { CardLifecycle } from "../../components/useBaseCard";
 import CollapsiblePanel from "../../components/CollapsiblePanel";
 import ViewLink from "../../components/ViewLink";
 import type { CardChrome } from "../../types";
@@ -138,7 +138,7 @@ function PrerequisitesPanel({ protoCard, drafts, onDraftChange }: {
             value={drafts[index]}
             onChange={(event) => onDraftChange(index, event.target.value)}
             onBlur={(event) => {
-              if (event.target.value !== protoCardContext.prerequisiteIds[index]) {
+              if (event.target.value !== baseCardContext.prerequisiteIds[index]) {
                 dispatch({ type: "card-prerequisite", index, cardId: event.target.value });
               }
             }}
@@ -323,7 +323,7 @@ function BlockedContent({ protoCard }: {
 
 export default function ProtoCard({ cardChrome, protoCard }: Props) {
   const { baseCardContext, protoCardContext } = protoCard;
-  const [drafts, setDrafts] = useState<[string, string]>(() => [...protoCardContext.prerequisiteIds]);
+  const [drafts, setDrafts] = useState<[string, string]>(() => [...baseCardContext.prerequisiteIds]);
   const { forceUnlocked } = protoCardContext;
   const showBlockedContent = baseCardContext.lifecycle === "blocked" && !forceUnlocked;
 

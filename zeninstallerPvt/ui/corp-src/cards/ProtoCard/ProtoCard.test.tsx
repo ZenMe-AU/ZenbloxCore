@@ -8,7 +8,7 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
-import { canCardTransition, type CardLifecycle } from "../../components/basecardlifecycle";
+import { canCardTransition, type CardLifecycle } from "../../components/useBaseCard";
 import { createAppContext, SensitiveToken } from "../../appContext";
 import theme from "../../theme";
 import ProtoCard from "./ProtoCard";
@@ -93,8 +93,8 @@ describe("ProtoCard state machine", () => {
               requirements: [],
               unavailable: false,
               expanded: true,
-              onToggle: () => {},
-              onRequirementClick: () => {},
+              onToggle: () => { },
+              onRequirementClick: () => { },
             }}
           />
         </ThemeProvider>
@@ -141,8 +141,8 @@ describe("ProtoCard state machine", () => {
               requirements: [],
               unavailable: false,
               expanded: true,
-              onToggle: () => {},
-              onRequirementClick: () => {},
+              onToggle: () => { },
+              onRequirementClick: () => { },
             }}
           />
         </ThemeProvider>
@@ -199,7 +199,7 @@ describe("ProtoCard state machine", () => {
         <ThemeProvider theme={theme}>
           <ProtoCard protoCard={latest} cardChrome={{
             cardId: "proto_card", status: latest.status, locked: false, requirements: [],
-            unavailable: false, expanded: true, onToggle: () => {}, onRequirementClick: () => {},
+            unavailable: false, expanded: true, onToggle: () => { }, onRequirementClick: () => { },
           }} />
         </ThemeProvider>
       );

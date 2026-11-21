@@ -57,6 +57,7 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
   try {
     await act(async () => root.render(<Harness />));
     expect(latest?.shared.status).toBe("blocked");
+    expect(latest?.baseCardContext.prerequisiteIds).toEqual(["github_login_v2"]);
     const token = new SensitiveToken("v2-token");
     const login: SharedCard = {
       title: "GitHub login 2", status: "complete", githubAccount: { login: "v2-user" }, githubToken: token, githubMode: "backend",
