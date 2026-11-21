@@ -21,7 +21,7 @@ import {
   type LicenceState,
   type RoleTarget,
 } from "./config";
-import { adminRowErrors, adminRowWarnings, duplicateUpns, errorText, newAdmin, rowUpns, type AdminRow } from "./logic";
+import { adminRowErrors, adminRowWarnings, duplicateUpns, errorText, newAdmin, rowUpns, withoutCreated, type AdminRow, type CreatedAdmin } from "./logic";
 import { adminUsersSteps, runAdminUsers } from "./steps";
 import { useAdminDirectory, useLicenceAndDomains, useTakenUpns } from "./useEntraReads";
 
@@ -49,6 +49,7 @@ export type UseCreateAdminUsersCard = CardHook & {
   primaryDomain: string; // Empty until the domains are read.
   missingGroups: string[] | null; // Null until Entra was read.
   existingAdmins: AdminPair[] | null; // Admins already in Entra; null until read.
+  waitingAdmins: CreatedAdmin[]; // A run finished them, but Entra doesn't list them as existing yet.
   entraLicence: LicenceState;
   licenceError: string | null; // Why the licence couldn't be read, unless it's missing consent.
   roleTarget: RoleTarget; // Who holds PrivilegedAccounts' Global Administrator.
@@ -79,6 +80,8 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   }, []);
   const removeAdmin = useCallback((key: string) => setAdmins((prev) => prev.filter((a) => a.key !== key)), []);
 
+  const [created, setCreated] = useState<CreatedAdmin[]>([]);
+
   // Reads; the directory is read again after each run.
   const [checkKey, setCheckKey] = useState(0);
   const { missingGroups, existingAdmins, signedInUser, error: directoryError } = useAdminDirectory(azureAccount, tenantId, checkKey);
@@ -94,6 +97,8 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   const access = useCardResourceAccess({ azureAccount, subscriptionId, tenantId: tid }, createAdminUsersAccess(usePim));
   const rowErrors = adminRowErrors(admins, existingAdmins ?? [], primaryDomain);
   const rowWarnings = adminRowWarnings(admins, primaryDomain, takenUpns, rowErrors);
+  // One that Entra doesn't list yet after the read waits until the next read (a rerun or a reload).
+  const waitingAdmins = created.filter((createdAdmin) => !existingAdmins?.some((pair) => pair.user.id === createdAdmin.user.id));
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const canRun = !running && !!primaryDomain && !!signedInUser && access.status === "ready" && licenceAllows("none", entraLicence) && Object.keys(rowErrors).length === 0;
 
@@ -111,7 +116,10 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
       updateStep(id, "error", msg);
     };
     try {
-      await runAdminUsers({ ...input, updateStep, fail });
+      const finished = await runAdminUsers({ ...input, updateStep, fail });
+      // Finished admins can't be edited or run again; they wait, read-only, until the read after the run lists them as existing.
+      setCreated((prev) => [...prev, ...finished]);
+      setAdmins((prev) => withoutCreated(prev, finished));
     } finally {
       setRunning(false);
       setCheckKey((k) => k + 1);
@@ -166,6 +174,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     primaryDomain,
     missingGroups,
     existingAdmins,
+    waitingAdmins,
     entraLicence,
     licenceError,
     roleTarget,

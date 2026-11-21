@@ -20,11 +20,14 @@ export type AdminRow = {
   displayName: string | null; // Null follows the default; the same for username.
   username: string | null; // The user account's UPN, before the @; the privileged account is always adm_ + this.
   domain: string | null; // After the @, for both accounts; null for the primary domain.
-  manager: ManagerChoice | null; // The user account's manager; null for the signed-in user. Another admin in this list must be above this one.
+  manager: ManagerChoice | null; // The user account's manager; null for the signed-in user. Another admin in this list may be anywhere in it; the run makes managers first.
   // privilegedManager: ManagerChoice | null; // Deprecated: the adm_ account's manager is always its user account; kept for reference.
 };
 
 export type ResolvedAdmin = { displayName: string; username: string; privilegedUsername: string; privilegedDisplayName: string };
+
+// An admin whose two accounts a run finished.
+export type CreatedAdmin = { key: string; user: EntraUser; privileged: EntraUser };
 
 const toUpnPart = (name: string) =>
   name.normalize("NFD").replace(/\p{M}/gu, "").trim().split(/\s+/).join(".").replace(/[^A-Za-z0-9._-]/g, "");
@@ -80,6 +83,44 @@ export function duplicateUpns(admins: AdminRow[]): Record<string, { upn: string;
   return duplicates;
 }
 
+// Whether the row's managers, followed through rows in this list, reach the target row.
+export function reportsTo(admins: AdminRow[], key: string, target: string): boolean {
+  const seen = new Set<string>();
+  for (let row = admins.find((admin) => admin.key === key); row && !seen.has(row.key); ) {
+    seen.add(row.key);
+    const pick = row.manager;
+    if (pick?.kind !== "row") return false;
+    if (pick.key === target) return true;
+    row = admins.find((admin) => admin.key === pick.key);
+  }
+  return false;
+}
+
+// Why the row's pick would make a loop: the manager it picked from this list already reports to it. Null if it doesn't.
+export function managerLoop(admins: AdminRow[], admin: AdminRow): string | null {
+  const pick = admin.manager;
+  if (pick?.kind !== "row" || !reportsTo(admins, pick.key, admin.key)) return null;
+  const manager = admins.find((other) => other.key === pick.key);
+  const name = (manager && resolveAdmin(manager).displayName.trim()) || "That admin";
+  return `${name} already reports to this admin, so they can't manage each other.`;
+}
+
+// The rows in the order the run makes them: each manager from this list before their reports, the rest as listed.
+export function byManager(admins: AdminRow[]): AdminRow[] {
+  const ordered: AdminRow[] = [];
+  const seen = new Set<string>();
+  const visit = (admin: AdminRow) => {
+    if (seen.has(admin.key)) return; // Also stops a loop, which adminRowErrors blocks before a run.
+    seen.add(admin.key);
+    const pick = admin.manager;
+    const manager = pick?.kind === "row" ? admins.find((other) => other.key === pick.key) : undefined;
+    if (manager) visit(manager);
+    ordered.push(admin);
+  };
+  admins.forEach(visit);
+  return ordered;
+}
+
 // existing: admins already in Entra; their employee IDs are taken, except by a rerun for the same user account.
 export function adminRowErrors(admins: AdminRow[], existing: readonly AdminPair[] = [], primaryDomain = ""): Record<string, string> {
   const errors: Record<string, string> = {};
@@ -92,6 +133,7 @@ export function adminRowErrors(admins: AdminRow[], existing: readonly AdminPair[
     const duplicate = duplicates[a.key];
     const employeeId = a.employeeId.trim().toLowerCase();
     const upn = `${r.username.trim()}@${a.domain ?? primaryDomain}`.toLowerCase();
+    const loop = managerLoop(admins, a);
     const owner = !!(a.domain ?? primaryDomain) && existing.find((x) => x.user.employeeId?.trim().toLowerCase() === employeeId && x.user.userPrincipalName.toLowerCase() !== upn);
     if (!a.givenName.trim() || !a.surname.trim()) errors[a.key] = "Enter the first name and surname.";
     else if (!MOBILE.test(a.mobile.trim())) errors[a.key] = "Enter a mobile number, e.g. +61 400 000 000.";
@@ -104,10 +146,22 @@ export function adminRowErrors(admins: AdminRow[], existing: readonly AdminPair[
     else if (duplicate) errors[a.key] = `User ${duplicate.row} already uses ${duplicate.upn}; each account needs its own UPN.`;
     // else if ([a.manager, a.privilegedManager].some((m) => m?.kind === "row" && !admins.some((o) => o.key === m.key))) errors[a.key] = "Pick another manager; that user was removed."; // Deprecated: only the user account has a pick; kept for reference.
     else if ([a.manager].some((m) => m?.kind === "row" && !admins.some((o) => o.key === m.key))) errors[a.key] = "Pick another manager; that user was removed.";
+    else if (loop) errors[a.key] = `Pick another manager; ${loop}`;
     // for (const n of names) seen.add(n); // Deprecated: duplicateUpns finds the repeats; kept for reference.
     employeeIds.add(a.employeeId.trim().toLowerCase());
   }
   return errors;
+}
+
+// The rows left once the created admins leave the list. A row that picked one of them as manager now points at that account in Entra.
+export function withoutCreated(admins: AdminRow[], created: CreatedAdmin[]): AdminRow[] {
+  return admins
+    .filter((admin) => !created.some((createdAdmin) => createdAdmin.key === admin.key))
+    .map((admin) => {
+      const pick = admin.manager;
+      const manager = pick?.kind === "row" ? created.find((createdAdmin) => createdAdmin.key === pick.key) : undefined;
+      return manager ? { ...admin, manager: { kind: "entra", ...manager.user } } : admin;
+    });
 }
 
 // A warning, not an error: a rerun finds the accounts it already made.

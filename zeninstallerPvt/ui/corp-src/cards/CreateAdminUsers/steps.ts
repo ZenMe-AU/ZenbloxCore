@@ -24,7 +24,7 @@ import { ensureRbacRoleAtScope, ensureRbacRoleEligibility } from "../../api/azur
 import { generateRandomPassword } from "../../logic/password";
 import type { AzureAccount, SetupStep } from "../../types";
 import { ADMIN_GROUPS, PRIVILEGED_ACCOUNT_GROUPS, PRIVILEGED_GROUP, USER_ACCOUNT_GROUPS, roleLabel, type RoleTarget } from "./config";
-import { resolveAdmin, type AdminRow } from "./logic";
+import { byManager, resolveAdmin, type AdminRow, type CreatedAdmin } from "./logic";
 
 // What the run works on; the card hook runs only once all of it is there.
 export type AdminUsersInput = {
@@ -46,9 +46,9 @@ export type AdminUsersRun = AdminUsersInput & {
 // Whether any group sits in another; the nesting step shows only then.
 const NESTED = ADMIN_GROUPS.some((g) => g.memberOf.length > 0);
 
-// Every admin gets a user account and an adm_ account, each in its fixed groups.
+// Every admin gets a user account and an adm_ account, each in its fixed groups; managers from this list come first.
 function accountsOf({ admins, primaryDomain }: AdminUsersInput) {
-  return admins.flatMap((a) => {
+  return byManager(admins).flatMap((a) => {
     const r = resolveAdmin(a);
     const domain = a.domain ?? primaryDomain;
     return [
@@ -85,13 +85,14 @@ export function adminUsersSteps(input: AdminUsersInput): { id: string; label: st
 }
 
 // Runs the checklist in order. A failed step stops only the steps that need it.
-export async function runAdminUsers(run: AdminUsersRun): Promise<void> {
+// Returns the admins whose two accounts are both done.
+export async function runAdminUsers(run: AdminUsersRun): Promise<CreatedAdmin[]> {
   const ids = await createGroups(run);
-  if (!ids) return; // Every later step needs the group ids.
+  if (!ids) return []; // Every later step needs the group ids.
   await nestGroups(run, ids);
   await assignGroupRoles(run, ids);
   await allowFido2(run);
-  await createAccounts(run, ids);
+  return createAccounts(run, ids);
 }
 
 // Finds or creates each group; returns their ids, or null if this failed.
@@ -169,14 +170,15 @@ async function allowFido2({ azureAccount, tenantId: tid, updateStep, fail }: Adm
   }
 }
 
-async function createAccounts(run: AdminUsersRun, ids: Map<string, string>) {
+async function createAccounts(run: AdminUsersRun, ids: Map<string, string>): Promise<CreatedAdmin[]> {
   const { azureAccount, tenantId: tid, signedInUser, usePim, updateStep, fail } = run;
   const accounts = accountsOf(run);
   // Assigned to users, the accounts hold PrivilegedAccounts' directory roles themselves.
   const userRoles = run.roleTarget === "users"
     ? ADMIN_GROUPS.find((g) => g.name === PRIVILEGED_GROUP)!.roles.flatMap((r) => ("directoryRole" in r ? [r.directoryRole] : [])) : [];
-  // Step id → account; a manager from this list is above its reports, so it's created first.
+  // Step id → account; accounts go in manager order, so a manager from this list is created first.
   const users = new Map<string, { id: string; existed: boolean; displayName: string }>();
+  const done = new Map<string, EntraUser>(); // Step id → its account, once account, manager, groups and roles are all set.
   // An adm_ account's manager is the same admin's user account; a user account's is the pick, else the signed-in user.
   // A pick from this list is that admin's user account.
   const managerOf = (a: AdminRow, kind: string) => {
@@ -229,6 +231,7 @@ async function createAccounts(run: AdminUsersRun, ids: Map<string, string>) {
         ...roles.map((r) => (usePim ? `eligible for ${r}` : r)),
       ].join(", ");
       updateStep(stepId, "done", existed ? `Already existed, ${membership}` : `Created, ${membership}`);
+      done.set(stepId, { id: user.id, displayName, userPrincipalName: upn });
     } catch (err) {
       fail(stepId, err);
     }
@@ -253,4 +256,10 @@ async function createAccounts(run: AdminUsersRun, ids: Map<string, string>) {
   //     fail("managers", err);
   //   }
   // }
+
+  return run.admins.flatMap((admin) => {
+    const user = done.get(`user:${admin.key}`);
+    const privileged = done.get(`priv:${admin.key}`);
+    return user && privileged ? [{ key: admin.key, user, privileged }] : [];
+  });
 }

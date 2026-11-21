@@ -9,7 +9,7 @@ import { ThemeProvider } from "@mui/material";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountInfo } from "@azure/msal-browser";
 import { useCreateAdminUsersCard, type UseCreateAdminUsersCard } from "../cards/CreateAdminUsers/useCreateAdminUsersCard";
-import { adminRowErrors, duplicateUpns, resolveAdmin, type AdminRow } from "../cards/CreateAdminUsers/logic";
+import { adminRowErrors, byManager, duplicateUpns, managerLoop, resolveAdmin, type AdminRow } from "../cards/CreateAdminUsers/logic";
 import CreateAdminUsersCard from "../cards/CreateAdminUsers/CreateAdminUsersCard";
 import { createAdminUsersAccess } from "../cards/CreateAdminUsers/config";
 import theme from "../theme";
@@ -302,7 +302,7 @@ describe("useCreateAdminUsersCard", () => {
     expect(mocks.ensureRbacRoleAtScope.mock.calls.map((c) => c[1])).toEqual(["/subscriptions/sub-1"]);
   });
 
-  it("keeps an existing account's manager and defaults the others to the signed-in user", async () => {
+  it("keeps an existing account's manager, defaults the others to the signed-in user, and moves the done admins out of the list to add", async () => {
     mocks.getUserManagerId.mockResolvedValue("boss");
     const card = renderCard();
     await waitFor(() => expect(card.current.signedInUser).not.toBeNull());
@@ -314,6 +314,10 @@ describe("useCreateAdminUsersCard", () => {
       card.current.addAdmin();
     });
     act(() => card.current.updateAdmin(card.current.admins[1].key, { givenName: "Cat", surname: "Ng", mobile: "+61 400 000 003", employeeId: "E003" }));
+    const ann = card.current.admins[0].key;
+    // The read after the run lists Ann, but Entra doesn't list Cat yet.
+    const annAccount = { id: "u-Ann.Lee@corp.com", displayName: "Ann Lee", userPrincipalName: "Ann.Lee@corp.com", manager: "Chris Tan", managerId: "e1", employeeId: "E001" };
+    mocks.listAdminPairs.mockResolvedValue([{ user: annAccount, privileged: { ...annAccount, id: "u-adm_Ann.Lee@corp.com", userPrincipalName: "adm_Ann.Lee@corp.com", manager: "Ann Lee", managerId: annAccount.id } }]);
     await act(async () => {
       await card.current.run();
     });
@@ -324,7 +328,60 @@ describe("useCreateAdminUsersCard", () => {
       ["u-Cat.Ng@corp.com", "me"],
       ["u-adm_Cat.Ng@corp.com", "u-Cat.Ng@corp.com"],
     ]);
-    expect(card.current.steps.find((s) => s.id === `user:${card.current.admins[0].key}`)?.detail).toBe("Already existed, manager kept, member of PrivilegedAccountApproved");
+    expect(card.current.steps.find((step) => step.id === `user:${ann}`)?.detail).toBe("Already existed, manager kept, member of PrivilegedAccountApproved");
+    // Both admins are done, so they leave the list to add and wait, read-only, until Entra lists them.
+    expect(card.current.admins).toEqual([]);
+    await waitFor(() => expect(card.current.existingAdmins?.map((pair) => pair.user.userPrincipalName)).toEqual(["Ann.Lee@corp.com"]));
+    expect(card.current.waitingAdmins.map((createdAdmin) => [createdAdmin.user.userPrincipalName, createdAdmin.privileged.userPrincipalName])).toEqual([["Cat.Ng@corp.com", "adm_Cat.Ng@corp.com"]]);
+  });
+
+  it("makes a manager from the list before their report, whatever the order", async () => {
+    const card = renderCard();
+    await waitFor(() => expect(card.current.signedInUser).not.toBeNull());
+    await waitFor(() => expect(card.current.entraLicence).toBe("p1"));
+    const cat = card.current.admins[0].key;
+    let bob = "";
+    act(() => {
+      bob = card.current.addAdmin();
+    });
+    act(() => {
+      card.current.updateAdmin(cat, { givenName: "Cat", surname: "Ng", mobile: "+61 400 000 003", employeeId: "E003", manager: { kind: "row", key: bob } });
+      card.current.updateAdmin(bob, { givenName: "Bob", surname: "Wu", mobile: "+61 400 000 002", employeeId: "E002" });
+    });
+    expect(card.current.rowErrors).toEqual({});
+    await act(async () => {
+      await card.current.run();
+    });
+
+    // Bob is below Cat in the list but manages her, so his accounts are made first.
+    expect(mocks.createUser.mock.calls.map((call) => call[1].userPrincipalName)).toEqual(["Bob.Wu@corp.com", "adm_Bob.Wu@corp.com", "Cat.Ng@corp.com", "adm_Cat.Ng@corp.com"]);
+    expect(mocks.setUserManager.mock.calls.find((call) => call[1] === "u-Cat.Ng@corp.com")?.[2]).toBe("u-Bob.Wu@corp.com");
+    expect(card.current.steps.filter((step) => step.status === "error")).toEqual([]);
+  });
+
+  it("points a row left in the list at its manager's new account once that admin is done", async () => {
+    mocks.createUser.mockImplementation(async (_, params: { userPrincipalName: string }) => {
+      if (params.userPrincipalName === "Cat.Ng@corp.com") throw new Error("Insufficient privileges");
+      return { id: `u-${params.userPrincipalName}`, userPrincipalName: params.userPrincipalName };
+    });
+    const card = renderCard();
+    await waitFor(() => expect(card.current.signedInUser).not.toBeNull());
+    await waitFor(() => expect(card.current.entraLicence).toBe("p1"));
+    const bob = card.current.admins[0].key;
+    act(() => {
+      card.current.updateAdmin(bob, { givenName: "Bob", surname: "Wu", mobile: "+61 400 000 002", employeeId: "E002" });
+      card.current.addAdmin();
+    });
+    const cat = card.current.admins[1].key;
+    act(() => card.current.updateAdmin(cat, { givenName: "Cat", surname: "Ng", mobile: "+61 400 000 003", employeeId: "E003", manager: { kind: "row", key: bob } }));
+    await act(async () => {
+      await card.current.run();
+    });
+
+    // Bob is done and waits; Cat failed, stays, and now reports to Bob's account in Entra, so a rerun can make her.
+    expect(card.current.waitingAdmins.map((createdAdmin) => createdAdmin.key)).toEqual([bob]);
+    expect(card.current.admins.map((admin) => [admin.key, admin.manager])).toEqual([[cat, { kind: "entra", id: "u-Bob.Wu@corp.com", displayName: "Bob Wu", userPrincipalName: "Bob.Wu@corp.com" }]]);
+    expect(card.current.rowErrors).toEqual({});
   });
 
   it("creates no account whose manager's account failed", async () => {
@@ -352,6 +409,8 @@ describe("useCreateAdminUsersCard", () => {
     expect(card.current.steps.find((s) => s.id === `priv:${bob}`)).toMatchObject({ status: "error", detail: "Not created, because the user account failed" });
     expect(card.current.steps.find((s) => s.id === `user:${cat}`)).toMatchObject({ status: "error", detail: "Not created, because its manager's account failed" });
     expect(card.current.steps.find((s) => s.id === `priv:${cat}`)).toMatchObject({ status: "error", detail: "Not created, because the user account failed" });
+    // Not done, so both stay in the list to add.
+    expect(card.current.admins.map((admin) => admin.key)).toEqual([bob, cat]);
   });
 
   it("warns about a row whose UPN Entra already has, without blocking the run", async () => {
@@ -478,6 +537,21 @@ describe("adminRowErrors", () => {
     expect(duplicateUpns([row("1", "bob"), row("2", "ann"), row("3", "adm_bob")])).toEqual({ 3: { upn: "adm_bob", row: 1 } });
     expect(duplicateUpns([row("1", ""), row("2", "")])).toEqual({});
     expect(adminRowErrors([row("1", "ann.lee"), row("2", "bob_wu-2")])).toEqual({});
+  });
+
+  it("puts each manager from the list before their reports, and blocks admins who'd manage each other", () => {
+    const cat = row("1", "cat", { givenName: "Cat", surname: "Ng", manager: { kind: "row", key: "3" } });
+    const ann = row("2", "ann");
+    const bob = row("3", "bob", { givenName: "Bob", surname: "Wu", manager: { kind: "row", key: "2" } });
+    expect(byManager([cat, ann, bob]).map((admin) => admin.key)).toEqual(["2", "3", "1"]);
+    expect(adminRowErrors([cat, ann, bob])).toEqual({});
+    // Bob picks Cat, who already reports to him: each row names the other.
+    const loop = [cat, ann, { ...bob, manager: { kind: "row" as const, key: "1" } }];
+    expect(managerLoop(loop, loop[0])).toBe("Bob Wu already reports to this admin, so they can't manage each other.");
+    expect(adminRowErrors(loop)).toEqual({
+      1: "Pick another manager; Bob Wu already reports to this admin, so they can't manage each other.",
+      3: "Pick another manager; Cat Ng already reports to this admin, so they can't manage each other.",
+    });
   });
 
   it("blocks an employee ID an existing admin has, except a rerun for that admin", () => {

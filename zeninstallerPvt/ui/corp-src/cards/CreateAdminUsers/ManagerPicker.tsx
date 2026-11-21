@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { Autocomplete, TextField } from "@mui/material";
 import type { AdminPair, EntraUser } from "../../api/azureGraph";
-import { resolveAdmin, type AdminRow, type ManagerChoice } from "./logic";
+import { managerLoop, resolveAdmin, type AdminRow, type ManagerChoice } from "./logic";
 
 function managerLabel(m: ManagerChoice, admins: AdminRow[], privileged: boolean): string {
   if (m.kind === "entra") return m.displayName;
@@ -26,7 +26,7 @@ const FALLBACK: Option = { kind: "fallback" };
 const sameManager = (a: Option, b: Option) =>
   a.kind === b.kind && (a.kind === "fallback" || (a.kind === "row" ? a.key === (b as typeof a).key : a.id === (b as typeof a).id));
 
-// The fallback, an admin above this one in the list or already in Entra, or an Entra user found by name or UPN, of the same kind (adm_ or not).
+// The fallback, another admin in the list or already in Entra, or an Entra user found by name or UPN, of the same kind (adm_ or not).
 export default function ManagerPicker({ label, self, privileged, value, fallback, admins, existing, search, onChange, disabled }: {
   label: string;
   self: string;
@@ -54,11 +54,15 @@ export default function ManagerPicker({ label, self, privileged, value, fallback
   // An existing admin's account of the same kind.
   const listed = existing.map((x) => (privileged ? x.privileged : x.user)).filter((u) => u.id !== fallback?.id);
   const listedIds = new Set([...listed.map((u) => u.id), ...(fallback?.id ? [fallback.id] : [])]);
-  // Only admins above, so each manager is created before their reports.
-  const above = admins.slice(0, Math.max(0, admins.findIndex((o) => o.key === self)));
+  // const above = admins.slice(0, Math.max(0, admins.findIndex((o) => o.key === self))); // Deprecated: the run makes managers first, whatever the order; kept for reference.
+  // Any other admin in the list. One who already reports to this one can be picked too, but then the field warns.
+  const others = admins.filter((other) => other.key !== self);
+  const selfRow = admins.find((admin) => admin.key === self);
+  const loop = selfRow ? managerLoop(admins, selfRow) : null;
   const options: Option[] = [
     ...(fallback ? [FALLBACK] : []),
-    ...above.map((o) => ({ kind: "row" as const, key: o.key })),
+    // ...above.map((o) => ({ kind: "row" as const, key: o.key })), // Deprecated: the run makes managers first, whatever the order; kept for reference.
+    ...others.map((other) => ({ kind: "row" as const, key: other.key })),
     ...listed.map(({ id, displayName, userPrincipalName }) => ({ kind: "entra" as const, id, displayName, userPrincipalName })),
     ...(q.length >= 2 && found.query === q ? found.users : [])
       .filter((u) => /^adm_/i.test(u.userPrincipalName) === privileged && !listedIds.has(u.id))
@@ -83,7 +87,8 @@ export default function ManagerPicker({ label, self, privileged, value, fallback
       filterOptions={(opts, { inputValue }) => opts.filter((m) => !inList(m) || text(m).toLowerCase().includes(inputValue.trim().toLowerCase()))}
       noOptionsText="Type a name or UPN to search Entra"
       disabled={disabled}
-      renderInput={(params) => <TextField {...params} placeholder="Signed-in user" inputProps={{ ...params.inputProps, "aria-label": label, "data-sensitive": true }} />}
+      // renderInput={(params) => <TextField {...params} placeholder="Signed-in user" inputProps={{ ...params.inputProps, "aria-label": label, "data-sensitive": true }} />} // Deprecated: the field now warns about a loop; kept for reference.
+      renderInput={(params) => <TextField {...params} placeholder="Signed-in user" error={!!loop} helperText={loop} inputProps={{ ...params.inputProps, "aria-label": label, "data-sensitive": true }} />}
     />
   );
 }
