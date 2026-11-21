@@ -11,7 +11,7 @@ import { warningMessageIconSx } from "../../config/styles";
 import type { UsePrivateFrontendInfraCard } from "./usePrivateFrontendInfraCard";
 import StepRow from "../StepRow";
 import AzureAccessCheck from "../../components/AzureAccessCheck";
-import Prerequisites from "../../components/Prerequisites";
+import CollapsiblePanel from "../../components/CollapsiblePanel";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
@@ -177,9 +177,9 @@ export default function PrivateFrontendInfraCard({
         )}
 
         {(infra.creationAccess.status === "warning" || infra.creationAccess.status === "error") && (
-          <Prerequisites id="private-frontend-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+          <CollapsiblePanel label="Prerequisites" id="private-frontend-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             <AzureAccessCheck access={infra.creationAccess} resourceAccess errorStyle />
-          </Prerequisites>
+          </CollapsiblePanel>
         )}
 
         {/* ── Divider (clickable toggle) ── */}

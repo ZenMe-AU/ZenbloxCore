@@ -3,17 +3,17 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useState } from "react";
-import { Box, Button, Checkbox, CircularProgress, Collapse, FormControlLabel, Link, Typography, useTheme, ButtonBase } from "@mui/material";
+import { useRef, useState } from "react";
+import { stringify } from "yaml";
+import { Box, Button, Checkbox, CircularProgress, FormControlLabel, Link, Typography, useTheme, ButtonBase } from "@mui/material";
 import BaseCard from "../../components/BaseCard";
 import type { CardLifecycle } from "../../components/cardLifecycle";
-import Prerequisites from "../../components/Prerequisites";
+import CollapsiblePanel from "../../components/CollapsiblePanel";
 import ViewLink from "../../components/ViewLink";
 import type { CardChrome } from "../../types";
 import { canTransition, requirements, type RequirementId } from "./stateMachine";
 import type { UseProtoCard } from "./useProtoCard";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 
 type Props = {
   card: CardChrome;
@@ -57,7 +57,7 @@ function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
       {/* ============================================================
           END ACTION CONTENT HERE
           ============================================================ */}
-      <ResultsPanel lifecycle={protoCard.baseCardContext.lifecycle} />
+      <ResultsPanel protoCard={protoCard} />
     </>
   );
 }
@@ -72,7 +72,7 @@ function PrerequisitesPanel({ protoCard }: { protoCard: UseProtoCard }) {
   }
 
   return (
-    <Prerequisites id="proto-card-prerequisites" open={panel.open} onToggle={() => setPanel((value) => ({ ...value, open: !value.open }))}>
+    <CollapsiblePanel label="Prerequisites" id="proto-card-prerequisites" open={panel.open} onToggle={() => setPanel((value) => ({ ...value, open: !value.open }))}>
       {/* ============================================================
           START PREREQUISITES PANEL CONTENT HERE
           ============================================================ */}
@@ -171,65 +171,101 @@ function PrerequisitesPanel({ protoCard }: { protoCard: UseProtoCard }) {
       {/* ============================================================
           END PREREQUISITES PANEL CONTENT HERE
           ============================================================ */}
-    </Prerequisites>
+    </CollapsiblePanel>
   );
 }
 
-function ResultsPanel({ lifecycle }: { lifecycle: CardLifecycle }) {
+function ResultsPanel({ protoCard }: { protoCard: UseProtoCard }) {
+  const { appContext, baseCardContext, protoCardContext } = protoCard;
+  const lifecycle = baseCardContext.lifecycle;
   const [panel, setPanel] = useState({ lifecycle, open: lifecycle === "commit" });
+  const [widths, setWidths] = useState([100 / 3, 100 / 3, 100 / 3]);
+  const columnsRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ index: number; x: number } | null>(null);
   if (panel.lifecycle !== lifecycle) {
     setPanel({ lifecycle, open: panel.open || lifecycle === "commit" });
   }
 
+  function resizeColumns(index: number, change: number) {
+    setWidths((previous) => {
+      const widths = [...previous];
+      const total = widths[index] + widths[index + 1];
+      widths[index] = Math.max(15, Math.min(total - 15, widths[index] + change));
+      widths[index + 1] = total - widths[index];
+      return widths;
+    });
+  }
+
+  const contexts = [
+    { name: "protoCardContext", value: protoCardContext },
+    { name: "baseCardContext", value: baseCardContext },
+    { name: "appContext", value: appContext },
+  ];
+
   return (
-    <Box>
-      <ButtonBase
-        disableRipple
-        onClick={() => setPanel((value) => ({ ...value, open: !value.open }))}
-        aria-expanded={panel.open}
-        aria-controls="proto-card-results"
-        sx={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          gap: 1.5,
-          userSelect: "none",
-          py: 0.25,
-          "&:hover .plan-output-toggle-label, &:focus-visible .plan-output-toggle-label": { color: "primary.main" },
-          "&:hover .plan-output-toggle-line, &:focus-visible .plan-output-toggle-line": { backgroundColor: "primary.main" },
-          "&:hover .plan-output-toggle-icon, &:focus-visible .plan-output-toggle-icon": { color: "primary.main" },
-        }}
-      >
-        <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-        <Typography className="plan-output-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
-          {panel.open ? "hide results" : "view results"}
-        </Typography>
-        <KeyboardArrowDownIcon
-          className="plan-output-toggle-icon"
-          sx={{
-            typography: "body2",
-            color: "text.muted",
-            transform: panel.open ? "rotate(180deg)" : "none",
-            transition: "color 0.2s, transform 0.2s",
-          }}
-          aria-hidden="true"
-        />
-        <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-      </ButtonBase>
-      <Collapse in={panel.open} timeout={300}>
-        <Box id="proto-card-results" role="region" aria-label="Results">
-          {/* ============================================================
-              START RESULTS PANEL CONTENT HERE
-              ============================================================ */}
-          <Typography>
-            Results content goes here.
-          </Typography>
-          {/* ============================================================
-              END RESULTS PANEL CONTENT HERE
-              ============================================================ */}
+    <CollapsiblePanel label="Results" id="proto-card-results" open={panel.open} onToggle={() => setPanel((value) => ({ ...value, open: !value.open }))}>
+      {/* ============================================================
+          START RESULTS PANEL CONTENT HERE
+          ============================================================ */}
+      <Typography variant="caption" color="text.secondary">
+        Drag the separators or use the arrow keys to resize columns.
+      </Typography>
+      <Box sx={{ overflowX: "auto" }}>
+        <Box ref={columnsRef} sx={{ display: "flex", minWidth: 540 }}>
+          {contexts.map(({ name, value }, index) => (
+            <Box key={name} sx={{ flex: `0 0 ${widths[index]}%`, minWidth: 0, position: "relative" }}>
+              <Box
+                role="region"
+                aria-label={`${name} YAML`}
+                tabIndex={0}
+                sx={{ overflowX: "auto", px: 1, border: 1, borderColor: "divider", height: "100%", boxSizing: "border-box" }}
+              >
+                <Typography component="h4" sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>{name}</Typography>
+                <Box component="pre" sx={{ m: 0, pb: 1, whiteSpace: "pre" }}>
+                  {stringify(value, { lineWidth: 0 })}
+                </Box>
+              </Box>
+              {index < contexts.length - 1 && (
+                <Box
+                  role="separator"
+                  aria-label={`Resize ${name} column`}
+                  aria-orientation="vertical"
+                  aria-valuemin={15}
+                  aria-valuemax={Math.round(widths[index] + widths[index + 1] - 15)}
+                  aria-valuenow={Math.round(widths[index])}
+                  tabIndex={0}
+                  onPointerDown={(event) => {
+                    if (event.button !== 0) return;
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    drag.current = { index, x: event.clientX };
+                  }}
+                  onPointerMove={(event) => {
+                    if (drag.current?.index !== index || !columnsRef.current) return;
+                    const change = (event.clientX - drag.current.x) / columnsRef.current.clientWidth * 100;
+                    drag.current.x = event.clientX;
+                    resizeColumns(index, change);
+                  }}
+                  onLostPointerCapture={() => { drag.current = null; }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                    event.preventDefault();
+                    resizeColumns(index, event.key === "ArrowLeft" ? -2 : 2);
+                  }}
+                  sx={{
+                    position: "absolute", right: -5, top: 0, bottom: 0, width: 10, zIndex: 1,
+                    cursor: "col-resize", touchAction: "none",
+                    "&:hover, &:focus-visible": { backgroundColor: "primary.main", opacity: 0.5 },
+                  }}
+                />
+              )}
+            </Box>
+          ))}
         </Box>
-      </Collapse>
-    </Box>
+      </Box>
+      {/* ============================================================
+          END RESULTS PANEL CONTENT HERE
+          ============================================================ */}
+    </CollapsiblePanel>
   );
 }
 

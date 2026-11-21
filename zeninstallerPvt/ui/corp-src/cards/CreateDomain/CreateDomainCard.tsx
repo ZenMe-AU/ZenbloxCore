@@ -12,7 +12,7 @@ import { warningMessageIconSx } from "../../config/styles";
 import type { UseCreateDomainCard } from "./useCreateDomainCard";
 import StepRow from "../StepRow";
 import AzureAccessCheck from "../../components/AzureAccessCheck";
-import Prerequisites from "../../components/Prerequisites";
+import CollapsiblePanel from "../../components/CollapsiblePanel";
 import Card from "../../components/Card";
 import { PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ProcessRetryNotice from "../../components/ProcessRetryNotice";
@@ -256,9 +256,9 @@ export default function CreateDomainCard({
           </Box>
         )}
         {ready && (createDomain.creationAccess.status === "warning" || createDomain.creationAccess.status === "error") && (
-          <Prerequisites id="create-domain-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+          <CollapsiblePanel label="Prerequisites" id="create-domain-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             <AzureAccessCheck access={createDomain.creationAccess} resourceAccess errorStyle />
-          </Prerequisites>
+          </CollapsiblePanel>
         )}
         {verifiedDomains.length > 0 && (
           <Box>

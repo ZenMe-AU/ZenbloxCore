@@ -590,7 +590,7 @@ describe("useAzureAppRegistrationCard", () => {
     const detailsToggle = container.querySelector<HTMLButtonElement>('[aria-controls="azure-app-registration-connection-details"]')!;
     expect(grant.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(toggle.compareDocumentPosition(detailsToggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(toggle.querySelectorAll(".prerequisites-toggle-line")).toHaveLength(2);
+    expect(toggle.querySelectorAll(".collapsible-panel__line")).toHaveLength(2);
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     await act(async () => toggle.click());
     expect(toggle.getAttribute("aria-expanded")).toBe("true");

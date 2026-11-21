@@ -12,7 +12,7 @@ import Card from "../../components/Card";
 import ErrorText from "../../components/ErrorText";
 import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import AzureAccessCheck from "../../components/AzureAccessCheck";
-import Prerequisites from "../../components/Prerequisites";
+import CollapsiblePanel from "../../components/CollapsiblePanel";
 import StatusText from "../../components/StatusText";
 // import WarningNotice from "../../components/WarningNotice"; // Deprecated: only the commented-out consent notice used it; kept for reference.
 import StepRow from "../StepRow";
@@ -179,9 +179,9 @@ export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
           </Box>
         )}
         {(access.status === "warning" || access.status === "error") && (
-          <Prerequisites id="create-admin-users-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+          <CollapsiblePanel label="Prerequisites" id="create-admin-users-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             <AzureAccessCheck access={access} resourceAccess errorStyle />
-          </Prerequisites>
+          </CollapsiblePanel>
         )}
       </Box>
     </Card>

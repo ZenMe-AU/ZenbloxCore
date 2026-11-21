@@ -11,7 +11,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import AzureAccessCheck from "../../components/AzureAccessCheck";
-import Prerequisites from "../../components/Prerequisites";
+import CollapsiblePanel from "../../components/CollapsiblePanel";
 import type { Account, CardChrome, GhEnv } from "../../types";
 import type { UseAzureAppRegistrationCard } from "./useAzureAppRegistrationCard";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
@@ -329,9 +329,9 @@ export default function AzureAppRegistrationCard({ card, appReg, githubAccount, 
               )}
 
               {(appReg.managementAccess.status === "warning" || appReg.managementAccess.status === "error") && (
-                <Prerequisites id="azure-app-registration-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+                <CollapsiblePanel label="Prerequisites" id="azure-app-registration-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
                   <AzureAccessCheck access={appReg.managementAccess} resourceAccess errorStyle />
-                </Prerequisites>
+                </CollapsiblePanel>
               )}
             </Box>
           )}

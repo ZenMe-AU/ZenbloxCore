@@ -1,0 +1,60 @@
+.collapsible-panel:not(.collapsible-panel--stage) {
+  min-width: 0;
+}
+
+.collapsible-panel .collapsible-panel__toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  user-select: none;
+  padding: 2px 0;
+}
+
+.collapsible-panel__line {
+  flex: 1;
+  height: 1px;
+  background-color: var(--mui-palette-divider);
+  transition: background-color 0.2s;
+}
+
+.collapsible-panel .collapsible-panel__label {
+  color: var(--mui-palette-text-muted);
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+
+.collapsible-panel .collapsible-panel__icon {
+  font-size: 0.75rem;
+  color: var(--mui-palette-text-muted);
+  transition: color 0.2s, transform 0.2s;
+}
+
+.collapsible-panel--stage .collapsible-panel__icon {
+  font-size: 0.875rem;
+}
+
+.collapsible-panel__toggle[aria-expanded="true"] .collapsible-panel__icon {
+  transform: rotate(180deg);
+}
+
+.collapsible-panel__toggle:hover .collapsible-panel__label,
+.collapsible-panel__toggle:focus-visible .collapsible-panel__label,
+.collapsible-panel__toggle:hover .collapsible-panel__icon,
+.collapsible-panel__toggle:focus-visible .collapsible-panel__icon {
+  color: var(--mui-palette-primary-main);
+}
+
+.collapsible-panel__toggle:hover .collapsible-panel__line,
+.collapsible-panel__toggle:focus-visible .collapsible-panel__line {
+  background-color: var(--mui-palette-primary-main);
+}
+
+.collapsible-panel__content {
+  margin-top: 4px;
+}
+
+.collapsible-panel--stage .collapsible-panel__content {
+  display: flex;
+  flex-direction: column;
+}

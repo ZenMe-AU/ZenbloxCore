@@ -553,7 +553,7 @@ it("shows backend access errors beside Re-run and in an independent prerequisite
   const detailsToggle = container.querySelector<HTMLButtonElement>('[aria-controls="remote-terminal-connection-details"]')!;
   expect(rerun.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(toggle.compareDocumentPosition(detailsToggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(toggle.querySelectorAll(".prerequisites-toggle-line")).toHaveLength(2);
+  expect(toggle.querySelectorAll(".collapsible-panel__line")).toHaveLength(2);
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   await act(async () => toggle.click());
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
@@ -621,7 +621,7 @@ it("shows frontend access errors beside Create and in an independent prerequisit
   const detailsToggle = container.querySelector<HTMLButtonElement>('[aria-controls="private-frontend-connection-details"]')!;
   expect(create.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(toggle.compareDocumentPosition(detailsToggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(toggle.querySelectorAll(".prerequisites-toggle-line")).toHaveLength(2);
+  expect(toggle.querySelectorAll(".collapsible-panel__line")).toHaveLength(2);
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   await act(async () => toggle.click());
   expect(toggle.getAttribute("aria-expanded")).toBe("true");

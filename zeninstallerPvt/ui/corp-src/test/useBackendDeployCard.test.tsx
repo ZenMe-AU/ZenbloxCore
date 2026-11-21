@@ -307,7 +307,7 @@ describe("backend deploy permission errors", () => {
 			expect(deploy.parentElement?.textContent).toContain("Insufficient permissions to deploy");
 			const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="backend-deploy-prerequisites"]')!;
 			expect(deploy.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-			expect(toggle.querySelectorAll(".prerequisites-toggle-line")).toHaveLength(2);
+			expect(toggle.querySelectorAll(".collapsible-panel__line")).toHaveLength(2);
 			expect(toggle.getAttribute("aria-expanded")).toBe("false");
 			await act(async () => toggle.click());
 			expect(toggle.getAttribute("aria-expanded")).toBe("true");

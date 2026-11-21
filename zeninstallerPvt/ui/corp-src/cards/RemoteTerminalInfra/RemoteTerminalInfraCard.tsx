@@ -11,7 +11,7 @@ import { warningMessageIconSx } from "../../config/styles";
 import type { UseRemoteTerminalInfraCard } from "./useRemoteTerminalInfraCard";
 import StepRow from "../StepRow";
 import AzureAccessCheck from "../../components/AzureAccessCheck";
-import Prerequisites from "../../components/Prerequisites";
+import CollapsiblePanel from "../../components/CollapsiblePanel";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
@@ -194,9 +194,9 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
         )}
 
         {(infra.creationAccess.status === "warning" || infra.creationAccess.status === "error") && (
-          <Prerequisites id="remote-terminal-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+          <CollapsiblePanel label="Prerequisites" id="remote-terminal-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             <AzureAccessCheck access={infra.creationAccess} resourceAccess errorStyle />
-          </Prerequisites>
+          </CollapsiblePanel>
         )}
 
         {/* ── Divider (clickable toggle) ── */}

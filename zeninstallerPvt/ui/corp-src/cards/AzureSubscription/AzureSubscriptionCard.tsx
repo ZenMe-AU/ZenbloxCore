@@ -20,7 +20,7 @@ import Card from "../../components/Card";
 import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
 // import ExternalLink from "../../components/ExternalLink";
-import Prerequisites from "../../components/Prerequisites";
+import CollapsiblePanel from "../../components/CollapsiblePanel";
 import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
 // import { AZURE_PIM_ACTIVATION_URL } from "../../logic/consoleUrls";
 
@@ -219,7 +219,7 @@ export default function AzureSubscriptionCard({
         />
 
         {(subscription.installerAccess.status === "checking" || subscription.installerAccess.status === "error") && (
-          <Prerequisites id="azure-subscription-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+          <CollapsiblePanel label="Prerequisites" id="azure-subscription-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             {subscription.installerAccess.status === "checking" ? (
               <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <CircularProgress aria-label="Checking installer subscription access" size={12} />
@@ -249,7 +249,7 @@ export default function AzureSubscriptionCard({
                 </Button>
               </>
             )}
-          </Prerequisites>
+          </CollapsiblePanel>
         )}
       </Box>
     </Card>

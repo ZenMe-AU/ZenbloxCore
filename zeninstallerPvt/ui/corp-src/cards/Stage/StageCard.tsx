@@ -52,7 +52,7 @@ import StatusText from "../../components/StatusText";
 import StagePlanDetail from "./StagePlanDetail";
 import RemoteTerminal from "./RemoteTerminal";
 import AzureAccessCheck from "../../components/AzureAccessCheck";
-import Prerequisites from "../../components/Prerequisites";
+import CollapsiblePanel from "../../components/CollapsiblePanel";
 
 function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, CardStatus>, variableValues: Record<string, string>): boolean {
   switch (prereq.type) {
@@ -583,7 +583,7 @@ function StageCardContent({
         {intro}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           {stageDef.prerequisites.length > 0 && (
-            <Prerequisites id={`${stageDef.dir}-prerequisites`} open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)} stage>
+            <CollapsiblePanel label="Prerequisites" id={`${stageDef.dir}-prerequisites`} open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)} stage>
               <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>
                 Prerequisites
               </Typography>
@@ -630,7 +630,7 @@ function StageCardContent({
                   </Box>
                 );
               })}
-            </Prerequisites>
+            </CollapsiblePanel>
           )}
           {canRefreshPrerequisites && (
             <Box role="group" aria-label="Refresh changed prerequisites" sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>

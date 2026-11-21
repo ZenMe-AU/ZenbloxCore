@@ -7,6 +7,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { describe, expect, it, vi } from "vitest";
+import { parse } from "yaml";
 import { canCardTransition, type CardLifecycle } from "../../components/cardLifecycle";
 import theme from "../../theme";
 import ProtoCard from "./ProtoCard";
@@ -291,7 +292,15 @@ describe("ProtoCard state machine", () => {
       expect(container.querySelector("#proto-card-prerequisites")?.textContent).toContain("Lifecycle: ready");
       await act(async () => resultsToggle?.click());
       expect(resultsToggle?.getAttribute("aria-expanded")).toBe("true");
-      expect(container.querySelector("#proto-card-results")?.textContent).toContain("Results content goes here.");
+      for (const name of ["protoCardContext", "baseCardContext", "appContext"] as const) {
+        const yaml = container.querySelector(`[aria-label="${name} YAML"] pre`)?.textContent;
+        expect(yaml).toBeDefined();
+        expect(parse(yaml!)).toEqual(latest?.[name]);
+      }
+      const separator = container.querySelector<HTMLDivElement>('[aria-label="Resize protoCardContext column"]');
+      expect(separator?.getAttribute("aria-valuenow")).toBe("33");
+      await act(async () => separator?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })));
+      expect(separator?.getAttribute("aria-valuenow")).toBe("35");
       await act(async () => prerequisitesToggle?.click());
       expect(prerequisitesToggle?.getAttribute("aria-expanded")).toBe("false");
       expect(resultsToggle?.getAttribute("aria-expanded")).toBe("true");
@@ -355,6 +364,8 @@ describe("ProtoCard state machine", () => {
       await act(async () => commit?.click());
       expect(container.textContent).toContain("Lifecycle: commit");
       expect(latest?.status).toBe("warning");
+      const baseYaml = container.querySelector('[aria-label="baseCardContext YAML"] pre')?.textContent;
+      expect(parse(baseYaml!)).toEqual(latest?.baseCardContext);
       expect(container.querySelector('[aria-controls="proto-card-prerequisites"]')?.getAttribute("aria-expanded")).toBe("true");
       expect(container.querySelector('[aria-controls="proto-card-results"]')?.getAttribute("aria-expanded")).toBe("true");
       const commitResults = container.querySelector<HTMLButtonElement>('[aria-controls="proto-card-results"]');

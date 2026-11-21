@@ -17,7 +17,7 @@ import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl, getWorkflowUrl } from "../../logic/github";
 import ErrorText from "../../components/ErrorText";
 import AzureAccessCheck from "../../components/AzureAccessCheck";
-import Prerequisites from "../../components/Prerequisites";
+import CollapsiblePanel from "../../components/CollapsiblePanel";
 import type { CardChrome } from "../../types";
 
 const when = (unixSeconds: number) => new Date(unixSeconds * 1000).toLocaleString();
@@ -170,9 +170,9 @@ export default function BackendDeployCard({ card, backend, repoFullName }: Props
         <ProcessRetryNotice started={steps.length > 0} />
 
         {(backend.managementAccess.status === "warning" || backend.managementAccess.status === "error") && (
-          <Prerequisites id="backend-deploy-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+          <CollapsiblePanel label="Prerequisites" id="backend-deploy-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
             <AzureAccessCheck access={backend.managementAccess} resourceAccess errorStyle={backend.accessNotice?.severity === "error"} />
-          </Prerequisites>
+          </CollapsiblePanel>
         )}
       </Box>
     </Card>
