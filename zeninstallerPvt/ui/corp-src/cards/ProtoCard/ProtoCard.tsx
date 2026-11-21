@@ -3,82 +3,181 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-/* 
- * This is the Prototype card that is a template for how all cards in this workspace should be designed.
- * This card will provide documentation to guide an AI on developing new cards according to the standards.
- */
-
-
-import { useState } from "react";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Checkbox, FormControlLabel, Typography, useTheme, ButtonBase } from "@mui/material";
 import Card from "../../components/Card";
 import ViewLink from "../../components/ViewLink";
 import type { CardChrome } from "../../types";
-import type { CardStatus } from "../../types";
+import { canTransition, requirements, type Lifecycle, type RequirementId } from "./stateMachine";
 import type { UseProtoCard } from "./useProtoCard";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 type Props = {
   card: CardChrome;
   protoCard: UseProtoCard;
 };
 
-function Intro() {
+const theme = useTheme();
+const colors = theme.vars.palette.card;
+
+const actions: { lifecycle: Lifecycle; label: string }[] = [
+  { lifecycle: "loading", label: "Start / retry" },
+  { lifecycle: "complete", label: "Complete" },
+  { lifecycle: "warning", label: "Needs action" },
+  { lifecycle: "error", label: "Fail" },
+  { lifecycle: "skipped", label: "Skip" },
+  { lifecycle: "idle", label: "Reset" },
+];
+
+/**
+ * The Intro will be displayed even if the card is locked.
+ */
+function Intro({ protoCard }: { protoCard: UseProtoCard }) {
+  const { cardContext, dispatch } = protoCard;
   return (
-    <Typography variant="body1" color="text.secondary">
-      Intro for this card.
-    </Typography>
+    <>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+        Intro for this card.
+      </Typography>
+      {cardContext.availability === "locked" && (
+        <Button
+          size="small"
+          variant="contained"
+          sx={{ mb: 2 }}
+          onClick={() => cardContext.unmetRequirements.forEach((id) => dispatch({ type: "requirement", id, completed: true }))}
+        >
+          Unlock
+        </Button>
+      )}
+    </>
   );
 }
 
-function Action() {
-  return <ViewLink href={"http://localhost"} label={"Open External Site"} />;
+function LockedContent({ protoCard }: { protoCard: UseProtoCard }) {
+  return (
+    <>
+      <Box sx={{ mb: 2 }}><Intro protoCard={protoCard} /></Box>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.75,
+          px: 1.75,
+          py: 1.5,
+          background: colors.requirementPanel,
+          border: `1px solid ${theme.vars.palette.divider}`,
+          borderRadius: "8px",
+        }}
+      >
+        <Typography
+          sx={{
+            typography: "body1",
+            color: theme.vars.palette.text.secondary,
+          }}
+        >
+          Complete these setup steps first. Select a step to open its card.
+        </Typography>
+        {requirements.map((r) => (
+          <ButtonBase
+            key={r.label}
+            component="button"
+            onClick={() => protoCard.onRequirementClick(r.target)}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              width: "100%",
+              justifyContent: "flex-start",
+              cursor: "pointer",
+              borderRadius: "6px",
+              px: 0.75,
+              py: 0.4,
+              mx: -0.75,
+              transition: "background 0.15s",
+              "&:hover": { background: colors.requirementHover },
+            }}
+          >
+            <ChevronRightIcon
+              aria-hidden="true"
+              sx={{ typography: "caption", color: colors.requirementText, flexShrink: 0 }}
+            />
+            <Typography
+              component="span"
+              className="req-label"
+              sx={{ typography: "body1", color: colors.requirementText, fontWeight: 500 }}
+            >
+              {r.label}
+            </Typography>
+          </ButtonBase>
+        ))}
+      </Box>
+    </>
+  );
+}
+
+function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
+  const { appContext, cardContext, protoCardContext, dispatch } = protoCard;
+  const state = { appContext, protoCardContext };
+
+  return (
+    <>
+      {cardContext.availability === "unavailable" && (
+        <Typography sx={{ mb: 1 }}>The simulated configuration is unavailable.</Typography>
+      )}
+      <Typography sx={{ mb: 1 }}>Simulated lifecycle actions (no real operations):</Typography>
+      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 2 }}>
+        {actions.map(({ lifecycle, label }) => (
+          <Button
+            key={lifecycle}
+            size="small"
+            variant="contained"
+            disabled={!canTransition(state, lifecycle)}
+            onClick={() => dispatch({ type: "transition", lifecycle })}
+          >
+            {label}
+          </Button>
+        ))}
+        <Button
+          size="small"
+          variant="contained"
+          disabled={cardContext.availability !== "available"}
+          onClick={() => dispatch({ type: "requirement", id: "repo", completed: false })}
+        >
+          Lock
+        </Button>
+      </Box>
+    </>
+  );
 }
 
 export default function ProtoCard({ card, protoCard }: Props) {
+  const { appContext, cardContext, protoCardContext, dispatch } = protoCard;
+
   return (
-    <Card title="Title of the card" action={<Action />} lockedIntro={<Intro />} {...card}>
-      <Box>
-        <Box sx={{ mb: 2 }}>
-          <Intro />
-        </Box>
-
-        <Box sx={{ mb: 2 }}>
-          <Typography color="text.muted" sx={{ mb: 1 }}>
-            Select the button below to set card status:
-          </Typography>
-          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-            <Button size="small" variant="contained" color="primary" onClick={() => { protoCard.setCardStatus("idle"); }}>
-              "idle"
-            </Button>
-            <Button size="small" variant="contained" color="primary" onClick={() => { protoCard.setCardStatus("loading"); }}>
-              "loading"
-            </Button>
-            <Button size="small" variant="contained" color="primary" onClick={() => { protoCard.setCardStatus("complete"); }}>
-              "complete"
-            </Button>
-            <Button size="small" variant="contained" color="primary" onClick={() => { protoCard.setCardStatus("warning"); }}>
-              "warning"
-            </Button>
-            <Button size="small" variant="contained" color="primary" onClick={() => { protoCard.setCardStatus("error"); }}>
-              "error"
-            </Button>
-            <Button size="small" variant="contained" color="primary" onClick={() => { protoCard.setCardStatus("skipped"); }}>
-              "skipped"
-            </Button>
-            <Button size="small" variant="contained" color="primary" onClick={() => { protoCard.setCardStatus("unavailable"); }}>
-              "unavailable"
-            </Button>
-          </Box>
-        </Box>
-
-        <Box sx={{ mb: 2 }}>
-          <Typography color="text.muted" sx={{ mb: 1 }}>
-            Select the button below to set the card Locked:
-          </Typography>
-          <Button size="small" variant="contained" color="primary" onClick={() => { protoCard.setCardStatus("locked"); }}>
-            "locked"
-          </Button>
-        </Box>
+    <Card
+      {...card}
+      title="Title of the card"
+      action={cardContext.availability === "available" ? <ViewLink href="http://localhost" label="Open External Site" /> : undefined}
+    >
+      <Intro protoCard={protoCard} />
+      <Typography role="status" sx={{ mb: 1 }}>
+        Availability: {cardContext.availability}; lifecycle: {protoCardContext.lifecycle}
+      </Typography>
+      {cardContext.availability === "locked"
+        ? <LockedContent protoCard={protoCard} />
+        : <UnlockedContent protoCard={protoCard} />}
+      <Typography>Simulated app state (Lock marks the repository incomplete; Unlock satisfies all prerequisites):</Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+        <FormControlLabel
+          label="Configuration available"
+          control={<Checkbox checked={appContext.configured} onChange={(event) => dispatch({ type: "configuration", configured: event.target.checked })} />}
+        />
+        {(Object.keys(requirements) as RequirementId[]).map((id) => (
+          <FormControlLabel
+            key={id}
+            label={requirements[id]}
+            control={<Checkbox checked={appContext.completed[id]} onChange={(event) => dispatch({ type: "requirement", id, completed: event.target.checked })} />}
+          />
+        ))}
       </Box>
     </Card>
   );

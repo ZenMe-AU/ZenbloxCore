@@ -3,32 +3,34 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useState } from "react";
-import type { CardHook, CardStatus } from "../../types";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-export type GithubAuthRecord = { mode: "direct"; token: string } | { mode: "backend" };
+import { useReducer, type Dispatch } from "react";
+import type { CardHook } from "../../types";
+import { getCardContext, initialState, protoReducer, requirements, type ProtoEvent } from "./stateMachine";
 
 export interface UseProtoCard extends CardHook {
   readonly cardId: "proto_card";
-  status: CardStatus; // "loading" while the auth check is in-flight; "complete" once signed in; "idle" otherwise.
-  cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Sign in to GitHub")
-  setCardStatus: (newStatus: CardStatus) => void; // Function to update the card status
+  appContext: typeof initialState.appContext;
+  cardContext: ReturnType<typeof getCardContext>;
+  protoCardContext: typeof initialState.protoCardContext;
+  dispatch: Dispatch<ProtoEvent>;
 }
 
 export function useProtoCard(): UseProtoCard {
-  //const status: CardStatus = "idle";
-  const summary = "Summary";
-  const cardDependencyLabel: string = "Sign in to GitHub";
-  const [cardStatus, setCardStatus] = useState<CardStatus>("idle");
- 
+  const [state, dispatch] = useReducer(protoReducer, initialState);
+  const cardContext = getCardContext(state);
+  const summary = cardContext.availability === "locked"
+    ? `Locked: ${cardContext.unmetRequirements.map((id) => requirements[id]).join(", ")}`
+    : cardContext.availability === "unavailable" ? "Configuration unavailable" : "Summary";
+
   return {
-    // cardHook
-    cardId: "proto_card" as const,
-    status: cardStatus,
-    setCardStatus,
+    cardId: "proto_card",
+    status: cardContext.status,
     summary,
-    cardDependencyLabel,
-    done: false,
+    done: cardContext.done,
+    cardDependencyLabel: "Protocard",
+    appContext: state.appContext,
+    cardContext,
+    protoCardContext: state.protoCardContext,
+    dispatch,
   };
 }
