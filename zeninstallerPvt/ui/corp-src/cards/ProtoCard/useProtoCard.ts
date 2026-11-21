@@ -3,9 +3,11 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useReducer, type Dispatch } from "react";
+import { useCallback, useReducer, type Dispatch } from "react";
 import type { CardHook } from "../../types";
 import { getCardContext, initialState, protoReducer, requirements, type ProtoEvent } from "./stateMachine";
+
+let forceUnlockedForPage = false;
 
 export interface UseProtoCard extends CardHook {
   readonly cardId: "proto_card";
@@ -16,7 +18,14 @@ export interface UseProtoCard extends CardHook {
 }
 
 export function useProtoCard(): UseProtoCard {
-  const [state, dispatch] = useReducer(protoReducer, initialState);
+  const [state, dispatchState] = useReducer(protoReducer, initialState, (initial) => ({
+    ...initial,
+    protoCardContext: { ...initial.protoCardContext, forceUnlocked: forceUnlockedForPage },
+  }));
+  const dispatch = useCallback((event: ProtoEvent) => {
+    if (event.type === "force-unlock") forceUnlockedForPage = event.value;
+    dispatchState(event);
+  }, []);
   const cardContext = getCardContext(state);
   const summary = cardContext.availability === "locked"
     ? `Locked: ${cardContext.unmetRequirements.map((id) => requirements[id]).join(", ")}`

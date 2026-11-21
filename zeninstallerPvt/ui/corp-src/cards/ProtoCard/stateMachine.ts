@@ -20,6 +20,7 @@ type AppContext = {
 
 type ProtoCardContext = {
   lifecycle: Lifecycle;
+  forceUnlocked: boolean;
 };
 
 export type ProtoState = {
@@ -30,6 +31,7 @@ export type ProtoState = {
 export type ProtoEvent =
   | { type: "configuration"; configured: boolean }
   | { type: "requirement"; id: RequirementId; completed: boolean }
+  | { type: "force-unlock"; value: boolean }
   | { type: "transition"; lifecycle: Lifecycle };
 
 export const initialState: ProtoState = {
@@ -42,7 +44,7 @@ export const initialState: ProtoState = {
       azure_app_registration: true,
     },
   },
-  protoCardContext: { lifecycle: "idle" },
+  protoCardContext: { lifecycle: "idle", forceUnlocked: false },
 };
 
 const transitions: Record<Lifecycle, readonly Lifecycle[]> = {
@@ -88,10 +90,12 @@ export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
           completed: { ...state.appContext.completed, [event.id]: event.completed },
         },
       };
+    case "force-unlock":
+      return { ...state, protoCardContext: { ...state.protoCardContext, forceUnlocked: event.value } };
     case "transition":
       if (!canTransition(state, event.lifecycle)) {
         throw new Error(`Cannot transition from ${state.protoCardContext.lifecycle} to ${event.lifecycle} while ${getCardContext(state).availability}`);
       }
-      return { ...state, protoCardContext: { lifecycle: event.lifecycle } };
+      return { ...state, protoCardContext: { ...state.protoCardContext, lifecycle: event.lifecycle } };
   }
 }

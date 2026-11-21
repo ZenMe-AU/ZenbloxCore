@@ -28,8 +28,7 @@ const actions: { lifecycle: Lifecycle; label: string }[] = [
 /**
  * The Intro will be displayed even if the card is locked.
  */
-function Intro({ protoCard }: { protoCard: UseProtoCard }) {
-  const { cardContext, dispatch } = protoCard;
+function Intro() {
   return (
     <>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
@@ -39,13 +38,16 @@ function Intro({ protoCard }: { protoCard: UseProtoCard }) {
   );
 }
 
-function LockedContent({ protoCard, onRequirementClick }: { protoCard: UseProtoCard; onRequirementClick: CardChrome["onRequirementClick"] }) {
+function LockedContent({ protoCard, onRequirementClick }: {
+  protoCard: UseProtoCard;
+  onRequirementClick: CardChrome["onRequirementClick"];
+}) {
   const theme = useTheme();
   const colors = theme.vars.palette.card;
 
   return (
     <>
-      <Box sx={{ mb: 2 }}><Intro protoCard={protoCard} /></Box>
+      <Box sx={{ mb: 2 }}><Intro /></Box>
       <Box
         sx={{
           display: "flex",
@@ -67,7 +69,7 @@ function LockedContent({ protoCard, onRequirementClick }: { protoCard: UseProtoC
           The following links will take you to the cards to complete first, or  <Link
             component="button"
             type="button"
-            onClick={() => protoCard.cardContext.unmetRequirements.forEach((id) => protoCard.dispatch({ type: "requirement", id, completed: true }))}
+            onClick={() => protoCard.dispatch({ type: "force-unlock", value: true })}
           >
             click here to force unlock this card.
           </Link>
@@ -116,7 +118,12 @@ function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
 
   return (
     <>
-      <Intro protoCard={protoCard} />
+      {protoCardContext.forceUnlocked && cardContext.unmetRequirements.length > 0 && (
+        <Typography role="status" color="warning.main" sx={{ mb: 2 }}>
+          This card is force-unlocked; its prerequisites are still incomplete.
+        </Typography>
+      )}
+      <Intro />
       <Typography role="status" sx={{ mb: 1 }}>
         Availability: {cardContext.availability}; lifecycle: {protoCardContext.lifecycle}
       </Typography>
@@ -139,13 +146,16 @@ function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
         <Button
           size="small"
           variant="contained"
-          disabled={cardContext.availability !== "available"}
-          onClick={() => dispatch({ type: "requirement", id: "repo", completed: false })}
+          disabled={cardContext.availability === "unavailable"}
+          onClick={() => {
+            dispatch({ type: "force-unlock", value: false });
+            dispatch({ type: "requirement", id: "repo", completed: false });
+          }}
         >
           Lock
         </Button>
       </Box>
-      <Typography>Simulated app state (Lock marks the repository incomplete; Unlock satisfies all prerequisites):</Typography>
+      <Typography>Simulated app state (Lock marks the repository incomplete; force unlock does not complete prerequisites):</Typography>
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
         <FormControlLabel
           label="Configuration available"
@@ -164,15 +174,18 @@ function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
 }
 
 export default function ProtoCard({ card, protoCard }: Props) {
-  const { cardContext } = protoCard;
+  const { cardContext, protoCardContext } = protoCard;
+  const { forceUnlocked } = protoCardContext;
 
   return (
     <Card
       {...card}
       title="Title of the card"
-      action={cardContext.availability === "available" ? <ViewLink href="http://localhost" label="Open External Site" /> : undefined}
+      action={cardContext.availability === "available" || (cardContext.availability === "locked" && forceUnlocked)
+        ? <ViewLink href="http://localhost" label="Open External Site" />
+        : undefined}
     >
-      {cardContext.availability === "locked"
+      {cardContext.availability === "locked" && !forceUnlocked
         ? <LockedContent protoCard={protoCard} onRequirementClick={card.onRequirementClick} />
         : <UnlockedContent protoCard={protoCard} />}
     </Card>

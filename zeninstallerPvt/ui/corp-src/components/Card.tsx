@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Box, ButtonBase, Collapse, IconButton, Link, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
@@ -14,8 +14,10 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { alpha, useTheme } from "@mui/material/styles";
-import type { CardStatus, CardChrome } from "../types";
+import type { CardStatus, CardChrome, CardId } from "../types";
 import { borderHoverTint, borderTint } from "../config/styles";
+
+const forceUnlockedCards = new Set<CardId>();
 
 const STATUS_LABEL: Record<CardStatus, string> = {
   idle: "Not started",
@@ -25,6 +27,7 @@ const STATUS_LABEL: Record<CardStatus, string> = {
   error: "Error",
   skipped: "Skipped",
   unavailable: "Unavailable",
+  locked: "Locked",
 };
 
 function StatusIcon({
@@ -82,7 +85,7 @@ export default function Card({
   title,
   summary,
   status,
-  locked,
+  locked: prerequisitesUnmet,
   requirements,
   expanded,
   onToggle,
@@ -94,6 +97,9 @@ export default function Card({
 }: Props) {
   const theme = useTheme();
   const colors = theme.vars.palette.card;
+  const [forceUnlockedId, setForceUnlockedId] = useState<CardId | null>(null);
+  const forceUnlocked = forceUnlockedId === cardId || forceUnlockedCards.has(cardId);
+  const locked = prerequisitesUnmet && !forceUnlocked;
   /*
    * locked and unavailable share the same muted chrome - the only visual
    * difference between them is the icon (padlock vs warning triangle).
@@ -301,11 +307,14 @@ export default function Card({
                     color: theme.vars.palette.text.secondary,
                   }}
                 >
-                  Complete these setup steps first. Select a step to open its card.
+                  Complete these setup steps first. Select a step to open its card, or{" "}
                   <Link
                     component="button"
                     type="button"
-                    onClick={() => unmetRequirements.forEach((id) => dispatch({ type: "requirement", id, completed: true }))}
+                    onClick={() => {
+                      forceUnlockedCards.add(cardId);
+                      setForceUnlockedId(cardId);
+                    }}
                   >
                     click here to force unlock this card.
                   </Link>
@@ -346,7 +355,14 @@ export default function Card({
               </Box>
             </>
           ) : (
-            children
+            <>
+              {prerequisitesUnmet && forceUnlocked && (
+                <Typography role="status" color="warning.main" sx={{ mb: 2 }}>
+                  This card is force-unlocked; its prerequisites are still incomplete.
+                </Typography>
+              )}
+              {children}
+            </>
           )}
         </Box>
       </Collapse>
