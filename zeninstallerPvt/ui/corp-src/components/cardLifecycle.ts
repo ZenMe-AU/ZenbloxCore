@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-export type CardLifecycle = "blocked" | "loading" | "ready" | "complete" | "error";
+export type CardLifecycle = "blocked" | "loading" | "ready" | "action" | "commit" | "complete" | "error";
 export type CardLifecycleContext = { lifecycle: CardLifecycle };
 export type CardLifecycleEvent = { type: "transition"; lifecycle: CardLifecycle };
 
@@ -11,8 +11,10 @@ export const initialCardLifecycle: CardLifecycleContext = { lifecycle: "loading"
 
 const transitions: Record<CardLifecycle, readonly CardLifecycle[]> = {
   blocked: ["loading"],
-  loading: ["ready", "blocked"],
-  ready: ["loading", "complete", "error"],
+  loading: ["ready", "action", "commit", "blocked"],
+  ready: ["action", "error"],
+  action: ["commit", "error"],
+  commit: ["complete", "error"],
   complete: ["loading"],
   error: ["loading"],
 };

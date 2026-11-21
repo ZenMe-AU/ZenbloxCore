@@ -21,44 +21,74 @@ type Props = {
 };
 
 const lifecycleNodes: { lifecycle: CardLifecycle; label: string; x: number; y: number }[] = [
-  { lifecycle: "loading", label: "Loading", x: 100, y: 100 },
-  { lifecycle: "blocked", label: "Blocked", x: 100, y: 240 },
-  { lifecycle: "ready", label: "Ready", x: 350, y: 100 },
-  { lifecycle: "complete", label: "Complete", x: 600, y: 40 },
-  { lifecycle: "error", label: "Error", x: 600, y: 220 },
+  { lifecycle: "loading", label: "Loading", x: 100, y: 150 },
+  { lifecycle: "blocked", label: "Blocked", x: 100, y: 300 },
+  { lifecycle: "ready", label: "Ready", x: 290, y: 150 },
+  { lifecycle: "action", label: "Action", x: 470, y: 150 },
+  { lifecycle: "commit", label: "Commit", x: 650, y: 150 },
+  { lifecycle: "complete", label: "Complete", x: 830, y: 150 },
+  { lifecycle: "error", label: "Error", x: 470, y: 300 },
 ];
 
 const lifecycleEdges: { from: CardLifecycle; to: CardLifecycle; path: string }[] = [
-  { from: "loading", to: "ready", path: "M156 92 H294" },
-  { from: "ready", to: "loading", path: "M294 108 H156" },
-  { from: "loading", to: "blocked", path: "M92 120 V220" },
-  { from: "blocked", to: "loading", path: "M108 220 V120" },
-  { from: "ready", to: "complete", path: "M406 90 L544 52" },
-  { from: "ready", to: "error", path: "M406 110 L544 210" },
-  { from: "complete", to: "loading", path: "M600 20 C600 5 100 5 100 80" },
-  { from: "error", to: "loading", path: "M600 240 V282 H16 V100 H44" },
+  { from: "loading", to: "ready", path: "M156 150 H234" },
+  { from: "loading", to: "action", path: "M150 130 V75 H470 V130" },
+  { from: "loading", to: "commit", path: "M140 130 V55 H650 V130" },
+  { from: "loading", to: "blocked", path: "M92 170 V280" },
+  { from: "blocked", to: "loading", path: "M108 280 V170" },
+  { from: "ready", to: "action", path: "M346 150 H414" },
+  { from: "ready", to: "error", path: "M290 170 L414 285" },
+  { from: "action", to: "commit", path: "M526 150 H594" },
+  { from: "action", to: "error", path: "M470 170 V280" },
+  { from: "commit", to: "complete", path: "M706 150 H774" },
+  { from: "commit", to: "error", path: "M650 170 L526 285" },
+  { from: "complete", to: "loading", path: "M830 130 V25 H130 V130" },
+  { from: "error", to: "loading", path: "M470 320 V365 H16 V150 H44" },
 ];
 
 function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
-  const { appContext, baseCardContext, protoCardContext, dispatch } = protoCard;
-  const state = { appContext, baseCardContext, protoCardContext };
-
   return (
     <>
       <Intro />
+      <PrerequisitesPanel protoCard={protoCard} />
+      {/* ============================================================
+          START ACTION CONTENT HERE
+          ============================================================ */}
+      {/* ============================================================
+          END ACTION CONTENT HERE
+          ============================================================ */}
+      <ResultsPanel lifecycle={protoCard.baseCardContext.lifecycle} />
+    </>
+  );
+}
+
+function PrerequisitesPanel({ protoCard }: { protoCard: UseProtoCard }) {
+  const { appContext, baseCardContext, protoCardContext, dispatch } = protoCard;
+  const state = { appContext, baseCardContext, protoCardContext };
+  const lifecycle = baseCardContext.lifecycle;
+  const [panel, setPanel] = useState({ lifecycle, open: lifecycle === "ready" });
+  if (panel.lifecycle !== lifecycle) {
+    setPanel({ lifecycle, open: panel.open || lifecycle === "ready" });
+  }
+
+  return (
+    <Prerequisites id="proto-card-prerequisites" open={panel.open} onToggle={() => setPanel((value) => ({ ...value, open: !value.open }))}>
+      {/* ============================================================
+          START PREREQUISITES PANEL CONTENT HERE
+          ============================================================ */}
+
       <Typography role="status" sx={{ mb: 1 }}>
         Lifecycle: {baseCardContext.lifecycle}
       </Typography>
-      <PrerequisitesPanel />
       <Typography sx={{ mb: 1 }}>
         Simulated lifecycle actions (no real operations). Highlighted is the current state; blocked and ready follow prerequisite checks automatically.
       </Typography>
       <Box role="region" aria-label="Lifecycle diagram" tabIndex={0} sx={{ overflowX: "auto", mb: 2 }}>
-        <Box sx={{ position: "relative", width: 700, height: 300 }}>
+        <Box sx={{ position: "relative", width: 950, height: 390 }}>
           <svg
-            width="700"
-            height="300"
-            viewBox="0 0 700 300"
+            width="950"
+            height="390"
+            viewBox="0 0 950 390"
             aria-hidden="true"
             style={{ position: "absolute", inset: 0, color: "var(--mui-palette-text-secondary)" }}
           >
@@ -81,8 +111,9 @@ function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
             ))}
           </svg>
           <Box className="visually-hidden">
-            Loading leads to ready or blocked. Blocked leads to loading. Ready leads to loading, complete or error.
-            Complete and error lead back to loading.
+            Loading leads to ready, action, commit or blocked. Blocked leads to loading. Ready leads to action, action leads to commit,
+            and commit leads to complete. Ready, action and commit can each lead to error.
+            Complete and error can return to loading.
           </Box>
           {lifecycleNodes.map(({ lifecycle, label, x, y }) => {
             const current = baseCardContext.lifecycle === lifecycle;
@@ -123,8 +154,7 @@ function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
           Block
         </Button>
       </Box>
-      <ResultsPanel />
-      <Typography>Simulated app state (Block marks the repository incomplete; force unlock does not complete prerequisites):</Typography>
+      <Typography>Changing simulated app state resets the lifecycle and rechecks prerequisites. Block marks the repository incomplete; force unlock does not complete prerequisites.</Typography>
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
         <FormControlLabel
           label="Configuration available"
@@ -138,37 +168,25 @@ function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
           />
         ))}
       </Box>
-    </>
-  );
-}
-
-function PrerequisitesPanel() {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Prerequisites id="proto-card-prerequisites" open={open} onToggle={() => setOpen((value) => !value)}>
       {/* ============================================================
-          START PREREQUISITES PANEL CONTENT HERE (replace null)
-          ============================================================ */}
-      <Typography>
-        Prerequisites content goes here.
-      </Typography>
-      {/* ============================================================
-          END PREREQUISITES PANEL CONTENT HERE (replace null)
+          END PREREQUISITES PANEL CONTENT HERE
           ============================================================ */}
     </Prerequisites>
   );
 }
 
-function ResultsPanel() {
-  const [open, setOpen] = useState(false);
+function ResultsPanel({ lifecycle }: { lifecycle: CardLifecycle }) {
+  const [panel, setPanel] = useState({ lifecycle, open: lifecycle === "commit" });
+  if (panel.lifecycle !== lifecycle) {
+    setPanel({ lifecycle, open: panel.open || lifecycle === "commit" });
+  }
 
   return (
     <Box>
       <ButtonBase
         disableRipple
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
+        onClick={() => setPanel((value) => ({ ...value, open: !value.open }))}
+        aria-expanded={panel.open}
         aria-controls="proto-card-results"
         sx={{
           width: "100%",
@@ -184,21 +202,21 @@ function ResultsPanel() {
       >
         <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
         <Typography className="plan-output-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
-          {open ? "hide results" : "view results"}
+          {panel.open ? "hide results" : "view results"}
         </Typography>
         <KeyboardArrowDownIcon
           className="plan-output-toggle-icon"
           sx={{
             typography: "body2",
             color: "text.muted",
-            transform: open ? "rotate(180deg)" : "none",
+            transform: panel.open ? "rotate(180deg)" : "none",
             transition: "color 0.2s, transform 0.2s",
           }}
           aria-hidden="true"
         />
         <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
       </ButtonBase>
-      <Collapse in={open} timeout={300}>
+      <Collapse in={panel.open} timeout={300}>
         <Box id="proto-card-results" role="region" aria-label="Results">
           {/* ============================================================
               START RESULTS PANEL CONTENT HERE

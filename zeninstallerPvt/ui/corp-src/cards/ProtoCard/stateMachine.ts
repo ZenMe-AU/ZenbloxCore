@@ -72,19 +72,13 @@ export function canTransition(state: ProtoState, lifecycle: CardLifecycle): bool
     && canCardTransition(state.baseCardContext, lifecycle);
 }
 
-function startCheck(baseCardContext: CardLifecycleContext): CardLifecycleContext {
-  return baseCardContext.lifecycle === "loading"
-    ? baseCardContext
-    : cardLifecycleReducer(baseCardContext, { type: "transition", lifecycle: "loading" });
-}
-
 export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
   switch (event.type) {
     case "configuration":
       return {
         ...state,
         appContext: { ...state.appContext, configured: event.configured },
-        baseCardContext: startCheck(state.baseCardContext),
+        baseCardContext: initialCardLifecycle,
       };
     case "requirement":
       return {
@@ -93,7 +87,7 @@ export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
           ...state.appContext,
           completed: { ...state.appContext.completed, [event.id]: event.completed },
         },
-        baseCardContext: startCheck(state.baseCardContext),
+        baseCardContext: initialCardLifecycle,
       };
     case "force-unlock":
       return { ...state, protoCardContext: { ...state.protoCardContext, forceUnlocked: event.value } };

@@ -31,6 +31,8 @@ const lifecycleLabels: Record<CardLifecycle, string> = {
   blocked: "Blocked",
   loading: "Checking prerequisites",
   ready: "Ready",
+  action: "Action",
+  commit: "Commit",
   complete: "Complete",
   error: "Error",
 };
@@ -40,7 +42,7 @@ export default function BaseCard({
 }: Props) {
   const theme = useTheme();
   const colors = theme.vars.palette.card;
-  const colorKey = lifecycle === "blocked" ? "idle" : lifecycle === "ready" ? "warning" : lifecycle;
+  const colorKey = lifecycle === "blocked" ? "idle" : lifecycle === "ready" || lifecycle === "action" || lifecycle === "commit" ? "warning" : lifecycle;
   const muted = lifecycle === "blocked";
   const titleId = `card-title-${cardId}`;
   const contentId = `card-content-${cardId}`;

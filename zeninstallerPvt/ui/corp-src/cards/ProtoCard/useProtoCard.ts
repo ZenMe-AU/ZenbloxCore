@@ -37,7 +37,8 @@ export function useProtoCard(): UseProtoCard {
     : !state.appContext.configured
       ? "unavailable"
       : baseCardContext.lifecycle === "blocked" ? "idle"
-        : baseCardContext.lifecycle === "ready" ? "warning" : baseCardContext.lifecycle;
+        : baseCardContext.lifecycle === "ready" || baseCardContext.lifecycle === "action" || baseCardContext.lifecycle === "commit"
+          ? "warning" : baseCardContext.lifecycle;
   const summary = baseCardContext.lifecycle === "loading"
     ? "Checking prerequisites..."
     : !state.appContext.configured
