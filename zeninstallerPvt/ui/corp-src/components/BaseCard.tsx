@@ -13,7 +13,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { alpha, useTheme } from "@mui/material/styles";
 import { borderHoverTint, borderTint } from "../config/styles";
-import type { BaseCardContext, CardLifecycle } from "./useBaseCard";
+import type { BaseCardContext, Lifecycle } from "./useBaseCard";
 
 type Props = {
   baseCardContext: BaseCardContext;
@@ -24,7 +24,7 @@ type Props = {
   children: ReactNode;
 };
 
-const lifecycleLabels: Record<CardLifecycle, string> = {
+const lifecycleLabels: Record<Lifecycle, string> = {
   blocked: "Blocked",
   loading: "Checking prerequisites",
   ready: "Ready",

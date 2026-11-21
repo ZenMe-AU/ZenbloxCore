@@ -7,7 +7,7 @@ import { useRef, useState } from "react";
 import { stringify } from "yaml";
 import { Box, Button, CircularProgress, Link, TextField, Typography, useTheme } from "@mui/material";
 import BaseCard from "../../components/BaseCard";
-import type { CardLifecycle } from "../../components/useBaseCard";
+import type { Lifecycle } from "../../components/useBaseCard";
 import CollapsiblePanel from "../../components/CollapsiblePanel";
 import ViewLink from "../../components/ViewLink";
 import type { CardChrome } from "../../types";
@@ -19,7 +19,7 @@ type Props = {
   protoCard: UseProtoCard;
 };
 
-const lifecycleNodes: { lifecycle: CardLifecycle; label: string; x: number; y: number }[] = [
+const lifecycleNodes: { lifecycle: Lifecycle; label: string; x: number; y: number }[] = [
   { lifecycle: "loading", label: "Loading", x: 100, y: 150 },
   { lifecycle: "blocked", label: "Blocked", x: 100, y: 300 },
   { lifecycle: "ready", label: "Ready", x: 290, y: 150 },
@@ -29,7 +29,7 @@ const lifecycleNodes: { lifecycle: CardLifecycle; label: string; x: number; y: n
   { lifecycle: "error", label: "Error", x: 470, y: 300 },
 ];
 
-const lifecycleEdges: { from: CardLifecycle; to: CardLifecycle; path: string }[] = [
+const lifecycleEdges: { from: Lifecycle; to: Lifecycle; path: string }[] = [
   { from: "loading", to: "ready", path: "M156 150 H234" },
   { from: "loading", to: "action", path: "M150 130 V75 H470 V130" },
   { from: "loading", to: "commit", path: "M140 130 V55 H650 V130" },
@@ -51,7 +51,7 @@ function PrerequisitesPanel({ protoCard, drafts, onDraftChange }: {
   onDraftChange: (index: 0 | 1, value: string) => void;
 }) {
   const { baseCardContext, protoCardContext, dispatch } = protoCard;
-  const state = { baseCardContext, protoCardContext };
+  const state = { lifecycle: { context: baseCardContext }, protoCardContext };
   const lifecycle = baseCardContext.lifecycle;
   const [panel, setPanel] = useState({ lifecycle, open: lifecycle === "ready" });
   if (panel.lifecycle !== lifecycle) {

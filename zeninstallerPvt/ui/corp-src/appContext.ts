@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { CardLifecycle } from "./components/useBaseCard";
+import type { Lifecycle } from "./components/useBaseCard";
 import type { Account, CardId, CardStatus, GhEnv, RepoOption, User } from "./types";
 
 export class SensitiveToken {
@@ -17,7 +17,7 @@ export class SensitiveToken {
 
 export type SharedCard = Readonly<{
   title: string;
-  status: CardStatus | CardLifecycle;
+  status: CardStatus | Lifecycle;
   githubAccount?: Readonly<User> | null;
   githubToken?: SensitiveToken | null;
   githubMode?: "direct" | "backend" | null;

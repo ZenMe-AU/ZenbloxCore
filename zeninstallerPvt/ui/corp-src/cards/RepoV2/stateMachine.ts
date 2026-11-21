@@ -5,12 +5,12 @@
 
 import type { AppContext } from "../../appContext";
 import {
-  cardLifecycleReducer,
+  lifecycleReducer,
   checkPrerequisites,
-  initialCardLifecycle,
+  initialLifecycle,
   type BaseCardContext,
-  type CardLifecycle,
-  type CardLifecycleContext,
+  type Lifecycle,
+  type LifecycleState,
 } from "../../components/useBaseCard";
 import type { CardId } from "../../types";
 
@@ -20,19 +20,14 @@ export const initialRepoCardContext = {
   cardId: "repo_v2",
   title: "Repository & environment 2",
   prerequisiteIds: [githubLoginCardId],
-  ...initialCardLifecycle,
-} satisfies BaseCardContext;
+} satisfies Omit<BaseCardContext, "lifecycle">;
 
-export type RepoCardLifecycleState = {
-  phase: CardLifecycle;
-  context: CardLifecycleContext;
-};
+export type State = { lifecycle: LifecycleState & { targetPhase: Lifecycle } };
 
-export type RepoCardLifecycleEvent = { type: "phase-changed"; phase: CardLifecycle };
+export type Event = { type: "phase-changed"; phase: Lifecycle };
 
-export const initialRepoCardLifecycle: RepoCardLifecycleState = {
-  phase: "loading",
-  context: initialCardLifecycle,
+export const initialState: State = {
+  lifecycle: { targetPhase: "loading", context: initialLifecycle },
 };
 
 export function getRepoPrerequisites(
@@ -45,10 +40,10 @@ export function getRepoPrerequisites(
   return { user: login.githubAccount, token: login.githubToken, mode: login.githubMode };
 }
 
-function reconcileLifecycle(context: CardLifecycleContext, phase: CardLifecycle): CardLifecycleContext {
+function reconcileLifecycle(context: LifecycleState["context"], phase: Lifecycle): LifecycleState["context"] {
   let current = context;
-  const transition = (lifecycle: CardLifecycle) => {
-    current = cardLifecycleReducer(current, { type: "transition", lifecycle });
+  const transition = (lifecycle: Lifecycle) => {
+    current = lifecycleReducer(current, { type: "transition", lifecycle });
   };
   if (current.lifecycle === phase) return current;
   if (current.lifecycle === "blocked" || current.lifecycle === "complete" || current.lifecycle === "error") transition("loading");
@@ -70,10 +65,12 @@ function reconcileLifecycle(context: CardLifecycleContext, phase: CardLifecycle)
   return current;
 }
 
-export function repoCardLifecycleReducer(
-  state: RepoCardLifecycleState,
-  event: RepoCardLifecycleEvent,
-): RepoCardLifecycleState {
-  if (event.phase === state.phase) return state;
-  return { phase: event.phase, context: reconcileLifecycle(state.context, event.phase) };
+export function reducer(state: State, event: Event): State {
+  if (event.phase === state.lifecycle.targetPhase) return state;
+  return {
+    lifecycle: {
+      targetPhase: event.phase,
+      context: reconcileLifecycle(state.lifecycle.context, event.phase),
+    },
+  };
 }

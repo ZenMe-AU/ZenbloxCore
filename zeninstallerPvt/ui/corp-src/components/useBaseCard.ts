@@ -6,18 +6,19 @@
 import type { AppContext } from "../appContext";
 import type { CardId } from "../types";
 
-export type CardLifecycle = "blocked" | "loading" | "ready" | "action" | "commit" | "complete" | "error";
-export type CardLifecycleContext = { lifecycle: CardLifecycle };
-export type CardLifecycleEvent = { type: "transition"; lifecycle: CardLifecycle };
+export type Lifecycle = "blocked" | "loading" | "ready" | "action" | "commit" | "complete" | "error";
+export type LifecycleContext = { lifecycle: Lifecycle };
+export type LifecycleEvent = { type: "transition"; lifecycle: Lifecycle };
+export type LifecycleState = { context: LifecycleContext; targetPhase?: Lifecycle | null };
 
-export type BaseCardContext = CardLifecycleContext & {
+export type BaseCardContext = LifecycleContext & {
   cardId: CardId;
   title: string;
   prerequisiteIds: readonly string[];
   summary?: string;
 };
 
-export const initialCardLifecycle: CardLifecycleContext = { lifecycle: "loading" };
+export const initialLifecycle: LifecycleContext = { lifecycle: "loading" };
 
 export function checkPrerequisites(
   appContext: ReturnType<AppContext["getSnapshot"]>,
@@ -32,7 +33,7 @@ export function checkPrerequisites(
     });
 }
 
-const transitions: Record<CardLifecycle, readonly CardLifecycle[]> = {
+const transitions: Record<Lifecycle, readonly Lifecycle[]> = {
   blocked: ["loading"],
   loading: ["ready", "action", "commit", "blocked"],
   ready: ["action", "error"],
@@ -42,15 +43,15 @@ const transitions: Record<CardLifecycle, readonly CardLifecycle[]> = {
   error: ["loading"],
 };
 
-export function canCardTransition(context: CardLifecycleContext, lifecycle: CardLifecycle): boolean {
+export function canTransition(context: LifecycleContext, lifecycle: Lifecycle): boolean {
   return transitions[context.lifecycle].includes(lifecycle);
 }
 
-export function cardLifecycleReducer<T extends CardLifecycleContext>(
+export function lifecycleReducer<T extends LifecycleContext>(
   context: T,
-  event: CardLifecycleEvent,
-): Omit<T, "lifecycle"> & CardLifecycleContext {
-  if (!canCardTransition(context, event.lifecycle)) {
+  event: LifecycleEvent,
+): Omit<T, "lifecycle"> & LifecycleContext {
+  if (!canTransition(context, event.lifecycle)) {
     throw new Error(`Cannot transition from ${context.lifecycle} to ${event.lifecycle}`);
   }
   return { ...context, lifecycle: event.lifecycle };

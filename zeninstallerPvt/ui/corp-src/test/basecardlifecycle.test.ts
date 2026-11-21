@@ -5,7 +5,23 @@
 
 import { expect, it } from "vitest";
 import { createAppContext } from "../appContext";
-import { cardLifecycleReducer, checkPrerequisites, initialCardLifecycle } from "../components/useBaseCard";
+import { lifecycleReducer, checkPrerequisites, initialLifecycle } from "../components/useBaseCard";
+import { initialState as initialGithubState, reducer as githubReducer } from "../cards/GithubLoginV2/stateMachine";
+import { initialState as initialProtoState, reducer as protoReducer } from "../cards/ProtoCard/stateMachine";
+import { initialState as initialRepoState, reducer as repoReducer } from "../cards/RepoV2/stateMachine";
+
+it("keeps a common lifecycle slice across card state machines", () => {
+  expect(initialProtoState.lifecycle.context.lifecycle).toBe("loading");
+  expect(initialRepoState.lifecycle.context.lifecycle).toBe("loading");
+  expect(initialGithubState.lifecycle.context.lifecycle).toBe("loading");
+
+  const proto = protoReducer(initialProtoState, { type: "check-prerequisites" });
+  const repo = repoReducer(initialRepoState, { type: "phase-changed", phase: "ready" });
+  const github = githubReducer(initialGithubState, { type: "phase-changed", phase: "ready" });
+  expect(proto.lifecycle.context.lifecycle).toBe("ready");
+  expect(repo.lifecycle).toMatchObject({ targetPhase: "ready", context: { lifecycle: "ready" } });
+  expect(github.lifecycle).toMatchObject({ targetPhase: "ready", context: { lifecycle: "ready" } });
+});
 
 it("checks registered, initialised and complete prerequisites and rejects self-dependencies", () => {
   const store = createAppContext();
@@ -28,24 +44,24 @@ it("checks registered, initialised and complete prerequisites and rejects self-d
 });
 
 it("applies permitted lifecycle transitions and rejects invalid ones", () => {
-  expect(() => cardLifecycleReducer(initialCardLifecycle, { type: "transition", lifecycle: "complete" })).toThrow();
+  expect(() => lifecycleReducer(initialLifecycle, { type: "transition", lifecycle: "complete" })).toThrow();
   for (const lifecycle of ["action", "commit"] as const) {
-    expect(cardLifecycleReducer(initialCardLifecycle, { type: "transition", lifecycle }).lifecycle).toBe(lifecycle);
+    expect(lifecycleReducer(initialLifecycle, { type: "transition", lifecycle }).lifecycle).toBe(lifecycle);
   }
-  const ready = cardLifecycleReducer(initialCardLifecycle, { type: "transition", lifecycle: "ready" });
-  expect(() => cardLifecycleReducer(ready, { type: "transition", lifecycle: "complete" })).toThrow();
-  expect(() => cardLifecycleReducer(ready, { type: "transition", lifecycle: "commit" })).toThrow();
-  const action = cardLifecycleReducer(ready, { type: "transition", lifecycle: "action" });
-  expect(() => cardLifecycleReducer(action, { type: "transition", lifecycle: "complete" })).toThrow();
-  const commit = cardLifecycleReducer(action, { type: "transition", lifecycle: "commit" });
+  const ready = lifecycleReducer(initialLifecycle, { type: "transition", lifecycle: "ready" });
+  expect(() => lifecycleReducer(ready, { type: "transition", lifecycle: "complete" })).toThrow();
+  expect(() => lifecycleReducer(ready, { type: "transition", lifecycle: "commit" })).toThrow();
+  const action = lifecycleReducer(ready, { type: "transition", lifecycle: "action" });
+  expect(() => lifecycleReducer(action, { type: "transition", lifecycle: "complete" })).toThrow();
+  const commit = lifecycleReducer(action, { type: "transition", lifecycle: "commit" });
   for (const context of [ready, action, commit]) {
-    expect(cardLifecycleReducer(context, { type: "transition", lifecycle: "error" }).lifecycle).toBe("error");
-    expect(() => cardLifecycleReducer(context, { type: "transition", lifecycle: "loading" })).toThrow();
+    expect(lifecycleReducer(context, { type: "transition", lifecycle: "error" }).lifecycle).toBe("error");
+    expect(() => lifecycleReducer(context, { type: "transition", lifecycle: "loading" })).toThrow();
   }
-  const complete = cardLifecycleReducer(commit, { type: "transition", lifecycle: "complete" });
+  const complete = lifecycleReducer(commit, { type: "transition", lifecycle: "complete" });
   expect(complete.lifecycle).toBe("complete");
-  expect(initialCardLifecycle.lifecycle).toBe("loading");
-  const blocked = cardLifecycleReducer(initialCardLifecycle, { type: "transition", lifecycle: "blocked" });
-  expect(cardLifecycleReducer(blocked, { type: "transition", lifecycle: "loading" }).lifecycle).toBe("loading");
-  expect(() => cardLifecycleReducer(blocked, { type: "transition", lifecycle: "ready" })).toThrow();
+  expect(initialLifecycle.lifecycle).toBe("loading");
+  const blocked = lifecycleReducer(initialLifecycle, { type: "transition", lifecycle: "blocked" });
+  expect(lifecycleReducer(blocked, { type: "transition", lifecycle: "loading" }).lifecycle).toBe("loading");
+  expect(() => lifecycleReducer(blocked, { type: "transition", lifecycle: "ready" })).toThrow();
 });

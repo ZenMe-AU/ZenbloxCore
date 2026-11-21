@@ -4,25 +4,19 @@
  */
 
 import {
-  canCardTransition,
-  cardLifecycleReducer,
-  initialCardLifecycle,
-  type CardLifecycle,
-  type CardLifecycleEvent,
+  canTransition as basecard_canTransition,
+  lifecycleReducer,
+  initialLifecycle,
+  type LifecycleState,
+  type Lifecycle,
+  type LifecycleEvent,
 } from "../../components/useBaseCard";
 import type { BaseCardContext } from "../../components/useBaseCard";
 
-export const initialState: ProtoState = {
-  baseCardContext: {
-    cardId: "proto_card",
-    title: "ProtoCard prototype card",
-    prerequisiteIds: ["", ""],
-    ...initialCardLifecycle,
-  },
-  protoCardContext: {
-    forceUnlocked: false,
-    unmetCardPrerequisites: [],
-  },
+export type State = {
+  lifecycle: LifecycleState;
+  baseCardContext: Omit<BaseCardContext, "lifecycle" | "prerequisiteIds"> & { prerequisiteIds: [string, string] };
+  protoCardContext: ProtoCardContext;
 };
 
 type ProtoCardContext = {
@@ -30,69 +24,80 @@ type ProtoCardContext = {
   unmetCardPrerequisites: string[];
 };
 
-export type ProtoState = {
-  baseCardContext: Omit<BaseCardContext, "prerequisiteIds"> & { prerequisiteIds: [string, string] };
-  protoCardContext: ProtoCardContext;
-};
-
-export type ProtoEvent =
+export type Event =
   | { type: "card-prerequisite"; index: 0 | 1; cardId: string }
   | { type: "sync-card-prerequisites"; unmet: string[] }
   | { type: "force-unlock"; value: boolean }
   | { type: "check-prerequisites" }
-  | CardLifecycleEvent;
+  | LifecycleEvent;
 
-export function getBaseCardContext(state: ProtoState) {
-  const summary = state.baseCardContext.lifecycle === "loading"
+export const initialState: State = {
+  lifecycle: { context: initialLifecycle },
+  baseCardContext: {
+    cardId: "proto_card",
+    title: "ProtoCard prototype card",
+    prerequisiteIds: ["", ""],
+  },
+  protoCardContext: {
+    forceUnlocked: false,
+    unmetCardPrerequisites: [],
+  },
+};
+
+export function getBaseCardContext(state: State) {
+  const lifecycle = state.lifecycle.context.lifecycle;
+  const summary = lifecycle === "loading"
     ? "Checking prerequisites..."
-    : state.baseCardContext.lifecycle === "blocked"
+    : lifecycle === "blocked"
       ? `Blocked: ${state.protoCardContext.unmetCardPrerequisites.join(", ")}`
       : "Summary";
   return {
     ...state.baseCardContext,
+    ...state.lifecycle.context,
     summary,
     unmetCardPrerequisites: state.protoCardContext.unmetCardPrerequisites,
-    done: state.protoCardContext.unmetCardPrerequisites.length === 0 && state.baseCardContext.lifecycle === "complete",
+    done: state.protoCardContext.unmetCardPrerequisites.length === 0 && lifecycle === "complete",
   } as const;
 }
 
-export function canTransition(state: ProtoState, lifecycle: CardLifecycle): boolean {
+export function canTransition(state: Pick<State, "lifecycle" | "protoCardContext">, lifecycle: Lifecycle): boolean {
   return lifecycle !== "ready" && lifecycle !== "blocked"
     && state.protoCardContext.unmetCardPrerequisites.length === 0
-    && canCardTransition(state.baseCardContext, lifecycle);
+    && basecard_canTransition(state.lifecycle.context, lifecycle);
 }
 
-export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
+export function reducer(state: State, event: Event): State {
   switch (event.type) {
     case "card-prerequisite": {
       const prerequisiteIds: [string, string] = [...state.baseCardContext.prerequisiteIds];
       prerequisiteIds[event.index] = event.cardId;
       return {
         ...state,
-        baseCardContext: { ...state.baseCardContext, prerequisiteIds, ...initialCardLifecycle },
+        baseCardContext: { ...state.baseCardContext, prerequisiteIds },
+        lifecycle: { ...state.lifecycle, context: initialLifecycle },
       };
     }
     case "sync-card-prerequisites":
       return {
         ...state,
         protoCardContext: { ...state.protoCardContext, unmetCardPrerequisites: event.unmet },
-        baseCardContext: { ...state.baseCardContext, ...initialCardLifecycle },
+        lifecycle: { ...state.lifecycle, context: initialLifecycle },
       };
     case "force-unlock":
       return { ...state, protoCardContext: { ...state.protoCardContext, forceUnlocked: event.value } };
     case "check-prerequisites":
-      if (state.baseCardContext.lifecycle !== "loading") return state;
+      if (state.lifecycle.context.lifecycle !== "loading") return state;
       return {
         ...state,
-        baseCardContext: cardLifecycleReducer(state.baseCardContext, {
+        lifecycle: { ...state.lifecycle, context: lifecycleReducer(state.lifecycle.context, {
           type: "transition",
           lifecycle: state.protoCardContext.unmetCardPrerequisites.length === 0 ? "ready" : "blocked",
-        }),
+        }) },
       };
     case "transition":
       if (!canTransition(state, event.lifecycle)) {
-        throw new Error(`Cannot transition from ${state.baseCardContext.lifecycle} to ${event.lifecycle} with the current prerequisites`);
+        throw new Error(`Cannot transition from ${state.lifecycle.context.lifecycle} to ${event.lifecycle} with the current prerequisites`);
       }
-      return { ...state, baseCardContext: cardLifecycleReducer(state.baseCardContext, event) };
+      return { ...state, lifecycle: { ...state.lifecycle, context: lifecycleReducer(state.lifecycle.context, event) } };
   }
 }

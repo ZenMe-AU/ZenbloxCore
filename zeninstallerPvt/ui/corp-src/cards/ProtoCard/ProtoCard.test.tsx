@@ -8,17 +8,17 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
-import { canCardTransition, type CardLifecycle } from "../../components/useBaseCard";
+import { canTransition, type Lifecycle } from "../../components/useBaseCard";
 import { createAppContext, SensitiveToken } from "../../appContext";
 import theme from "../../theme";
 import ProtoCard from "./ProtoCard";
 import { useProtoCard, type UseProtoCard } from "./useProtoCard";
-import { getBaseCardContext, initialState, protoReducer } from "./stateMachine";
+import { getBaseCardContext, initialState, reducer as protoReducer } from "./stateMachine";
 
 describe("ProtoCard state machine", () => {
   const appStore = createAppContext();
   it("checks prerequisites before entering ready or blocked and guards operations", () => {
-    expect(initialState.baseCardContext.lifecycle).toBe("loading");
+    expect(initialState.lifecycle.context.lifecycle).toBe("loading");
     expect(() => protoReducer(initialState, { type: "transition", lifecycle: "complete" })).toThrow();
     const ready = protoReducer(initialState, { type: "check-prerequisites" });
     expect(getBaseCardContext(ready)).toMatchObject({ cardId: "proto_card", summary: "Summary", lifecycle: "ready", unmetCardPrerequisites: [] });
@@ -29,7 +29,7 @@ describe("ProtoCard state machine", () => {
     expect(() => protoReducer(blocked, { type: "transition", lifecycle: "complete" })).toThrow();
     const forced = protoReducer(blocked, { type: "force-unlock", value: true });
     expect(forced.protoCardContext.forceUnlocked).toBe(true);
-    expect(forced.baseCardContext.lifecycle).toBe("blocked");
+    expect(getBaseCardContext(forced).lifecycle).toBe("blocked");
     expect(forced.protoCardContext.unmetCardPrerequisites).toEqual(["repo_v2"]);
     expect(() => protoReducer(forced, { type: "transition", lifecycle: "complete" })).toThrow();
     const available = protoReducer(protoReducer(blocked, { type: "sync-card-prerequisites", unmet: [] }), { type: "check-prerequisites" });
@@ -39,7 +39,7 @@ describe("ProtoCard state machine", () => {
     expect(getBaseCardContext(complete)).toMatchObject({ lifecycle: "complete", done: true });
     const rechecking = protoReducer(complete, { type: "sync-card-prerequisites", unmet: ["repo_v2"] });
     expect(getBaseCardContext(rechecking)).toMatchObject({ lifecycle: "loading", done: false });
-    expect(protoReducer(rechecking, { type: "check-prerequisites" }).baseCardContext.lifecycle).toBe("blocked");
+    expect(getBaseCardContext(protoReducer(rechecking, { type: "check-prerequisites" })).lifecycle).toBe("blocked");
     expect(protoReducer(ready, { type: "check-prerequisites" })).toBe(ready);
   });
 
@@ -52,13 +52,13 @@ describe("ProtoCard state machine", () => {
       expect(() => protoReducer(state, { type: "transition", lifecycle: "loading" })).toThrow();
       const missingRepo = protoReducer(state, { type: "sync-card-prerequisites", unmet: ["repo_v2"] });
       expect(getBaseCardContext(missingRepo)).toMatchObject({ title: "Custom title", lifecycle: "loading", unmetCardPrerequisites: ["repo_v2"] });
-      expect(protoReducer(missingRepo, { type: "check-prerequisites" }).baseCardContext).toMatchObject({ title: "Custom title", lifecycle: "blocked" });
+      expect(getBaseCardContext(protoReducer(missingRepo, { type: "check-prerequisites" }))).toMatchObject({ title: "Custom title", lifecycle: "blocked" });
     }
   });
 
   it.each(["action", "commit"] as const)("allows loading to transition to %s only with prerequisites met", (lifecycle) => {
     const entered = protoReducer(initialState, { type: "transition", lifecycle });
-    expect(entered.baseCardContext.lifecycle).toBe(lifecycle);
+    expect(entered.lifecycle.context.lifecycle).toBe(lifecycle);
     expect(protoReducer(entered, { type: "check-prerequisites" })).toBe(entered);
     const missingRepo = protoReducer(initialState, { type: "sync-card-prerequisites", unmet: ["repo_v2"] });
     expect(() => protoReducer(missingRepo, { type: "transition", lifecycle })).toThrow();
@@ -369,9 +369,9 @@ describe("ProtoCard state machine", () => {
       expect(container.textContent).not.toContain("Legacy prerequisite");
       const diagram = container.querySelector('[aria-label="Lifecycle diagram"]');
       expect(diagram).not.toBeNull();
-      const states: CardLifecycle[] = ["loading", "blocked", "ready", "action", "commit", "complete", "error"];
+      const states: Lifecycle[] = ["loading", "blocked", "ready", "action", "commit", "complete", "error"];
       const expectedEdges = states.flatMap((from) => states
-        .filter((to) => canCardTransition({ lifecycle: from }, to))
+        .filter((to) => canTransition({ lifecycle: from }, to))
         .map((to) => `${from}-${to}`));
       const displayedEdges = [...diagram!.querySelectorAll("[data-from][data-to]")]
         .map((edge) => `${edge.getAttribute("data-from")}-${edge.getAttribute("data-to")}`);

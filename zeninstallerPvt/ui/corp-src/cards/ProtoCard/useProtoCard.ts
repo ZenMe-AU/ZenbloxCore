@@ -7,7 +7,7 @@ import { useCallback, useEffect, useReducer, useSyncExternalStore, type Dispatch
 import type { CardHook } from "../../types";
 import type { SharedCard, AppContext } from "../../appContext";
 import { checkPrerequisites } from "../../components/useBaseCard";
-import { getBaseCardContext, initialState, protoReducer, type ProtoEvent } from "./stateMachine";
+import { getBaseCardContext, initialState, reducer, type Event } from "./stateMachine";
 
 let forceUnlockedForPage = false;
 
@@ -16,29 +16,29 @@ export interface UseProtoCard extends CardHook {
   appContext: ReturnType<AppContext["getSnapshot"]>;
   baseCardContext: ReturnType<typeof getBaseCardContext>;
   protoCardContext: typeof initialState.protoCardContext;
-  dispatch: Dispatch<ProtoEvent>;
+  dispatch: Dispatch<Event>;
 }
 
 export function useProtoCard(appStore: AppContext): UseProtoCard {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
-  const [state, dispatchState] = useReducer(protoReducer, initialState, (initial) => ({
+  const [state, dispatchState] = useReducer(reducer, initialState, (initial) => ({
     ...initial,
     protoCardContext: { ...initial.protoCardContext, forceUnlocked: forceUnlockedForPage },
   }));
-  const unmet = checkPrerequisites(appContext, state.baseCardContext);
+  const unmet = checkPrerequisites(appContext, getBaseCardContext(state));
   if (unmet.length !== state.protoCardContext.unmetCardPrerequisites.length
     || unmet.some((id, index) => id !== state.protoCardContext.unmetCardPrerequisites[index])) {
     dispatchState({ type: "sync-card-prerequisites", unmet });
   }
-  const dispatch = useCallback((event: ProtoEvent) => {
+  const dispatch = useCallback((event: Event) => {
     if (event.type === "force-unlock") forceUnlockedForPage = event.value;
     dispatchState(event);
   }, []);
   useEffect(() => {
-    if (state.baseCardContext.lifecycle !== "loading") return;
+    if (state.lifecycle.context.lifecycle !== "loading") return;
     const timer = setTimeout(() => dispatchState({ type: "check-prerequisites" }), 2000);
     return () => clearTimeout(timer);
-  }, [state.baseCardContext.lifecycle, state.baseCardContext.prerequisiteIds, state.protoCardContext.unmetCardPrerequisites]);
+  }, [state.lifecycle.context.lifecycle, state.baseCardContext.prerequisiteIds, state.protoCardContext.unmetCardPrerequisites]);
   const baseCardContext = getBaseCardContext(state);
   const status = baseCardContext.lifecycle === "loading"
     ? "loading"

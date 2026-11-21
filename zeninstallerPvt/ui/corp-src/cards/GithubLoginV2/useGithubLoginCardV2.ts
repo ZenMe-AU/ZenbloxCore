@@ -20,8 +20,8 @@ import type { BaseCardContext } from "../../components/useBaseCard";
 import { SensitiveToken } from "../../appContext";
 import {
   getGithubLoginPhase,
-  githubLoginLifecycleReducer,
-  initialGithubLoginLifecycle,
+  initialState,
+  reducer,
 } from "./stateMachine";
 
 const AUTH_RECORD_KEY = "zeninstaller_github_login_v2_auth";
@@ -359,12 +359,12 @@ export function useGithubLoginCardV2() {
     token,
     setToken: setTokenState,
   };
-  const [state, dispatchLifecycle] = useReducer(githubLoginLifecycleReducer, initialGithubLoginLifecycle);
+  const [state, dispatchLifecycle] = useReducer(reducer, initialState);
   const phase = getGithubLoginPhase({ redirecting, verifying, loggingIn, account, sessionExpired });
-  if (phase !== null && phase !== state.phase) {
+  if (phase !== state.lifecycle.targetPhase) {
     dispatchLifecycle({ type: "phase-changed", phase });
   }
-  const baseCardContext = { cardId: githubLoginContext.cardId, title: "GitHub login 2", prerequisiteIds: [], summary, ...state.context } satisfies BaseCardContext;
+  const baseCardContext = { cardId: githubLoginContext.cardId, title: "GitHub login 2", prerequisiteIds: [], summary, ...state.lifecycle.context } satisfies BaseCardContext;
   return {
     ...githubLoginContext,
     baseCardContext,
