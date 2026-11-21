@@ -5,9 +5,10 @@
 
 import { Box, Button, Checkbox, FormControlLabel, Link, Typography, useTheme, ButtonBase } from "@mui/material";
 import Card from "../../components/Card";
+import type { CardLifecycle } from "../../components/cardLifecycle";
 import ViewLink from "../../components/ViewLink";
 import type { CardChrome } from "../../types";
-import { canTransition, requirements, type Lifecycle, type RequirementId } from "./stateMachine";
+import { canTransition, requirements, type RequirementId } from "./stateMachine";
 import type { UseProtoCard } from "./useProtoCard";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
@@ -16,13 +17,13 @@ type Props = {
   protoCard: UseProtoCard;
 };
 
-const actions: { lifecycle: Lifecycle; label: string }[] = [
+const actions: { lifecycle: CardLifecycle; label: string }[] = [
   { lifecycle: "loading", label: "Start / retry" },
   { lifecycle: "complete", label: "Complete" },
   { lifecycle: "warning", label: "Needs action" },
   { lifecycle: "error", label: "Fail" },
   { lifecycle: "skipped", label: "Skip" },
-  { lifecycle: "idle", label: "Reset" },
+  { lifecycle: "blocked", label: "Reset" },
 ];
 
 /**
@@ -114,7 +115,7 @@ function LockedContent({ protoCard, onRequirementClick }: {
 
 function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
   const { appContext, cardContext, protoCardContext, dispatch } = protoCard;
-  const state = { appContext, protoCardContext };
+  const state = { appContext, cardContext, protoCardContext };
 
   return (
     <>
@@ -125,7 +126,7 @@ function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
       )}
       <Intro />
       <Typography role="status" sx={{ mb: 1 }}>
-        Availability: {cardContext.availability}; lifecycle: {protoCardContext.lifecycle}
+        Availability: {cardContext.availability}; lifecycle: {cardContext.lifecycle}
       </Typography>
       {cardContext.availability === "unavailable" && (
         <Typography sx={{ mb: 1 }}>The simulated configuration is unavailable.</Typography>

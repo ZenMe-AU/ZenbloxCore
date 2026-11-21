@@ -3,6 +3,15 @@
  * @license SPDX-License-Identifier: MIT
  */
 
+import {
+  canCardTransition,
+  cardLifecycleReducer,
+  initialCardLifecycle,
+  type CardLifecycle,
+  type CardLifecycleContext,
+  type CardLifecycleEvent,
+} from "../../components/cardLifecycle";
+
 export const requirements = {
   azure_login: "Azure login",
   repo: "Repository and environment",
@@ -11,20 +20,18 @@ export const requirements = {
 } as const;
 
 export type RequirementId = keyof typeof requirements;
-export type Lifecycle = "idle" | "loading" | "complete" | "warning" | "error" | "skipped";
-
 type AppContext = {
   configured: boolean;
   completed: Record<RequirementId, boolean>;
 };
 
 type ProtoCardContext = {
-  lifecycle: Lifecycle;
   forceUnlocked: boolean;
 };
 
 export type ProtoState = {
   appContext: AppContext;
+  cardContext: CardLifecycleContext;
   protoCardContext: ProtoCardContext;
 };
 
@@ -32,7 +39,7 @@ export type ProtoEvent =
   | { type: "configuration"; configured: boolean }
   | { type: "requirement"; id: RequirementId; completed: boolean }
   | { type: "force-unlock"; value: boolean }
-  | { type: "transition"; lifecycle: Lifecycle };
+  | CardLifecycleEvent;
 
 export const initialState: ProtoState = {
   appContext: {
@@ -44,16 +51,8 @@ export const initialState: ProtoState = {
       azure_app_registration: true,
     },
   },
-  protoCardContext: { lifecycle: "idle", forceUnlocked: false },
-};
-
-const transitions: Record<Lifecycle, readonly Lifecycle[]> = {
-  idle: ["loading", "skipped"],
-  loading: ["complete", "warning", "error", "idle"],
-  complete: ["loading", "idle"],
-  warning: ["loading", "idle", "skipped"],
-  error: ["loading", "idle"],
-  skipped: ["idle"],
+  cardContext: initialCardLifecycle,
+  protoCardContext: { forceUnlocked: false },
 };
 
 export function getCardContext(state: ProtoState) {
@@ -64,18 +63,19 @@ export function getCardContext(state: ProtoState) {
     : unmetRequirements.length > 0 ? "locked" : "available";
   const status = availability === "unavailable"
     ? "unavailable"
-    : availability === "locked" ? "idle" : state.protoCardContext.lifecycle;
+    : availability === "locked" || state.cardContext.lifecycle === "blocked" ? "idle" : state.cardContext.lifecycle;
   return {
+    lifecycle: state.cardContext.lifecycle,
     availability,
     unmetRequirements,
     status,
-    done: availability === "available" && state.protoCardContext.lifecycle === "complete",
+    done: availability === "available" && state.cardContext.lifecycle === "complete",
   } as const;
 }
 
-export function canTransition(state: ProtoState, lifecycle: Lifecycle): boolean {
+export function canTransition(state: ProtoState, lifecycle: CardLifecycle): boolean {
   return getCardContext(state).availability === "available"
-    && transitions[state.protoCardContext.lifecycle].includes(lifecycle);
+    && canCardTransition(state.cardContext, lifecycle);
 }
 
 export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
@@ -94,8 +94,8 @@ export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
       return { ...state, protoCardContext: { ...state.protoCardContext, forceUnlocked: event.value } };
     case "transition":
       if (!canTransition(state, event.lifecycle)) {
-        throw new Error(`Cannot transition from ${state.protoCardContext.lifecycle} to ${event.lifecycle} while ${getCardContext(state).availability}`);
+        throw new Error(`Cannot transition from ${state.cardContext.lifecycle} to ${event.lifecycle} while ${getCardContext(state).availability}`);
       }
-      return { ...state, protoCardContext: { ...state.protoCardContext, lifecycle: event.lifecycle } };
+      return { ...state, cardContext: cardLifecycleReducer(state.cardContext, event) };
   }
 }

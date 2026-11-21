@@ -20,6 +20,7 @@ describe("ProtoCard state machine", () => {
     expect(() => protoReducer(locked, { type: "transition", lifecycle: "complete" })).toThrow();
     const forced = protoReducer(locked, { type: "force-unlock", value: true });
     expect(forced.protoCardContext.forceUnlocked).toBe(true);
+    expect(forced.cardContext.lifecycle).toBe("loading");
     expect(forced.appContext.completed.repo).toBe(false);
     expect(() => protoReducer(forced, { type: "transition", lifecycle: "complete" })).toThrow();
 
@@ -34,6 +35,7 @@ describe("ProtoCard state machine", () => {
     expect(() => protoReducer(initialState, { type: "transition", lifecycle: "complete" })).toThrow();
     const afterTransition = protoReducer(protoReducer(initialState, { type: "force-unlock", value: true }), { type: "transition", lifecycle: "loading" });
     expect(afterTransition.protoCardContext.forceUnlocked).toBe(true);
+    expect(afterTransition.cardContext.lifecycle).toBe("loading");
   });
 
   it("force-unlocks the prototype without satisfying its prerequisites", async () => {
@@ -71,6 +73,7 @@ describe("ProtoCard state machine", () => {
       const repo = [...container.querySelectorAll("label")].find((label) => label.textContent?.includes("Repository and environment"))?.querySelector("input");
       expect(repo).toBeDefined();
       expect(container.textContent).toContain("Availability: available");
+      expect(container.textContent).toContain("lifecycle: blocked");
       await act(async () => repo?.click());
       expect(container.textContent).toContain("Locked: Repository and environment");
       expect(container.textContent).toContain("The following links will take you to the cards to complete first");
