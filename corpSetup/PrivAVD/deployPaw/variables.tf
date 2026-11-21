@@ -116,3 +116,20 @@ variable "PRIVATE_ENDPOINTS_SUBNET_ADDRESS_PREFIX" {
   type        = string
   default     = "10.250.2.0/26"
 }
+
+variable "BLOB_PRIVATE_DNS_ZONE_ID" {
+  description = "Existing privatelink.blob.core.windows.net zone already linked to this VNet. Empty = create one here (fresh deployments)."
+  type        = string
+  default     = ""
+}
+
+variable "ARTIFACT_KEEPER_BLOB_HOST" {
+  description = "Artifact Keeper private blob host, e.g. erv8stakacaprivate.blob.core.windows.net. Set = session hosts trust it as a Local Intranet site so winget installs from it run unattended. Empty = skip."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.ARTIFACT_KEEPER_BLOB_HOST == "" || can(regex("^[a-z0-9]{3,24}\\.blob\\.core\\.windows\\.net$", var.ARTIFACT_KEEPER_BLOB_HOST))
+    error_message = "ARTIFACT_KEEPER_BLOB_HOST must be empty or <storage-account>.blob.core.windows.net (lowercase)."
+  }
+}

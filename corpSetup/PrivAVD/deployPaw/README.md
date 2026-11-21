@@ -98,3 +98,12 @@ this module.
 - The PAW deployment has its own Terraform state and workspace per resource group.
 - Planning happens before apply so proposed changes are visible and repeatable.
 - Imports discover clearly identified existing resources and skip objects already in state.
+
+## Artifact Keeper integration
+
+To feed this PAW's winget from an Artifact Keeper stack (ZbArtifactKeeper), see
+`docs/PAW-INTEGRATION.md` in that repo. In short: deployPaw creates (or reuses)
+the `privatelink.blob.core.windows.net` zone and outputs
+`private_endpoints_subnet_id` and `blob_private_dns_zone_id` for the AK `.env`.
+Setting `TF_VAR_ARTIFACT_KEEPER_BLOB_HOST` makes the session hosts trust the AK
+private blob host, so winget installs from it run unattended.

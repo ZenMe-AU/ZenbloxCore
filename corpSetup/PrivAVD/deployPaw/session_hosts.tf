@@ -91,3 +91,26 @@ resource "azurerm_virtual_machine_extension" "avd_register" {
     # azurerm_subnet_route_table_association.session_hosts
   ]
 }
+
+# Artifact Keeper trust (optional): marks the AK private blob host as a Local
+# Intranet site, machine-wide, so unattended winget installs from it are not
+# held by the Internet-zone security prompt. See
+# scripts/Set-ArtifactKeeperTrust.ps1 and ZbArtifactKeeper
+# docs/PAW-INTEGRATION.md.
+resource "azurerm_virtual_machine_run_command" "artifact_keeper_trust" {
+  count              = var.ARTIFACT_KEEPER_BLOB_HOST == "" ? 0 : var.SESSION_HOST_COUNT
+  name               = "artifact-keeper-trust"
+  location           = azurerm_resource_group.avd.location
+  virtual_machine_id = azurerm_windows_virtual_machine.session_host[count.index].id
+
+  source {
+    script = file("${path.module}/scripts/Set-ArtifactKeeperTrust.ps1")
+  }
+
+  parameter {
+    name  = "BlobHost"
+    value = var.ARTIFACT_KEEPER_BLOB_HOST
+  }
+
+  depends_on = [azurerm_virtual_machine_extension.avd_register]
+}
