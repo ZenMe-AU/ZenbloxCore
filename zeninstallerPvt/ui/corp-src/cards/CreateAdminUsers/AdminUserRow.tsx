@@ -12,7 +12,8 @@ import type { VerifiedDomain } from "../../api/azureGraph";
 import ManagerPicker from "./ManagerPicker";
 import { Arrow } from "./RowParts";
 import { box, circle, head, header } from "./styles";
-import { resolveAdmin, type AdminRow, type UseCreateAdminUsersCard } from "./useCreateAdminUsersCard";
+import { resolveAdmin, type AdminRow } from "./logic";
+import type { UseCreateAdminUsersCard } from "./useCreateAdminUsersCard";
 
 // Shown only once a generated value was changed by hand.
 function ResetButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled: boolean }) {

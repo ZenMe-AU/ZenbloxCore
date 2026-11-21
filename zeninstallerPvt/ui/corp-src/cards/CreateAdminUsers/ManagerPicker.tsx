@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { Autocomplete, TextField } from "@mui/material";
 import type { AdminPair, EntraUser } from "../../api/azureGraph";
-import { resolveAdmin, type AdminRow, type ManagerChoice } from "./useCreateAdminUsersCard";
+import { resolveAdmin, type AdminRow, type ManagerChoice } from "./logic";
 
 function managerLabel(m: ManagerChoice, admins: AdminRow[], privileged: boolean): string {
   if (m.kind === "entra") return m.displayName;
