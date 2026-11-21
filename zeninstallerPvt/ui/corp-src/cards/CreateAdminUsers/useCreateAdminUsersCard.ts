@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 // import { getMsal } from "../../auth/msal"; // Deprecated: the access check's Grant consent covers these scopes; kept for reference.
 import { AZURE_CLIENT_ID } from "../../config/azureConfig";
 import { searchUsers, type AdminPair, type EntraUser, type VerifiedDomain } from "../../api/azureGraph";
@@ -21,11 +21,14 @@ import {
   type LicenceState,
   type RoleTarget,
 } from "./config";
-import { adminRowErrors, adminRowWarnings, duplicateUpns, errorText, newAdmin, rowUpns, withoutCreated, type AdminRow, type CreatedAdmin } from "./logic";
+import { adminRowErrors, adminRowWarnings, duplicateUpns, errorText, newAdmin, rowUpns, waitingReducer, withoutCreated, type AdminRow, type WaitingAdmin } from "./logic";
 import { adminUsersSteps, runAdminUsers } from "./steps";
 import { useAdminDirectory, useLicenceAndDomains, useTakenUpns } from "./useEntraReads";
 
 // The card's hook only connects its parts: logic.ts (rows and checks), useEntraReads.ts (reads), steps.ts (the run).
+
+// After a run, Entra is read again this long after it; an admin it still doesn't list after the last read is unlisted.
+const RECHECK_DELAYS_MS = [3000, 10000, 30000];
 
 export type UseCreateAdminUsersCardParams = {
   azureAccount: AzureAccount | null;
@@ -49,7 +52,10 @@ export type UseCreateAdminUsersCard = CardHook & {
   primaryDomain: string; // Empty until the domains are read.
   missingGroups: string[] | null; // Null until Entra was read.
   existingAdmins: AdminPair[] | null; // Admins already in Entra; null until read.
-  waitingAdmins: CreatedAdmin[]; // A run finished them, but Entra doesn't list them as existing yet.
+  waitingAdmins: WaitingAdmin[]; // A run finished them, but Entra doesn't list them as existing yet.
+  existingAndWaitingAdmins: AdminPair[]; // existingAdmins and waitingAdmins; the manager picker and the employee ID check treat both as existing.
+  checking: boolean; // Entra is being read again.
+  recheck: () => void; // Reads Entra again, for the admins it doesn't list yet.
   entraLicence: LicenceState;
   licenceError: string | null; // Why the licence couldn't be read, unless it's missing consent.
   roleTarget: RoleTarget; // Who holds PrivilegedAccounts' Global Administrator.
@@ -80,11 +86,12 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   }, []);
   const removeAdmin = useCallback((key: string) => setAdmins((prev) => prev.filter((a) => a.key !== key)), []);
 
-  const [created, setCreated] = useState<CreatedAdmin[]>([]);
+  const [created, dispatchCreated] = useReducer(waitingReducer, []);
 
   // Reads; the directory is read again after each run.
   const [checkKey, setCheckKey] = useState(0);
-  const { missingGroups, existingAdmins, signedInUser, error: directoryError } = useAdminDirectory(azureAccount, tenantId, checkKey);
+  const { missingGroups, existingAdmins, signedInUser, checking, error: directoryError } = useAdminDirectory(azureAccount, tenantId, checkKey);
+  const recheck = useCallback(() => setCheckKey((key) => key + 1), []);
   const { entraLicence, domains, error: tenantError } = useLicenceAndDomains(azureAccount, tenantId);
   const primaryDomain = domains?.find((d) => d.isDefault)?.name ?? "";
   const takenUpns = useTakenUpns(azureAccount, tenantId, admins.flatMap((a) => rowUpns(a, primaryDomain)));
@@ -95,10 +102,11 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   const roleTarget: RoleTarget = licenceAllows("p1", entraLicence) ? "group" : "users";
   const usePim = licenceAllows(PIM_OPTION.needs, entraLicence) && (pimChoice ?? true);
   const access = useCardResourceAccess({ azureAccount, subscriptionId, tenantId: tid }, createAdminUsersAccess(usePim));
-  const rowErrors = adminRowErrors(admins, existingAdmins ?? [], primaryDomain);
-  const rowWarnings = adminRowWarnings(admins, primaryDomain, takenUpns, rowErrors);
-  // One that Entra doesn't list yet after the read waits until the next read (a rerun or a reload).
+  // Their accounts exist, so they count as existing while Entra doesn't list them yet.
   const waitingAdmins = created.filter((createdAdmin) => !existingAdmins?.some((pair) => pair.user.id === createdAdmin.user.id));
+  const existingAndWaitingAdmins = [...(existingAdmins ?? []), ...waitingAdmins];
+  const rowErrors = adminRowErrors(admins, existingAndWaitingAdmins, primaryDomain);
+  const rowWarnings = adminRowWarnings(admins, primaryDomain, takenUpns, rowErrors);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const canRun = !running && !!primaryDomain && !!signedInUser && access.status === "ready" && licenceAllows("none", entraLicence) && Object.keys(rowErrors).length === 0;
 
@@ -117,14 +125,27 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     };
     try {
       const finished = await runAdminUsers({ ...input, updateStep, fail });
-      // Finished admins can't be edited or run again; they wait, read-only, until the read after the run lists them as existing.
-      setCreated((prev) => [...prev, ...finished]);
+      // Finished admins can't be edited or run again; they wait, read-only, until a read after the run lists them as existing.
+      dispatchCreated({ type: "created", admins: finished });
       setAdmins((prev) => withoutCreated(prev, finished));
     } finally {
       setRunning(false);
       setCheckKey((k) => k + 1);
     }
   }, [azureAccount, tenantId, canRun, signedInUser, primaryDomain, admins, subscriptionId, roleTarget, usePim, setSteps, setRunning, updateStep]);
+
+  // The reads after a run; a run that creates admins starts them again, and they stop once Entra lists everyone.
+  const allListed = waitingAdmins.length === 0;
+  useEffect(() => {
+    if (allListed) return;
+    const timers = RECHECK_DELAYS_MS.map((delay, index) =>
+      setTimeout(() => {
+        setCheckKey((key) => key + 1);
+        if (index === RECHECK_DELAYS_MS.length - 1) dispatchCreated({ type: "timedOut" });
+      }, delay)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [created.length, allListed]);
 
   // const requestConsent = useCallback(async () => { // Deprecated: the access check's Grant consent covers these scopes; kept for reference.
   //   if (!azureAccount) return;
@@ -175,6 +196,9 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     missingGroups,
     existingAdmins,
     waitingAdmins,
+    existingAndWaitingAdmins,
+    checking,
+    recheck,
     entraLicence,
     licenceError,
     roleTarget,

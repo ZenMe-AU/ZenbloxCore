@@ -26,8 +26,8 @@ export type AdminRow = {
 
 export type ResolvedAdmin = { displayName: string; username: string; privilegedUsername: string; privilegedDisplayName: string };
 
-// An admin whose two accounts a run finished.
-export type CreatedAdmin = { key: string; user: EntraUser; privileged: EntraUser };
+// An admin whose two accounts a run finished, shaped like an existing admin.
+export type CreatedAdmin = AdminPair & { key: string };
 
 const toUpnPart = (name: string) =>
   name.normalize("NFD").replace(/\p{M}/gu, "").trim().split(/\s+/).join(".").replace(/[^A-Za-z0-9._-]/g, "");
@@ -160,7 +160,7 @@ export function withoutCreated(admins: AdminRow[], created: CreatedAdmin[]): Adm
     .map((admin) => {
       const pick = admin.manager;
       const manager = pick?.kind === "row" ? created.find((createdAdmin) => createdAdmin.key === pick.key) : undefined;
-      return manager ? { ...admin, manager: { kind: "entra", ...manager.user } } : admin;
+      return manager ? { ...admin, manager: { kind: "entra", id: manager.user.id, displayName: manager.user.displayName, userPrincipalName: manager.user.userPrincipalName } } : admin;
     });
 }
 
@@ -170,4 +170,18 @@ export function adminRowWarnings(admins: AdminRow[], primaryDomain: string, take
     const existing = rowUpns(a, primaryDomain).filter((upn) => takenUpns.has(upn.toLowerCase()));
     return existing.length && !rowErrors[a.key] ? [[a.key, `Already in Entra: ${existing.join(", ")}. Running reuses ${existing.length > 1 ? "these accounts" : "this account"} instead of creating one.`]] : [];
   }));
+}
+
+// A created admin Entra doesn't list yet: preparing while the reads after the run go on, unlisted once the last one still misses them.
+export type WaitingAdmin = CreatedAdmin & { status: "preparing" | "unlisted" };
+export type WaitingAction = { type: "created"; admins: CreatedAdmin[] } | { type: "timedOut" };
+
+// Every admin the runs created. They never go back to the list to add, since their accounts exist; the card hook hides the ones Entra lists.
+export function waitingReducer(waiting: WaitingAdmin[], action: WaitingAction): WaitingAdmin[] {
+  switch (action.type) {
+    case "created":
+      return [...waiting, ...action.admins.map((admin) => ({ ...admin, status: "preparing" as const }))];
+    case "timedOut":
+      return waiting.map((admin) => ({ ...admin, status: "unlisted" as const }));
+  }
 }

@@ -66,7 +66,7 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
   editing: boolean;
   onEditToggle: () => void;
 }) {
-  const { admins, rowErrors, rowWarnings, duplicateUpns, takenUpns, updateAdmin, removeAdmin, searchUsers, signedInUser, domains, primaryDomain, existingAdmins, licenceError, running, consentRequired } = adminUsers;
+  const { admins, rowErrors, rowWarnings, duplicateUpns, takenUpns, updateAdmin, removeAdmin, searchUsers, signedInUser, domains, primaryDomain, existingAndWaitingAdmins, licenceError, running, consentRequired } = adminUsers;
   const r = resolveAdmin(a);
   const defaultName = resolveAdmin({ ...a, displayName: null }).displayName;
   const defaultUpn = resolveAdmin({ ...a, username: null }).username;
@@ -244,7 +244,7 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
                       value={a.manager}
                       fallback={signedInUser && { label: `${signedInUser.displayName} (${signedInUser.userPrincipalName})`, group: "Signed-in user", id: signedInUser.id }}
                       admins={admins}
-                      existing={existingAdmins ?? []}
+                      existing={existingAndWaitingAdmins}
                       search={searchUsers}
                       onChange={(manager) => updateAdmin(a.key, { manager })}
                       disabled={running}

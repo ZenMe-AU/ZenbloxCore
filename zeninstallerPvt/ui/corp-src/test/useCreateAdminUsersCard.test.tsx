@@ -110,6 +110,7 @@ function renderCard() {
 
 describe("useCreateAdminUsersCard", () => {
   beforeEach(() => {
+    vi.useRealTimers(); // A test that fails with fake timers on would leave them on.
     vi.clearAllMocks();
     mocks.ensureCardResourceAccess.mockResolvedValue(undefined);
     // Only PrivilegedAccounts is missing; created groups exist from then on.
@@ -333,6 +334,63 @@ describe("useCreateAdminUsersCard", () => {
     expect(card.current.admins).toEqual([]);
     await waitFor(() => expect(card.current.existingAdmins?.map((pair) => pair.user.userPrincipalName)).toEqual(["Ann.Lee@corp.com"]));
     expect(card.current.waitingAdmins.map((createdAdmin) => [createdAdmin.user.userPrincipalName, createdAdmin.privileged.userPrincipalName])).toEqual([["Cat.Ng@corp.com", "adm_Cat.Ng@corp.com"]]);
+
+    // Cat counts as existing while she waits: the manager picker lists her, and her employee ID is taken.
+    expect(card.current.existingAndWaitingAdmins.map((pair) => pair.user.userPrincipalName)).toEqual(["Ann.Lee@corp.com", "Cat.Ng@corp.com"]);
+    let dan = "";
+    act(() => {
+      dan = card.current.addAdmin();
+    });
+    act(() => card.current.updateAdmin(dan, { givenName: "Dan", surname: "Ho", mobile: "+61 400 000 004", employeeId: "E003" }));
+    expect(card.current.rowErrors[dan]).toBe("Employee ID E003 belongs to Cat.Ng@corp.com, an existing admin.");
+  });
+
+  it("reads Entra again after a run, then marks the admins it still doesn't list, and Recheck reads again", async () => {
+    const card = renderCard();
+    await waitFor(() => expect(card.current.signedInUser).not.toBeNull());
+    await waitFor(() => expect(card.current.entraLicence).toBe("p1"));
+    const bob = card.current.admins[0].key;
+    act(() => {
+      card.current.updateAdmin(bob, { givenName: "Bob", surname: "Wu", mobile: "+61 400 000 002", employeeId: "E002" });
+      card.current.addAdmin();
+    });
+    const cat = card.current.admins[1].key;
+    act(() => card.current.updateAdmin(cat, { givenName: "Cat", surname: "Ng", mobile: "+61 400 000 003", employeeId: "E003" }));
+    const pairOf = (upn: string, employeeId: string) => {
+      const user = { id: `u-${upn}`, displayName: upn, userPrincipalName: upn, manager: "Max Ng", managerId: "me", employeeId };
+      return { user, privileged: { ...user, id: `u-adm_${upn}`, userPrincipalName: `adm_${upn}`, managerId: user.id } };
+    };
+    const flush = () => act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    vi.useFakeTimers();
+    await act(async () => {
+      await card.current.run();
+    });
+    await flush();
+    expect(card.current.waitingAdmins.map((admin) => [admin.key, admin.status])).toEqual([[bob, "preparing"], [cat, "preparing"]]);
+
+    // The read 3s after the run lists Bob.
+    mocks.listAdminPairs.mockResolvedValue([pairOf("Bob.Wu@corp.com", "E002")]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(card.current.existingAdmins?.map((pair) => pair.user.id)).toEqual(["u-Bob.Wu@corp.com"]);
+    expect(card.current.waitingAdmins.map((admin) => [admin.key, admin.status])).toEqual([[cat, "preparing"]]);
+
+    // Still not listed after the read at 30s: Cat is unlisted, and Recheck reads again.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(27000);
+    });
+    expect(card.current.waitingAdmins.map((admin) => [admin.key, admin.status])).toEqual([[cat, "unlisted"]]);
+    expect(card.current.checking).toBe(false);
+    mocks.listAdminPairs.mockResolvedValue([pairOf("Bob.Wu@corp.com", "E002"), pairOf("Cat.Ng@corp.com", "E003")]);
+    act(() => card.current.recheck());
+    expect(card.current.checking).toBe(true);
+    await flush();
+    expect(card.current.waitingAdmins).toEqual([]);
+    expect(card.current.existingAdmins?.map((pair) => pair.user.id)).toEqual(["u-Bob.Wu@corp.com", "u-Cat.Ng@corp.com"]);
+    vi.useRealTimers();
   });
 
   it("makes a manager from the list before their report, whatever the order", async () => {

@@ -5,29 +5,12 @@
 
 import { Box, ButtonBase, Chip, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import type { AdminPair } from "../../api/azureGraph";
-import type { CreatedAdmin } from "./logic";
+import type { WaitingAdmin } from "./logic";
 import { Arrow } from "./RowParts";
 import { box, head, header } from "./styles";
 
-// An admin a run just created, until Entra lists them as existing; read-only.
-export function WaitingAdminRow({ admin }: { admin: CreatedAdmin }) {
-  return (
-    <Box sx={{ ...box, backgroundColor: "action.hover" }}>
-      <Box sx={{ ...header, display: "flex", alignItems: "center", "&:hover": undefined }}>
-        <Typography data-sensitive="true" color="text.secondary" sx={{ fontWeight: 700, whiteSpace: "nowrap" }}>
-          {admin.user.displayName}
-        </Typography>
-        <Typography data-sensitive="true" color="text.secondary" noWrap>
-          {admin.user.userPrincipalName} · {admin.privileged.userPrincipalName}
-        </Typography>
-        <Chip size="small" variant="outlined" color="success" label="Created · waiting for Entra" />
-      </Box>
-    </Box>
-  );
-}
-
-// An admin already in Entra; read-only.
-export default function ExistingAdminRow({ admin: x, open, onToggle }: { admin: AdminPair; open: boolean; onToggle: () => void }) {
+// An admin already in Entra, or, with a status, one a run created that Entra doesn't list yet; read-only.
+export default function ExistingAdminRow({ admin: x, status, checking, open, onToggle }: { admin: AdminPair; status?: WaitingAdmin["status"]; checking?: boolean; open: boolean; onToggle: () => void }) {
   return (
     <Box sx={{ ...box, backgroundColor: "action.hover" }}>
       <ButtonBase aria-expanded={open} aria-controls={`existing-admin-${x.user.id}`} disableRipple onClick={onToggle} sx={header}>
@@ -37,7 +20,11 @@ export default function ExistingAdminRow({ admin: x, open, onToggle }: { admin: 
         <Typography data-sensitive="true" color="text.secondary" noWrap>
           {x.user.userPrincipalName}
         </Typography>
-        <Chip size="small" variant="outlined" label="Exists" sx={{ color: "text.secondary" }} />
+        {status ? (
+          <Chip size="small" variant="outlined" color={status === "preparing" ? "info" : "warning"} label={status === "preparing" ? "Preparing" : checking ? "Checking..." : "Not listed yet"} />
+        ) : (
+          <Chip size="small" variant="outlined" label="Exists" sx={{ color: "text.secondary" }} />
+        )}
         <Arrow open={open} />
       </ButtonBase>
       {open && (

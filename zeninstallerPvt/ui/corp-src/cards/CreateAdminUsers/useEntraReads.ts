@@ -21,12 +21,13 @@ import type { AzureAccount } from "../../types";
 import { ADMIN_GROUPS, PRIVILEGED_ACCOUNT_GROUPS, USER_ACCOUNT_GROUPS, type LicenceState } from "./config";
 import { errorText } from "./logic";
 
-// The groups still missing, the admins already in Entra, and the signed-in user. Read again when checkKey changes.
+// The groups still missing, the admins already in Entra, and the signed-in user. Read again when checkKey changes; checking until that read is back.
 export function useAdminDirectory(azureAccount: AzureAccount | null, tenantId: string | null, checkKey: number) {
   const [missingGroups, setMissingGroups] = useState<string[] | null>(null);
   const [existingAdmins, setExistingAdmins] = useState<AdminPair[] | null>(null);
   const [signedInUser, setSignedInUser] = useState<EntraUser | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [readKey, setReadKey] = useState<number | null>(null); // The checkKey of the last read that came back.
   const tid = tenantId || undefined;
 
   // The card is done once every group exists; the admins it already made are listed too.
@@ -40,9 +41,12 @@ export function useAdminDirectory(azureAccount: AzureAccount | null, tenantId: s
         setExistingAdmins(pairs);
         setSignedInUser(me);
         setError(null);
+        setReadKey(checkKey);
       },
       (err) => {
-        if (!cancelled) setError(errorText(err));
+        if (cancelled) return;
+        setError(errorText(err));
+        setReadKey(checkKey);
       }
     );
     return () => {
@@ -50,7 +54,7 @@ export function useAdminDirectory(azureAccount: AzureAccount | null, tenantId: s
     };
   }, [azureAccount, tenantId, tid, checkKey]);
 
-  return { missingGroups, existingAdmins, signedInUser, error };
+  return { missingGroups, existingAdmins, signedInUser, checking: readKey !== checkKey, error };
 }
 
 // The licence, which selects the role-assignment mode and PIM, and the verified domains; both need the same permission.

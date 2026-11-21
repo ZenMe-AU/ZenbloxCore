@@ -18,6 +18,7 @@ import {
   getUserManagerId,
   isGroupMember,
   setUserManager,
+  type AdminAccount,
   type EntraUser,
 } from "../../api/azureGraph";
 import { ensureRbacRoleAtScope, ensureRbacRoleEligibility } from "../../api/azureArm";
@@ -178,7 +179,7 @@ async function createAccounts(run: AdminUsersRun, ids: Map<string, string>): Pro
     ? ADMIN_GROUPS.find((g) => g.name === PRIVILEGED_GROUP)!.roles.flatMap((r) => ("directoryRole" in r ? [r.directoryRole] : [])) : [];
   // Step id → account; accounts go in manager order, so a manager from this list is created first.
   const users = new Map<string, { id: string; existed: boolean; displayName: string }>();
-  const done = new Map<string, EntraUser>(); // Step id → its account, once account, manager, groups and roles are all set.
+  const done = new Map<string, AdminAccount>(); // Step id → its account, once account, manager, groups and roles are all set.
   // An adm_ account's manager is the same admin's user account; a user account's is the pick, else the signed-in user.
   // A pick from this list is that admin's user account.
   const managerOf = (a: AdminRow, kind: string) => {
@@ -231,7 +232,8 @@ async function createAccounts(run: AdminUsersRun, ids: Map<string, string>): Pro
         ...roles.map((r) => (usePim ? `eligible for ${r}` : r)),
       ].join(", ");
       updateStep(stepId, "done", existed ? `Already existed, ${membership}` : `Created, ${membership}`);
-      done.set(stepId, { id: user.id, displayName, userPrincipalName: upn });
+      // A kept manager isn't read here, so it shows as none until Entra lists the admin.
+      done.set(stepId, { id: user.id, displayName, userPrincipalName: upn, employeeId: a.employeeId.trim(), manager: kept ? null : manager.displayName, managerId: kept ? null : manager.id });
     } catch (err) {
       fail(stepId, err);
     }

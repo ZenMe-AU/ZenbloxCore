@@ -21,7 +21,7 @@ import type { CardChrome } from "../../types";
 import { ADMIN_GROUPS, CREATE_ADMIN_USERS_TITLE, PIM_OPTION } from "./config";
 import type { UseCreateAdminUsersCard } from "./useCreateAdminUsersCard";
 import AdminUserRow from "./AdminUserRow";
-import ExistingAdminRow, { WaitingAdminRow } from "./ExistingAdminRow";
+import ExistingAdminRow from "./ExistingAdminRow";
 import LicenceOption from "./LicenceOption";
 import SecurityGroupRow from "./SecurityGroupRow";
 import { box, circle, header } from "./styles";
@@ -55,7 +55,7 @@ function Intro() {
 }
 
 export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
-  const { admins, rowErrors, addAdmin, missingGroups, existingAdmins, waitingAdmins, entraLicence, roleTarget, usePim, setUsePim, access, steps, running, canRun, run, reset, error } = adminUsers;
+  const { admins, rowErrors, addAdmin, missingGroups, existingAdmins, waitingAdmins, checking, recheck, entraLicence, roleTarget, usePim, setUsePim, access, steps, running, canRun, run, reset, error } = adminUsers;
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(() => admins[0]?.key ?? null);
   const [editKey, setEditKey] = useState<string | null>(null);
@@ -117,12 +117,17 @@ export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
               {existingAdmins?.length ? ` · ${existingAdmins.length} existing` : ""}
               {waitingAdmins.length ? ` · ${waitingAdmins.length} waiting for Entra` : ""}
             </Typography>
+            {waitingAdmins.some((admin) => admin.status === "unlisted") && (
+              <Button size="small" onClick={recheck} disabled={checking} sx={{ py: 0 }}>
+                {checking ? "Checking..." : "Recheck"}
+              </Button>
+            )}
           </Box>
           {existingAdmins?.map((x) => (
             <ExistingAdminRow key={x.user.id} admin={x} open={openKey === x.user.id} onToggle={() => toggle(x.user.id)} />
           ))}
           {waitingAdmins.map((admin) => (
-            <WaitingAdminRow key={admin.key} admin={admin} />
+            <ExistingAdminRow key={admin.user.id} admin={admin} status={admin.status} checking={checking} open={openKey === admin.user.id} onToggle={() => toggle(admin.user.id)} />
           ))}
           {admins.map((a, index) => (
             <AdminUserRow
