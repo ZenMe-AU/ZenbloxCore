@@ -32,11 +32,11 @@ function Intro() {
   );
 }
 
-function Action({ login }: { login?: string }) {
+export function GithubLoginAction({ login }: { login?: string }) {
   return <ViewLink href={login ? getGithubUserUrl(login) : GITHUB_LOGIN_URL} label={login ? "Open GitHub profile" : "Open GitHub sign-in"} />;
 }
 
-export default function GithubLoginCard({ card, auth }: Props) {
+export function GithubLoginContent({ auth }: { auth: UseGithubLoginCard }) {
   const {
     loggingIn: authLoading,
     account: user,
@@ -83,7 +83,7 @@ export default function GithubLoginCard({ card, auth }: Props) {
   };
 
   return (
-    <Card title="GitHub login" action={<Action login={user?.login} />} lockedIntro={<Intro />} {...card}>
+    <>
       <Box>
         <Box sx={{ mb: 2 }}>
           <Intro />
@@ -230,6 +230,14 @@ export default function GithubLoginCard({ card, auth }: Props) {
           </Box>
         )}
       </Box>
+    </>
+  );
+}
+
+export default function GithubLoginCard({ card, auth }: Props) {
+  return (
+    <Card title="GitHub login" action={<GithubLoginAction login={auth.account?.login} />} lockedIntro={<Intro />} {...card}>
+      <GithubLoginContent auth={auth} />
     </Card>
   );
 }

@@ -5,9 +5,13 @@
 
 import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
+import { ThemeProvider } from "@mui/material";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearGithubToken } from "../cards/GithubLogin/useGithubLoginCard";
 import { readGithubAuthRecord, useGithubLoginCard, type UseGithubLoginCard } from "../cards/GithubLogin/useGithubLoginCard";
+import { useGithubLoginCardV2, type UseGithubLoginCardV2 } from "../cards/GithubLogin/useGithubLoginCardV2";
+import GithubLoginCardV2 from "../cards/GithubLogin/GithubLoginCardV2";
+import theme from "../theme";
 
 const { apiMocks } = vi.hoisted(() => ({
   apiMocks: {
@@ -62,6 +66,19 @@ function HookHarness(props: { onUpdate: (value: UseGithubLoginCard) => void }) {
   }, [value, props]);
 
   return null;
+}
+
+function V2Harness({ onUpdate }: { onUpdate: (value: UseGithubLoginCardV2) => void }) {
+  const auth = useGithubLoginCardV2(useGithubLoginCard());
+  useEffect(() => onUpdate(auth), [auth, onUpdate]);
+  return (
+    <ThemeProvider theme={theme}>
+      <GithubLoginCardV2 auth={auth} cardChrome={{
+        cardId: "github_login", status: auth.status, locked: false, requirements: [],
+        unavailable: false, expanded: true, onToggle: () => {}, onRequirementClick: () => {},
+      }} />
+    </ThemeProvider>
+  );
 }
 
 async function waitFor(assertion: () => void, timeoutMs = 1500) {
@@ -520,5 +537,65 @@ describe("useGithubLoginCard", () => {
     await act(async () => {
       root.unmount();
     });
+  });
+
+  it("uses the new lifecycle for sign-in, failure, retry and sign-out", async () => {
+    let latest: UseGithubLoginCardV2 | undefined;
+    let resolveVerification!: (value: { login: string }) => void;
+    apiMocks.verifyAuth.mockReturnValueOnce(new Promise((resolve) => { resolveVerification = resolve; }));
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(<V2Harness onUpdate={(value) => { latest = value; }} />));
+      expect(latest?.baseCardContext.lifecycle).toBe("ready");
+      await act(async () => {
+        latest?.setMode("direct");
+        latest?.setToken("ghp_test");
+      });
+      expect(container.textContent).toContain("Connect with PAT");
+      await act(async () => { void latest?.login(); });
+      expect(latest?.baseCardContext.lifecycle).toBe("action");
+      expect(latest?.shared).toEqual({ title: "GitHub login", status: "action" });
+      await act(async () => resolveVerification({ login: "octocat" }));
+      expect(latest?.baseCardContext.lifecycle).toBe("complete");
+      expect(latest?.done).toBe(true);
+      expect(container.textContent).toContain("Authenticated as");
+
+      await act(async () => window.dispatchEvent(new Event("auth:session-expired")));
+      await act(async () => { await latest?.logout(); });
+      expect(latest?.baseCardContext.lifecycle).toBe("ready");
+      expect(latest?.sessionExpired).toBe(false);
+      expect(latest?.done).toBe(false);
+      await act(async () => latest?.setToken("ghp_test"));
+      apiMocks.verifyAuth.mockRejectedValueOnce(new Error("invalid token"));
+      const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        await act(async () => { await latest?.login(); });
+        expect(latest?.baseCardContext.lifecycle).toBe("error");
+        expect(latest?.done).toBe(false);
+        await act(async () => { await latest?.login(); });
+        expect(latest?.baseCardContext.lifecycle).toBe("complete");
+      } finally {
+        errorLog.mockRestore();
+      }
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("uses action while restoring and verifying a saved session", async () => {
+    sessionStorage.setItem("zeninstaller_github_auth", JSON.stringify({ mode: "direct", token: "ghp_saved" }));
+    let latest: UseGithubLoginCardV2 | undefined;
+    let resolveVerification!: (value: { login: string }) => void;
+    apiMocks.verifyAuth.mockReturnValueOnce(new Promise((resolve) => { resolveVerification = resolve; }));
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<V2Harness onUpdate={(value) => { latest = value; }} />));
+      expect(latest?.baseCardContext.lifecycle).toBe("action");
+      await act(async () => resolveVerification({ login: "octocat" }));
+      expect(latest?.baseCardContext.lifecycle).toBe("complete");
+    } finally {
+      await act(async () => root.unmount());
+    }
   });
 });

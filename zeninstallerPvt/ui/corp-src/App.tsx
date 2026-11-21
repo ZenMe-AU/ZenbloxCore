@@ -10,6 +10,7 @@ import { type CardChrome, type CardHook, type CardId } from "./types";
 import { groupSx } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./cards/GithubLogin/useGithubLoginCard";
+import { useGithubLoginCardV2 } from "./cards/GithubLogin/useGithubLoginCardV2";
 import ProtoCard from "./cards/ProtoCard/ProtoCard";
 import { useGithubSignupCard } from "./cards/GithubSignup/useGithubSignupCard";
 import { useRepoCard } from "./cards/Repo/useRepoCard";
@@ -45,6 +46,7 @@ import RestoreToast from "./components/RestoreToast";
 import CardIntro from "./components/CardIntro";
 import ExternalLink from "./components/ExternalLink";
 import GithubLoginCard from "./cards/GithubLogin/GithubLoginCard";
+import GithubLoginCardV2 from "./cards/GithubLogin/GithubLoginCardV2";
 import GithubSignupCard from "./cards/GithubSignup/GithubSignupCard";
 import RepoCard from "./cards/Repo/RepoCard";
 import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
@@ -69,25 +71,28 @@ import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
 import { useProtoCard } from "./cards/ProtoCard/useProtoCard";
-import { createSharedContext } from "./sharedContext";
+import { createSharedContext, type SharedCard } from "./sharedContext";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 const EXPANDED_CARDS_KEY = "zeninstaller_corp_expanded_cards";
+const USE_GITHUB_LOGIN_V2 = true;
 const { save: saveExpandedCards, load: loadExpandedCards } = createResultStorage<CardId[]>(EXPANDED_CARDS_KEY);
 
 function AppDashboard() {
   const [sharedStore] = useState(createSharedContext);
   const allCards: Record<string, CardHook> = {};
+  const sharedCards: { cardId: CardId; shared: SharedCard }[] = [];
 
-  function addCard<T extends CardHook>(newCard: T): T {
+  function addCard<T extends CardHook & { shared?: SharedCard }>(newCard: T): T {
     allCards[newCard.cardId] = newCard;
+    if (newCard.shared) sharedCards.push({ cardId: newCard.cardId, shared: newCard.shared });
     return newCard;
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
   const protoCard = addCard(useProtoCard(sharedStore));
 
-  const githubLogin = addCard(useGithubLoginCard());
+  const githubLogin = addCard(useGithubLoginCardV2(useGithubLoginCard()));
   const githubSignup = addCard(useGithubSignupCard(githubLogin.done));
 
   const githubRepoEnv = addCard(
@@ -95,12 +100,6 @@ function AppDashboard() {
       user: githubLogin.account,
     })
   );
-  const { cardId: protoId, shared: { title: protoTitle, status: protoStatus } } = protoCard;
-  const { cardId: repoId, shared: { title: repoTitle, status: repoStatus } } = githubRepoEnv;
-  useEffect(() => {
-    sharedStore.update(protoId, { title: protoTitle, status: protoStatus });
-    sharedStore.update(repoId, { title: repoTitle, status: repoStatus });
-  }, [sharedStore, protoId, protoTitle, protoStatus, repoId, repoTitle, repoStatus]);
   const githubVariables = useGithubVariables({
     account: githubRepoEnv.repo.selectedAccount,
     repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
@@ -256,6 +255,10 @@ function AppDashboard() {
   const avdGallery = addCard(useAvdGalleryCard(privAvdTarget));
   const pawImage = addCard(usePawImageCard(privAvdTarget));
   const pawDeploy = addCard(usePawDeployCard(privAvdTarget));
+
+  useEffect(() => {
+    for (const { cardId, shared } of sharedCards) sharedStore.update(cardId, shared);
+  });
 
   const plan = useDeploymentPlan({
     account: githubRepoEnv.repo.selectedAccount,
@@ -499,7 +502,9 @@ function AppDashboard() {
 
               <ProtoCard cardChrome={cardProps(protoCard.baseCardContext.cardId)} protoCard={protoCard} />
 
-              <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
+              {USE_GITHUB_LOGIN_V2
+                ? <GithubLoginCardV2 cardChrome={cardProps("github_login")} auth={githubLogin} />
+                : <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />}
 
               <GithubSignupCard card={cardProps("github_signup")} signup={githubSignup} onOpenLogin={() => openCard("github_login")} />
 
