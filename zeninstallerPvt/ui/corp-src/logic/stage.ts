@@ -70,7 +70,7 @@ export function getEffectiveStatus(stage: Stage, summary?: PlanSummary, isOption
   // a failed or cancelled apply must stay "success" and keep offering Deploy.
   if (stage.deployStatus === "success" && stage.deployPlanRunId && stage.runId && stage.deployPlanRunId === stage.runId) return "deployed";
   if (stage.status === "success" && isNoChanges(summary)) return "deployed";
-  if (isOptional && stage.status === "pending") return "skipped";
+//  if (isOptional && stage.status === "pending") return "skipped"; //TODO: What is skipped used for?
   return stage.status;
 }
 
@@ -152,8 +152,7 @@ export function stageToCardStatus(effectiveStatus: StageStatus, isStale: boolean
   if (hasUnmetPrerequisites) return "warning";
   if (isStale) return "idle";
   if (isLoading) return "loading";
-  if (effectiveStatus === "deployed") return "complete";
-  if (effectiveStatus === "skipped") return "skipped"; // Optional skipped stages are not actionable warnings.
+  if (effectiveStatus === "deployed" || effectiveStatus === "skipped") return "complete";
   if (effectiveStatus === "failed") return "error"; // Keep failed plans red when no outstanding prerequisite takes precedence.
   if (effectiveStatus === "success") return "warning"; // A successful plan awaiting deployment remains an orange warning.
   return "idle";

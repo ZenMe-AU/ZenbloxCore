@@ -8,9 +8,11 @@ import { cardLifecycleReducer, initialCardLifecycle } from "../components/cardLi
 
 it("applies permitted lifecycle transitions and rejects invalid ones", () => {
   expect(() => cardLifecycleReducer(initialCardLifecycle, { type: "transition", lifecycle: "complete" })).toThrow();
-  const loading = cardLifecycleReducer(initialCardLifecycle, { type: "transition", lifecycle: "loading" });
-  const complete = cardLifecycleReducer(loading, { type: "transition", lifecycle: "complete" });
+  const ready = cardLifecycleReducer(initialCardLifecycle, { type: "transition", lifecycle: "ready" });
+  const complete = cardLifecycleReducer(ready, { type: "transition", lifecycle: "complete" });
   expect(complete.lifecycle).toBe("complete");
-  expect(initialCardLifecycle.lifecycle).toBe("blocked");
-  expect(cardLifecycleReducer(complete, { type: "transition", lifecycle: "blocked" }).lifecycle).toBe("blocked");
+  expect(initialCardLifecycle.lifecycle).toBe("loading");
+  const blocked = cardLifecycleReducer(initialCardLifecycle, { type: "transition", lifecycle: "blocked" });
+  expect(cardLifecycleReducer(blocked, { type: "transition", lifecycle: "loading" }).lifecycle).toBe("loading");
+  expect(() => cardLifecycleReducer(blocked, { type: "transition", lifecycle: "ready" })).toThrow();
 });

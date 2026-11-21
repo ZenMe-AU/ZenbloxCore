@@ -396,7 +396,7 @@ function AppDashboard() {
     ...stageCards.map(({ card, stageDef }) => ({
       id: card.cardId,
       title: stageDef.label,
-      done: card.status === "complete" || card.status === "skipped",
+      done: card.status === "complete",
       chrome: card,
     })),
     ...[avdGallery, pawImage, pawDeploy].map(({ cardId, cardDependencyLabel, done }) => ({

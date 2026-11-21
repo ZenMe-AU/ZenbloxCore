@@ -3,19 +3,18 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-export type CardLifecycle = "blocked" | "loading" | "complete" | "warning" | "error" | "skipped";
+export type CardLifecycle = "blocked" | "loading" | "ready" | "complete" | "error";
 export type CardLifecycleContext = { lifecycle: CardLifecycle };
 export type CardLifecycleEvent = { type: "transition"; lifecycle: CardLifecycle };
 
-export const initialCardLifecycle: CardLifecycleContext = { lifecycle: "blocked" };
+export const initialCardLifecycle: CardLifecycleContext = { lifecycle: "loading" };
 
 const transitions: Record<CardLifecycle, readonly CardLifecycle[]> = {
-  blocked: ["loading", "skipped"],
-  loading: ["complete", "warning", "error", "blocked"],
-  complete: ["loading", "blocked"],
-  warning: ["loading", "blocked", "skipped"],
-  error: ["loading", "blocked"],
-  skipped: ["blocked"],
+  blocked: ["loading"],
+  loading: ["ready", "blocked"],
+  ready: ["loading", "complete", "error"],
+  complete: ["loading"],
+  error: ["loading"],
 };
 
 export function canCardTransition(context: CardLifecycleContext, lifecycle: CardLifecycle): boolean {

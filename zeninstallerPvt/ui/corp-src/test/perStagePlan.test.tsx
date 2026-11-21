@@ -93,6 +93,13 @@ describe("stage header status", () => {
     expect(stageToCardStatus("skipped", false, true, true)).toBe("warning");
   }); // End the failed-plan and unmet-prerequisite warning cases.
 
+  it("maps skipped legacy stages to complete cards while preserving status precedence", () => {
+    expect(stageToCardStatus("skipped", false, false)).toBe("complete");
+    expect(stageToCardStatus("skipped", true, false)).toBe("idle");
+    expect(stageToCardStatus("skipped", false, true)).toBe("loading");
+    expect(stageToCardStatus("skipped", false, false, true)).toBe("warning");
+  });
+
   it("assesses missing, incomplete and changed prerequisites without leaking values", () => {
     const prerequisites = [
       { type: "var" as const, key: "NAME" },
