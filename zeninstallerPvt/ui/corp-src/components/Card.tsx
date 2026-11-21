@@ -4,7 +4,7 @@
  */
 
 import { useRef } from "react";
-import { Box, ButtonBase, Collapse, IconButton, Typography } from "@mui/material";
+import { Box, ButtonBase, Collapse, IconButton, Link, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -302,6 +302,13 @@ export default function Card({
                   }}
                 >
                   Complete these setup steps first. Select a step to open its card.
+                  <Link
+                    component="button"
+                    type="button"
+                    onClick={() => unmetRequirements.forEach((id) => dispatch({ type: "requirement", id, completed: true }))}
+                  >
+                    click here to force unlock this card.
+                  </Link>
                 </Typography>
                 {requirements.map((r) => (
                   <ButtonBase

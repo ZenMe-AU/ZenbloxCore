@@ -6,7 +6,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import theme from "../../theme";
 import ProtoCard from "./ProtoCard";
 import { useProtoCard } from "./useProtoCard";
@@ -34,6 +34,7 @@ describe("ProtoCard state machine", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
+    const onRequirementClick = vi.fn();
 
     function Harness() {
       const protoCard = useProtoCard();
@@ -50,7 +51,7 @@ describe("ProtoCard state machine", () => {
               unavailable: protoCard.status === "unavailable",
               expanded: true,
               onToggle: () => {},
-              onRequirementClick: () => {},
+              onRequirementClick,
             }}
           />
         </ThemeProvider>
@@ -63,11 +64,20 @@ describe("ProtoCard state machine", () => {
       expect(repo).toBeDefined();
       expect(container.textContent).toContain("Availability: available");
       await act(async () => repo?.click());
-      expect(container.textContent).toContain("Availability: locked");
       expect(container.textContent).toContain("Locked: Repository and environment");
-      expect(container.textContent).toContain("Complete these simulated prerequisites: Repository and environment.");
+      expect(container.textContent).toContain("The following links will take you to the cards to complete.");
+      const content = container.querySelector("#card-content-proto_card");
+      expect(content?.textContent?.match(/Intro for this card\./g)).toHaveLength(1);
+      expect(content?.textContent).not.toContain("Simulated app state");
+      expect(content?.textContent).not.toContain("lifecycle:");
       expect([...container.querySelectorAll("button")].find((button) => button.textContent === "Start / retry")).toBeUndefined();
-      await act(async () => repo?.click());
+      const requirement = [...container.querySelectorAll("button")].find((button) => button.textContent === "Repository and environment");
+      expect(requirement).toBeDefined();
+      await act(async () => requirement?.click());
+      expect(onRequirementClick).toHaveBeenCalledWith("repo");
+      const firstUnlock = [...container.querySelectorAll("button")].find((button) => button.textContent === "Unlock");
+      expect(firstUnlock).toBeDefined();
+      await act(async () => firstUnlock?.click());
       expect(container.textContent).toContain("Availability: available");
       const start = [...container.querySelectorAll("button")].find((button) => button.textContent === "Start / retry");
       expect(start).toBeDefined();
@@ -77,17 +87,13 @@ describe("ProtoCard state machine", () => {
       const lock = [...container.querySelectorAll("button")].find((button) => button.textContent === "Lock");
       expect(lock).toBeDefined();
       await act(async () => lock?.click());
-      expect(container.textContent).toContain("Availability: locked");
-
-      const azure = [...container.querySelectorAll("label")].find((label) => label.textContent?.includes("Azure login"))?.querySelector("input");
-      expect(azure).toBeDefined();
-      await act(async () => azure?.click());
-      const unlock = [...container.querySelectorAll("button")].find((button) => button.textContent === "Unlock");
+      expect(container.textContent).toContain("Locked: Repository and environment");
+      const unlock = container.querySelector<HTMLButtonElement>("button.MuiLink-root");
       expect(unlock).toBeDefined();
+      expect(unlock?.textContent).toBe("Unlock");
       await act(async () => unlock?.click());
       expect(container.textContent).toContain("Availability: available");
       expect(container.textContent).toContain("lifecycle: loading");
-      expect(azure?.checked).toBe(true);
     } finally {
       await act(async () => root.unmount());
       container.remove();
