@@ -20,22 +20,15 @@ export const initialState: ProtoState = {
   },
   protoCardContext: {
     forceUnlocked: false,
-    configured: true,
-    completed: {
-      xxx: true,
-    },
+    prerequisiteIds: ["", ""],
+    unmetCardPrerequisites: [],
   },
 };
 
-export const requirements = {
-  xxx: "requirement xxx",
-} as const;
-
-export type RequirementId = keyof typeof requirements;
 type ProtoCardContext = {
   forceUnlocked: boolean;
-  configured: boolean;
-  completed: Record<RequirementId, boolean>;
+  prerequisiteIds: [string, string];
+  unmetCardPrerequisites: string[];
 };
 
 export type ProtoState = {
@@ -44,51 +37,47 @@ export type ProtoState = {
 };
 
 export type ProtoEvent =
-  | { type: "configuration"; configured: boolean }
-  | { type: "requirement"; id: RequirementId; completed: boolean }
+  | { type: "card-prerequisite"; index: 0 | 1; cardId: string }
+  | { type: "sync-card-prerequisites"; unmet: string[] }
   | { type: "force-unlock"; value: boolean }
   | { type: "check-prerequisites" }
   | CardLifecycleEvent;
 
 export function getBaseCardContext(state: ProtoState) {
-  const unmetRequirements = (Object.keys(requirements) as RequirementId[])
-    .filter((id) => !state.protoCardContext.completed[id]);
   const summary = state.baseCardContext.lifecycle === "loading"
     ? "Checking prerequisites..."
-    : !state.protoCardContext.configured
-      ? "Configuration unavailable"
-      : state.baseCardContext.lifecycle === "blocked"
-        ? `Blocked: ${unmetRequirements.map((id) => requirements[id]).join(", ")}`
-        : "Summary";
+    : state.baseCardContext.lifecycle === "blocked"
+      ? `Blocked: ${state.protoCardContext.unmetCardPrerequisites.join(", ")}`
+      : "Summary";
   return {
     ...state.baseCardContext,
     summary,
-    unmetRequirements,
-    done: state.protoCardContext.configured && unmetRequirements.length === 0 && state.baseCardContext.lifecycle === "complete",
+    unmetCardPrerequisites: state.protoCardContext.unmetCardPrerequisites,
+    done: state.protoCardContext.unmetCardPrerequisites.length === 0 && state.baseCardContext.lifecycle === "complete",
   } as const;
 }
 
 export function canTransition(state: ProtoState, lifecycle: CardLifecycle): boolean {
   return lifecycle !== "ready" && lifecycle !== "blocked"
-    && state.protoCardContext.configured && getBaseCardContext(state).unmetRequirements.length === 0
+    && state.protoCardContext.unmetCardPrerequisites.length === 0
     && canCardTransition(state.baseCardContext, lifecycle);
 }
 
 export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
   switch (event.type) {
-    case "configuration":
+    case "card-prerequisite": {
+      const prerequisiteIds: [string, string] = [...state.protoCardContext.prerequisiteIds];
+      prerequisiteIds[event.index] = event.cardId;
       return {
         ...state,
-        protoCardContext: { ...state.protoCardContext, configured: event.configured },
+        protoCardContext: { ...state.protoCardContext, prerequisiteIds },
         baseCardContext: { ...state.baseCardContext, ...initialCardLifecycle },
       };
-    case "requirement":
+    }
+    case "sync-card-prerequisites":
       return {
         ...state,
-        protoCardContext: {
-          ...state.protoCardContext,
-          completed: { ...state.protoCardContext.completed, [event.id]: event.completed },
-        },
+        protoCardContext: { ...state.protoCardContext, unmetCardPrerequisites: event.unmet },
         baseCardContext: { ...state.baseCardContext, ...initialCardLifecycle },
       };
     case "force-unlock":
@@ -99,7 +88,7 @@ export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
         ...state,
         baseCardContext: cardLifecycleReducer(state.baseCardContext, {
           type: "transition",
-          lifecycle: state.protoCardContext.configured && getBaseCardContext(state).unmetRequirements.length === 0 ? "ready" : "blocked",
+          lifecycle: state.protoCardContext.unmetCardPrerequisites.length === 0 ? "ready" : "blocked",
         }),
       };
     case "transition":

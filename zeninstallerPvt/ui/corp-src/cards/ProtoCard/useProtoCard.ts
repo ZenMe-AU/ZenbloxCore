@@ -24,6 +24,17 @@ export function useProtoCard(appStore: AppContext): UseProtoCard {
     ...initial,
     protoCardContext: { ...initial.protoCardContext, forceUnlocked: forceUnlockedForPage },
   }));
+  const unmet = state.protoCardContext.prerequisiteIds
+    .map((id) => id.trim())
+    .filter((id) => {
+      if (!id) return false;
+      const entry = Object.entries(appContext.cards).find(([cardId]) => cardId === id)?.[1];
+      return id === state.baseCardContext.cardId || !entry?.initialised || entry.status !== "complete";
+    });
+  if (unmet.length !== state.protoCardContext.unmetCardPrerequisites.length
+    || unmet.some((id, index) => id !== state.protoCardContext.unmetCardPrerequisites[index])) {
+    dispatchState({ type: "sync-card-prerequisites", unmet });
+  }
   const dispatch = useCallback((event: ProtoEvent) => {
     if (event.type === "force-unlock") forceUnlockedForPage = event.value;
     dispatchState(event);
@@ -32,15 +43,13 @@ export function useProtoCard(appStore: AppContext): UseProtoCard {
     if (state.baseCardContext.lifecycle !== "loading") return;
     const timer = setTimeout(() => dispatchState({ type: "check-prerequisites" }), 2000);
     return () => clearTimeout(timer);
-  }, [state.baseCardContext.lifecycle, state.protoCardContext.configured, state.protoCardContext.completed]);
+  }, [state.baseCardContext.lifecycle, state.protoCardContext.prerequisiteIds, state.protoCardContext.unmetCardPrerequisites]);
   const baseCardContext = getBaseCardContext(state);
   const status = baseCardContext.lifecycle === "loading"
     ? "loading"
-    : !state.protoCardContext.configured
-      ? "unavailable"
-      : baseCardContext.lifecycle === "blocked" ? "idle"
-        : baseCardContext.lifecycle === "ready" || baseCardContext.lifecycle === "action" || baseCardContext.lifecycle === "commit"
-          ? "warning" : baseCardContext.lifecycle;
+    : baseCardContext.lifecycle === "blocked" ? "idle"
+      : baseCardContext.lifecycle === "ready" || baseCardContext.lifecycle === "action" || baseCardContext.lifecycle === "commit"
+        ? "warning" : baseCardContext.lifecycle;
   return {
     cardId: baseCardContext.cardId,
     shared: { title: baseCardContext.title, status: baseCardContext.lifecycle },

@@ -51,11 +51,11 @@ describe("App - Home Page", () => {
     vi.mocked(createAppContext).mockClear();
     try {
       root.render(<ThemeProvider theme={theme}><App /></ThemeProvider>);
-      await expect.poll(() => vi.mocked(createAppContext).mock.results.at(-1)?.value.getSnapshot().cards.repo).toMatchObject({
-        initialised: true,
-        title: "Repository & environment",
+      await expect.poll(() => vi.mocked(createAppContext).mock.results.at(-1)?.value.getSnapshot().cards.repo_v2).toMatchObject({
+        initialised: true, title: "Repository & environment 2",
       });
       const store = vi.mocked(createAppContext).mock.results.at(-1)!.value;
+      expect(store.getSnapshot().cards.repo).toBeUndefined();
       expect(store.getSnapshot().cards.github_signup).toMatchObject({ initialised: true, title: "Test shared signup" });
       expect(container.querySelector("#card-title-github_login")?.textContent).toContain("GitHub login");
       expect(container.querySelector("#card-title-github_login_v2")?.textContent).toContain("GitHub login 2");

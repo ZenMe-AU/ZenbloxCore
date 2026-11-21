@@ -75,8 +75,8 @@ it("lets ProtoCard observe existing and later card data and status changes", asy
     await act(async () => store.update("repo", { title: "Repository & environment", status: "complete" }));
     expect(latest?.appContext.cards.repo).toEqual({ initialised: true, title: "Repository & environment", status: "complete" });
     const snapshot = store.getSnapshot();
-    await act(async () => latest?.dispatch({ type: "configuration", configured: false }));
-    expect(latest?.protoCardContext.configured).toBe(false);
+    await act(async () => latest?.dispatch({ type: "card-prerequisite", index: 0, cardId: "repo" }));
+    expect(latest?.protoCardContext.prerequisiteIds[0]).toBe("repo");
     expect(store.getSnapshot()).toBe(snapshot);
     await act(async () => root.unmount());
 

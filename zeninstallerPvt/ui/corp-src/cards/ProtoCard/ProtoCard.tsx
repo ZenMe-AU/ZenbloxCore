@@ -5,13 +5,13 @@
 
 import { useRef, useState } from "react";
 import { stringify } from "yaml";
-import { Box, Button, Checkbox, CircularProgress, FormControlLabel, Link, Typography, useTheme } from "@mui/material";
+import { Box, Button, CircularProgress, Link, TextField, Typography, useTheme } from "@mui/material";
 import BaseCard from "../../components/BaseCard";
 import type { CardLifecycle } from "../../components/basecardlifecycle";
 import CollapsiblePanel from "../../components/CollapsiblePanel";
 import ViewLink from "../../components/ViewLink";
 import type { CardChrome } from "../../types";
-import { canTransition, requirements, type RequirementId } from "./stateMachine";
+import { canTransition } from "./stateMachine";
 import type { UseProtoCard } from "./useProtoCard";
 
 type Props = {
@@ -45,27 +45,14 @@ const lifecycleEdges: { from: CardLifecycle; to: CardLifecycle; path: string }[]
   { from: "error", to: "loading", path: "M470 320 V365 H16 V150 H44" },
 ];
 
-function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
-  return (
-    <>
-      <Intro />
-      <PrerequisitesPanel protoCard={protoCard} />
-      {/* ============================================================
-          START ACTION CONTENT HERE
-          ============================================================ */}
-      {/* ============================================================
-          END ACTION CONTENT HERE
-          ============================================================ */}
-      <ResultsPanel protoCard={protoCard} />
-    </>
-  );
-}
-
-function PrerequisitesPanel({ protoCard }: { protoCard: UseProtoCard }) {
+function PrerequisitesPanel({ protoCard, drafts, onDraftChange }: {
+  protoCard: UseProtoCard;
+  drafts: [string, string];
+  onDraftChange: (index: 0 | 1, value: string) => void;
+}) {
   const { baseCardContext, protoCardContext, dispatch } = protoCard;
   const state = { baseCardContext, protoCardContext };
   const lifecycle = baseCardContext.lifecycle;
-  const requirementIds = Object.keys(requirements) as RequirementId[];
   const [panel, setPanel] = useState({ lifecycle, open: lifecycle === "ready" });
   if (panel.lifecycle !== lifecycle) {
     setPanel({ lifecycle, open: panel.open || lifecycle === "ready" });
@@ -142,29 +129,23 @@ function PrerequisitesPanel({ protoCard }: { protoCard: UseProtoCard }) {
           })}
         </Box>
       </Box>
-      {requirementIds.length > 0 && <Box sx={{ mb: 2 }}>
-        <Button
-          size="small"
-          variant="contained"
-          onClick={() => {
-            dispatch({ type: "force-unlock", value: false });
-            dispatch({ type: "requirement", id: requirementIds[0], completed: false });
-          }}
-        >
-          Block
-        </Button>
-      </Box>}
-      <Typography>Changing simulated prototype state resets the lifecycle and rechecks prerequisites. Block marks the first requirement incomplete; force unlock does not complete prerequisites.</Typography>
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-        <FormControlLabel
-          label="Configuration available"
-          control={<Checkbox checked={protoCardContext.configured} onChange={(event) => dispatch({ type: "configuration", configured: event.target.checked })} />}
-        />
-        {requirementIds.map((id) => (
-          <FormControlLabel
-            key={id}
-            label={requirements[id]}
-            control={<Checkbox checked={protoCardContext.completed[id]} onChange={(event) => dispatch({ type: "requirement", id, completed: event.target.checked })} />}
+      <Typography>Enter card IDs to set them as prerequisites for this card.</Typography>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mt: 2 }}>
+        {([0, 1] as const).map((index) => (
+          <TextField
+            key={index}
+            label={`Prerequisite card ID ${index + 1}`}
+            value={drafts[index]}
+            onChange={(event) => onDraftChange(index, event.target.value)}
+            onBlur={(event) => {
+              if (event.target.value !== protoCardContext.prerequisiteIds[index]) {
+                dispatch({ type: "card-prerequisite", index, cardId: event.target.value });
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.target.blur();
+            }}
+            size="small"
           />
         ))}
       </Box>
@@ -315,18 +296,13 @@ function BlockedContent({ protoCard }: {
           borderRadius: "8px",
         }}
       >
-        {!protoCard.protoCardContext.configured && (
-          <Typography role="status">The simulated configuration is unavailable.</Typography>
-        )}
         <Typography
           sx={{
             typography: "body1",
             color: theme.vars.palette.text.secondary,
           }}
         >
-          {protoCard.baseCardContext.unmetRequirements.length > 0
-            ? "The following simulated prerequisites are incomplete, or "
-            : "You can "}
+          The following prerequisites are incomplete, or{" "}
           <Link
             component="button"
             type="button"
@@ -335,12 +311,9 @@ function BlockedContent({ protoCard }: {
             click here to force unlock this card.
           </Link>
         </Typography>
-        {protoCard.baseCardContext.unmetRequirements.map((id) => (
-          <Typography
-            key={id}
-            sx={{ typography: "body1", color: colors.requirementText, fontWeight: 500 }}
-          >
-            {requirements[id]}
+        {protoCard.baseCardContext.unmetCardPrerequisites.map((id, index) => (
+          <Typography key={`${index}-${id}`} sx={{ typography: "body1", color: colors.requirementText, fontWeight: 500 }}>
+            {id}
           </Typography>
         ))}
       </Box>
@@ -350,6 +323,7 @@ function BlockedContent({ protoCard }: {
 
 export default function ProtoCard({ cardChrome, protoCard }: Props) {
   const { baseCardContext, protoCardContext } = protoCard;
+  const [drafts, setDrafts] = useState<[string, string]>(() => [...protoCardContext.prerequisiteIds]);
   const { forceUnlocked } = protoCardContext;
   const showBlockedContent = baseCardContext.lifecycle === "blocked" && !forceUnlocked;
 
@@ -370,13 +344,26 @@ export default function ProtoCard({ cardChrome, protoCard }: Props) {
             <>
               {forceUnlocked && baseCardContext.lifecycle === "blocked" && (
                 <Typography role="status" color="warning.main" sx={{ mb: 2 }}>
-                  This card is force-unlocked;{" "}
-                  {!protoCardContext.configured && "its configuration is unavailable"}
-                  {!protoCardContext.configured && baseCardContext.unmetRequirements.length > 0 && " and "}
-                  {baseCardContext.unmetRequirements.length > 0 && "its prerequisites are still incomplete"}.
+                  This card is force-unlocked; its prerequisites are still incomplete.
                 </Typography>
               )}
-              <UnlockedContent protoCard={protoCard} />
+              <Intro />
+              <PrerequisitesPanel
+                protoCard={protoCard}
+                drafts={drafts}
+                onDraftChange={(index, value) => setDrafts((previous) => {
+                  const next: [string, string] = [...previous];
+                  next[index] = value;
+                  return next;
+                })}
+              />
+              {/* ============================================================
+                  START ACTION CONTENT HERE
+                  ============================================================ */}
+              {/* ============================================================
+                  END ACTION CONTENT HERE
+                  ============================================================ */}
+              <ResultsPanel protoCard={protoCard} />
             </>
           )}
     </BaseCard>
