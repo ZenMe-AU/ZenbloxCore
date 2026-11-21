@@ -47,11 +47,8 @@ function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
     <>
       <Intro />
       <Typography role="status" sx={{ mb: 1 }}>
-        Availability: {baseCardContext.availability}; lifecycle: {baseCardContext.lifecycle}
+        Lifecycle: {baseCardContext.lifecycle}
       </Typography>
-      {baseCardContext.availability === "unavailable" && (
-        <Typography sx={{ mb: 1 }}>The simulated configuration is unavailable.</Typography>
-      )}
       <PrerequisitesPanel />
       <Typography sx={{ mb: 1 }}>
         Simulated lifecycle actions (no real operations). Highlighted is the current state; blocked and ready follow prerequisite checks automatically.
@@ -118,17 +115,16 @@ function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
         <Button
           size="small"
           variant="contained"
-          disabled={baseCardContext.availability === "unavailable"}
           onClick={() => {
             dispatch({ type: "force-unlock", value: false });
             dispatch({ type: "requirement", id: "repo", completed: false });
           }}
         >
-          Lock
+          Block
         </Button>
       </Box>
       <ResultsPanel />
-      <Typography>Simulated app state (Lock marks the repository incomplete; force unlock does not complete prerequisites):</Typography>
+      <Typography>Simulated app state (Block marks the repository incomplete; force unlock does not complete prerequisites):</Typography>
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
         <FormControlLabel
           label="Configuration available"
@@ -220,7 +216,7 @@ function ResultsPanel() {
 }
 
 /**
- * The Intro will be displayed even if the card is locked.
+ * The Intro will be displayed even if the card is blocked.
  */
 function Intro() {
   return (
@@ -244,7 +240,7 @@ function LoadingContent() {
   );
 }
 
-function LockedContent({ protoCard, onRequirementClick }: {
+function BlockedContent({ protoCard, onRequirementClick }: {
   protoCard: UseProtoCard;
   onRequirementClick: CardChrome["onRequirementClick"];
 }) {
@@ -266,13 +262,19 @@ function LockedContent({ protoCard, onRequirementClick }: {
           borderRadius: "8px",
         }}
       >
+        {!protoCard.appContext.configured && (
+          <Typography role="status">The simulated configuration is unavailable.</Typography>
+        )}
         <Typography
           sx={{
             typography: "body1",
             color: theme.vars.palette.text.secondary,
           }}
         >
-          The following links will take you to the cards to complete first, or  <Link
+          {protoCard.baseCardContext.unmetRequirements.length > 0
+            ? "The following links will take you to the cards to complete first, or "
+            : "You can "}
+          <Link
             component="button"
             type="button"
             onClick={() => protoCard.dispatch({ type: "force-unlock", value: true })}
@@ -319,8 +321,9 @@ function LockedContent({ protoCard, onRequirementClick }: {
 }
 
 export default function ProtoCard({ card, protoCard }: Props) {
-  const { baseCardContext, protoCardContext } = protoCard;
+  const { appContext, baseCardContext, protoCardContext } = protoCard;
   const { forceUnlocked } = protoCardContext;
+  const showBlockedContent = baseCardContext.lifecycle === "blocked" && !forceUnlocked;
 
   return (
     <BaseCard
@@ -328,23 +331,24 @@ export default function ProtoCard({ card, protoCard }: Props) {
       title="Title of the card"
       summary={card.summary}
       lifecycle={baseCardContext.lifecycle}
-      locked={baseCardContext.lifecycle === "blocked" && baseCardContext.availability === "locked" && !forceUnlocked}
-      unavailable={baseCardContext.lifecycle !== "loading" && baseCardContext.availability === "unavailable"}
       expanded={card.expanded}
       onToggle={card.onToggle}
-      action={baseCardContext.lifecycle !== "loading" && (baseCardContext.availability === "available" || (baseCardContext.availability === "locked" && forceUnlocked))
+      action={baseCardContext.lifecycle !== "loading" && !showBlockedContent
         ? <ViewLink href="http://localhost" label="Open External Site" />
         : undefined}
     >
       {baseCardContext.lifecycle === "loading"
         ? <LoadingContent />
-        : baseCardContext.availability === "locked" && !forceUnlocked
-          ? <LockedContent protoCard={protoCard} onRequirementClick={card.onRequirementClick} />
+        : showBlockedContent
+          ? <BlockedContent protoCard={protoCard} onRequirementClick={card.onRequirementClick} />
           : (
             <>
-              {forceUnlocked && baseCardContext.unmetRequirements.length > 0 && (
+              {forceUnlocked && baseCardContext.lifecycle === "blocked" && (
                 <Typography role="status" color="warning.main" sx={{ mb: 2 }}>
-                  This card is force-unlocked; its prerequisites are still incomplete.
+                  This card is force-unlocked;{" "}
+                  {!appContext.configured && "its configuration is unavailable"}
+                  {!appContext.configured && baseCardContext.unmetRequirements.length > 0 && " and "}
+                  {baseCardContext.unmetRequirements.length > 0 && "its prerequisites are still incomplete"}.
                 </Typography>
               )}
               <UnlockedContent protoCard={protoCard} />

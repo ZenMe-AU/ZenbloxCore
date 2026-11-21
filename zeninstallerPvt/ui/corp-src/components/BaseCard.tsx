@@ -7,7 +7,6 @@ import { useRef, type ReactNode } from "react";
 import { Box, ButtonBase, CircularProgress, Collapse, IconButton, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import BlockIcon from "@mui/icons-material/Block";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
@@ -21,8 +20,6 @@ type Props = {
   title: string;
   summary?: string;
   lifecycle: CardLifecycle;
-  locked: boolean;
-  unavailable: boolean;
   expanded: boolean;
   onToggle: () => void;
   action?: ReactNode;
@@ -31,7 +28,7 @@ type Props = {
 };
 
 const lifecycleLabels: Record<CardLifecycle, string> = {
-  blocked: "Locked",
+  blocked: "Blocked",
   loading: "Checking prerequisites",
   ready: "Ready",
   complete: "Complete",
@@ -39,22 +36,20 @@ const lifecycleLabels: Record<CardLifecycle, string> = {
 };
 
 export default function BaseCard({
-  cardId, title, summary, lifecycle, locked, unavailable, expanded, onToggle, action, descriptionId, children,
+  cardId, title, summary, lifecycle, expanded, onToggle, action, descriptionId, children,
 }: Props) {
   const theme = useTheme();
   const colors = theme.vars.palette.card;
-  const colorKey = unavailable ? "unavailable" : lifecycle === "blocked" ? "idle" : lifecycle === "ready" ? "warning" : lifecycle;
-  const muted = locked || unavailable;
+  const colorKey = lifecycle === "blocked" ? "idle" : lifecycle === "ready" ? "warning" : lifecycle;
+  const muted = lifecycle === "blocked";
   const titleId = `card-title-${cardId}`;
   const contentId = `card-content-${cardId}`;
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const iconColor = colors.icon[colorKey];
-  const icon = locked
+  const icon = muted
     ? <BlockIcon aria-hidden="true" sx={{ typography: "caption", color: colors.lockedIcon }} />
     : lifecycle === "loading"
       ? <CircularProgress size={16} aria-hidden="true" sx={{ color: iconColor }} />
-      : unavailable
-      ? <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: iconColor }} />
       : lifecycle === "complete"
         ? <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: iconColor }} />
         : lifecycle === "error"
@@ -158,7 +153,7 @@ export default function BaseCard({
                   sx={{
                     display: "block",
                     typography: "body1",
-                    color: locked ? colors.mutedText : colors.summary[colorKey],
+                    color: muted ? colors.mutedText : colors.summary[colorKey],
                     minWidth: 0,
                     maxWidth: "100%",
                     whiteSpace: expanded ? "normal" : "nowrap",
@@ -172,13 +167,13 @@ export default function BaseCard({
                 </Typography>
               )}
               <Box component="span" className="visually-hidden">
-                {locked ? "Locked" : unavailable ? "Unavailable" : lifecycleLabels[lifecycle]}
+                {lifecycleLabels[lifecycle]}
               </Box>
             </Box>
           </ButtonBase>
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0, ml: "auto" }}>
-          {expanded && !muted && (
+          {expanded && action && (
             <Box onClick={(event) => event.stopPropagation()} sx={{ display: "flex", alignItems: "center" }}>
               {action}
             </Box>

@@ -32,15 +32,23 @@ export function useProtoCard(): UseProtoCard {
     return () => clearTimeout(timer);
   }, [state.baseCardContext.lifecycle, state.appContext]);
   const baseCardContext = getBaseCardContext(state);
+  const status = baseCardContext.lifecycle === "loading"
+    ? "loading"
+    : !state.appContext.configured
+      ? "unavailable"
+      : baseCardContext.lifecycle === "blocked" ? "idle"
+        : baseCardContext.lifecycle === "ready" ? "warning" : baseCardContext.lifecycle;
   const summary = baseCardContext.lifecycle === "loading"
     ? "Checking prerequisites..."
-    : baseCardContext.availability === "locked"
-    ? `Locked: ${baseCardContext.unmetRequirements.map((id) => requirements[id]).join(", ")}`
-    : baseCardContext.availability === "unavailable" ? "Configuration unavailable" : "Summary";
+    : !state.appContext.configured
+      ? "Configuration unavailable"
+      : baseCardContext.lifecycle === "blocked"
+        ? `Blocked: ${baseCardContext.unmetRequirements.map((id) => requirements[id]).join(", ")}`
+        : "Summary";
 
   return {
     cardId: "proto_card",
-    status: baseCardContext.status,
+    status,
     summary,
     done: baseCardContext.done,
     cardDependencyLabel: "Protocard",

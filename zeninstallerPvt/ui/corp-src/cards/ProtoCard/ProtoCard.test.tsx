@@ -18,32 +18,37 @@ describe("ProtoCard state machine", () => {
     expect(initialState.baseCardContext.lifecycle).toBe("loading");
     expect(() => protoReducer(initialState, { type: "transition", lifecycle: "complete" })).toThrow();
     const ready = protoReducer(initialState, { type: "check-prerequisites" });
-    expect(getBaseCardContext(ready)).toMatchObject({ lifecycle: "ready", availability: "available", status: "warning" });
+    expect(getBaseCardContext(ready)).toMatchObject({ lifecycle: "ready", unmetRequirements: [] });
     const checking = protoReducer(ready, { type: "requirement", id: "repo", completed: false });
-    expect(getBaseCardContext(checking)).toMatchObject({ lifecycle: "loading", status: "loading" });
-    const locked = protoReducer(checking, { type: "check-prerequisites" });
-    expect(getBaseCardContext(locked)).toMatchObject({ lifecycle: "blocked", availability: "locked", unmetRequirements: ["repo"], status: "idle" });
-    expect(() => protoReducer(locked, { type: "transition", lifecycle: "complete" })).toThrow();
-    const forced = protoReducer(locked, { type: "force-unlock", value: true });
+    expect(getBaseCardContext(checking)).toMatchObject({ lifecycle: "loading", unmetRequirements: ["repo"] });
+    const blocked = protoReducer(checking, { type: "check-prerequisites" });
+    expect(getBaseCardContext(blocked)).toMatchObject({ lifecycle: "blocked", unmetRequirements: ["repo"] });
+    expect(() => protoReducer(blocked, { type: "transition", lifecycle: "complete" })).toThrow();
+    const forced = protoReducer(blocked, { type: "force-unlock", value: true });
     expect(forced.protoCardContext.forceUnlocked).toBe(true);
     expect(forced.baseCardContext.lifecycle).toBe("blocked");
     expect(forced.appContext.completed.repo).toBe(false);
     expect(() => protoReducer(forced, { type: "transition", lifecycle: "complete" })).toThrow();
 
-    const unavailable = protoReducer(protoReducer(locked, { type: "configuration", configured: false }), { type: "check-prerequisites" });
-    expect(getBaseCardContext(unavailable)).toMatchObject({ lifecycle: "blocked", availability: "unavailable", status: "unavailable" });
+    const missingConfig = protoReducer(protoReducer(ready, { type: "configuration", configured: false }), { type: "check-prerequisites" });
+    const forcedMissingConfig = protoReducer(missingConfig, { type: "force-unlock", value: true });
+    expect(forcedMissingConfig.baseCardContext.lifecycle).toBe("blocked");
+    expect(() => protoReducer(forcedMissingConfig, { type: "transition", lifecycle: "complete" })).toThrow();
+
+    const unavailable = protoReducer(protoReducer(blocked, { type: "configuration", configured: false }), { type: "check-prerequisites" });
+    expect(getBaseCardContext(unavailable)).toMatchObject({ lifecycle: "blocked", unmetRequirements: ["repo"] });
     const restored = protoReducer(protoReducer(unavailable, { type: "configuration", configured: true }), { type: "check-prerequisites" });
-    expect(getBaseCardContext(restored).availability).toBe("locked");
+    expect(getBaseCardContext(restored).lifecycle).toBe("blocked");
     const available = protoReducer(protoReducer(restored, { type: "requirement", id: "repo", completed: true }), { type: "check-prerequisites" });
     const complete = protoReducer(available, { type: "transition", lifecycle: "complete" });
-    expect(getBaseCardContext(complete)).toMatchObject({ availability: "available", status: "complete", done: true });
+    expect(getBaseCardContext(complete)).toMatchObject({ lifecycle: "complete", done: true });
     const rechecking = protoReducer(complete, { type: "requirement", id: "repo", completed: false });
     expect(getBaseCardContext(rechecking)).toMatchObject({ lifecycle: "loading", done: false });
     expect(protoReducer(rechecking, { type: "check-prerequisites" }).baseCardContext.lifecycle).toBe("blocked");
     expect(protoReducer(ready, { type: "check-prerequisites" })).toBe(ready);
   });
 
-  it("shows a loading layout instead of locked or interactive content while checking", async () => {
+  it("shows a loading layout instead of blocked or interactive content while checking", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -86,6 +91,49 @@ describe("ProtoCard state machine", () => {
     } finally {
       await act(async () => root.unmount());
       container.remove();
+    }
+  });
+
+  it("offers force unlock when configuration alone blocks the card", async () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const state = protoReducer(protoReducer(initialState, { type: "configuration", configured: false }), { type: "check-prerequisites" });
+    const dispatch = vi.fn();
+    const protoCard: UseProtoCard = {
+      cardId: "proto_card",
+      status: "unavailable",
+      done: false,
+      appContext: state.appContext,
+      baseCardContext: getBaseCardContext(state),
+      protoCardContext: state.protoCardContext,
+      dispatch,
+    };
+    try {
+      await act(async () => root.render(
+        <ThemeProvider theme={theme}>
+          <ProtoCard
+            protoCard={protoCard}
+            card={{
+              cardId: "proto_card",
+              status: "unavailable",
+              locked: false,
+              requirements: [],
+              unavailable: true,
+              expanded: true,
+              onToggle: () => {},
+              onRequirementClick: () => {},
+            }}
+          />
+        </ThemeProvider>
+      ));
+      expect(container.textContent).toContain("The simulated configuration is unavailable.");
+      expect(container.querySelector('input[type="checkbox"]')).toBeNull();
+      const unlock = container.querySelector<HTMLButtonElement>("button.MuiLink-root");
+      expect(unlock).not.toBeNull();
+      await act(async () => unlock?.click());
+      expect(dispatch).toHaveBeenCalledWith({ type: "force-unlock", value: true });
+    } finally {
+      await act(async () => root.unmount());
     }
   });
 
@@ -157,8 +205,7 @@ describe("ProtoCard state machine", () => {
       await act(async () => vi.advanceTimersByTime(1));
       const repo = [...container.querySelectorAll("label")].find((label) => label.textContent?.includes("Repository and environment"))?.querySelector("input");
       expect(repo).toBeDefined();
-      expect(container.textContent).toContain("Availability: available");
-      expect(container.textContent).toContain("lifecycle: ready");
+      expect(container.textContent).toContain("Lifecycle: ready");
       expect(container.querySelector(".visually-hidden")?.textContent).toBe("Ready");
       expect(container.textContent).not.toContain("Legacy prerequisite");
       const diagram = container.querySelector('[aria-label="Lifecycle diagram"]');
@@ -178,10 +225,10 @@ describe("ProtoCard state machine", () => {
       await act(async () => prerequisitesToggle?.click());
       expect(prerequisitesToggle?.getAttribute("aria-expanded")).toBe("true");
       expect(resultsToggle?.getAttribute("aria-expanded")).toBe("false");
-      expect(container.querySelector("#proto-card-prerequisites")?.textContent).toBe("");
+      expect(container.querySelector("#proto-card-prerequisites")?.textContent).toContain("Prerequisites content goes here.");
       await act(async () => resultsToggle?.click());
       expect(resultsToggle?.getAttribute("aria-expanded")).toBe("true");
-      expect(container.querySelector("#proto-card-results")?.textContent).toBe("");
+      expect(container.querySelector("#proto-card-results")?.textContent).toContain("Results content goes here.");
       await act(async () => prerequisitesToggle?.click());
       expect(prerequisitesToggle?.getAttribute("aria-expanded")).toBe("false");
       expect(resultsToggle?.getAttribute("aria-expanded")).toBe("true");
@@ -190,14 +237,14 @@ describe("ProtoCard state machine", () => {
       await act(async () => repo?.click());
       expect(latest?.baseCardContext.lifecycle).toBe("loading");
       await act(async () => vi.advanceTimersByTime(2000));
-      expect(container.textContent).toContain("Locked: Repository and environment");
-      expect(container.querySelector(".visually-hidden")?.textContent).toBe("Locked");
+      expect(container.textContent).toContain("Blocked: Repository and environment");
+      expect(container.querySelector(".visually-hidden")?.textContent).toBe("Blocked");
       expect(container.querySelector('[data-testid="BlockIcon"]')).not.toBeNull();
       expect(container.textContent).toContain("The following links will take you to the cards to complete first");
       const content = container.querySelector("#card-content-proto_card");
       expect(content?.textContent?.match(/The ProtoCard is a prototype card/g)).toHaveLength(1);
       expect(content?.textContent).not.toContain("Simulated app state");
-      expect(content?.textContent).not.toContain("lifecycle:");
+      expect(content?.textContent).not.toContain("Lifecycle:");
       expect([...container.querySelectorAll("button")].find((button) => button.textContent === "Loading")).toBeUndefined();
       const requirement = [...container.querySelectorAll("button")].find((button) => button.textContent === "Repository and environment");
       expect(requirement).toBeDefined();
@@ -207,8 +254,8 @@ describe("ProtoCard state machine", () => {
       expect(firstUnlock).not.toBeNull();
       await act(async () => firstUnlock?.click());
       expect(latest?.protoCardContext.forceUnlocked).toBe(true);
-      expect(container.querySelector('[data-testid="BlockIcon"]')).toBeNull();
-      expect(container.textContent).toContain("Availability: locked");
+      expect(container.querySelector('[data-testid="BlockIcon"]')).not.toBeNull();
+      expect(container.textContent).toContain("Lifecycle: blocked");
       expect(container.textContent).toContain("This card is force-unlocked; its prerequisites are still incomplete.");
       expect(container.querySelector('[aria-label="Lifecycle diagram"] [aria-current="step"]')?.textContent).toBe("Blocked");
       const repoAfterUnlock = [...container.querySelectorAll("label")].find((label) => label.textContent?.includes("Repository and environment"))?.querySelector("input");
@@ -218,39 +265,56 @@ describe("ProtoCard state machine", () => {
       expect(complete?.disabled).toBe(true);
       await act(async () => repoAfterUnlock?.click());
       await act(async () => vi.advanceTimersByTime(2000));
-      expect(container.textContent).toContain("Availability: available");
+      expect(container.textContent).toContain("Lifecycle: ready");
       expect(container.textContent).not.toContain("This card is force-unlocked;");
       const readyComplete = [...container.querySelectorAll("button")].find((button) => button.textContent === "Complete");
       expect(readyComplete?.disabled).toBe(false);
       await act(async () => readyComplete?.click());
-      expect(container.textContent).toContain("lifecycle: complete");
+      expect(container.textContent).toContain("Lifecycle: complete");
       expect(container.querySelector('[aria-label="Lifecycle diagram"] [aria-current="step"]')?.textContent).toBe("Complete");
       const reload = [...container.querySelectorAll("button")].find((button) => button.textContent === "Loading");
       expect(reload?.disabled).toBe(false);
       await act(async () => reload?.click());
       expect(latest?.baseCardContext.lifecycle).toBe("loading");
       await act(async () => vi.advanceTimersByTime(2000));
-      expect(container.textContent).toContain("lifecycle: ready");
-      const lock = [...container.querySelectorAll("button")].find((button) => button.textContent === "Lock");
-      expect(lock).toBeDefined();
-      await act(async () => lock?.click());
+      expect(container.textContent).toContain("Lifecycle: ready");
+      const block = [...container.querySelectorAll("button")].find((button) => button.textContent === "Block");
+      expect(block).toBeDefined();
+      await act(async () => block?.click());
       expect(latest?.protoCardContext.forceUnlocked).toBe(false);
       await act(async () => vi.advanceTimersByTime(2000));
-      expect(container.textContent).toContain("Locked: Repository and environment");
+      expect(container.textContent).toContain("Blocked: Repository and environment");
       const unlock = container.querySelector<HTMLButtonElement>("button.MuiLink-root");
       expect(unlock).not.toBeNull();
       await act(async () => unlock?.click());
-      expect(container.textContent).toContain("Availability: locked");
-      expect(container.textContent).toContain("lifecycle: blocked");
-      expect(container.querySelector(".visually-hidden")?.textContent).toBe("Locked");
+      expect(container.textContent).toContain("Lifecycle: blocked");
+      expect(container.querySelector(".visually-hidden")?.textContent).toBe("Blocked");
       expect(container.textContent).toContain("This card is force-unlocked; its prerequisites are still incomplete.");
       const configuration = [...container.querySelectorAll("label")].find((label) => label.textContent?.includes("Configuration available"))?.querySelector("input");
       expect(configuration).toBeDefined();
       await act(async () => configuration?.click());
       await act(async () => vi.advanceTimersByTime(2000));
-      expect(container.textContent).toContain("Availability: unavailable");
-      expect(container.querySelector(".visually-hidden")?.textContent).toBe("Unavailable");
-      expect(container.querySelector('[data-testid="WarningAmberIcon"]')).not.toBeNull();
+      expect(container.textContent).toContain("its configuration is unavailable and its prerequisites are still incomplete.");
+      expect(container.querySelector(".visually-hidden")?.textContent).toBe("Blocked");
+      expect(container.querySelector('[data-testid="BlockIcon"]')).not.toBeNull();
+      expect(latest?.status).toBe("unavailable");
+      expect([...container.querySelectorAll("button")].find((button) => button.textContent === "Complete")?.disabled).toBe(true);
+      await act(async () => latest?.dispatch({ type: "force-unlock", value: false }));
+      expect(container.textContent).toContain("The simulated configuration is unavailable.");
+      expect(container.querySelector('[aria-label="Lifecycle diagram"]')).toBeNull();
+      expect([...container.querySelectorAll("label")].find((label) => label.textContent?.includes("Configuration available"))).toBeUndefined();
+      const forceUnavailable = container.querySelector<HTMLButtonElement>("button.MuiLink-root");
+      expect(forceUnavailable).not.toBeNull();
+      await act(async () => forceUnavailable?.click());
+      expect(latest?.baseCardContext.lifecycle).toBe("blocked");
+      expect(latest?.appContext.configured).toBe(false);
+      expect(container.textContent).toContain("its configuration is unavailable and its prerequisites are still incomplete.");
+      const restoreConfiguration = [...container.querySelectorAll("label")].find((label) => label.textContent?.includes("Configuration available"))?.querySelector("input");
+      expect(restoreConfiguration?.checked).toBe(false);
+      await act(async () => restoreConfiguration?.click());
+      await act(async () => vi.advanceTimersByTime(2000));
+      expect(container.textContent).toContain("Lifecycle: blocked");
+      expect(container.textContent).toContain("This card is force-unlocked; its prerequisites are still incomplete.");
 
       await act(async () => root.unmount());
       root = createRoot(container);

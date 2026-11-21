@@ -59,27 +59,16 @@ export const initialState: ProtoState = {
 export function getBaseCardContext(state: ProtoState) {
   const unmetRequirements = (Object.keys(requirements) as RequirementId[])
     .filter((id) => !state.appContext.completed[id]);
-  const availability = !state.appContext.configured
-    ? "unavailable"
-    : unmetRequirements.length > 0 ? "locked" : "available";
-  const status = state.baseCardContext.lifecycle === "loading"
-    ? "loading"
-    : availability === "unavailable"
-    ? "unavailable"
-    : state.baseCardContext.lifecycle === "blocked" ? "idle"
-    : state.baseCardContext.lifecycle === "ready" ? "warning" : state.baseCardContext.lifecycle;
   return {
     lifecycle: state.baseCardContext.lifecycle,
-    availability,
     unmetRequirements,
-    status,
-    done: availability === "available" && state.baseCardContext.lifecycle === "complete",
+    done: state.appContext.configured && unmetRequirements.length === 0 && state.baseCardContext.lifecycle === "complete",
   } as const;
 }
 
 export function canTransition(state: ProtoState, lifecycle: CardLifecycle): boolean {
   return lifecycle !== "ready" && lifecycle !== "blocked"
-    && getBaseCardContext(state).availability === "available"
+    && state.appContext.configured && getBaseCardContext(state).unmetRequirements.length === 0
     && canCardTransition(state.baseCardContext, lifecycle);
 }
 
@@ -114,12 +103,12 @@ export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
         ...state,
         baseCardContext: cardLifecycleReducer(state.baseCardContext, {
           type: "transition",
-          lifecycle: getBaseCardContext(state).availability === "available" ? "ready" : "blocked",
+          lifecycle: state.appContext.configured && getBaseCardContext(state).unmetRequirements.length === 0 ? "ready" : "blocked",
         }),
       };
     case "transition":
       if (!canTransition(state, event.lifecycle)) {
-        throw new Error(`Cannot transition from ${state.baseCardContext.lifecycle} to ${event.lifecycle} while ${getBaseCardContext(state).availability}`);
+        throw new Error(`Cannot transition from ${state.baseCardContext.lifecycle} to ${event.lifecycle} with the current prerequisites`);
       }
       return { ...state, baseCardContext: cardLifecycleReducer(state.baseCardContext, event) };
   }
