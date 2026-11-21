@@ -8,12 +8,12 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import App from "../App";
-import { createSharedContext } from "../sharedContext";
+import { createAppContext } from "../appContext";
 import theme from "../theme";
 
-vi.mock("../sharedContext", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../sharedContext")>();
-  return { ...actual, createSharedContext: vi.fn(actual.createSharedContext) };
+vi.mock("../appContext", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../appContext")>();
+  return { ...actual, createAppContext: vi.fn(actual.createAppContext) };
 });
 
 vi.mock("../cards/GithubSignup/useGithubSignupCard", async (importOriginal) => {
@@ -48,20 +48,24 @@ describe("App - Home Page", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    vi.mocked(createSharedContext).mockClear();
+    vi.mocked(createAppContext).mockClear();
     try {
       root.render(<ThemeProvider theme={theme}><App /></ThemeProvider>);
-      await expect.poll(() => vi.mocked(createSharedContext).mock.results.at(-1)?.value.getSnapshot().cards.repo).toMatchObject({
+      await expect.poll(() => vi.mocked(createAppContext).mock.results.at(-1)?.value.getSnapshot().cards.repo).toMatchObject({
         initialised: true,
         title: "Repository & environment",
       });
-      const store = vi.mocked(createSharedContext).mock.results.at(-1)!.value;
+      const store = vi.mocked(createAppContext).mock.results.at(-1)!.value;
       expect(store.getSnapshot().cards.github_signup).toMatchObject({ initialised: true, title: "Test shared signup" });
       expect(container.querySelector("#card-title-github_login")?.textContent).toContain("GitHub login");
       expect(container.querySelector("#card-title-github_login_v2")?.textContent).toContain("GitHub login 2");
       expect(store.getSnapshot().cards.github_login).toBeUndefined();
       await expect.poll(() => store.getSnapshot().cards.github_login_v2).toMatchObject({
-        initialised: true, title: "GitHub login 2", status: "ready", githubAccount: null,
+        initialised: true, title: "GitHub login 2", status: "ready", githubAccount: null, githubToken: null,
+      });
+      expect(container.querySelector("#card-title-repo_v2")?.textContent).toContain("Repository & environment 2");
+      await expect.poll(() => store.getSnapshot().cards.repo_v2).toMatchObject({
+        initialised: true, title: "Repository & environment 2", status: "blocked",
       });
       expect(store.getSnapshot().cards.azure_login).toBeUndefined();
       await expect.poll(() => store.getSnapshot().cards.proto_card, { timeout: 5000 }).toMatchObject({

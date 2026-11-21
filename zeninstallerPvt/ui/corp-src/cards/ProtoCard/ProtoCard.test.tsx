@@ -9,14 +9,14 @@ import { ThemeProvider } from "@mui/material";
 import { describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
 import { canCardTransition, type CardLifecycle } from "../../components/basecardlifecycle";
-import { createSharedContext } from "../../sharedContext";
+import { createAppContext, SensitiveToken } from "../../appContext";
 import theme from "../../theme";
 import ProtoCard from "./ProtoCard";
 import { useProtoCard, type UseProtoCard } from "./useProtoCard";
 import { getBaseCardContext, initialState, protoReducer } from "./stateMachine";
 
 describe("ProtoCard state machine", () => {
-  const sharedStore = createSharedContext();
+  const appStore = createAppContext();
   it("checks prerequisites before entering ready or blocked and guards operations", () => {
     expect(initialState.baseCardContext.lifecycle).toBe("loading");
     expect(() => protoReducer(initialState, { type: "transition", lifecycle: "complete" })).toThrow();
@@ -30,7 +30,7 @@ describe("ProtoCard state machine", () => {
     const forced = protoReducer(blocked, { type: "force-unlock", value: true });
     expect(forced.protoCardContext.forceUnlocked).toBe(true);
     expect(forced.baseCardContext.lifecycle).toBe("blocked");
-    expect(forced.appContext.completed.xxx).toBe(false);
+    expect(forced.protoCardContext.completed.xxx).toBe(false);
     expect(() => protoReducer(forced, { type: "transition", lifecycle: "complete" })).toThrow();
 
     const missingConfig = protoReducer(protoReducer(ready, { type: "configuration", configured: false }), { type: "check-prerequisites" });
@@ -90,10 +90,9 @@ describe("ProtoCard state machine", () => {
       cardId: "proto_card",
       status: "loading",
       shared: { title: "Context title", status: "loading" },
-      sharedContext: sharedStore.getSnapshot(),
+      appContext: appStore.getSnapshot(),
       summary: "Checking prerequisites...",
       done: false,
-      appContext: state.appContext,
       baseCardContext: { ...getBaseCardContext(state), title: "Context title" },
       protoCardContext: state.protoCardContext,
       dispatch: vi.fn(),
@@ -141,9 +140,8 @@ describe("ProtoCard state machine", () => {
       cardId: "proto_card",
       status: "unavailable",
       shared: { title: state.baseCardContext.title, status: "blocked" },
-      sharedContext: sharedStore.getSnapshot(),
+      appContext: appStore.getSnapshot(),
       done: false,
-      appContext: state.appContext,
       baseCardContext: getBaseCardContext(state),
       protoCardContext: state.protoCardContext,
       dispatch,
@@ -183,7 +181,7 @@ describe("ProtoCard state machine", () => {
     const root = createRoot(container);
     let latest: UseProtoCard | undefined;
     function Harness() {
-      latest = useProtoCard(sharedStore);
+      latest = useProtoCard(appStore);
       return null;
     }
 
@@ -211,7 +209,7 @@ describe("ProtoCard state machine", () => {
     const root = createRoot(container);
     let latest: UseProtoCard | undefined;
     function Harness() {
-      latest = useProtoCard(sharedStore);
+      latest = useProtoCard(appStore);
       return null;
     }
 
@@ -238,7 +236,7 @@ describe("ProtoCard state machine", () => {
     let latest: UseProtoCard | undefined;
 
     function Harness() {
-      const protoCard = useProtoCard(sharedStore);
+      const protoCard = useProtoCard(appStore);
       latest = protoCard;
       return (
         <ThemeProvider theme={theme}>
@@ -303,13 +301,28 @@ describe("ProtoCard state machine", () => {
       await act(async () => prerequisitesToggle?.click());
       expect(prerequisitesToggle?.getAttribute("aria-expanded")).toBe("true");
       expect(container.querySelector("#proto-card-prerequisites")?.textContent).toContain("Lifecycle: ready");
+      await act(async () => {
+        appStore.update("repo_v2", { title: "Repository 2", status: "ready" });
+        appStore.update("github_login_v2", {
+          title: "GitHub login 2", status: "complete", githubAccount: { login: "test-user" },
+          githubToken: new SensitiveToken("test-secret"), githubMode: "direct",
+        });
+      });
       await act(async () => resultsToggle?.click());
       expect(resultsToggle?.getAttribute("aria-expanded")).toBe("true");
       for (const name of ["protoCardContext", "baseCardContext", "appContext"] as const) {
         const yaml = container.querySelector(`[aria-label="${name} YAML"] pre`)?.textContent;
         expect(yaml).toBeDefined();
-        expect(parse(yaml!)).toEqual(latest?.[name]);
+        const expected = name === "appContext" ? JSON.parse(JSON.stringify(latest?.appContext)) : latest?.[name];
+        expect(parse(yaml!)).toEqual(expected);
       }
+      let appYaml = container.querySelector('[aria-label="appContext YAML"] pre')?.textContent;
+      expect(container.querySelector('[aria-label="appContext YAML"] pre')?.getAttribute("data-sensitive")).toBe("true");
+      expect(appYaml).not.toContain("test-secret");
+      expect(parse(appYaml!).cards.repo_v2.status).toBe("ready");
+      await act(async () => appStore.update("repo_v2", { title: "Repository 2", status: "complete" }));
+      appYaml = container.querySelector('[aria-label="appContext YAML"] pre')?.textContent;
+      expect(parse(appYaml!).cards.repo_v2.status).toBe("complete");
       const separator = container.querySelector<HTMLDivElement>('[aria-label="Resize protoCardContext column"]');
       expect(separator?.getAttribute("aria-valuenow")).toBe("33");
       await act(async () => separator?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })));
@@ -447,7 +460,7 @@ describe("ProtoCard state machine", () => {
       await act(async () => forceUnavailable?.click());
       await openPrerequisites();
       expect(latest?.baseCardContext.lifecycle).toBe("blocked");
-      expect(latest?.appContext.configured).toBe(false);
+      expect(latest?.protoCardContext.configured).toBe(false);
       expect(container.textContent).toContain("its configuration is unavailable and its prerequisites are still incomplete.");
       const restoreConfiguration = [...container.querySelectorAll("label")].find((label) => label.textContent?.includes("Configuration available"))?.querySelector("input");
       expect(restoreConfiguration?.checked).toBe(false);

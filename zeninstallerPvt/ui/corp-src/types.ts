@@ -16,6 +16,7 @@ export type CardId =
   | "github_login_v2"
   | "azure_login"
   | "repo"
+  | "repo_v2"
   | "azure_subscription"
   | "azure_app_registration"
   | "core_infra"

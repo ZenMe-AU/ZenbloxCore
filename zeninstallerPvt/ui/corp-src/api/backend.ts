@@ -33,8 +33,9 @@ export const MS_TOKEN_HEADER = "Zb.Msal.Authorization";
 // msScopes says this endpoint authorises against the Microsoft identity; the scopes decide which
 // token, so the caller names them rather than handing one over.
 export type AuthedInit = RequestInit & { msScopes?: string[] };
+type GithubAuth = { token: string; expiryEvent: string };
 
-export async function fetchWithAuth(input: string, init: AuthedInit = {}, githubAuth?: { token: string; expiryEvent: string }): Promise<Response> {
+export async function fetchWithAuth(input: string, init: AuthedInit = {}, githubAuth?: GithubAuth): Promise<Response> {
   const { msScopes, ...requestInit } = init;
   const token = githubAuth ? githubAuth.token : getStoredToken(GITHUB_TOKEN_KEYS);
   const headers: Record<string, string> = {
@@ -83,8 +84,8 @@ export async function verifyAuthWithToken(token: string, expiryEvent: string): P
 
 // ─── Orgs & Repos ─────────────────────────────────────────────────────────────
 
-export async function fetchOrgList(): Promise<Account[]> {
-  const [userRes, orgsRes] = await Promise.all([fetchWithAuth(`${url}/getUser`), fetchWithAuth(`${url}/getOrgs`)]);
+export async function fetchOrgList(githubAuth?: GithubAuth): Promise<Account[]> {
+  const [userRes, orgsRes] = await Promise.all([fetchWithAuth(`${url}/getUser`, {}, githubAuth), fetchWithAuth(`${url}/getOrgs`, {}, githubAuth)]);
   if (!userRes.ok) throw new Error(`Failed to fetch user: ${userRes.status}`);
   if (!orgsRes.ok) throw new Error(`Failed to fetch orgs: ${orgsRes.status}`);
   const [userData, orgsData] = await Promise.all([userRes.json(), orgsRes.json()]);
@@ -98,9 +99,9 @@ export async function fetchOrgList(): Promise<Account[]> {
   ];
 }
 
-export async function fetchRepos(account: Account): Promise<Repo[]> {
+export async function fetchRepos(account: Account, githubAuth?: GithubAuth): Promise<Repo[]> {
   const params = new URLSearchParams({ owner: account.login, type: account.type });
-  const res = await fetchWithAuth(`${url}/getRepos?${params}`);
+  const res = await fetchWithAuth(`${url}/getRepos?${params}`, {}, githubAuth);
   if (!res.ok) throw new Error(`Failed to fetch repos: ${res.status}`);
   const data = await res.json();
   return data.repoList || [];
@@ -108,9 +109,9 @@ export async function fetchRepos(account: Account): Promise<Repo[]> {
 
 // ─── Template ─────────────────────────────────────────────────────────────────
 
-export async function checkTemplate(account: Account, repo: string): Promise<{ isTemplate: boolean; templateName: string }> {
+export async function checkTemplate(account: Account, repo: string, githubAuth?: GithubAuth): Promise<{ isTemplate: boolean; templateName: string }> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
-  const res = await fetchWithAuth(`${url}/checkTemplate?${params}`);
+  const res = await fetchWithAuth(`${url}/checkTemplate?${params}`, {}, githubAuth);
   if (!res.ok) throw new Error(`Failed to check template: ${res.status}`);
   return res.json();
 }
@@ -124,7 +125,8 @@ export async function generateRepo(
   includeAllBranch: boolean,
   createEnvs: boolean,
   templateRepo?: string,
-  validEnvs?: readonly string[]
+  validEnvs?: readonly string[],
+  githubAuth?: GithubAuth,
 ): Promise<{
   repo: Repo;
   envSuccess: boolean;
@@ -142,7 +144,7 @@ export async function generateRepo(
       templateRepo,
       envNames: validEnvs,
     }),
-  });
+  }, githubAuth);
   if (!res.ok) throw new Error(`Failed to clone repo: ${res.status}`);
   const data = await res.json();
   return { repo: data.data, envSuccess: data.envSuccess, results: data.results };
@@ -150,19 +152,19 @@ export async function generateRepo(
 
 // ─── Branches ─────────────────────────────────────────────────────────────────
 
-export async function fetchBranches(account: Account, repo: string): Promise<Branch[]> {
+export async function fetchBranches(account: Account, repo: string, githubAuth?: GithubAuth): Promise<Branch[]> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
-  const res = await fetchWithAuth(`${url}/getBranches?${params}`);
+  const res = await fetchWithAuth(`${url}/getBranches?${params}`, {}, githubAuth);
   if (!res.ok) throw new Error(`Failed to fetch branches: ${res.status}`);
   const data = await res.json();
   return data.branches || [];
 }
 
-export async function createBranch(account: Account, repo: string, branchName: string, sourceBranch: string): Promise<Branch> {
+export async function createBranch(account: Account, repo: string, branchName: string, sourceBranch: string, githubAuth?: GithubAuth): Promise<Branch> {
   const res = await fetchWithAuth(`${url}/createBranch`, {
     method: "POST",
     body: JSON.stringify({ owner: account.login, type: account.type, repo, branch: branchName, source: sourceBranch }),
-  });
+  }, githubAuth);
   if (!res.ok) throw new Error(`Failed to create branch: ${res.status}`);
   const data = await res.json();
   return data.branch;
@@ -190,9 +192,9 @@ export async function fetchRuns(account: Account, repo: string, headSha: string)
 
 // ─── GitHub Environments ──────────────────────────────────────────────────────
 
-export async function fetchEnvs(account: Account, repo: string): Promise<GhEnv[]> {
+export async function fetchEnvs(account: Account, repo: string, githubAuth?: GithubAuth): Promise<GhEnv[]> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
-  const res = await fetchWithAuth(`${url}/getEnvs?${params}`);
+  const res = await fetchWithAuth(`${url}/getEnvs?${params}`, {}, githubAuth);
   if (!res.ok) throw new Error(`Failed to fetch envs: ${res.status}`);
   const data = await res.json();
   return data.envList || [];

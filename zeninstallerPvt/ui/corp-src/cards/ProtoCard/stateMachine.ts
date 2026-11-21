@@ -18,13 +18,13 @@ export const initialState: ProtoState = {
     title: "ProtoCard prototype card",
     ...initialCardLifecycle,
   },
-  appContext: {
+  protoCardContext: {
+    forceUnlocked: false,
     configured: true,
     completed: {
       xxx: true,
     },
   },
-  protoCardContext: { forceUnlocked: false },
 };
 
 export const requirements = {
@@ -32,17 +32,13 @@ export const requirements = {
 } as const;
 
 export type RequirementId = keyof typeof requirements;
-type AppContext = {
+type ProtoCardContext = {
+  forceUnlocked: boolean;
   configured: boolean;
   completed: Record<RequirementId, boolean>;
 };
 
-type ProtoCardContext = {
-  forceUnlocked: boolean;
-};
-
 export type ProtoState = {
-  appContext: AppContext;
   baseCardContext: BaseCardContext;
   protoCardContext: ProtoCardContext;
 };
@@ -56,10 +52,10 @@ export type ProtoEvent =
 
 export function getBaseCardContext(state: ProtoState) {
   const unmetRequirements = (Object.keys(requirements) as RequirementId[])
-    .filter((id) => !state.appContext.completed[id]);
+    .filter((id) => !state.protoCardContext.completed[id]);
   const summary = state.baseCardContext.lifecycle === "loading"
     ? "Checking prerequisites..."
-    : !state.appContext.configured
+    : !state.protoCardContext.configured
       ? "Configuration unavailable"
       : state.baseCardContext.lifecycle === "blocked"
         ? `Blocked: ${unmetRequirements.map((id) => requirements[id]).join(", ")}`
@@ -68,13 +64,13 @@ export function getBaseCardContext(state: ProtoState) {
     ...state.baseCardContext,
     summary,
     unmetRequirements,
-    done: state.appContext.configured && unmetRequirements.length === 0 && state.baseCardContext.lifecycle === "complete",
+    done: state.protoCardContext.configured && unmetRequirements.length === 0 && state.baseCardContext.lifecycle === "complete",
   } as const;
 }
 
 export function canTransition(state: ProtoState, lifecycle: CardLifecycle): boolean {
   return lifecycle !== "ready" && lifecycle !== "blocked"
-    && state.appContext.configured && getBaseCardContext(state).unmetRequirements.length === 0
+    && state.protoCardContext.configured && getBaseCardContext(state).unmetRequirements.length === 0
     && canCardTransition(state.baseCardContext, lifecycle);
 }
 
@@ -83,15 +79,15 @@ export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
     case "configuration":
       return {
         ...state,
-        appContext: { ...state.appContext, configured: event.configured },
+        protoCardContext: { ...state.protoCardContext, configured: event.configured },
         baseCardContext: { ...state.baseCardContext, ...initialCardLifecycle },
       };
     case "requirement":
       return {
         ...state,
-        appContext: {
-          ...state.appContext,
-          completed: { ...state.appContext.completed, [event.id]: event.completed },
+        protoCardContext: {
+          ...state.protoCardContext,
+          completed: { ...state.protoCardContext.completed, [event.id]: event.completed },
         },
         baseCardContext: { ...state.baseCardContext, ...initialCardLifecycle },
       };
@@ -103,7 +99,7 @@ export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
         ...state,
         baseCardContext: cardLifecycleReducer(state.baseCardContext, {
           type: "transition",
-          lifecycle: state.appContext.configured && getBaseCardContext(state).unmetRequirements.length === 0 ? "ready" : "blocked",
+          lifecycle: state.protoCardContext.configured && getBaseCardContext(state).unmetRequirements.length === 0 ? "ready" : "blocked",
         }),
       };
     case "transition":

@@ -10,10 +10,11 @@ import { type CardChrome, type CardHook, type CardId } from "./types";
 import { groupSx } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./cards/GithubLogin/useGithubLoginCard";
-import { useGithubLoginCardV2 } from "./cards/GithubLogin/useGithubLoginCardV2";
+import { useGithubLoginCardV2 } from "./cards/GithubLoginV2/useGithubLoginCardV2";
 import ProtoCard from "./cards/ProtoCard/ProtoCard";
 import { useGithubSignupCard } from "./cards/GithubSignup/useGithubSignupCard";
 import { useRepoCard } from "./cards/Repo/useRepoCard";
+import { useRepoCardV2 } from "./cards/RepoV2/useRepoCardV2";
 import { useGithubVariables } from "./hooks/useGithubVariables";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useDeploymentPlan } from "./cards/Stage/useDeploymentPlan";
@@ -46,9 +47,10 @@ import RestoreToast from "./components/RestoreToast";
 import CardIntro from "./components/CardIntro";
 import ExternalLink from "./components/ExternalLink";
 import GithubLoginCard from "./cards/GithubLogin/GithubLoginCard";
-import GithubLoginCardV2 from "./cards/GithubLogin/GithubLoginCardV2";
+import GithubLoginCardV2 from "./cards/GithubLoginV2/GithubLoginCardV2";
 import GithubSignupCard from "./cards/GithubSignup/GithubSignupCard";
 import RepoCard from "./cards/Repo/RepoCard";
+import RepoCardV2 from "./cards/RepoV2/RepoCardV2";
 import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCard";
@@ -71,7 +73,7 @@ import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
 import { useProtoCard } from "./cards/ProtoCard/useProtoCard";
-import { createSharedContext, type SharedCard } from "./sharedContext";
+import { createAppContext, type SharedCard } from "./appContext";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -79,7 +81,7 @@ const EXPANDED_CARDS_KEY = "zeninstaller_corp_expanded_cards";
 const { save: saveExpandedCards, load: loadExpandedCards } = createResultStorage<CardId[]>(EXPANDED_CARDS_KEY);
 
 function AppDashboard() {
-  const [sharedStore] = useState(createSharedContext);
+  const [appStore] = useState(createAppContext);
   const allCards: Record<string, CardHook> = {};
   const sharedCards: { cardId: CardId; shared: SharedCard }[] = [];
 
@@ -89,7 +91,7 @@ function AppDashboard() {
     return newCard;
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
-  const protoCard = addCard(useProtoCard(sharedStore));
+  const protoCard = addCard(useProtoCard(appStore));
 
   const githubLogin = addCard(useGithubLoginCard());
   const githubLoginV2 = addCard(useGithubLoginCardV2());
@@ -100,6 +102,7 @@ function AppDashboard() {
       user: githubLogin.account,
     })
   );
+  const githubRepoEnvV2 = addCard(useRepoCardV2(appStore));
   const githubVariables = useGithubVariables({
     account: githubRepoEnv.repo.selectedAccount,
     repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
@@ -257,7 +260,7 @@ function AppDashboard() {
   const pawDeploy = addCard(usePawDeployCard(privAvdTarget));
 
   useEffect(() => {
-    for (const { cardId, shared } of sharedCards) sharedStore.update(cardId, shared);
+    for (const { cardId, shared } of sharedCards) appStore.update(cardId, shared);
   });
 
   const plan = useDeploymentPlan({
@@ -508,6 +511,7 @@ function AppDashboard() {
               <GithubSignupCard card={cardProps("github_signup")} signup={githubSignup} onOpenLogin={() => openCard("github_login")} />
 
               <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
+              <RepoCardV2 cardChrome={cardProps("repo_v2")} githubRepo={githubRepoEnvV2} />
 
               <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
 

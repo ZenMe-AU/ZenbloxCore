@@ -17,6 +17,7 @@ import {
 } from "../../config/githubConfig";
 import type { CardHook, CardStatus, LoginHook, User } from "../../types";
 import type { BaseCardContext } from "../../components/BaseCard";
+import { SensitiveToken } from "../../appContext";
 import { cardLifecycleReducer, initialCardLifecycle, type CardLifecycle, type CardLifecycleContext } from "../../components/basecardlifecycle";
 
 const AUTH_RECORD_KEY = "zeninstaller_github_login_v2_auth";
@@ -82,8 +83,6 @@ async function exchangeToken(code: string): Promise<string> {
     redirect_uri: appUrl(),
   });
   if (!data.access_token) throw new Error(data.error ?? "Token exchange failed");
-  setStoredToken(GITHUB_TOKEN_KEY, data.access_token);
-  remove(GITHUB_VERIFIER_KEY);
   return data.access_token;
 }
 
@@ -165,12 +164,15 @@ function reconcileLifecycle(context: CardLifecycleContext, phase: AuthPhase): Ca
 export function useGithubLoginCardV2() {
   const [loggingIn, setLoggingIn] = useState(true);
   const [account, setAccount] = useState<User | null>(null);
+  const [session, setSession] = useState<{ token: SensitiveToken; mode: GithubAuthRecord["mode"] } | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false); // TODO: check if this is still needed
   const [redirecting, setRedirecting] = useState<"login" | "logout" | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [mode, setMode] = useState<GithubAuthRecord["mode"]>(BACKEND_CONFIGURED ? "backend" : "direct");
   const [token, setToken] = useState<string | null>(null);
   const loginConfigRef = useRef<GithubAuthRecord>(BACKEND_CONFIGURED ? { mode: "backend" } : { mode: "direct", token: "" });
+  const sessionGeneration = useRef(0);
+  const pendingExchange = useRef<Promise<string> | null>(null);
 
   const setModeState = useCallback((nextMode: GithubAuthRecord["mode"]) => {
     if (nextMode === "backend" && !BACKEND_CONFIGURED) return;
@@ -199,28 +201,41 @@ export function useGithubLoginCardV2() {
 
   // Verify session on mount
   useEffect(() => {
+    const generationRef = sessionGeneration;
+    const generation = ++generationRef.current;
     async function init() {
       // ── Returning from GitHub: oauthReturn already put the URL back, so only the code is left ──
       const code = takeGithubCode();
-      if (code) {
+      if (code || pendingExchange.current) {
         // Distinguishes trading the code from the ordinary session check; both keep loggingIn true.
         setRedirecting("login");
         try {
-          const token = await exchangeToken(code);
-          writeGithubAuthRecord({ mode: "backend" });
-          setModeState("backend");
+          if (code && !pendingExchange.current) pendingExchange.current = exchangeToken(code);
+          const token = await pendingExchange.current!;
+          if (generation !== sessionGeneration.current) return;
           // Asked directly because the proxy's own identity check is what we are establishing here.
           setVerifying(true);
           const data = await fetchGithubUser(token);
+          if (generation !== sessionGeneration.current) return;
+          pendingExchange.current = null;
+          setStoredToken(GITHUB_TOKEN_KEY, token);
+          remove(GITHUB_VERIFIER_KEY);
+          writeGithubAuthRecord({ mode: "backend" });
+          setModeState("backend");
           setAccount({ login: data.login });
+          setSession({ token: new SensitiveToken(token), mode: "backend" });
           setGithubLoginStatus("success");
         } catch (e) {
+          if (generation !== sessionGeneration.current) return;
+          pendingExchange.current = null;
           console.error("GitHub token exchange failed:", e);
           setSessionExpired(true);
         } finally {
-          setVerifying(false);
-          setRedirecting(null);
-          setLoggingIn(false);
+          if (generation === sessionGeneration.current) {
+            setVerifying(false);
+            setRedirecting(null);
+            setLoggingIn(false);
+          }
         }
         return;
       }
@@ -248,24 +263,38 @@ export function useGithubLoginCardV2() {
       setVerifying(true);
       try {
         const data = await verifyGithub(token, record.mode);
+        if (generation !== sessionGeneration.current) return;
         setAccount({ login: data.login });
+        setSession({ token: new SensitiveToken(token), mode: record.mode });
         setGithubLoginStatus("success");
         setSessionExpired(false);
       } catch {
+        if (generation !== sessionGeneration.current) return;
         setAccount(null);
+        setSession(null);
         setSessionExpired(true);
       } finally {
-        setVerifying(false);
-        setLoggingIn(false);
+        if (generation === sessionGeneration.current) {
+          setVerifying(false);
+          setLoggingIn(false);
+        }
       }
     }
     init();
+    return () => { generationRef.current++; };
   }, [setModeState, setTokenState]);
 
   // TODO: check if this is still needed
   // Listen for server-side session expiry events
   useEffect(() => {
-    const handler = () => setSessionExpired(true);
+    const handler = () => {
+      sessionGeneration.current++;
+      setSessionExpired(true);
+      setSession(null);
+      setVerifying(false);
+      setRedirecting(null);
+      setLoggingIn(false);
+    };
     window.addEventListener(SESSION_EXPIRED_EVENT, handler);
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handler);
   }, []);
@@ -294,30 +323,43 @@ export function useGithubLoginCardV2() {
 
     setRedirecting("login");
     setVerifying(true);
+    const generation = ++sessionGeneration.current;
     try {
       writeGithubAuthRecord(config);
       setSessionExpired(false);
       const data = await verifyGithub(config.token, "direct");
+      if (generation !== sessionGeneration.current) return;
       setAccount({ login: data.login });
+      setSession({ token: new SensitiveToken(config.token), mode: "direct" });
       setGithubLoginStatus("success");
       setRedirecting(null);
     } catch {
+      if (generation !== sessionGeneration.current) return;
       setAccount(null);
+      setSession(null);
       console.error("Login failed");
       setSessionExpired(true);
       setRedirecting(null);
     } finally {
-      setVerifying(false);
-      setLoggingIn(false);
+      if (generation === sessionGeneration.current) {
+        setVerifying(false);
+        setLoggingIn(false);
+      }
     }
   }, []);
 
   // Nothing server-side to end: the token lived here, so dropping it is the whole of signing out.
   const logout = useCallback(async () => {
+    sessionGeneration.current++;
+    pendingExchange.current = null;
     writeGithubAuthRecord(null);
     clearStoredCredentials();
     setAccount(null);
+    setSession(null);
     setSessionExpired(false);
+    setVerifying(false);
+    setRedirecting(null);
+    setLoggingIn(false);
     setTokenState(null);
   }, [setTokenState]);
 
@@ -364,7 +406,10 @@ export function useGithubLoginCardV2() {
     ...githubLoginContext,
     baseCardContext,
     githubLoginContext,
-    shared: { title: baseCardContext.title, status: baseCardContext.lifecycle, githubAccount: account },
+    shared: {
+      title: baseCardContext.title, status: baseCardContext.lifecycle, githubAccount: account,
+      githubToken: session?.token ?? null, githubMode: session?.mode ?? null,
+    },
   };
 }
 

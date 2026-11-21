@@ -4,7 +4,7 @@
  */
 
 import type { CardHook, CardStatus, User } from "../../types";
-import type { SharedCard } from "../../sharedContext";
+import type { SharedCard } from "../../appContext";
 import { useGithubRepo, type UseGithubRepo } from "./useGithubRepo";
 import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
 import { getEnvSettingsUrl } from "../../logic/github";

@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { act, useEffect } from "react";
+import { act, StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,8 +11,8 @@ import { clearGithubToken } from "../cards/GithubLogin/useGithubLoginCard";
 import { readGithubAuthRecord, useGithubLoginCard, type UseGithubLoginCard } from "../cards/GithubLogin/useGithubLoginCard";
 import * as legacyHook from "../cards/GithubLogin/useGithubLoginCard";
 import * as legacyCard from "../cards/GithubLogin/GithubLoginCard";
-import { clearGithubToken as clearGithubTokenV2, useGithubLoginCardV2, type UseGithubLoginCardV2 } from "../cards/GithubLogin/useGithubLoginCardV2";
-import GithubLoginCardV2 from "../cards/GithubLogin/GithubLoginCardV2";
+import { clearGithubToken as clearGithubTokenV2, useGithubLoginCardV2, type UseGithubLoginCardV2 } from "../cards/GithubLoginV2/useGithubLoginCardV2";
+import GithubLoginCardV2 from "../cards/GithubLoginV2/GithubLoginCardV2";
 import { getStoredToken, setStoredToken } from "../logic/tokenStore";
 import theme from "../theme";
 
@@ -568,7 +568,7 @@ describe("useGithubLoginCard", () => {
       expect(container.textContent).toContain("Connect with PAT");
       await act(async () => { void latest?.login(); });
       expect(latest?.baseCardContext.lifecycle).toBe("action");
-      expect(latest?.shared).toEqual({ title: "GitHub login 2", status: "action", githubAccount: null });
+      expect(latest?.shared).toEqual({ title: "GitHub login 2", status: "action", githubAccount: null, githubToken: null, githubMode: null });
       await act(async () => resolveVerification({ login: "octocat" }));
       expect(latest?.baseCardContext.lifecycle).toBe("complete");
       expect(latest?.done).toBe(true);
@@ -621,7 +621,8 @@ describe("useGithubLoginCard", () => {
       setStoredToken("github_access_token", "legacy-oauth-token");
       setStoredToken("github_login_v2_access_token", "v2-oauth-token");
       expect(legacy?.account).toEqual({ login: "legacy-user" });
-      expect(v2?.shared).toEqual({ title: "GitHub login 2", status: "complete", githubAccount: { login: "v2-user" } });
+      expect(v2?.shared).toMatchObject({ title: "GitHub login 2", status: "complete", githubAccount: { login: "v2-user" }, githubMode: "direct" });
+      expect(v2?.shared.githubToken?.reveal()).toBe("v2-token");
       expect(apiMocks.switchToDirect).toHaveBeenCalledOnce();
       expect(apiMocks.switchToDirect).toHaveBeenCalledWith("legacy-token");
       expect(apiMocks.switchToBackend).not.toHaveBeenCalled();
@@ -638,6 +639,7 @@ describe("useGithubLoginCard", () => {
       expect(getStoredToken(["github_access_token"])).toBe("legacy-oauth-token");
       expect(sessionStorage.getItem("github_login")).toBe("success");
       expect(v2?.shared.githubAccount).toBeNull();
+      expect(v2?.shared.githubToken).toBeNull();
 
       await act(async () => v2?.setToken("v2-token"));
       await act(async () => { await v2?.login(); });
@@ -668,6 +670,23 @@ describe("useGithubLoginCard", () => {
     }
   });
 
+  it("does not restore a shared token when verification finishes after logout", async () => {
+    let latest: UseGithubLoginCardV2 | undefined;
+    let resolveVerification!: (value: { login: string }) => void;
+    apiMocks.verifyAuth.mockReturnValueOnce(new Promise((resolve) => { resolveVerification = resolve; }));
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<V2Harness onUpdate={(value) => { latest = value; }} />));
+      await act(async () => { latest?.setMode("direct"); latest?.setToken("v2-token"); });
+      await act(async () => { void latest?.login(); });
+      await act(async () => { await latest?.logout(); });
+      await act(async () => resolveVerification({ login: "late-user" }));
+      expect(latest?.shared).toMatchObject({ githubAccount: null, githubToken: null, githubMode: null, status: "ready" });
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
   it("completes the OAuth callback with the independent V2 hook", async () => {
     sessionStorage.setItem("github_login_v2_pkce_verifier", "the-verifier");
     sessionStorage.setItem("oauth_pending_code:github_login_v2", "abc123");
@@ -682,15 +701,16 @@ describe("useGithubLoginCard", () => {
     let legacy: UseGithubLoginCard | undefined;
     const root = createRoot(document.createElement("div"));
     try {
-      await act(async () => root.render(<>
+      await act(async () => root.render(<StrictMode>
         <HookHarness onUpdate={(value) => { legacy = value; }} />
         <V2Harness onUpdate={(value) => { latest = value; }} />
-      </>));
+      </StrictMode>));
       await waitFor(() => {
         expect(latest?.baseCardContext.lifecycle).toBe("complete");
         expect(latest?.account?.login).toBe("octocat");
       });
       expect(JSON.parse(exchange.mock.calls[0][1].body)).toMatchObject({ code: "abc123", code_verifier: "the-verifier" });
+      expect(exchange).toHaveBeenCalledOnce();
       expect(legacy?.account).toBeNull();
       expect(apiMocks.switchToBackend).not.toHaveBeenCalled();
       expect(sessionStorage.getItem("oauth_pending_code:github_login_v2")).toBeNull();

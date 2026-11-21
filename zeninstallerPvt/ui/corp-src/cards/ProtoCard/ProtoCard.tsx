@@ -62,8 +62,8 @@ function UnlockedContent({ protoCard }: { protoCard: UseProtoCard }) {
 }
 
 function PrerequisitesPanel({ protoCard }: { protoCard: UseProtoCard }) {
-  const { appContext, baseCardContext, protoCardContext, dispatch } = protoCard;
-  const state = { appContext, baseCardContext, protoCardContext };
+  const { baseCardContext, protoCardContext, dispatch } = protoCard;
+  const state = { baseCardContext, protoCardContext };
   const lifecycle = baseCardContext.lifecycle;
   const requirementIds = Object.keys(requirements) as RequirementId[];
   const [panel, setPanel] = useState({ lifecycle, open: lifecycle === "ready" });
@@ -154,17 +154,17 @@ function PrerequisitesPanel({ protoCard }: { protoCard: UseProtoCard }) {
           Block
         </Button>
       </Box>}
-      <Typography>Changing simulated app state resets the lifecycle and rechecks prerequisites. Block marks the first requirement incomplete; force unlock does not complete prerequisites.</Typography>
+      <Typography>Changing simulated prototype state resets the lifecycle and rechecks prerequisites. Block marks the first requirement incomplete; force unlock does not complete prerequisites.</Typography>
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
         <FormControlLabel
           label="Configuration available"
-          control={<Checkbox checked={appContext.configured} onChange={(event) => dispatch({ type: "configuration", configured: event.target.checked })} />}
+          control={<Checkbox checked={protoCardContext.configured} onChange={(event) => dispatch({ type: "configuration", configured: event.target.checked })} />}
         />
         {requirementIds.map((id) => (
           <FormControlLabel
             key={id}
             label={requirements[id]}
-            control={<Checkbox checked={appContext.completed[id]} onChange={(event) => dispatch({ type: "requirement", id, completed: event.target.checked })} />}
+            control={<Checkbox checked={protoCardContext.completed[id]} onChange={(event) => dispatch({ type: "requirement", id, completed: event.target.checked })} />}
           />
         ))}
       </Box>
@@ -221,7 +221,7 @@ function ResultsPanel({ protoCard }: { protoCard: UseProtoCard }) {
                 sx={{ overflowX: "auto", px: 1, border: 1, borderColor: "divider", height: "100%", boxSizing: "border-box" }}
               >
                 <Typography component="h4" sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>{name}</Typography>
-                <Box component="pre" sx={{ m: 0, pb: 1, whiteSpace: "pre" }}>
+                <Box component="pre" data-sensitive={name === "appContext" || undefined} sx={{ m: 0, pb: 1, whiteSpace: "pre" }}>
                   {stringify(value, { lineWidth: 0 })}
                 </Box>
               </Box>
@@ -315,7 +315,7 @@ function BlockedContent({ protoCard }: {
           borderRadius: "8px",
         }}
       >
-        {!protoCard.appContext.configured && (
+        {!protoCard.protoCardContext.configured && (
           <Typography role="status">The simulated configuration is unavailable.</Typography>
         )}
         <Typography
@@ -349,7 +349,7 @@ function BlockedContent({ protoCard }: {
 }
 
 export default function ProtoCard({ cardChrome, protoCard }: Props) {
-  const { appContext, baseCardContext, protoCardContext } = protoCard;
+  const { baseCardContext, protoCardContext } = protoCard;
   const { forceUnlocked } = protoCardContext;
   const showBlockedContent = baseCardContext.lifecycle === "blocked" && !forceUnlocked;
 
@@ -371,8 +371,8 @@ export default function ProtoCard({ cardChrome, protoCard }: Props) {
               {forceUnlocked && baseCardContext.lifecycle === "blocked" && (
                 <Typography role="status" color="warning.main" sx={{ mb: 2 }}>
                   This card is force-unlocked;{" "}
-                  {!appContext.configured && "its configuration is unavailable"}
-                  {!appContext.configured && baseCardContext.unmetRequirements.length > 0 && " and "}
+                  {!protoCardContext.configured && "its configuration is unavailable"}
+                  {!protoCardContext.configured && baseCardContext.unmetRequirements.length > 0 && " and "}
                   {baseCardContext.unmetRequirements.length > 0 && "its prerequisites are still incomplete"}.
                 </Typography>
               )}
