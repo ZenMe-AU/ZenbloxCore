@@ -11,12 +11,25 @@ import {
   type CardLifecycleContext,
   type CardLifecycleEvent,
 } from "../../components/cardLifecycle";
+import type { CardId } from "../../types";
+
+export const initialState: ProtoState = {
+  baseCardContext: {
+    cardId: "proto_card",
+    title: "ProtoCard prototype card",
+    ...initialCardLifecycle,
+  },
+  appContext: {
+    configured: true,
+    completed: {
+      xxx: true,
+    },
+  },
+  protoCardContext: { forceUnlocked: false },
+};
 
 export const requirements = {
-  azure_login: "Azure login",
-  repo: "Repository and environment",
-  azure_subscription: "Azure subscription",
-  azure_app_registration: "Azure app registration",
+  xxx: "requirement xxx",
 } as const;
 
 export type RequirementId = keyof typeof requirements;
@@ -31,7 +44,7 @@ type ProtoCardContext = {
 
 export type ProtoState = {
   appContext: AppContext;
-  baseCardContext: CardLifecycleContext;
+  baseCardContext: CardLifecycleContext & { cardId: CardId; title: string };
   protoCardContext: ProtoCardContext;
 };
 
@@ -42,25 +55,19 @@ export type ProtoEvent =
   | { type: "check-prerequisites" }
   | CardLifecycleEvent;
 
-export const initialState: ProtoState = {
-  appContext: {
-    configured: true,
-    completed: {
-      azure_login: true,
-      repo: true,
-      azure_subscription: true,
-      azure_app_registration: true,
-    },
-  },
-  baseCardContext: initialCardLifecycle,
-  protoCardContext: { forceUnlocked: false },
-};
-
 export function getBaseCardContext(state: ProtoState) {
   const unmetRequirements = (Object.keys(requirements) as RequirementId[])
     .filter((id) => !state.appContext.completed[id]);
+  const summary = state.baseCardContext.lifecycle === "loading"
+    ? "Checking prerequisites..."
+    : !state.appContext.configured
+      ? "Configuration unavailable"
+      : state.baseCardContext.lifecycle === "blocked"
+        ? `Blocked: ${unmetRequirements.map((id) => requirements[id]).join(", ")}`
+        : "Summary";
   return {
-    lifecycle: state.baseCardContext.lifecycle,
+    ...state.baseCardContext,
+    summary,
     unmetRequirements,
     done: state.appContext.configured && unmetRequirements.length === 0 && state.baseCardContext.lifecycle === "complete",
   } as const;
@@ -78,7 +85,7 @@ export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
       return {
         ...state,
         appContext: { ...state.appContext, configured: event.configured },
-        baseCardContext: initialCardLifecycle,
+        baseCardContext: { ...state.baseCardContext, ...initialCardLifecycle },
       };
     case "requirement":
       return {
@@ -87,7 +94,7 @@ export function protoReducer(state: ProtoState, event: ProtoEvent): ProtoState {
           ...state.appContext,
           completed: { ...state.appContext.completed, [event.id]: event.completed },
         },
-        baseCardContext: initialCardLifecycle,
+        baseCardContext: { ...state.baseCardContext, ...initialCardLifecycle },
       };
     case "force-unlock":
       return { ...state, protoCardContext: { ...state.protoCardContext, forceUnlocked: event.value } };

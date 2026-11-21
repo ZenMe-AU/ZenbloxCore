@@ -5,7 +5,7 @@
 
 import { useRef, useState } from "react";
 import { stringify } from "yaml";
-import { Box, Button, Checkbox, CircularProgress, FormControlLabel, Link, Typography, useTheme, ButtonBase } from "@mui/material";
+import { Box, Button, Checkbox, CircularProgress, FormControlLabel, Link, Typography, useTheme } from "@mui/material";
 import BaseCard from "../../components/BaseCard";
 import type { CardLifecycle } from "../../components/cardLifecycle";
 import CollapsiblePanel from "../../components/CollapsiblePanel";
@@ -13,10 +13,9 @@ import ViewLink from "../../components/ViewLink";
 import type { CardChrome } from "../../types";
 import { canTransition, requirements, type RequirementId } from "./stateMachine";
 import type { UseProtoCard } from "./useProtoCard";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 type Props = {
-  card: CardChrome;
+  cardChrome: CardChrome;
   protoCard: UseProtoCard;
 };
 
@@ -66,6 +65,7 @@ function PrerequisitesPanel({ protoCard }: { protoCard: UseProtoCard }) {
   const { appContext, baseCardContext, protoCardContext, dispatch } = protoCard;
   const state = { appContext, baseCardContext, protoCardContext };
   const lifecycle = baseCardContext.lifecycle;
+  const requirementIds = Object.keys(requirements) as RequirementId[];
   const [panel, setPanel] = useState({ lifecycle, open: lifecycle === "ready" });
   if (panel.lifecycle !== lifecycle) {
     setPanel({ lifecycle, open: panel.open || lifecycle === "ready" });
@@ -142,25 +142,25 @@ function PrerequisitesPanel({ protoCard }: { protoCard: UseProtoCard }) {
           })}
         </Box>
       </Box>
-      <Box sx={{ mb: 2 }}>
+      {requirementIds.length > 0 && <Box sx={{ mb: 2 }}>
         <Button
           size="small"
           variant="contained"
           onClick={() => {
             dispatch({ type: "force-unlock", value: false });
-            dispatch({ type: "requirement", id: "repo", completed: false });
+            dispatch({ type: "requirement", id: requirementIds[0], completed: false });
           }}
         >
           Block
         </Button>
-      </Box>
-      <Typography>Changing simulated app state resets the lifecycle and rechecks prerequisites. Block marks the repository incomplete; force unlock does not complete prerequisites.</Typography>
+      </Box>}
+      <Typography>Changing simulated app state resets the lifecycle and rechecks prerequisites. Block marks the first requirement incomplete; force unlock does not complete prerequisites.</Typography>
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
         <FormControlLabel
           label="Configuration available"
           control={<Checkbox checked={appContext.configured} onChange={(event) => dispatch({ type: "configuration", configured: event.target.checked })} />}
         />
-        {(Object.keys(requirements) as RequirementId[]).map((id) => (
+        {requirementIds.map((id) => (
           <FormControlLabel
             key={id}
             label={requirements[id]}
@@ -294,9 +294,8 @@ function LoadingContent() {
   );
 }
 
-function BlockedContent({ protoCard, onRequirementClick }: {
+function BlockedContent({ protoCard }: {
   protoCard: UseProtoCard;
-  onRequirementClick: CardChrome["onRequirementClick"];
 }) {
   const theme = useTheme();
   const colors = theme.vars.palette.card;
@@ -326,7 +325,7 @@ function BlockedContent({ protoCard, onRequirementClick }: {
           }}
         >
           {protoCard.baseCardContext.unmetRequirements.length > 0
-            ? "The following links will take you to the cards to complete first, or "
+            ? "The following simulated prerequisites are incomplete, or "
             : "You can "}
           <Link
             component="button"
@@ -337,56 +336,31 @@ function BlockedContent({ protoCard, onRequirementClick }: {
           </Link>
         </Typography>
         {protoCard.baseCardContext.unmetRequirements.map((id) => (
-          <ButtonBase
+          <Typography
             key={id}
-            component="button"
-            onClick={() => onRequirementClick(id)}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              width: "100%",
-              justifyContent: "flex-start",
-              cursor: "pointer",
-              borderRadius: "6px",
-              px: 0.75,
-              py: 0.4,
-              mx: -0.75,
-              transition: "background 0.15s",
-              "&:hover": { background: colors.requirementHover },
-            }}
+            sx={{ typography: "body1", color: colors.requirementText, fontWeight: 500 }}
           >
-            <ChevronRightIcon
-              aria-hidden="true"
-              sx={{ typography: "caption", color: colors.requirementText, flexShrink: 0 }}
-            />
-            <Typography
-              component="span"
-              className="req-label"
-              sx={{ typography: "body1", color: colors.requirementText, fontWeight: 500 }}
-            >
-              {requirements[id]}
-            </Typography>
-          </ButtonBase>
+            {requirements[id]}
+          </Typography>
         ))}
       </Box>
     </>
   );
 }
 
-export default function ProtoCard({ card, protoCard }: Props) {
+export default function ProtoCard({ cardChrome, protoCard }: Props) {
   const { appContext, baseCardContext, protoCardContext } = protoCard;
   const { forceUnlocked } = protoCardContext;
   const showBlockedContent = baseCardContext.lifecycle === "blocked" && !forceUnlocked;
 
   return (
     <BaseCard
-      cardId={card.cardId}
-      title="Title of the card"
-      summary={card.summary}
+      cardId={baseCardContext.cardId}
+      title={baseCardContext.title}
+      summary={baseCardContext.summary}
       lifecycle={baseCardContext.lifecycle}
-      expanded={card.expanded}
-      onToggle={card.onToggle}
+      expanded={cardChrome.expanded}
+      onToggle={cardChrome.onToggle}
       action={baseCardContext.lifecycle !== "loading" && !showBlockedContent
         ? <ViewLink href="http://localhost" label="Open External Site" />
         : undefined}
@@ -394,7 +368,7 @@ export default function ProtoCard({ card, protoCard }: Props) {
       {baseCardContext.lifecycle === "loading"
         ? <LoadingContent />
         : showBlockedContent
-          ? <BlockedContent protoCard={protoCard} onRequirementClick={card.onRequirementClick} />
+          ? <BlockedContent protoCard={protoCard} />
           : (
             <>
               {forceUnlocked && baseCardContext.lifecycle === "blocked" && (

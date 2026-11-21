@@ -123,7 +123,7 @@ describe("useRepoCard", () => {
     const root = createRoot(document.createElement("div"));
     try {
       await act(async () => root.render(<HookHarness user={{ login: "org-one" } as HookUser} onUpdate={(value) => { latest = value; }} />));
-      expect(latest).toMatchObject({ status, summary, done: false });
+      expect(latest).toMatchObject({ status, summary, done: false, shared: { title: "Repository & environment", status } });
     } finally {
       await act(async () => root.unmount());
     }

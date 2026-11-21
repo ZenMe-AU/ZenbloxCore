@@ -143,6 +143,7 @@ describe("shared UI building blocks", () => {
         const missingBranch = 'No branch found matching environment "PROD".';
         const githubRepo: UseRepoCard = {
           cardId: "repo", status: "warning", summary: missingBranch, done: false, cardDependencyLabel: "Choose an environment", githubEnvUrl: undefined,
+          shared: { title: "Repository & environment", status: "warning" },
           repo: {
             accountList: [account], selectedAccount: account, setSelectedAccount: vi.fn(), repoList: [{ id: 1, name: "example-repo" }], selectedRepo: { id: 1, name: "example-repo" }, setSelectedRepo: vi.fn(),
             templateStatus: "ready", templateName: "ZenMe-AU/ZenbloxCore", repoFullName: "example/example-repo", isPrivate: true, setIsPrivate: vi.fn(), includeAllBranch: false, setIncludeAllBranch: vi.fn(),

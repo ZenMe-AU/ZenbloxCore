@@ -69,6 +69,7 @@ import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
 import { useProtoCard } from "./cards/ProtoCard/useProtoCard";
+import { createSharedContext } from "./sharedContext";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,7 @@ const EXPANDED_CARDS_KEY = "zeninstaller_corp_expanded_cards";
 const { save: saveExpandedCards, load: loadExpandedCards } = createResultStorage<CardId[]>(EXPANDED_CARDS_KEY);
 
 function AppDashboard() {
+  const [sharedStore] = useState(createSharedContext);
   const allCards: Record<string, CardHook> = {};
 
   function addCard<T extends CardHook>(newCard: T): T {
@@ -83,7 +85,7 @@ function AppDashboard() {
     return newCard;
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
-  const protoCard = addCard(useProtoCard());
+  const protoCard = addCard(useProtoCard(sharedStore));
 
   const githubLogin = addCard(useGithubLoginCard());
   const githubSignup = addCard(useGithubSignupCard(githubLogin.done));
@@ -93,6 +95,12 @@ function AppDashboard() {
       user: githubLogin.account,
     })
   );
+  const { cardId: protoId, shared: { title: protoTitle, status: protoStatus } } = protoCard;
+  const { cardId: repoId, shared: { title: repoTitle, status: repoStatus } } = githubRepoEnv;
+  useEffect(() => {
+    sharedStore.update(protoId, { title: protoTitle, status: protoStatus });
+    sharedStore.update(repoId, { title: repoTitle, status: repoStatus });
+  }, [sharedStore, protoId, protoTitle, protoStatus, repoId, repoTitle, repoStatus]);
   const githubVariables = useGithubVariables({
     account: githubRepoEnv.repo.selectedAccount,
     repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
@@ -489,7 +497,7 @@ function AppDashboard() {
                 />
               </Box>
 
-              <ProtoCard card={cardProps("proto_card")} protoCard={protoCard} />
+              <ProtoCard cardChrome={cardProps(protoCard.baseCardContext.cardId)} protoCard={protoCard} />
 
               <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
 

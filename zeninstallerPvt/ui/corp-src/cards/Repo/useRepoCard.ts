@@ -4,6 +4,7 @@
  */
 
 import type { CardHook, CardStatus, User } from "../../types";
+import type { SharedCard } from "../../sharedContext";
 import { useGithubRepo, type UseGithubRepo } from "./useGithubRepo";
 import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
 import { getEnvSettingsUrl } from "../../logic/github";
@@ -16,6 +17,7 @@ export type UseRepoCardParams = {
 
 export interface UseRepoCard extends CardHook {
   readonly cardId: "repo";
+  shared: SharedCard;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
   githubEnvUrl: string | undefined;
   repo: UseGithubRepo;
@@ -80,6 +82,7 @@ export function useRepoCard({ user }: UseRepoCardParams): UseRepoCard {
     githubEnvUrl,
     // cardHook
     cardId: "repo" as const,
+    shared: { title: "Repository & environment", status },
     status,
     summary,
     cardRequirements: ["github_login"],

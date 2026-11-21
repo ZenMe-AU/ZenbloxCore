@@ -3,21 +3,24 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useReducer, type Dispatch } from "react";
+import { useCallback, useEffect, useReducer, useSyncExternalStore, type Dispatch } from "react";
 import type { CardHook } from "../../types";
-import { getBaseCardContext, initialState, protoReducer, requirements, type ProtoEvent } from "./stateMachine";
+import type { SharedCard, SharedContext } from "../../sharedContext";
+import { getBaseCardContext, initialState, protoReducer, type ProtoEvent } from "./stateMachine";
 
 let forceUnlockedForPage = false;
 
 export interface UseProtoCard extends CardHook {
-  readonly cardId: "proto_card";
+  shared: SharedCard;
+  sharedContext: ReturnType<SharedContext["getSnapshot"]>;
   appContext: typeof initialState.appContext;
   baseCardContext: ReturnType<typeof getBaseCardContext>;
   protoCardContext: typeof initialState.protoCardContext;
   dispatch: Dispatch<ProtoEvent>;
 }
 
-export function useProtoCard(): UseProtoCard {
+export function useProtoCard(sharedStore: SharedContext): UseProtoCard {
+  const sharedContext = useSyncExternalStore(sharedStore.subscribe, sharedStore.getSnapshot, sharedStore.getSnapshot);
   const [state, dispatchState] = useReducer(protoReducer, initialState, (initial) => ({
     ...initial,
     protoCardContext: { ...initial.protoCardContext, forceUnlocked: forceUnlockedForPage },
@@ -39,18 +42,12 @@ export function useProtoCard(): UseProtoCard {
       : baseCardContext.lifecycle === "blocked" ? "idle"
         : baseCardContext.lifecycle === "ready" || baseCardContext.lifecycle === "action" || baseCardContext.lifecycle === "commit"
           ? "warning" : baseCardContext.lifecycle;
-  const summary = baseCardContext.lifecycle === "loading"
-    ? "Checking prerequisites..."
-    : !state.appContext.configured
-      ? "Configuration unavailable"
-      : baseCardContext.lifecycle === "blocked"
-        ? `Blocked: ${baseCardContext.unmetRequirements.map((id) => requirements[id]).join(", ")}`
-        : "Summary";
-
   return {
-    cardId: "proto_card",
+    cardId: baseCardContext.cardId,
+    shared: { title: baseCardContext.title, status: baseCardContext.lifecycle },
+    sharedContext,
     status,
-    summary,
+    summary: baseCardContext.summary,
     done: baseCardContext.done,
     cardDependencyLabel: "Protocard",
     appContext: state.appContext,

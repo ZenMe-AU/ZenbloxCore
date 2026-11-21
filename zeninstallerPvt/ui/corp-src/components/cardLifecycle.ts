@@ -23,7 +23,10 @@ export function canCardTransition(context: CardLifecycleContext, lifecycle: Card
   return transitions[context.lifecycle].includes(lifecycle);
 }
 
-export function cardLifecycleReducer(context: CardLifecycleContext, event: CardLifecycleEvent): CardLifecycleContext {
+export function cardLifecycleReducer<T extends CardLifecycleContext>(
+  context: T,
+  event: CardLifecycleEvent,
+): Omit<T, "lifecycle"> & CardLifecycleContext {
   if (!canCardTransition(context, event.lifecycle)) {
     throw new Error(`Cannot transition from ${context.lifecycle} to ${event.lifecycle}`);
   }
