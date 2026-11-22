@@ -598,6 +598,27 @@ function AppDashboard() {
                 }
               />
 
+              <AvdGalleryCard
+                card={cardProps("privavd_gallery")}
+                privAvd={avdGallery}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
+              <PawImageCard
+                card={cardProps("privavd_image")}
+                privAvd={pawImage}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
+              <PawDeployCard
+                card={cardProps("privavd_paw")}
+                privAvd={pawDeploy}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
               {/* <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} /> */}
 
               <AwsSsoCard
@@ -625,27 +646,6 @@ function AppDashboard() {
               {stageCards.map(({ key, ...stageCard }) => (
                 <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
               ))}
-
-              <AvdGalleryCard
-                card={cardProps("privavd_gallery")}
-                privAvd={avdGallery}
-                {...privAvdTarget}
-                variables={githubVariables}
-              />
-
-              <PawImageCard
-                card={cardProps("privavd_image")}
-                privAvd={pawImage}
-                {...privAvdTarget}
-                variables={githubVariables}
-              />
-
-              <PawDeployCard
-                card={cardProps("privavd_paw")}
-                privAvd={pawDeploy}
-                {...privAvdTarget}
-                variables={githubVariables}
-              />
             </Box>
           </Box>
         </Box >
