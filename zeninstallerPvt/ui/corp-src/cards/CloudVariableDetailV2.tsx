@@ -28,10 +28,12 @@ type Props = {
   /** Refresh clean fields from saved values but keep local edits; remount when the account/repo/environment scope changes. */
   preserveDirtyOnSync?: boolean;
   onComplete?: (done: boolean) => void;
-  saveHint?: ReactNode; // Rendered next to the Save button (e.g. an "unsaved change" warning).
+  // Rendered next to the Save button (e.g. an "unsaved change" warning); a function is told whether the draft has edits left to save.
+  saveHint?: ReactNode | ((draft: { dirty: boolean }) => ReactNode);
   tableHint?: ReactNode; // Rendered under the variable table, above the Save button (e.g. a note on the whole set).
   keyHints?: Partial<Record<string, ReactNode>>; // Note under one variable's row, e.g. where its value comes from.
   keyErrors?: Partial<Record<string, string>>; // Per-key external validation error, shown as a row-level error icon.
+  populateCounter?: number; // Increment to apply populate values into the draft again, even unchanged (not saved).
   autoSaveCounter?: number; // Increment to auto-apply populate values and immediately save them to GitHub.
   onAutoSaveResult?: (result: "saved" | "no-changes" | "error") => void; // Called when auto-save (triggered by autoSaveCounter) completes.
   onLoaded?: (saved: Record<string, string>) => void;
@@ -51,6 +53,7 @@ export default function CloudVariableDetailV2({
   tableHint,
   keyHints,
   keyErrors,
+  populateCounter,
   autoSaveCounter,
   onAutoSaveResult,
   onLoaded,
@@ -80,6 +83,7 @@ export default function CloudVariableDetailV2({
     onSavedKey: variables.onConfirmed,
     populate,
     preserveDirtyOnSync,
+    populateCounter,
     autoSaveCounter,
     onAutoSaveResult,
   });
@@ -174,7 +178,7 @@ export default function CloudVariableDetailV2({
             disabled={!!disabled || !account || !repo || !envName || updating || dirtyKeys.length === 0}
             onClick={() => void handleSave()}
           />
-          {saveHint}
+          {typeof saveHint === "function" ? saveHint({ dirty: dirtyKeys.length > 0 }) : saveHint}
         </Box>
         {githubUrl && (
           <ExternalLink href={githubUrl} label="Manage on GitHub">
