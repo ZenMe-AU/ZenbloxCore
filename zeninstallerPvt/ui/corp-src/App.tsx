@@ -23,7 +23,7 @@ import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
 import { useAzureLoginCardV2 } from "./cards/AzureLoginV2/useAzureLoginCardV2";
 import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
-import { useAzureSubscriptionCardV2 } from "./cards/AzureSubscriptionV2/useAzureSubscriptionCardV2";
+import useAzureSubscriptionCardV2 from "./cards/AzureSubscriptionV2/useAzureSubscriptionCardV2";
 import useAzureAppRegistrationCardV2 from "./cards/AzureAppRegistrationV2/useAzureAppRegistrationCardV2";
 import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
 import { useCreateAdminUsersCard } from "./cards/CreateAdminUsers/useCreateAdminUsersCard";
@@ -539,7 +539,7 @@ function AppDashboard() {
                 onOpenAzureLogin={() => openCard("azure_login")}
                 onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
               />
-              <AzureSubscriptionCardV2 cardChrome={cardProps("azure_subscription_v2")} subscription={azureSubscriptionV2} />
+              <AzureSubscriptionCardV2 cardChrome={cardProps("azure_subscription_v2")} card={azureSubscriptionV2} />
 
               <AzureAppRegistrationCard
                 card={cardProps("azure_app_registration")}

@@ -10,25 +10,24 @@ import type { AppContext, SharedCard } from "../../appContext";
 import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
 import { useGithubVariablesV2, type GithubTarget, type UseGithubVariablesV2 } from "../../hooks/useGithubVariablesV2";
 import { getEnvSettingsUrl } from "../../logic/github";
-import type { CardHook, CardStatus } from "../../types";
+import type { CardHook, CardId, CardStatus } from "../../types";
 import {
   deriveLifecycle,
   getGithubTarget,
-  getSubscriptionPrerequisites,
+  getPrerequisites,
+  initialCardContext,
   initialState,
-  initialSubscriptionCardContext,
-  prerequisiteLinks,
   reducer,
   stateGraph,
   toBaseCardLifecycle,
-  type Lifecycle as AzureSubscriptionV2Lifecycle,
+  type Lifecycle,
 } from "./stateMachine";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 // What only this card knows: the subscriptions, the pick, and where it is saved.
-export type AzureSubscriptionContext = {
-  blockedBy: readonly (typeof prerequisiteLinks)[number][]; // The prerequisites still to finish, while blocked.
+export type PrivateContext = {
+  blockedBy: { cardId: CardId; label: string }[]; // The prerequisites still to finish, while blocked, labelled "Title (card_id)" from AppContext.
   tenantId: string | null;
   subscriptions: Subscription[];
   selectedSubscriptionId: string;
@@ -44,13 +43,13 @@ export type AzureSubscriptionContext = {
   differsFromGithub: boolean; // The pick or tenant isn't what GitHub holds, whatever the draft says.
 };
 
-export interface UseAzureSubscriptionCardV2 extends CardHook {
+export interface UseCard extends CardHook {
   readonly cardId: "azure_subscription_v2";
   shared: SharedCard<"azure_subscription_v2">;
   summary: string;
   cardDependencyLabel: string;
-  baseCardContext: BaseCardContext<AzureSubscriptionV2Lifecycle>;
-  azureSubscriptionContext: AzureSubscriptionContext;
+  baseCardContext: BaseCardContext<Lifecycle>;
+  privateContext: PrivateContext;
 }
 
 // Maps a raw MSAL/AADSTS failure to user-facing text — never surface the raw trace/correlation-id blob.
@@ -64,15 +63,17 @@ function friendlySubsError(err: unknown): string {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscriptionCardV2 {
+export default function useCard(appStore: AppContext): UseCard {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatchLifecycle] = useReducer(reducer, initialState);
-  const prerequisiteContext = { ...initialSubscriptionCardContext, lifecycle: toBaseCardLifecycle(state.lifecycle) };
-  const prerequisites = getSubscriptionPrerequisites(appContext, prerequisiteContext);
+  const prerequisiteContext = { ...initialCardContext, lifecycle: toBaseCardLifecycle(state.lifecycle) };
+  const prerequisites = getPrerequisites(appContext, prerequisiteContext);
   const missing = checkPrerequisites(appContext, prerequisiteContext);
-  const missingLinks = prerequisiteLinks.filter((link) => missing.includes(link.cardId));
-  // Azure login 2 can be complete without an account in AppContext yet; its link is still the way on.
-  const blockedBy = missingLinks.length > 0 ? missingLinks : prerequisiteLinks.slice(0, 1);
+  // Azure login 2 can be complete without an account in AppContext yet; it is still the way on.
+  const blockedBy = (missing.length > 0 ? missing : initialCardContext.prerequisiteIds.slice(0, 1)).map((id) => {
+    const prerequisite = appContext.cards[id as CardId];
+    return { cardId: id as CardId, label: prerequisite?.initialised ? `${prerequisite.title} (${id})` : id };
+  });
   const account = prerequisites?.account ?? null;
   const tenantId = prerequisites?.tenantId ?? null;
   const key = account && tenantId ? `${account.homeAccountId}|${tenantId}` : null;
@@ -146,14 +147,14 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
     unsaved: "Doesn't match what's saved to GitHub", // The header can't see the draft, so it states only what is true either way.
     saved: selectedSubscription?.displayName ?? "Subscription saved",
     error: subsError ?? "No subscriptions in this tenant",
-  } satisfies Record<AzureSubscriptionV2Lifecycle, string>)[lifecycle];
+  } satisfies Record<Lifecycle, string>)[lifecycle];
 
   const baseCardContext = {
-    ...initialSubscriptionCardContext,
+    ...initialCardContext,
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),
     stateMachine: { graph: stateGraph, currentState: lifecycle },
-  } satisfies BaseCardContext<AzureSubscriptionV2Lifecycle>;
+  } satisfies BaseCardContext<Lifecycle>;
 
   return {
     cardId: "azure_subscription_v2" as const,
@@ -167,7 +168,7 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
       status: baseCardContext.lifecycle,
       azureSubscription: sharedSubscription,
     } satisfies SharedCard<"azure_subscription_v2">,
-    azureSubscriptionContext: {
+    privateContext: {
       blockedBy,
       tenantId,
       subscriptions,

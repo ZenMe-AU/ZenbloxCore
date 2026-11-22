@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Box, CircularProgress, Link, MenuItem, Select, Typography } from "@mui/material";
+import { Box, CircularProgress, Link, MenuItem, Select, Typography, useTheme } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import BaseCard from "../../components/BaseCard";
@@ -14,11 +14,11 @@ import { AZURE_TARGET_KEYS } from "../../logic/variables";
 import type { CardChrome } from "../../types";
 import CloudVariableDetailV2 from "../CloudVariableDetailV2";
 import { azureLoginCardId } from "./stateMachine";
-import type { UseAzureSubscriptionCardV2 } from "./useAzureSubscriptionCardV2";
+import type { UseCard } from "./useAzureSubscriptionCardV2";
 
 type Props = {
   cardChrome: CardChrome;
-  subscription: UseAzureSubscriptionCardV2;
+  card: UseCard;
 };
 
 function Intro() {
@@ -39,38 +39,63 @@ function SaveHint({ children }: { children: string }) {
   );
 }
 
-function BlockedContent({ subscription, cardChrome }: {
-  subscription: UseAzureSubscriptionCardV2;
-  cardChrome: CardChrome;
-}) {
+function BlockedContent({ card, cardChrome }: Props) {
+  const theme = useTheme();
+  const colors = theme.vars.palette.card;
   return (
-    <Box role="status" sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
-      {subscription.azureSubscriptionContext.blockedBy.map((link) => (
-        <Link key={link.cardId} component="button" type="button" onClick={() => cardChrome.onRequirementClick(link.cardId)}>
-          {link.label}
-        </Link>
-      ))}
-    </Box>
+    <>
+      <Intro />
+      <Box
+        role="status"
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.75,
+          px: 1.75,
+          py: 1.5,
+          background: colors.requirementPanel,
+          border: `1px solid ${theme.vars.palette.divider}`,
+          borderRadius: "8px",
+        }}
+      >
+        <Typography sx={{ typography: "body1", color: theme.vars.palette.text.secondary }}>
+          The following prerequisites are incomplete.
+        </Typography>
+        {card.privateContext.blockedBy.map((prerequisite) => (
+          <Link
+            key={prerequisite.cardId}
+            component="button"
+            type="button"
+            onClick={() => cardChrome.onRequirementClick(prerequisite.cardId)}
+            sx={{ alignSelf: "flex-start", fontWeight: 500 }}
+          >
+            {prerequisite.label}
+          </Link>
+        ))}
+      </Box>
+    </>
   );
 }
 
-function Action({ subscriptionId, tenantId }: { subscriptionId: string; tenantId?: string }) {
+function Action({ card }: Pick<Props, "card">) {
+  const { selectedSubscriptionId: subscriptionId, tenantId } = card.privateContext;
   return (
     <ViewLink
-      href={subscriptionId ? getAzureSubscriptionUrl(tenantId, subscriptionId) : AZURE_SUBSCRIPTIONS_URL}
+      href={subscriptionId ? getAzureSubscriptionUrl(tenantId ?? undefined, subscriptionId) : AZURE_SUBSCRIPTIONS_URL}
       label={subscriptionId ? "Open Azure subscription" : "Browse Azure subscriptions"}
     />
   );
 }
 
-function AzureSubscriptionContent({ subscription, cardChrome }: Props) {
-  const { azureSubscriptionContext } = subscription;
-  const { tenantId, subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, github } = azureSubscriptionContext;
-  const lifecycle = subscription.baseCardContext.lifecycle;
+function Content({ card, cardChrome }: Props) {
+  const { baseCardContext, privateContext } = card;
+  const { tenantId, subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, github } = privateContext;
+  const lifecycle = baseCardContext.lifecycle;
   const openAzureLogin = () => cardChrome.onRequirementClick(azureLoginCardId);
 
   return (
     <>
+      <Intro />
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
         <Typography color="text.muted">
           Tenant: <Box component="span" data-sensitive="true" sx={{ color: "text.primary" }}>{tenantId}</Box>
@@ -123,16 +148,16 @@ function AzureSubscriptionContent({ subscription, cardChrome }: Props) {
         <CloudVariableDetailV2
           key={JSON.stringify([github.account.id, github.repoName, github.envName])}
           keys={AZURE_TARGET_KEYS}
-          variables={azureSubscriptionContext.variables}
-          populate={azureSubscriptionContext.populate}
-          populateCounter={azureSubscriptionContext.populateCount}
+          variables={privateContext.variables}
+          populate={privateContext.populate}
+          populateCounter={privateContext.populateCount}
           preserveDirtyOnSync
           hiddenKeys={["VITE_AZURE_TENANT_ID"]}
           title="Saved to GitHub"
           // Edits waiting in the draft come first; otherwise say the pick and GitHub differ, which saving a clean draft can't fix.
           saveHint={({ dirty }) => dirty
             ? <SaveHint>Unsaved change — save to apply.</SaveHint>
-            : azureSubscriptionContext.differsFromGithub
+            : privateContext.differsFromGithub
               ? <SaveHint>Doesn't match what's saved to GitHub — pick the subscription again, then save.</SaveHint>
               : undefined}
         />
@@ -141,21 +166,20 @@ function AzureSubscriptionContent({ subscription, cardChrome }: Props) {
   );
 }
 
-export default function AzureSubscriptionCardV2({ cardChrome, subscription }: Props) {
-  const { baseCardContext, azureSubscriptionContext } = subscription;
+export default function Card({ cardChrome, card }: Props) {
+  const { baseCardContext } = card;
   return (
     <BaseCard
       baseCardContext={baseCardContext}
       expanded={cardChrome.expanded}
       onToggle={cardChrome.onToggle}
-      action={<Action subscriptionId={azureSubscriptionContext.selectedSubscriptionId} tenantId={azureSubscriptionContext.tenantId ?? undefined} />}
+      action={<Action card={card} />}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <Intro />
         {baseCardContext.lifecycle === "blocked" ? (
-          <BlockedContent subscription={subscription} cardChrome={cardChrome} />
+          <BlockedContent card={card} cardChrome={cardChrome} />
         ) : (
-          <AzureSubscriptionContent subscription={subscription} cardChrome={cardChrome} />
+          <Content card={card} cardChrome={cardChrome} />
         )}
       </Box>
     </BaseCard>

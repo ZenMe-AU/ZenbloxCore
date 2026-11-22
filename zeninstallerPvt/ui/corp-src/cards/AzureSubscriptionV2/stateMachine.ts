@@ -27,17 +27,11 @@ export const azureLoginCardId = "azure_login_v2" satisfies CardId;
 export const repoCardId = "repo_v2" satisfies CardId;
 export const githubLoginCardId = "github_login_v2" satisfies CardId;
 
-export const initialSubscriptionCardContext = {
+export const initialCardContext = {
   cardId: "azure_subscription_v2",
   title: "Choose Azure subscription 2",
   prerequisiteIds: [azureLoginCardId, repoCardId],
 } satisfies Omit<BaseCardContext, "lifecycle">;
-
-// What each prerequisite's link says while this card waits for it.
-export const prerequisiteLinks = [
-  { cardId: azureLoginCardId, label: "Sign in to Azure login 2" },
-  { cardId: repoCardId, label: "Choose a repository & environment 2" },
-] as const;
 
 export type Lifecycle = "blocked" | "loading" | "selecting" | "unsaved" | "saved" | "error";
 
@@ -90,7 +84,7 @@ export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
 }
 
 // The signed-in account and confirmed tenant, once Azure login 2 and Repository & environment 2 are complete.
-export function getSubscriptionPrerequisites(
+export function getPrerequisites(
   appContext: ReturnType<AppContext["getSnapshot"]>,
   baseCardContext: BaseCardContext,
 ) {
