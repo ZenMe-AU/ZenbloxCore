@@ -83,18 +83,46 @@ it("shows and hides the read-only diagram from the BaseCard context menu", async
             </ThemeProvider>
         ));
         const card = container.querySelector("#card-proto_card")!;
-        await act(async () => card.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 30, clientY: 40 })));
+        const title = container.querySelector("#card-title-proto_card")!;
+        await act(async () => title.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 30, clientY: 40 })));
         const showItem = document.body.querySelector('[role="menuitemcheckbox"]');
-        expect(showItem?.textContent).toContain("Show read-only state diagram");
+        expect(showItem?.textContent).toContain("Show state diagram");
         await act(async () => (showItem as HTMLElement)?.click());
         expect(container.querySelector("#card-content-proto_card svg")).not.toBeNull();
         expect(container.querySelector("#card-content-proto_card")?.firstElementChild?.querySelector("svg")).not.toBeNull();
 
         await act(async () => card.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 30, clientY: 40 })));
         const hideItem = document.body.querySelector('[role="menuitemcheckbox"]');
-        expect(hideItem?.textContent).toContain("Hide read-only state diagram");
+        expect(hideItem?.textContent).toContain("Hide state diagram");
         await act(async () => (hideItem as HTMLElement)?.click());
         expect(container.querySelector("#card-content-proto_card svg")).toBeNull();
+
+        await act(async () => container.querySelector("#card-content-proto_card")?.dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, clientX: 30, clientY: 40 }),
+        ));
+        expect(document.body.querySelector('[role="menuitemcheckbox"]')).toBeNull();
+
+        await act(async () => root.render(
+            <ThemeProvider theme={theme}>
+                <BaseCard
+                    baseCardContext={{
+                        cardId: "proto_card",
+                        title: "Diagram test",
+                        lifecycle: "ready",
+                        prerequisiteIds: [],
+                        stateMachine: { graph, currentState: "ready" },
+                    }}
+                    expanded={false}
+                    onToggle={() => { }}
+                >
+                    <p>Card content</p>
+                </BaseCard>
+            </ThemeProvider>
+        ));
+        await act(async () => container.querySelector("#card-title-proto_card")?.dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, clientX: 30, clientY: 40 }),
+        ));
+        expect(document.body.querySelector('[role="menuitemcheckbox"]')).toBeNull();
     } finally {
         await act(async () => root.unmount());
         container.remove();

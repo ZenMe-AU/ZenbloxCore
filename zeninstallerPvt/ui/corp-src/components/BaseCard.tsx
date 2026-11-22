@@ -66,10 +66,6 @@ export default function BaseCard<StateId extends string = Lifecycle>({
   return (
     <Box
       id={`card-${cardId}`}
-      onContextMenu={stateMachine ? (event) => {
-        event.preventDefault();
-        setContextMenu({ mouseX: event.clientX + 2, mouseY: event.clientY - 6 });
-      } : undefined}
       sx={{
         boxSizing: "border-box",
         width: "100%",
@@ -103,11 +99,15 @@ export default function BaseCard<StateId extends string = Lifecycle>({
             <ListItemIcon>
               {showStateDiagram ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
             </ListItemIcon>
-            <ListItemText>{showStateDiagram ? "Hide read-only state diagram" : "Show read-only state diagram"}</ListItemText>
+            <ListItemText>{showStateDiagram ? "Hide state diagram" : "Show state diagram"}</ListItemText>
           </MenuItem>
         </Menu>
       )}
       <Box
+        onContextMenu={expanded && stateMachine ? (event) => {
+          event.preventDefault();
+          setContextMenu({ mouseX: event.clientX + 2, mouseY: event.clientY - 6 });
+        } : undefined}
         onPointerDown={(event) => {
           pointerStart.current = { x: event.clientX, y: event.clientY };
         }}
