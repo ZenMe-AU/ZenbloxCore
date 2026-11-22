@@ -9,12 +9,13 @@ import { listTenants } from "../../api/azureGraph";
 import { ARM_SCOPES, AZURE_CLIENT_ID, LOGIN_SCOPES } from "../../config/azureConfig";
 import { tenantDisplayName } from "../../logic/tenant";
 import type { SharedCard } from "../../appContext";
-import type { BaseCardContext } from "../../components/useBaseCard";
+import type { BaseCardContext } from "../../components/basecardlifecycle";
 import type { AzureAccount, AzureTenant, CardHook, CardStatus, LoginHook } from "../../types";
 import {
   deriveLifecycle,
   initialState,
   reducer,
+  stateGraph,
   toBaseCardLifecycle,
   type Lifecycle as AzureLoginV2Lifecycle,
 } from "./stateMachine";
@@ -28,7 +29,7 @@ export interface UseAzureLoginCardV2 extends CardHook, LoginHook<AzureAccount> {
   readonly cardId: "azure_login_v2";
   summary: string;
   cardDependencyLabel: string;
-  baseCardContext: BaseCardContext;
+  baseCardContext: BaseCardContext<AzureLoginV2Lifecycle>;
   machineLifecycle: AzureLoginV2Lifecycle;
   shared: SharedCard;
 
@@ -309,7 +310,8 @@ export function useAzureLoginCardV2(): UseAzureLoginCardV2 {
     prerequisiteIds: [],
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),
-  } satisfies BaseCardContext;
+    stateMachine: { graph: stateGraph, currentState: lifecycle },
+  } satisfies BaseCardContext<AzureLoginV2Lifecycle>;
 
   return {
     // cardHook

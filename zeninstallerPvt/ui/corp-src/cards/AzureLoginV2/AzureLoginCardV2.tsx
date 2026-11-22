@@ -16,7 +16,6 @@ import StatusText from "../../components/StatusText";
 import type { CardChrome } from "../../types";
 import type { UseAzureLoginCardV2 } from "./useAzureLoginCardV2";
 import { tenantDisplayName } from "../../logic/tenant";
-import { stateGraph } from "./stateMachine";
 
 // The same links as AzureLogin's config, kept here so this card does not depend on that folder.
 const CREATE_ACCOUNT_URL = `${import.meta.env.VITE_DOCS_URL ?? ""}/Creating_AZURE_account`;
@@ -208,7 +207,6 @@ export default function AzureLoginCardV2({ cardChrome, azureLogin }: Props) {
       baseCardContext={azureLogin.baseCardContext}
       expanded={cardChrome.expanded}
       onToggle={cardChrome.onToggle}
-      stateDiagram={{ graph: stateGraph, currentState: azureLogin.machineLifecycle }}
       descriptionId={unconfigured ? "azure-login-v2-config-error" : undefined}
       action={unconfigured ? undefined : <Action />}
     >

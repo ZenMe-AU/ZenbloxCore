@@ -82,7 +82,6 @@ it("shows and hides the read-only diagram from the BaseCard context menu", async
                 </BaseCard>
             </ThemeProvider>
         ));
-        const card = container.querySelector("#card-proto_card")!;
         const title = container.querySelector("#card-title-proto_card")!;
         await act(async () => title.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 30, clientY: 40 })));
         const showItem = document.body.querySelector('[role="menuitemcheckbox"]');
@@ -91,7 +90,7 @@ it("shows and hides the read-only diagram from the BaseCard context menu", async
         expect(container.querySelector("#card-content-proto_card svg")).not.toBeNull();
         expect(container.querySelector("#card-content-proto_card")?.firstElementChild?.querySelector("svg")).not.toBeNull();
 
-        await act(async () => card.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 30, clientY: 40 })));
+        await act(async () => title.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 30, clientY: 40 })));
         const hideItem = document.body.querySelector('[role="menuitemcheckbox"]');
         expect(hideItem?.textContent).toContain("Hide state diagram");
         await act(async () => (hideItem as HTMLElement)?.click());
