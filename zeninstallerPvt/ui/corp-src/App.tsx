@@ -547,6 +547,8 @@ function AppDashboard() {
 
               <CreateAdminUsersCard card={cardProps("create_admin_users")} adminUsers={adminUsers} />
 
+              <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
+
               <RemoteTerminalInfraCard
                 card={cardProps("remote_terminal_infra")}
                 infra={remoteTerminalInfra}
@@ -644,8 +646,6 @@ function AppDashboard() {
                 {...privAvdTarget}
                 variables={githubVariables}
               />
-
-              <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
             </Box>
           </Box>
         </Box >
