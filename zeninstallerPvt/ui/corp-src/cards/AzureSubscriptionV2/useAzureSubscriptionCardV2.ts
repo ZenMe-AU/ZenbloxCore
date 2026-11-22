@@ -26,15 +26,9 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseAzureSubscriptionCardV2 extends CardHook {
-  readonly cardId: "azure_subscription_v2";
-  summary: string;
-  cardDependencyLabel: string;
-  baseCardContext: BaseCardContext<AzureSubscriptionV2Lifecycle>;
-  machineLifecycle: AzureSubscriptionV2Lifecycle;
+// What only this card knows: the subscriptions, the pick, and where it is saved.
+export type AzureSubscriptionContext = {
   blockedBy: readonly (typeof prerequisiteLinks)[number][]; // The prerequisites still to finish, while blocked.
-  shared: SharedCard<"azure_subscription_v2">;
-
   tenantId: string | null;
   subscriptions: Subscription[];
   selectedSubscriptionId: string;
@@ -48,6 +42,15 @@ export interface UseAzureSubscriptionCardV2 extends CardHook {
   variables: UseGithubVariablesV2;
   populate: Record<string, string> | undefined;
   differsFromGithub: boolean; // The pick or tenant isn't what GitHub holds, whatever the draft says.
+};
+
+export interface UseAzureSubscriptionCardV2 extends CardHook {
+  readonly cardId: "azure_subscription_v2";
+  shared: SharedCard<"azure_subscription_v2">;
+  summary: string;
+  cardDependencyLabel: string;
+  baseCardContext: BaseCardContext<AzureSubscriptionV2Lifecycle>;
+  azureSubscriptionContext: AzureSubscriptionContext;
 }
 
 // Maps a raw MSAL/AADSTS failure to user-facing text — never surface the raw trace/correlation-id blob.
@@ -153,30 +156,29 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
   } satisfies BaseCardContext<AzureSubscriptionV2Lifecycle>;
 
   return {
-    // cardHook
     cardId: "azure_subscription_v2" as const,
     status,
     summary,
     cardDependencyLabel: "Select a subscription",
     done,
-    // extra
     baseCardContext,
-    machineLifecycle: lifecycle,
-    blockedBy,
     shared: {
       title: baseCardContext.title,
       status: baseCardContext.lifecycle,
       azureSubscription: sharedSubscription,
     } satisfies SharedCard<"azure_subscription_v2">,
-    tenantId,
-    subscriptions,
-    selectedSubscriptionId,
-    setSelectedSubscriptionId,
-    populateCount,
-    subsError,
-    github,
-    variables,
-    populate,
-    differsFromGithub,
+    azureSubscriptionContext: {
+      blockedBy,
+      tenantId,
+      subscriptions,
+      selectedSubscriptionId,
+      setSelectedSubscriptionId,
+      populateCount,
+      subsError,
+      github,
+      variables,
+      populate,
+      differsFromGithub,
+    },
   };
 }
