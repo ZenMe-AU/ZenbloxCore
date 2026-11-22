@@ -33,7 +33,6 @@ export interface UseAzureSubscriptionCardV2 extends CardHook {
   baseCardContext: BaseCardContext<AzureSubscriptionV2Lifecycle>;
   machineLifecycle: AzureSubscriptionV2Lifecycle;
   blockedBy: readonly (typeof prerequisiteLinks)[number][]; // The prerequisites still to finish, while blocked.
-  shared: SharedCard<"azure_subscription_v2">;
 
   tenantId: string | null;
   subscriptions: Subscription[];
@@ -133,9 +132,6 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
     : undefined;
   const differsFromGithub = lifecycle === "unsaved" && !variables.loading;
   const status: CardStatus = done ? "complete" : lifecycle === "error" || lifecycle === "unsaved" ? "warning" : lifecycle === "loading" ? "loading" : "idle";
-  const sharedSubscription = done && selectedSubscription
-    ? { id: selectedSubscription.id, displayName: selectedSubscription.displayName, tenantId: selectedSubscription.tenantId }
-    : null;
   const summary = ({
     blocked: blockedBy[0].label,
     loading: "Loading subscriptions...",
@@ -151,6 +147,15 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
     lifecycle: toBaseCardLifecycle(lifecycle),
     stateMachine: { graph: stateGraph, currentState: lifecycle },
   } satisfies BaseCardContext<AzureSubscriptionV2Lifecycle>;
+  useEffect(() => {
+    appStore.update("azure_subscription_v2", {
+      title: baseCardContext.title,
+      status: baseCardContext.lifecycle,
+      azureSubscription: done && selectedSubscription
+        ? { id: selectedSubscription.id, displayName: selectedSubscription.displayName, tenantId: selectedSubscription.tenantId }
+        : null,
+    } satisfies SharedCard<"azure_subscription_v2">);
+  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, done, selectedSubscription]);
 
   return {
     // cardHook
@@ -163,11 +168,6 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
     baseCardContext,
     machineLifecycle: lifecycle,
     blockedBy,
-    shared: {
-      title: baseCardContext.title,
-      status: baseCardContext.lifecycle,
-      azureSubscription: sharedSubscription,
-    } satisfies SharedCard<"azure_subscription_v2">,
     tenantId,
     subscriptions,
     selectedSubscriptionId,

@@ -8,7 +8,7 @@ import { cleanTenantId, getMsal, getToken, LOGIN_AUTHORITY, MSA_TENANT, PINNED_T
 import { listTenants } from "../../api/azureGraph";
 import { ARM_SCOPES, AZURE_CLIENT_ID, LOGIN_SCOPES } from "../../config/azureConfig";
 import { tenantDisplayName } from "../../logic/tenant";
-import type { SharedCard } from "../../appContext";
+import type { AppContext, SharedCard } from "../../appContext";
 import type { BaseCardContext } from "../../components/basecardlifecycle";
 import type { AzureAccount, AzureTenant, CardHook, CardStatus, LoginHook } from "../../types";
 import {
@@ -33,7 +33,6 @@ export interface UseAzureLoginCardV2 extends CardHook, LoginHook<AzureAccount> {
   cardDependencyLabel: string;
   baseCardContext: BaseCardContext<AzureLoginV2Lifecycle>;
   machineLifecycle: AzureLoginV2Lifecycle;
-  shared: SharedCard<typeof cardId>;
 
   login: () => Promise<void>;
   logout: () => Promise<void>;
@@ -66,7 +65,7 @@ function friendlyTenantError(err: unknown): string {
  * It leaves out the parts that belong to the original card's neighbours: the saved-tenant auto-apply from
  * the GitHub variables, the URL restore, the app-registration result's MSA tenant, and setActiveAzureIdentity.
  */
-export function useAzureLoginCardV2(): UseAzureLoginCardV2 {
+export function useAzureLoginCardV2(appStore: AppContext): UseAzureLoginCardV2 {
   const [account, setAccount] = useState<AzureAccount | null>(null);
   const [tenants, setTenants] = useState<AzureTenant[]>([]);
   const [loggingIn, setLoggingIn] = useState(true);
@@ -314,13 +313,20 @@ export function useAzureLoginCardV2(): UseAzureLoginCardV2 {
     lifecycle: toBaseCardLifecycle(lifecycle),
     stateMachine: { graph: stateGraph, currentState: lifecycle },
   } satisfies BaseCardContext<AzureLoginV2Lifecycle>;
-  const sharedAzureAccount = account && {
-    homeAccountId: account.homeAccountId,
-    environment: account.environment,
-    tenantId: account.tenantId,
-    localAccountId: account.localAccountId,
-    username: account.username,
-  };
+  useEffect(() => {
+    appStore.update(cardId, {
+      title: baseCardContext.title,
+      status: baseCardContext.lifecycle,
+      azureAccount: account && {
+        homeAccountId: account.homeAccountId,
+        environment: account.environment,
+        tenantId: account.tenantId,
+        localAccountId: account.localAccountId,
+        username: account.username,
+      },
+      azureTenantId: done ? tenantId : null,
+    } satisfies SharedCard<typeof cardId>);
+  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, account, done, tenantId]);
 
   return {
     // cardHook
@@ -339,12 +345,6 @@ export function useAzureLoginCardV2(): UseAzureLoginCardV2 {
     // extra
     baseCardContext,
     machineLifecycle: lifecycle,
-    shared: {
-      title: baseCardContext.title,
-      status: baseCardContext.lifecycle,
-      azureAccount: sharedAzureAccount,
-      azureTenantId: done ? tenantId : null,
-    } satisfies SharedCard<typeof cardId>,
     loginError,
     redirecting,
     tenants,

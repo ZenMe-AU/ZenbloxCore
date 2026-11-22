@@ -69,7 +69,7 @@ it("lets ProtoCard observe existing and later card data and status changes", asy
   try {
     await act(async () => root.render(<Harness />));
     expect(latest?.appContext.cards.repo).toBeUndefined();
-    expect(latest?.shared).toEqual({ title: "ProtoCard prototype card", status: "loading" });
+    expect(store.getSnapshot().cards.proto_card).toMatchObject({ initialised: true, title: "ProtoCard prototype card", status: "loading" });
     await act(async () => store.update("repo", { title: "Repository & environment", status: "loading" }));
     expect(latest?.appContext.cards.repo).toEqual({ initialised: true, title: "Repository & environment", status: "loading" });
     await act(async () => store.update("repo", { title: "Repository & environment", status: "complete" }));

@@ -11,7 +11,7 @@ import { parse } from "yaml";
 import type { Lifecycle } from "../../components/useBaseCard";
 import { createAppContext, SensitiveToken } from "../../appContext";
 import theme from "../../theme";
-import ProtoCard from "./ProtoCard";
+import { ProtoCardView } from "./ProtoCard";
 import { useProtoCard, type UseProtoCard } from "./useProtoCard";
 import { canLifecycleTransition, getBaseCardContext, initialState, reducer as protoReducer } from "./stateMachine";
 
@@ -72,7 +72,6 @@ describe("ProtoCard state machine", () => {
     const protoCard: UseProtoCard = {
       cardId: "proto_card",
       status: "loading",
-      shared: { title: "Context title", status: "loading" },
       appContext: appStore.getSnapshot(),
       summary: "Checking prerequisites...",
       done: false,
@@ -83,7 +82,7 @@ describe("ProtoCard state machine", () => {
     try {
       await act(async () => root.render(
         <ThemeProvider theme={theme}>
-          <ProtoCard
+          <ProtoCardView
             protoCard={protoCard}
             cardChrome={{
               cardId: "github_login",
@@ -122,7 +121,6 @@ describe("ProtoCard state machine", () => {
     const protoCard: UseProtoCard = {
       cardId: "proto_card",
       status: "idle",
-      shared: { title: state.baseCardContext.title, status: "blocked" },
       appContext: appStore.getSnapshot(),
       done: false,
       baseCardContext: getBaseCardContext(state),
@@ -132,7 +130,7 @@ describe("ProtoCard state machine", () => {
     try {
       await act(async () => root.render(
         <ThemeProvider theme={theme}>
-          <ProtoCard
+          <ProtoCardView
             protoCard={protoCard}
             cardChrome={{
               cardId: "proto_card",
@@ -197,7 +195,7 @@ describe("ProtoCard state machine", () => {
       latest = useProtoCard(store);
       return (
         <ThemeProvider theme={theme}>
-          <ProtoCard protoCard={latest} cardChrome={{
+          <ProtoCardView protoCard={latest} cardChrome={{
             cardId: "proto_card", status: latest.status, locked: false, requirements: [],
             unavailable: false, expanded: true, onToggle: () => { }, onRequirementClick: () => { },
           }} />
@@ -302,7 +300,6 @@ describe("ProtoCard state machine", () => {
     document.body.appendChild(container);
     let root = createRoot(container);
     const onRequirementClick = vi.fn();
-    const onToggle = vi.fn();
     let latest: UseProtoCard | undefined;
 
     function Harness() {
@@ -310,7 +307,7 @@ describe("ProtoCard state machine", () => {
       latest = protoCard;
       return (
         <ThemeProvider theme={theme}>
-          <ProtoCard
+          <ProtoCardView
             protoCard={protoCard}
             cardChrome={{
               cardId: "proto_card",
@@ -320,7 +317,7 @@ describe("ProtoCard state machine", () => {
               requirements: [{ label: "Legacy prerequisite", target: "github_login" }],
               unavailable: protoCard.status === "unavailable",
               expanded: true,
-              onToggle,
+              onToggle: () => { },
               onRequirementClick,
             }}
           />
@@ -400,8 +397,10 @@ describe("ProtoCard state machine", () => {
       expect(prerequisitesToggle?.getAttribute("aria-expanded")).toBe("false");
       expect(resultsToggle?.getAttribute("aria-expanded")).toBe("true");
       await openPrerequisites();
-      await act(async () => container.querySelector<HTMLButtonElement>("#card-title-proto_card button")?.click());
-      expect(onToggle).toHaveBeenCalledOnce();
+      const cardToggle = container.querySelector<HTMLButtonElement>("#card-title-proto_card button");
+      expect(cardToggle?.getAttribute("aria-expanded")).toBe("false");
+      await act(async () => cardToggle?.click());
+      expect(cardToggle?.getAttribute("aria-expanded")).toBe("true");
       await act(async () => {
         latest?.dispatch({ type: "card-prerequisite", index: 0, cardId: "repo_v2" });
         appStore.update("repo_v2", { title: "Repository 2", status: "ready" });

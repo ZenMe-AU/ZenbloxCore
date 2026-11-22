@@ -5,6 +5,7 @@
 
 import { Box, Button, CircularProgress, MenuItem, Select, TextField, Typography } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import type { AppContext } from "../../appContext";
 import BaseCard from "../../components/BaseCard";
 import ViewLink from "../../components/ViewLink";
 import { getEntraOverviewUrl } from "../../logic/consoleUrls";
@@ -13,8 +14,8 @@ import ErrorText from "../../components/ErrorText";
 import ExternalLink from "../../components/ExternalLink";
 import FieldLabel from "../../components/FieldLabel";
 import StatusText from "../../components/StatusText";
-import type { CardChrome } from "../../types";
 import type { UseAzureLoginCardV2 } from "./useAzureLoginCardV2";
+import { useAzureLoginCardV2 } from "./useAzureLoginCardV2";
 import { tenantDisplayName } from "../../logic/tenant";
 
 // The same links as AzureLogin's config, kept here so this card does not depend on that folder.
@@ -22,8 +23,7 @@ const CREATE_ACCOUNT_URL = `${import.meta.env.VITE_DOCS_URL ?? ""}/Creating_AZUR
 const TENANT_ID_URL = "https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/Overview";
 
 type Props = {
-  cardChrome: CardChrome;
-  azureLogin: UseAzureLoginCardV2;
+  appCtxStore: AppContext;
 };
 
 function Intro() {
@@ -200,13 +200,12 @@ function AzureLoginContent({ azureLogin }: { azureLogin: UseAzureLoginCardV2 }) 
   );
 }
 
-export default function AzureLoginCardV2({ cardChrome, azureLogin }: Props) {
+export default function AzureLoginCardV2({ appCtxStore }: Props) {
+  const azureLogin = useAzureLoginCardV2(appCtxStore);
   const unconfigured = azureLogin.machineLifecycle === "unconfigured";
   return (
     <BaseCard
       baseCardContext={azureLogin.baseCardContext}
-      expanded={cardChrome.expanded}
-      onToggle={cardChrome.onToggle}
       descriptionId={unconfigured ? "azure-login-v2-config-error" : undefined}
       action={unconfigured ? undefined : <Action />}
     >

@@ -10,20 +10,16 @@ import { type CardChrome, type CardHook, type CardId } from "./types";
 import { groupSx } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./cards/GithubLogin/useGithubLoginCard";
-import { useGithubLoginCardV2 } from "./cards/GithubLoginV2/useGithubLoginCardV2";
 import ProtoCard from "./cards/ProtoCard/ProtoCard";
 import { useGithubSignupCard } from "./cards/GithubSignup/useGithubSignupCard";
 import { useRepoCard } from "./cards/Repo/useRepoCard";
-import { useRepoCardV2 } from "./cards/RepoV2/useRepoCardV2";
 import { useGithubVariables } from "./hooks/useGithubVariables";
 import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useDeploymentPlan } from "./cards/Stage/useDeploymentPlan";
 import { useCorpStageCards } from "./cards/Stage/useCorpStageCards";
 import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
-import { useAzureLoginCardV2 } from "./cards/AzureLoginV2/useAzureLoginCardV2";
 import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
-import { useAzureSubscriptionCardV2 } from "./cards/AzureSubscriptionV2/useAzureSubscriptionCardV2";
 import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
 import { useCreateAdminUsersCard } from "./cards/CreateAdminUsers/useCreateAdminUsersCard";
 import { useCoreInfraCard } from "./cards/CoreInfra/useCoreInfraCard";
@@ -76,7 +72,6 @@ import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
-import { useProtoCard } from "./cards/ProtoCard/useProtoCard";
 import { createAppContext, type SharedCard } from "./appContext";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -85,7 +80,7 @@ const EXPANDED_CARDS_KEY = "zeninstaller_corp_expanded_cards";
 const { save: saveExpandedCards, load: loadExpandedCards } = createResultStorage<CardId[]>(EXPANDED_CARDS_KEY);
 
 function AppDashboard() {
-  const [appStore] = useState(createAppContext);
+  const [appCtxStore] = useState(createAppContext);
   const allCards: Record<string, CardHook> = {};
   const sharedCards: { cardId: CardId; shared: SharedCard }[] = [];
 
@@ -95,10 +90,7 @@ function AppDashboard() {
     return newCard;
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
-  const protoCard = addCard(useProtoCard(appStore));
-
   const githubLogin = addCard(useGithubLoginCard());
-  const githubLoginV2 = addCard(useGithubLoginCardV2());
   const githubSignup = addCard(useGithubSignupCard(githubLogin.done));
 
   const githubRepoEnv = addCard(
@@ -106,7 +98,6 @@ function AppDashboard() {
       user: githubLogin.account,
     })
   );
-  const githubRepoEnvV2 = addCard(useRepoCardV2(appStore));
   const githubVariables = useGithubVariables({
     account: githubRepoEnv.repo.selectedAccount,
     repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
@@ -123,9 +114,6 @@ function AppDashboard() {
       savedTenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
     })
   );
-  // Shares its account and confirmed tenant through appStore only; nothing below reads it yet.
-  const azureLoginV2 = addCard(useAzureLoginCardV2());
-
   // AWS login is unused since the AWS console sign-in stack replaced AWS setup.
   // const awsLogin = addCard(useAwsLoginCard());
 
@@ -144,9 +132,6 @@ function AppDashboard() {
       savedSubscriptionId: githubVariableValues.AZURE_SUBSCRIPTION_ID ?? "",
     })
   );
-  // Reads Azure login 2 from appStore and shares its pick there; nothing below reads it yet.
-  const azureSubscriptionV2 = addCard(useAzureSubscriptionCardV2(appStore));
-
   const azureAppSetup = addCard(
     useAzureAppRegistrationCard({
       azureAccount: azureLogin.account,
@@ -268,7 +253,7 @@ function AppDashboard() {
   const pawDeploy = addCard(usePawDeployCard(privAvdTarget));
 
   useEffect(() => {
-    for (const { cardId, shared } of sharedCards) appStore.update(cardId, shared);
+    for (const { cardId, shared } of sharedCards) appCtxStore.update(cardId, shared);
   });
 
   const plan = useDeploymentPlan({
@@ -351,9 +336,9 @@ function AppDashboard() {
     });
   };
 
-  const cardProps = (id: CardId): CardChrome => {
-    const misconfigured = allCards[id].status === "unavailable";
-    const requirementsForCard = (allCards[id].cardRequirements ?? [])
+  const cardPropsFor = (id: CardId, card: CardHook): CardChrome => {
+    const misconfigured = card.status === "unavailable";
+    const requirementsForCard = (card.cardRequirements ?? [])
       .filter((reqCardId) => !allCards[reqCardId]?.done)
       .map((reqCardId) => ({
         label: allCards[reqCardId].cardDependencyLabel,
@@ -365,8 +350,8 @@ function AppDashboard() {
       cardId: id,
       // A locked card's hook computed its status assuming prerequisites were already met —
       // override to "idle" so it doesn't show e.g. a stale "warning" for work it can't do yet.
-      status: locked ? "idle" : allCards[id].status,
-      summary: allCards[id].summary,
+      status: locked ? "idle" : card.status,
+      summary: card.summary,
       locked,
       requirements,
       unavailable: misconfigured,
@@ -375,7 +360,7 @@ function AppDashboard() {
       onRequirementClick: openCard,
     };
   };
-
+  const cardProps = (id: CardId): CardChrome => cardPropsFor(id, allCards[id]);
   const stageCards = useCorpStageCards({
     pipeline: PIPELINE,
     plan,
@@ -511,18 +496,18 @@ function AppDashboard() {
                 />
               </Box>
 
-              <ProtoCard cardChrome={cardProps(protoCard.baseCardContext.cardId)} protoCard={protoCard} />
+              <ProtoCard appCtxStore={appCtxStore} />
 
               <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
-              <GithubLoginCardV2 cardChrome={cardProps("github_login_v2")} auth={githubLoginV2} />
+              <GithubLoginCardV2 appCtxStore={appCtxStore} />
 
               <GithubSignupCard card={cardProps("github_signup")} signup={githubSignup} onOpenLogin={() => openCard("github_login")} />
 
               <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
-              <RepoCardV2 cardChrome={cardProps("repo_v2")} githubRepo={githubRepoEnvV2} />
+              <RepoCardV2 appCtxStore={appCtxStore} />
 
               <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
-              <AzureLoginCardV2 cardChrome={cardProps("azure_login_v2")} azureLogin={azureLoginV2} />
+              <AzureLoginCardV2 appCtxStore={appCtxStore} />
 
               <AzureSubscriptionCard
                 card={cardProps("azure_subscription")}
@@ -536,7 +521,7 @@ function AppDashboard() {
                 onOpenAzureLogin={() => openCard("azure_login")}
                 onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
               />
-              <AzureSubscriptionCardV2 cardChrome={cardProps("azure_subscription_v2")} subscription={azureSubscriptionV2} />
+              <AzureSubscriptionCardV2 appCtxStore={appCtxStore} />
 
               <AzureAppRegistrationCard
                 card={cardProps("azure_app_registration")}

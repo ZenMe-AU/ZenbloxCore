@@ -3,8 +3,12 @@
  * @license SPDX-License-Identifier: MIT
  */
 
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+import { ThemeProvider } from "@mui/material";
 import { expect, it } from "vitest";
 import { createAppContext, SensitiveToken, type SharedCard } from "../appContext";
+import BaseCard from "../components/BaseCard";
 import { checkPrerequisites } from "../components/useBaseCard";
 import { initialState as initialGithubState, reducer as githubReducer, toBaseCardLifecycle as githubToBaseCardLifecycle } from "../cards/GithubLoginV2/stateMachine";
 import {
@@ -15,6 +19,34 @@ import {
   stateMachine as protoStateMachine,
 } from "../cards/ProtoCard/stateMachine";
 import { initialState as initialRepoState, reducer as repoReducer, toBaseCardLifecycle as repoLifecycle, stateGraph as repoStateGraph } from "../cards/RepoV2/stateMachine";
+import theme from "../theme";
+
+it("owns title expansion and the state-diagram context menu without App controls", async () => {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  const baseCardContext = getBaseCardContext(initialProtoState);
+
+  try {
+    await act(async () => root.render(
+      createElement(ThemeProvider, { theme },
+        createElement(BaseCard, { baseCardContext, children: createElement("div", null, "Card content") })
+      )
+    ));
+
+    const title = container.querySelector<HTMLButtonElement>("#card-title-proto_card button");
+    expect(title?.getAttribute("aria-expanded")).toBe("false");
+    await act(async () => title?.click());
+    expect(title?.getAttribute("aria-expanded")).toBe("true");
+    expect(container.querySelector("#card-content-proto_card")?.textContent).toContain("Card content");
+
+    await act(async () => title?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 10, clientY: 20 })));
+    expect(document.body.querySelector('[role="menuitemcheckbox"]')?.textContent).toContain("Show state diagram");
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
 
 it("maps card-owned states to the shared BaseCard display lifecycle", () => {
   expect(initialProtoState.lifecycle).toBe("loading");

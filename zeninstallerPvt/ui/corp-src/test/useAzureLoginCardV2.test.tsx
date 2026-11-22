@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { act, useEffect } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppContext, type AppContext } from "../appContext";
@@ -64,14 +64,13 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
-// Renders the hook and pushes its shared card into the store the way App's effect does.
+// Render the hook with its AppContext store so publication uses the production path.
 async function renderCard(store: AppContext) {
   const card: { latest?: UseAzureLoginCardV2; history: Lifecycle[]; root?: Root } = { history: [] };
   function Harness() {
-    const value = useAzureLoginCardV2();
+    const value = useAzureLoginCardV2(store);
     card.latest = value;
     if (card.history.at(-1) !== value.machineLifecycle) card.history.push(value.machineLifecycle);
-    useEffect(() => { store.update(value.cardId, value.shared); });
     return null;
   }
   card.root = createRoot(document.createElement("div"));

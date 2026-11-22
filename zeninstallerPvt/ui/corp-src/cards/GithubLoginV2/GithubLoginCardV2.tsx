@@ -13,12 +13,12 @@ import ViewLink from "../../components/ViewLink";
 import { getGithubUserUrl, GITHUB_LOGIN_URL } from "../../logic/github";
 import RefreshButton from "../../components/RefreshButton";
 import { useRefreshIndicator } from "../../hooks/util/useRefreshIndicator";
-import type { CardChrome } from "../../types";
+import type { AppContext } from "../../appContext";
 import type { UseGithubLoginCardV2 } from "./useGithubLoginCardV2";
+import { useGithubLoginCardV2 } from "./useGithubLoginCardV2";
 
 type Props = {
-  cardChrome: CardChrome;
-  auth: UseGithubLoginCardV2;
+  appCtxStore: AppContext;
 };
 
 function Intro() {
@@ -36,7 +36,7 @@ function GithubLoginAction({ login }: { login?: string }) {
   return <ViewLink href={login ? getGithubUserUrl(login) : GITHUB_LOGIN_URL} label={login ? "Open GitHub profile" : "Open GitHub sign-in"} />;
 }
 
-function GithubLoginContent({ auth }: { auth: UseGithubLoginCardV2["githubLoginContext"] }) {
+function GithubLoginContent({ auth }: { auth: UseGithubLoginCardV2["privateContext"] }) {
   const {
     loggingIn: authLoading,
     account: user,
@@ -234,16 +234,19 @@ function GithubLoginContent({ auth }: { auth: UseGithubLoginCardV2["githubLoginC
   );
 }
 
-export default function GithubLoginCardV2({ cardChrome, auth }: Props) {
-  const { baseCardContext, githubLoginContext } = auth;
+export function GithubLoginCardV2View({ auth }: { auth: UseGithubLoginCardV2 }) {
+  const { baseCardContext, privateContext } = auth;
   return (
     <BaseCard
       baseCardContext={baseCardContext}
-      expanded={cardChrome.expanded}
-      onToggle={cardChrome.onToggle}
-      action={<GithubLoginAction login={githubLoginContext.account?.login} />}
+      action={<GithubLoginAction login={privateContext.account?.login} />}
     >
-      <GithubLoginContent auth={githubLoginContext} />
+      <GithubLoginContent auth={privateContext} />
     </BaseCard>
   );
+}
+
+export default function GithubLoginCardV2({ appCtxStore }: Props) {
+  const auth = useGithubLoginCardV2(appCtxStore);
+  return <GithubLoginCardV2View auth={auth} />;
 }

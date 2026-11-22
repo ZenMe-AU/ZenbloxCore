@@ -6,6 +6,7 @@
 import { useRef, useState } from "react";
 import { stringify } from "yaml";
 import { Box, Button, CircularProgress, Link, TextField, Typography, useTheme } from "@mui/material";
+import type { AppContext } from "../../appContext";
 import BaseCard from "../../components/BaseCard";
 import type { StateDiagramLayout } from "../../components/StateDiagram";
 import type { Lifecycle } from "../../components/useBaseCard";
@@ -14,10 +15,15 @@ import ViewLink from "../../components/ViewLink";
 import type { CardChrome, CardId } from "../../types";
 import { canTransition } from "./stateMachine";
 import type { UseProtoCard } from "./useProtoCard";
+import { useProtoCard } from "./useProtoCard";
 
 type Props = {
-  cardChrome: CardChrome;
+  appCtxStore: AppContext;
+};
+
+type ViewProps = {
   protoCard: UseProtoCard;
+  cardChrome?: CardChrome;
 };
 
 const lifecycleNodes: { lifecycle: Lifecycle; label: string; x: number; y: number }[] = [
@@ -292,7 +298,7 @@ function LoadingContent() {
 
 function BlockedContent({ protoCard, cardChrome }: {
   protoCard: UseProtoCard;
-  cardChrome: CardChrome;
+  cardChrome?: CardChrome;
 }) {
   const theme = useTheme();
   const colors = theme.vars.palette.card;
@@ -334,9 +340,10 @@ function BlockedContent({ protoCard, cardChrome }: {
           return registered ? (
             <Link
               key={`${index}-${id}`}
-              component="button"
-              type="button"
-              onClick={() => cardChrome.onRequirementClick(id as CardId)}
+              component={cardChrome ? "button" : "a"}
+              type={cardChrome ? "button" : undefined}
+              href={cardChrome ? undefined : `#card-${id}`}
+              onClick={cardChrome ? () => cardChrome.onRequirementClick(id as CardId) : undefined}
               sx={{ alignSelf: "flex-start", fontWeight: 500 }}
             >
               {label}
@@ -352,7 +359,7 @@ function BlockedContent({ protoCard, cardChrome }: {
   );
 }
 
-export default function ProtoCard({ cardChrome, protoCard }: Props) {
+export function ProtoCardView({ protoCard, cardChrome }: ViewProps) {
   const { baseCardContext, privateContext } = protoCard;
   const { forceUnlocked } = privateContext;
   const showBlockedContent = baseCardContext.lifecycle === "blocked" && !forceUnlocked;
@@ -360,8 +367,6 @@ export default function ProtoCard({ cardChrome, protoCard }: Props) {
   return (
     <BaseCard
       baseCardContext={baseCardContext}
-      expanded={cardChrome.expanded}
-      onToggle={cardChrome.onToggle}
       stateDiagramLayout={lifecycleDiagramLayout}
       action={baseCardContext.lifecycle !== "loading" && !showBlockedContent
         ? <ViewLink href="http://localhost" label="Open External Site" />
@@ -398,4 +403,9 @@ export default function ProtoCard({ cardChrome, protoCard }: Props) {
           )}
     </BaseCard>
   );
+}
+
+export default function ProtoCard({ appCtxStore }: Props) {
+  const protoCard = useProtoCard(appCtxStore);
+  return <ProtoCardView protoCard={protoCard} />;
 }

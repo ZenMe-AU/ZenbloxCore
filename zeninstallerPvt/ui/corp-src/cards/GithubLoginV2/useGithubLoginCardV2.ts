@@ -17,7 +17,7 @@ import {
 } from "../../config/githubConfig";
 import type { CardHook, CardStatus, LoginHook, User } from "../../types";
 import type { BaseCardContext } from "../../components/useBaseCard";
-import { SensitiveToken, type SharedCard } from "../../appContext";
+import { SensitiveToken, type AppContext } from "../../appContext";
 import {
   deriveLifecycle,
   initialState,
@@ -38,7 +38,7 @@ type GithubTokenKey = (typeof GITHUB_TOKEN_KEYS)[number];
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type GithubAuthRecord = { mode: "direct"; token: string } | { mode: "backend" };
 
-export interface GithubLoginContext extends CardHook, LoginHook<User> {
+export interface PrivateContext extends CardHook, LoginHook<User> {
   readonly cardId: "github_login_v2";
   sessionExpired: boolean;
   redirecting: "login" | "logout" | null;
@@ -132,7 +132,7 @@ function writeGithubAuthRecord(record: GithubAuthRecord | null): void {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useGithubLoginCardV2() {
+export function useGithubLoginCardV2(appStore: AppContext) {
   const [loggingIn, setLoggingIn] = useState(true);
   const [account, setAccount] = useState<User | null>(null);
   const [session, setSession] = useState<{ token: SensitiveToken; mode: GithubAuthRecord["mode"] } | null>(null);
@@ -339,7 +339,7 @@ export function useGithubLoginCardV2() {
 
   const cardDependencyLabel: string = "Sign in to GitHub";
 
-  const githubLoginContext: GithubLoginContext = {
+  const privateContext: PrivateContext = {
     // cardHook
     cardId: "github_login_v2" as const,
     status,
@@ -367,8 +367,17 @@ export function useGithubLoginCardV2() {
   if (lifecycle !== state.lifecycle) {
     dispatchLifecycle({ type: "transition", lifecycle });
   }
+  useEffect(() => {
+    appStore.update("github_login_v2", {
+      title: "GitHub login 2",
+      status: toBaseCardLifecycle(lifecycle),
+      githubAccount: account,
+      githubToken: session?.token ?? null,
+      githubMode: session?.mode ?? null,
+    });
+  }, [appStore, lifecycle, account, session]);
   const baseCardContext = {
-    cardId: githubLoginContext.cardId,
+    cardId: privateContext.cardId,
     title: "GitHub login 2",
     prerequisiteIds: [],
     summary,
@@ -376,13 +385,8 @@ export function useGithubLoginCardV2() {
     stateMachine: { graph: stateGraph, currentState: lifecycle },
   } satisfies BaseCardContext<GithubLoginV2Lifecycle>;
   return {
-    ...githubLoginContext,
     baseCardContext,
-    githubLoginContext,
-    shared: {
-      title: baseCardContext.title, status: baseCardContext.lifecycle, githubAccount: account,
-      githubToken: session?.token ?? null, githubMode: session?.mode ?? null,
-    } satisfies SharedCard<"github_login_v2">,
+    privateContext,
   };
 }
 

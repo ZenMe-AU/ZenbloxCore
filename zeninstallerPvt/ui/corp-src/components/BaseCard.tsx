@@ -20,8 +20,8 @@ import StateDiagram, { type StateDiagramLayout } from "./StateDiagram";
 
 type Props<StateId extends string> = {
   baseCardContext: BaseCardContext<StateId>;
-  expanded: boolean;
-  onToggle: () => void;
+  expanded?: boolean;
+  onToggle?: () => void;
   action?: ReactNode;
   descriptionId?: string;
   children: ReactNode;
@@ -41,6 +41,9 @@ const lifecycleLabels: Record<Lifecycle, string> = {
 export default function BaseCard<StateId extends string = Lifecycle>({
   baseCardContext, expanded, onToggle, action, descriptionId, children, stateDiagramLayout,
 }: Props<StateId>) {
+  const [localExpanded, setLocalExpanded] = useState(false);
+  const isExpanded = expanded ?? localExpanded;
+  const toggle = onToggle ?? (() => setLocalExpanded((value) => !value));
   const { cardId, title, summary, lifecycle } = baseCardContext;
   const stateMachine = baseCardContext.stateMachine;
   const theme = useTheme();
@@ -69,7 +72,7 @@ export default function BaseCard<StateId extends string = Lifecycle>({
       sx={{
         boxSizing: "border-box",
         width: "100%",
-        gridColumn: expanded ? "1 / -1" : "auto",
+        gridColumn: isExpanded ? "1 / -1" : "auto",
         maxWidth: "100%",
         border: "1px solid",
         borderColor: muted ? theme.vars.palette.divider : colors.border[colorKey],
@@ -104,7 +107,7 @@ export default function BaseCard<StateId extends string = Lifecycle>({
         </Menu>
       )}
       <Box
-        onContextMenu={expanded && stateMachine ? (event) => {
+        onContextMenu={isExpanded && stateMachine ? (event) => {
           event.preventDefault();
           setContextMenu({ mouseX: event.clientX + 2, mouseY: event.clientY - 6 });
         } : undefined}
@@ -117,12 +120,12 @@ export default function BaseCard<StateId extends string = Lifecycle>({
           const dragged = event.detail > 0 && start && Math.hypot(event.clientX - start.x, event.clientY - start.y) >= 2;
           const selection = dragged ? event.currentTarget.ownerDocument.getSelection() : null;
           if (selection && !selection.isCollapsed && selection.containsNode(event.currentTarget, true)) return;
-          onToggle();
+          toggle();
         }}
         sx={{
           display: "flex",
           alignItems: "center",
-          flexWrap: expanded ? "wrap" : "nowrap",
+          flexWrap: isExpanded ? "wrap" : "nowrap",
           gap: 1.25,
           px: 2,
           py: 1.5,
@@ -138,10 +141,10 @@ export default function BaseCard<StateId extends string = Lifecycle>({
           },
         }}
       >
-        <Typography component="h3" id={titleId} variant="inherit" sx={{ flex: expanded ? "1 1 240px" : 1, minWidth: 0, m: 0, fontWeight: "inherit" }}>
+        <Typography component="h3" id={titleId} variant="inherit" sx={{ flex: isExpanded ? "1 1 240px" : 1, minWidth: 0, m: 0, fontWeight: "inherit" }}>
           <ButtonBase
             disableRipple
-            aria-expanded={expanded}
+            aria-expanded={isExpanded}
             aria-controls={contentId}
             aria-describedby={descriptionId}
             sx={{
@@ -160,7 +163,7 @@ export default function BaseCard<StateId extends string = Lifecycle>({
             }}
           >
             {icon}
-            <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: expanded ? "row" : "column", flexWrap: "wrap", alignItems: expanded ? "baseline" : "stretch", columnGap: 2, rowGap: 0.25 }}>
+            <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: isExpanded ? "row" : "column", flexWrap: "wrap", alignItems: isExpanded ? "baseline" : "stretch", columnGap: 2, rowGap: 0.25 }}>
               <Typography
                 component="span"
                 sx={{
@@ -170,7 +173,7 @@ export default function BaseCard<StateId extends string = Lifecycle>({
                   fontWeight: 600,
                   color: muted ? colors.mutedText : theme.vars.palette.text.primary,
                   letterSpacing: 0,
-                  whiteSpace: expanded ? "normal" : "nowrap",
+                  whiteSpace: isExpanded ? "normal" : "nowrap",
                   overflowWrap: "anywhere",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -189,7 +192,7 @@ export default function BaseCard<StateId extends string = Lifecycle>({
                     color: muted ? colors.mutedText : colors.summary[colorKey],
                     minWidth: 0,
                     maxWidth: "100%",
-                    whiteSpace: expanded ? "normal" : "nowrap",
+                    whiteSpace: isExpanded ? "normal" : "nowrap",
                     overflowWrap: "anywhere",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -206,7 +209,7 @@ export default function BaseCard<StateId extends string = Lifecycle>({
           </ButtonBase>
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0, ml: "auto" }}>
-          {expanded && action && (
+          {isExpanded && action && (
             <Box onClick={(event) => event.stopPropagation()} sx={{ display: "flex", alignItems: "center" }}>
               {action}
             </Box>
@@ -214,8 +217,8 @@ export default function BaseCard<StateId extends string = Lifecycle>({
           <IconButton
             disableRipple
             size="small"
-            aria-label={`${expanded ? "Collapse" : "Expand"} ${title}`}
-            aria-expanded={expanded}
+            aria-label={`${isExpanded ? "Collapse" : "Expand"} ${title}`}
+            aria-expanded={isExpanded}
             aria-controls={contentId}
             aria-describedby={descriptionId}
             sx={{
@@ -229,11 +232,11 @@ export default function BaseCard<StateId extends string = Lifecycle>({
               },
             }}
           >
-            {expanded ? <ExpandLessIcon fontSize="small" aria-hidden="true" /> : <ExpandMoreIcon fontSize="small" aria-hidden="true" />}
+            {isExpanded ? <ExpandLessIcon fontSize="small" aria-hidden="true" /> : <ExpandMoreIcon fontSize="small" aria-hidden="true" />}
           </IconButton>
         </Box>
       </Box>
-      <Collapse in={expanded}>
+      <Collapse in={isExpanded}>
         <Box id={contentId} role="region" aria-labelledby={titleId} sx={{ borderTop: `1px solid ${colors.contentDivider}`, px: 2.5, py: 2.5 }}>
           {stateMachine && showStateDiagram && (
             <StateDiagram graph={stateMachine.graph} currentState={stateMachine.currentState} layout={stateDiagramLayout} />

@@ -5,14 +5,13 @@
 
 import { useCallback, useEffect, useReducer, useSyncExternalStore, type Dispatch } from "react";
 import type { CardHook } from "../../types";
-import type { SharedCard, AppContext } from "../../appContext";
+import type { AppContext } from "../../appContext";
 import { checkPrerequisites } from "../../components/useBaseCard";
 import { getBaseCardContext, initialState, reducer, type Event } from "./stateMachine";
 
 let forceUnlockedForPage = false;
 
 export interface UseProtoCard extends CardHook {
-  shared: SharedCard;
   appContext: ReturnType<AppContext["getSnapshot"]>;
   baseCardContext: ReturnType<typeof getBaseCardContext>;
   privateContext: typeof initialState.privateContext;
@@ -45,9 +44,11 @@ export function useProtoCard(appStore: AppContext): UseProtoCard {
     : baseCardContext.lifecycle === "blocked" ? "idle"
       : baseCardContext.lifecycle === "ready" || baseCardContext.lifecycle === "action" || baseCardContext.lifecycle === "commit"
         ? "warning" : baseCardContext.lifecycle;
+  useEffect(() => {
+    appStore.update("proto_card", { title: baseCardContext.title, status: baseCardContext.lifecycle });
+  }, [appStore, baseCardContext.title, baseCardContext.lifecycle]);
   return {
     cardId: baseCardContext.cardId,
-    shared: { title: baseCardContext.title, status: baseCardContext.lifecycle },
     status,
     summary: baseCardContext.summary,
     done: baseCardContext.done,

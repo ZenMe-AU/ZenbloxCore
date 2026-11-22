@@ -35,6 +35,11 @@ beforeEach(() => {
   api.fetchEnvs.mockResolvedValue([{ id: 3, name: "PROD", url: "https://example.test/env" }]);
 });
 
+function getPublishedRepo(store: ReturnType<typeof createAppContext>) {
+  const entry = store.getSnapshot().cards.repo_v2;
+  return entry?.initialised ? entry : undefined;
+}
+
 async function waitFor(assertion: () => void) {
   const deadline = Date.now() + 2000;
   for (; ;) {
@@ -56,7 +61,7 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
   const root = createRoot(document.createElement("div"));
   try {
     await act(async () => root.render(<Harness />));
-    expect(latest?.shared.status).toBe("blocked");
+    expect(getPublishedRepo(store)?.status).toBe("blocked");
     expect(latest?.baseCardContext.prerequisiteIds).toEqual(["github_login_v2"]);
     expect(latest?.baseCardContext.stateMachine?.currentState).toBe("blocked");
     const token = new SensitiveToken("v2-token");
@@ -72,7 +77,7 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
       { ...login, githubMode: null },
     ] satisfies SharedCard[]) {
       await act(async () => store.update("github_login_v2", incomplete));
-      expect(latest?.shared.status).toBe("blocked");
+      expect(getPublishedRepo(store)?.status).toBe("blocked");
       expect(createRepoApi).not.toHaveBeenCalled();
     }
     await act(async () => store.update("github_login_v2", {
@@ -80,7 +85,7 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
     }));
     await waitFor(() => {
       expect(latest?.repo.repoList).toEqual([{ id: 2, name: "test-repo" }]);
-      expect(latest?.shared.status).toBe("ready");
+      expect(getPublishedRepo(store)?.status).toBe("ready");
     });
     expect(latest?.baseCardContext.stateMachine?.currentState).toBe("ready");
     expect(createRepoApi).toHaveBeenCalledWith(token, "backend");
@@ -88,9 +93,9 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
     await waitFor(() => expect(latest?.env.envList).toHaveLength(1));
     await act(async () => latest?.env.setSelectedEnv({ id: 3, name: "PROD", url: "https://example.test/env" }));
     await waitFor(() => {
-      expect(latest?.shared.status).toBe("complete");
+      expect(getPublishedRepo(store)?.status).toBe("complete");
       expect(latest?.done).toBe(true);
-      expect(latest?.shared.githubRepository).toEqual({
+      expect(getPublishedRepo(store)?.githubRepository).toEqual({
         account: { id: 1, login: "v2-user", type: "User" },
         repository: { id: 2, name: "test-repo" },
         environment: { id: 3, name: "PROD", url: "https://example.test/env" },
@@ -99,19 +104,19 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
     let resolveCheck!: (value: { templateName: string }) => void;
     api.checkTemplate.mockReturnValueOnce(new Promise((resolve) => { resolveCheck = resolve; }));
     await act(async () => latest?.repo.setSelectedRepo({ id: 9, name: "another-repo" }));
-    expect(latest?.shared.status).toBe("action");
-    expect(latest?.shared.githubRepository).toBeNull();
+    expect(getPublishedRepo(store)?.status).toBe("action");
+    expect(getPublishedRepo(store)?.githubRepository).toBeNull();
     expect(latest?.env.selectedEnv).toBeNull();
     await act(async () => store.update("github_login_v2", {
       title: "GitHub login 2", status: "ready", githubAccount: null, githubToken: null, githubMode: null,
     }));
-    expect(latest?.shared.status).toBe("blocked");
+    expect(getPublishedRepo(store)?.status).toBe("blocked");
     expect(latest?.repo.selectedRepo).toBeNull();
     expect(latest?.env.selectedEnv).toBeNull();
     expect(latest?.done).toBe(false);
-    expect(latest?.shared.githubRepository).toBeNull();
+    expect(getPublishedRepo(store)?.githubRepository).toBeNull();
     await act(async () => resolveCheck({ templateName: "ZenMe-AU/ZenbloxCore" }));
-    expect(latest?.shared.status).toBe("blocked");
+    expect(getPublishedRepo(store)?.status).toBe("blocked");
   } finally {
     await act(async () => root.unmount());
   }
@@ -135,7 +140,7 @@ it("ignores an old account request after switching GitHub sessions", async () =>
   try {
     await act(async () => root.render(<Harness />));
     await act(async () => publish("old-user"));
-    expect(latest?.shared.status).toBe("action");
+    expect(getPublishedRepo(store)?.status).toBe("action");
     await act(async () => publish("new-user"));
     await waitFor(() => expect(latest?.repo.selectedAccount?.login).toBe("v2-user"));
     await act(async () => resolveOld([{ id: 5, login: "old-user", type: "User" }]));
@@ -163,12 +168,12 @@ it("reports an account loading failure and recovers on refresh", async () => {
       githubToken: new SensitiveToken("token"), githubMode: "direct",
     }));
     await waitFor(() => {
-      expect(latest?.shared.status).toBe("error");
+      expect(getPublishedRepo(store)?.status).toBe("error");
       expect(latest?.summary).toBe("Could not load GitHub accounts");
     });
     await act(async () => latest?.repo.onRefresh());
     await waitFor(() => {
-      expect(latest?.shared.status).toBe("ready");
+      expect(getPublishedRepo(store)?.status).toBe("ready");
       expect(latest?.repo.repoList).toHaveLength(1);
     });
   } finally {

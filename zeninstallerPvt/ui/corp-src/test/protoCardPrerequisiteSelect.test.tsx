@@ -8,7 +8,7 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { expect, it, vi } from "vitest";
 import { createAppContext } from "../appContext";
-import ProtoCard from "../cards/ProtoCard/ProtoCard";
+import { ProtoCardView } from "../cards/ProtoCard/ProtoCard";
 import { getBaseCardContext, initialState, reducer } from "../cards/ProtoCard/stateMachine";
 import type { UseProtoCard } from "../cards/ProtoCard/useProtoCard";
 import theme from "../theme";
@@ -23,7 +23,6 @@ it("offers only registered prerequisite IDs and dispatches the selected ID", asy
     const protoCard: UseProtoCard = {
         cardId: "proto_card",
         status: "warning",
-        shared: { title: "ProtoCard prototype card", status: "ready" },
         summary: "Ready to proceed",
         done: false,
         appContext: store.getSnapshot(),
@@ -37,7 +36,7 @@ it("offers only registered prerequisite IDs and dispatches the selected ID", asy
     try {
         await act(async () => root.render(
             <ThemeProvider theme={theme}>
-                <ProtoCard
+                <ProtoCardView
                     protoCard={protoCard}
                     cardChrome={{
                         cardId: "proto_card",
@@ -82,7 +81,6 @@ it("links a failed registered prerequisite to its card", async () => {
     const protoCard: UseProtoCard = {
         cardId: "proto_card",
         status: "idle",
-        shared: { title: "ProtoCard prototype card", status: "blocked" },
         summary: "Blocked due to incomplete prerequisites: repo_v2",
         done: false,
         appContext: store.getSnapshot(),
@@ -97,7 +95,7 @@ it("links a failed registered prerequisite to its card", async () => {
     try {
         await act(async () => root.render(
             <ThemeProvider theme={theme}>
-                <ProtoCard
+                <ProtoCardView
                     protoCard={protoCard}
                     cardChrome={{
                         cardId: "proto_card",
@@ -136,7 +134,6 @@ it("undoes force-unlock when its status message is clicked", async () => {
     const protoCard: UseProtoCard = {
         cardId: "proto_card",
         status: "idle",
-        shared: { title: "ProtoCard prototype card", status: "blocked" },
         summary: "Blocked due to incomplete prerequisites: repo_v2",
         done: false,
         appContext: store.getSnapshot(),
@@ -150,7 +147,7 @@ it("undoes force-unlock when its status message is clicked", async () => {
     try {
         await act(async () => root.render(
             <ThemeProvider theme={theme}>
-                <ProtoCard
+                <ProtoCardView
                     protoCard={protoCard}
                     cardChrome={{
                         cardId: "proto_card",

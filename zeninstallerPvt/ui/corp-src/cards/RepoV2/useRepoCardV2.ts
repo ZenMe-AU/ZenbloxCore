@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useMemo, useReducer, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useReducer, useSyncExternalStore } from "react";
 import type { CardHook, CardStatus } from "../../types";
 import type { SharedCard, AppContext } from "../../appContext";
 import type { BaseCardContext } from "../../components/useBaseCard";
@@ -25,7 +25,6 @@ import {
 
 export interface UseRepoCardV2 extends CardHook {
   readonly cardId: "repo_v2";
-  shared: SharedCard<"repo_v2">;
   baseCardContext: BaseCardContext<Lifecycle>;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
   githubEnvUrl: string | undefined;
@@ -101,23 +100,30 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
   const done = isRepoReady && isEnvReady && !errorSummary && !busySummary;
   const lifecycle: Lifecycle = !prerequisites ? "blocked" : errorSummary ? "error" : busySummary ? "action" : done ? "complete" : "ready";
   if (lifecycle !== state.lifecycle) dispatchLifecycle({ type: "transition", lifecycle });
-  const sharedGithubRepository = done && githubRepo.selectedAccount && githubRepo.selectedRepo && env.selectedEnv
-    ? {
-      account: {
-        id: githubRepo.selectedAccount.id,
-        login: githubRepo.selectedAccount.login,
-        type: githubRepo.selectedAccount.type,
-      },
-      repository: { id: githubRepo.selectedRepo.id, name: githubRepo.selectedRepo.name },
-      environment: { id: env.selectedEnv.id, name: env.selectedEnv.name, url: env.selectedEnv.url },
-    }
-    : null;
   const baseCardContext = {
     ...initialRepoCardContext,
     lifecycle: toBaseCardLifecycle(lifecycle),
     stateMachine: { graph: stateGraph, currentState: lifecycle },
     summary: lifecycle === "blocked" ? "Sign in to GitHub login 2" : summary,
   } satisfies BaseCardContext<Lifecycle>;
+  useEffect(() => {
+    const githubRepository = done && githubRepo.selectedAccount && githubRepo.selectedRepo && env.selectedEnv
+      ? {
+        account: {
+          id: githubRepo.selectedAccount.id,
+          login: githubRepo.selectedAccount.login,
+          type: githubRepo.selectedAccount.type,
+        },
+        repository: { id: githubRepo.selectedRepo.id, name: githubRepo.selectedRepo.name },
+        environment: { id: env.selectedEnv.id, name: env.selectedEnv.name, url: env.selectedEnv.url },
+      }
+      : null;
+    appStore.update("repo_v2", {
+      title: baseCardContext.title,
+      status: baseCardContext.lifecycle,
+      githubRepository,
+    } satisfies SharedCard<"repo_v2">);
+  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, done, githubRepo.selectedAccount, githubRepo.selectedRepo, env.selectedEnv]);
 
   return {
     repo: githubRepo,
@@ -126,11 +132,6 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
     // cardHook
     cardId: "repo_v2" as const,
     baseCardContext,
-    shared: {
-      title: baseCardContext.title,
-      status: baseCardContext.lifecycle,
-      githubRepository: sharedGithubRepository,
-    } satisfies SharedCard<"repo_v2">,
     status,
     summary,
     cardDependencyLabel: baseCardContext.title,

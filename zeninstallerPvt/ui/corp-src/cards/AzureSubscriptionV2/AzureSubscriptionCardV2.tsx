@@ -5,20 +5,19 @@
 
 import { Box, CircularProgress, Link, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import type { AppContext } from "../../appContext";
 import { warningMessageIconSx } from "../../config/styles";
 import BaseCard from "../../components/BaseCard";
 import FieldLabel from "../../components/FieldLabel";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/consoleUrls";
 import { AZURE_TARGET_KEYS } from "../../logic/variables";
-import type { CardChrome } from "../../types";
 import CloudVariableDetailV2 from "../CloudVariableDetailV2";
 import { azureLoginCardId } from "./stateMachine";
-import type { UseAzureSubscriptionCardV2 } from "./useAzureSubscriptionCardV2";
+import { useAzureSubscriptionCardV2 } from "./useAzureSubscriptionCardV2";
 
 type Props = {
-  cardChrome: CardChrome;
-  subscription: UseAzureSubscriptionCardV2;
+  appCtxStore: AppContext;
 };
 
 function Intro() {
@@ -48,15 +47,13 @@ function Action({ subscriptionId, tenantId }: { subscriptionId: string; tenantId
   );
 }
 
-export default function AzureSubscriptionCardV2({ cardChrome, subscription }: Props) {
+export default function AzureSubscriptionCardV2({ appCtxStore }: Props) {
+  const subscription = useAzureSubscriptionCardV2(appCtxStore);
   const { machineLifecycle, blockedBy, tenantId, subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, github } = subscription;
-  const openAzureLogin = () => cardChrome.onRequirementClick(azureLoginCardId);
 
   return (
     <BaseCard
       baseCardContext={subscription.baseCardContext}
-      expanded={cardChrome.expanded}
-      onToggle={cardChrome.onToggle}
       action={<Action subscriptionId={selectedSubscriptionId} tenantId={tenantId ?? undefined} />}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -65,7 +62,7 @@ export default function AzureSubscriptionCardV2({ cardChrome, subscription }: Pr
         {machineLifecycle === "blocked" ? (
           <Box role="status" sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
             {blockedBy.map((link) => (
-              <Link key={link.cardId} component="button" type="button" onClick={() => cardChrome.onRequirementClick(link.cardId)}>
+              <Link key={link.cardId} component="a" href={`#card-${link.cardId}`}>
                 {link.label}
               </Link>
             ))}
@@ -76,7 +73,7 @@ export default function AzureSubscriptionCardV2({ cardChrome, subscription }: Pr
               <Typography color="text.muted">
                 Tenant: <Box component="span" data-sensitive="true" sx={{ color: "text.primary" }}>{tenantId}</Box>
               </Typography>
-              <Link component="button" type="button" onClick={openAzureLogin} sx={{ py: 0, px: 0.5, textAlign: "left" }}>
+              <Link component="a" href={`#card-${azureLoginCardId}`} sx={{ py: 0, px: 0.5, textAlign: "left" }}>
                 Change on Azure login 2 →
               </Link>
             </Box>
