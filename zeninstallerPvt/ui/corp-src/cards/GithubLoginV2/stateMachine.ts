@@ -48,8 +48,8 @@ export type Event = BaseCardEvent<Lifecycle>;
 
 export const initialState: State = { lifecycle: "loading" };
 
-export function toBaseCardLifecycle(lifecycle: Lifecycle): BaseCardLifecycle {
-  return stateGraph[lifecycle].baseCardLifecycle;
+export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
+  return stateGraph[state].baseCardLifecycle;
 }
 
 export function deriveLifecycle({
@@ -70,17 +70,23 @@ export function deriveLifecycle({
     : loggingIn ? "loading" : account ? "signed-in" : sessionExpired ? "expired" : "ready";
 }
 
+export function canTransition(currentState: State, nextState: Lifecycle): boolean {
+  return currentState.lifecycle === nextState
+    || stateGraph[currentState.lifecycle].transitions.some((lifecycle) => lifecycle === nextState);
+}
+
 export function reducer(state: State, event: Event): State {
-  if (event.lifecycle === state.lifecycle) return state;
-  if (!stateGraph[state.lifecycle].transitions.some((lifecycle) => lifecycle === event.lifecycle)) {
+  if (!canTransition(state, event.lifecycle)) {
     throw new Error(`Cannot transition from ${state.lifecycle} to ${event.lifecycle}`);
   }
+  if (event.lifecycle === state.lifecycle) return state;
   return { lifecycle: event.lifecycle };
 }
 
 export const stateMachine: BaseCardStateMachine<Lifecycle> = {
   graph: stateGraph,
   initialState,
+  canTransition,
   reducer,
   toBaseCardLifecycle,
 };

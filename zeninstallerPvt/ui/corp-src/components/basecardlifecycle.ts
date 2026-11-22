@@ -5,14 +5,16 @@
 
 import type { CardId } from "../types";
 
+/** The set of states that are understood by BaseCard. */
 export type Lifecycle = "blocked" | "loading" | "ready" | "action" | "commit" | "complete" | "error";
 
-export type State<StateId extends string> = { lifecycle: StateId };
-export type Event<StateId extends string> = { type: "transition"; lifecycle: StateId };
+/** A single state from the lifecycle set for use in state machine transitions.. */
+export type BaseCardState<lifecycle extends string = Lifecycle> = { lifecycle: lifecycle };
 
-export type BaseCardState<StateId extends string = Lifecycle> = State<StateId>;
-export type BaseCardEvent<StateId extends string = Lifecycle> = Event<StateId>;
+/** An event requesting a transition to one state from the set of lifecycle states. */
+export type BaseCardEvent<lifecycle extends string = Lifecycle> = { type: "transition"; lifecycle: lifecycle };
 
+/** The BaseCard context object that is passed to other components and hooks. */
 export type BaseCardContext = BaseCardState & {
   cardId: CardId;
   title: string;
@@ -20,20 +22,47 @@ export type BaseCardContext = BaseCardState & {
   summary?: string;
 };
 
-export type StateGraphNode<StateId extends string, BaseLifecycle extends string> = {
+/** Describes a single state and the transitions allowed from it. */
+export type StateGraphNode<lifecycle extends string, BaseLifecycle extends string> = {
+  /** Human-readable name for visualizers and diagnostics. */
   label: string;
+  /** BaseCard lifecycle displayed while the machine is in this state. */
   baseCardLifecycle: BaseLifecycle;
-  transitions: readonly StateId[];
+  /** State identifiers the machine may transition to from this state. */
+  transitions: readonly lifecycle[];
 };
 
-export type StateGraph<StateId extends string, BaseLifecycle extends string> =
-  Record<StateId, StateGraphNode<StateId, BaseLifecycle>>;
+/** Maps every valid state identifier to its graph node. */
+export type StateGraph<lifecycle extends string, BaseLifecycle extends string> =
+  Record<lifecycle, StateGraphNode<lifecycle, BaseLifecycle>>;
 
-export type BaseCardStateGraph<StateId extends string = Lifecycle> = StateGraph<StateId, Lifecycle>;
+/** A state graph whose nodes map to BaseCard's display states. */
+export type BaseCardStateGraph<lifecycle extends string = Lifecycle> = StateGraph<lifecycle, Lifecycle>;
 
-export interface BaseCardStateMachine<StateId extends string = Lifecycle> {
-  graph: BaseCardStateGraph<StateId>;
-  initialState: BaseCardState<StateId>;
-  reducer: (state: BaseCardState<StateId>, event: BaseCardEvent<StateId>) => BaseCardState<StateId>;
-  toBaseCardLifecycle: (stateId: StateId) => Lifecycle;
+/**
+ * Contract for a card state machine composed with BaseCard.
+ *
+ * `lifecycle` is the union of valid state identifiers. 
+ * `currentState` is the current-state object, which may contain additional consumer-specific data.
+ * `Event` is the event shape accepted by the reducer.
+ *
+ * @template lifecycle Union of valid state identifiers for this machine.
+ * @template currentState State object maintained for this state machine.
+ * @template Event Event shape accepted by the reducer.
+ */
+export interface BaseCardStateMachine<
+  lifecycle extends string = Lifecycle,
+  currentState extends BaseCardState<lifecycle> = BaseCardState<lifecycle>,
+  Event = BaseCardEvent<lifecycle>,
+> {
+  /** State graph and BaseCard display lifecycle mapping. */
+  graph: BaseCardStateGraph<lifecycle>;
+  /** Initial current state for this machine. */
+  initialState: currentState;
+  /** Whether `nextState` is allowed from `currentState`. */
+  canTransition: (currentState: currentState, nextState: lifecycle) => boolean;
+  /** Applies a machine event and returns the resulting current state. */
+  reducer: (state: currentState, event: Event) => currentState;
+  /** Maps one machine state identifier to the BaseCard display lifecycle. */
+  toBaseCardLifecycle: (state: lifecycle) => Lifecycle;
 }

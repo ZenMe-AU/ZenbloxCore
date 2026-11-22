@@ -8,6 +8,7 @@ import {
   deriveLifecycle,
   stateGraph,
   stateMachine,
+  canTransition,
   initialState,
   reducer,
   toBaseCardLifecycle,
@@ -18,11 +19,15 @@ it("derives auth lifecycles and maps them to the BaseCard lifecycle", () => {
   expect(deriveLifecycle({ redirecting: null, verifying: false, loggingIn: false, account: null, sessionExpired: false })).toBe("ready");
   expect(deriveLifecycle({ redirecting: "login", verifying: false, loggingIn: false, account: null, sessionExpired: false })).toBe("signing-in");
   expect(stateMachine.graph).toBe(stateGraph);
+  expect(canTransition(initialState, "ready")).toBe(true);
+  expect(canTransition(initialState, "signed-in")).toBe(true);
 
   const ready = reducer(initialState, { type: "transition", lifecycle: "ready" });
   expect(ready.lifecycle).toBe("ready");
   expect(toBaseCardLifecycle(ready.lifecycle)).toBe("ready");
   expect(stateGraph.loading.transitions).toContain("ready");
+  expect(canTransition(ready, "ready")).toBe(true);
+  expect(canTransition(ready, "signed-in")).toBe(false);
   expect(() => reducer(ready, { type: "transition", lifecycle: "signed-in" })).toThrow();
   const signingIn = reducer(ready, { type: "transition", lifecycle: "signing-in" });
   expect(toBaseCardLifecycle(signingIn.lifecycle)).toBe("action");
