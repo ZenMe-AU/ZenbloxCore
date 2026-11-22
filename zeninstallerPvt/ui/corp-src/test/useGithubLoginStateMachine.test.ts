@@ -5,22 +5,28 @@
 
 import { expect, it } from "vitest";
 import {
-  getGithubLoginPhase,
+  deriveLifecycle,
+  stateGraph,
+  stateMachine,
   initialState,
   reducer,
-  toBaseLifecycle,
+  toBaseCardLifecycle,
 } from "../cards/GithubLoginV2/stateMachine";
 
-it("derives auth phases and maps them to BaseCard display lifecycle", () => {
-  expect(getGithubLoginPhase({ redirecting: null, verifying: false, loggingIn: true, account: null, sessionExpired: false })).toBe("checking");
-  expect(getGithubLoginPhase({ redirecting: "login", verifying: false, loggingIn: false, account: null, sessionExpired: false })).toBe("signing-in");
+it("derives auth lifecycles and maps them to the BaseCard lifecycle", () => {
+  expect(deriveLifecycle({ redirecting: null, verifying: false, loggingIn: true, account: null, sessionExpired: false })).toBe("loading");
+  expect(deriveLifecycle({ redirecting: null, verifying: false, loggingIn: false, account: null, sessionExpired: false })).toBe("ready");
+  expect(deriveLifecycle({ redirecting: "login", verifying: false, loggingIn: false, account: null, sessionExpired: false })).toBe("signing-in");
+  expect(stateMachine.graph).toBe(stateGraph);
 
-  const signedOut = reducer(initialState, { type: "phase-changed", phase: "signed-out" });
-  expect(signedOut.phase).toBe("signed-out");
-  expect(toBaseLifecycle(signedOut.phase)).toBe("ready");
-  const signingIn = reducer(signedOut, { type: "phase-changed", phase: "signing-in" });
-  expect(toBaseLifecycle(signingIn.phase)).toBe("action");
-  const signedIn = reducer(signingIn, { type: "phase-changed", phase: "signed-in" });
-  expect(toBaseLifecycle(signedIn.phase)).toBe("complete");
-  expect(toBaseLifecycle(reducer(signedIn, { type: "phase-changed", phase: "expired" }).phase)).toBe("error");
+  const ready = reducer(initialState, { type: "transition", lifecycle: "ready" });
+  expect(ready.lifecycle).toBe("ready");
+  expect(toBaseCardLifecycle(ready.lifecycle)).toBe("ready");
+  expect(stateGraph.loading.transitions).toContain("ready");
+  expect(() => reducer(ready, { type: "transition", lifecycle: "signed-in" })).toThrow();
+  const signingIn = reducer(ready, { type: "transition", lifecycle: "signing-in" });
+  expect(toBaseCardLifecycle(signingIn.lifecycle)).toBe("action");
+  const signedIn = reducer(signingIn, { type: "transition", lifecycle: "signed-in" });
+  expect(toBaseCardLifecycle(signedIn.lifecycle)).toBe("complete");
+  expect(toBaseCardLifecycle(reducer(signedIn, { type: "transition", lifecycle: "expired" }).lifecycle)).toBe("error");
 });

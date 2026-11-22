@@ -4,17 +4,9 @@
  */
 
 import type { AppContext } from "../appContext";
-import type { CardId } from "../types";
+import type { BaseCardContext } from "./basecardlifecycle";
 
-export type Lifecycle = "blocked" | "loading" | "ready" | "action" | "commit" | "complete" | "error";
-
-export type BaseCardContext = {
-  lifecycle: Lifecycle;
-  cardId: CardId;
-  title: string;
-  prerequisiteIds: readonly string[];
-  summary?: string;
-};
+export type { BaseCardContext, Lifecycle } from "./basecardlifecycle";
 
 export function checkPrerequisites(
   appContext: ReturnType<AppContext["getSnapshot"]>,

@@ -6,21 +6,21 @@
 import { expect, it } from "vitest";
 import { createAppContext } from "../appContext";
 import { checkPrerequisites } from "../components/useBaseCard";
-import { initialState as initialGithubState, reducer as githubReducer, toBaseLifecycle as githubLifecycle } from "../cards/GithubLoginV2/stateMachine";
+import { initialState as initialGithubState, reducer as githubReducer, toBaseCardLifecycle as githubToBaseCardLifecycle } from "../cards/GithubLoginV2/stateMachine";
 import { canLifecycleTransition, initialState as initialProtoState, reducer as protoReducer } from "../cards/ProtoCard/stateMachine";
 import { initialState as initialRepoState, reducer as repoReducer, toBaseLifecycle as repoLifecycle } from "../cards/RepoV2/stateMachine";
 
-it("maps card-owned phases to the shared BaseCard display lifecycle", () => {
+it("maps card-owned states to the shared BaseCard display lifecycle", () => {
   expect(initialProtoState.lifecycle).toBe("loading");
   expect(repoLifecycle(initialRepoState.phase)).toBe("loading");
-  expect(githubLifecycle(initialGithubState.phase)).toBe("loading");
+  expect(githubToBaseCardLifecycle(initialGithubState.lifecycle)).toBe("loading");
 
   const proto = protoReducer(initialProtoState, { type: "check-prerequisites" });
   const repo = repoReducer(initialRepoState, { type: "phase-changed", phase: "working" });
-  const github = githubReducer(initialGithubState, { type: "phase-changed", phase: "signing-in" });
+  const github = githubReducer(initialGithubState, { type: "transition", lifecycle: "signing-in" });
   expect(proto.lifecycle).toBe("ready");
   expect(repoLifecycle(repo.phase)).toBe("action");
-  expect(githubLifecycle(github.phase)).toBe("action");
+  expect(githubToBaseCardLifecycle(github.lifecycle)).toBe("action");
 });
 
 it("checks registered, initialised and complete prerequisites and rejects self-dependencies", () => {
