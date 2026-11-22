@@ -39,13 +39,15 @@ export interface UseAzureSubscriptionCardV2 extends CardHook {
   subscriptions: Subscription[];
   selectedSubscriptionId: string;
   setSelectedSubscriptionId: (id: string) => void;
+  // Goes up on every pick, the same subscription included, so a pick puts it back in the Saved to GitHub draft.
+  populateCount: number;
   subsError: string | null;
 
   // Where the pick is saved; null until GitHub login 2 and Repository & environment 2 are complete.
   github: GithubTarget | null;
   variables: UseGithubVariablesV2;
   populate: Record<string, string> | undefined;
-  unsaved: boolean;
+  differsFromGithub: boolean; // The pick or tenant isn't what GitHub holds, whatever the draft says.
 }
 
 // Maps a raw MSAL/AADSTS failure to user-facing text — never surface the raw trace/correlation-id blob.
@@ -74,6 +76,7 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
 
   const [loaded, setLoaded] = useState<{ key: string; subs: Subscription[]; error: string | null } | null>(null);
   const [picked, setPicked] = useState<{ key: string; id: string } | null>(null);
+  const [populateCount, setPopulateCount] = useState(0);
 
   useEffect(() => {
     if (!account || !tenantId) return;
@@ -112,7 +115,9 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
   const selectedSubscriptionId = pickedId || (subscriptions.some((subscription) => subscription.id === savedSubscriptionId) ? savedSubscriptionId : "");
   const selectedSubscription = subscriptions.find((subscription) => subscription.id === selectedSubscriptionId) ?? null;
   const setSelectedSubscriptionId = (id: string) => {
-    if (key) setPicked({ key, id });
+    if (!key) return;
+    setPicked({ key, id });
+    setPopulateCount((count) => count + 1);
   };
 
   const saved = !variables.loading
@@ -126,7 +131,7 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
   const populate = (lifecycle === "unsaved" || done) && tenantId
     ? { AZURE_TENANT_ID: tenantId, AZURE_SUBSCRIPTION_ID: selectedSubscriptionId, VITE_AZURE_TENANT_ID: tenantId }
     : undefined;
-  const unsaved = lifecycle === "unsaved" && !variables.loading;
+  const differsFromGithub = lifecycle === "unsaved" && !variables.loading;
   const status: CardStatus = done ? "complete" : lifecycle === "error" || lifecycle === "unsaved" ? "warning" : lifecycle === "loading" ? "loading" : "idle";
   const sharedSubscription = done && selectedSubscription
     ? { id: selectedSubscription.id, displayName: selectedSubscription.displayName, tenantId: selectedSubscription.tenantId }
@@ -135,7 +140,7 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
     blocked: blockedBy[0].label,
     loading: "Loading subscriptions...",
     selecting: "Select a subscription",
-    unsaved: "Unsaved change — save to apply",
+    unsaved: "Doesn't match what's saved to GitHub", // The header can't see the draft, so it states only what is true either way.
     saved: selectedSubscription?.displayName ?? "Subscription saved",
     error: subsError ?? "No subscriptions in this tenant",
   } satisfies Record<AzureSubscriptionV2Lifecycle, string>)[lifecycle];
@@ -167,10 +172,11 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
     subscriptions,
     selectedSubscriptionId,
     setSelectedSubscriptionId,
+    populateCount,
     subsError,
     github,
     variables,
     populate,
-    unsaved,
+    differsFromGithub,
   };
 }

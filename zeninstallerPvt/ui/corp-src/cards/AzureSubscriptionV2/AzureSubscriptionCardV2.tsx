@@ -30,6 +30,15 @@ function Intro() {
   );
 }
 
+function SaveHint({ children }: { children: string }) {
+  return (
+    <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+      <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+      <Typography color="warning.main">{children}</Typography>
+    </Box>
+  );
+}
+
 function Action({ subscriptionId, tenantId }: { subscriptionId: string; tenantId?: string }) {
   return (
     <ViewLink
@@ -90,7 +99,6 @@ export default function AzureSubscriptionCardV2({ cardChrome, subscription }: Pr
                   aria-labelledby="azure-subscription-v2-label"
                   size="small"
                   value={selectedSubscriptionId}
-                  onChange={(event) => setSelectedSubscriptionId(event.target.value)}
                   displayEmpty
                   renderValue={(value) => {
                     if (!value) return <Typography color="text.muted">Select a subscription</Typography>;
@@ -100,7 +108,8 @@ export default function AzureSubscriptionCardV2({ cardChrome, subscription }: Pr
                   sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%" }}
                 >
                   {subscriptions.map((option) => (
-                    <MenuItem key={option.id} value={option.id} sx={{ py: 0.75 }}>
+                    // onClick rather than the Select's onChange, which skips picking the subscription already selected.
+                    <MenuItem key={option.id} value={option.id} onClick={() => setSelectedSubscriptionId(option.id)} sx={{ py: 0.75 }}>
                       <Box>
                         <Typography data-sensitive="true">{option.displayName}</Typography>
                         <Typography data-sensitive="true" variant="body2" color="text.muted">{option.id}</Typography>
@@ -117,15 +126,16 @@ export default function AzureSubscriptionCardV2({ cardChrome, subscription }: Pr
                 keys={AZURE_TARGET_KEYS}
                 variables={subscription.variables}
                 populate={subscription.populate}
+                populateCounter={subscription.populateCount}
                 preserveDirtyOnSync
                 hiddenKeys={["VITE_AZURE_TENANT_ID"]}
                 title="Saved to GitHub"
-                saveHint={subscription.unsaved ? (
-                  <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
-                    <Typography color="warning.main">Unsaved change — save to apply.</Typography>
-                  </Box>
-                ) : undefined}
+                // Edits waiting in the draft come first; otherwise say the pick and GitHub differ, which saving a clean draft can't fix.
+                saveHint={({ dirty }) => dirty
+                  ? <SaveHint>Unsaved change — save to apply.</SaveHint>
+                  : subscription.differsFromGithub
+                    ? <SaveHint>Doesn't match what's saved to GitHub — pick the subscription again, then save.</SaveHint>
+                    : undefined}
               />
             )}
           </>

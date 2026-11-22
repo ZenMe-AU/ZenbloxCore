@@ -21,6 +21,7 @@ type Params = {
   api: Pick<VariableApi, "createVariable" | "updateVariable" | "deleteVariable"> | null; // The card's GitHub session; nothing saves without one.
   onSavedKey?: (key: string, value: string) => void; // Called once per key that saves successfully, so the caller can record it.
   populate?: Record<string, string>; // External "suggested values" applied into the draft as they change (not auto-saved).
+  populateCounter?: number; // Increment to apply `populate` into the draft again even if it hasn't changed (not saved).
   // When enabled, accept external updates for clean keys without discarding local edits on dirty keys.
   preserveDirtyOnSync?: boolean;
   autoSaveCounter?: number; // Increment to apply `populate` and immediately save it.
@@ -31,7 +32,7 @@ type Params = {
  * useVariableEditor for the V2 cards: the same editing core, but every save goes through the API the
  * card passes in rather than the shared provider in api/index.ts.
  */
-export function useVariableEditorV2({ keys, savedValues, account, repo, envName, api, onSavedKey, populate, preserveDirtyOnSync, autoSaveCounter, onAutoSaveResult }: Params) {
+export function useVariableEditorV2({ keys, savedValues, account, repo, envName, api, onSavedKey, populate, populateCounter, preserveDirtyOnSync, autoSaveCounter, onAutoSaveResult }: Params) {
   const [localValues, setLocalValues] = useState<Record<string, string>>(savedValues);
   const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
   const [updating, setUpdating] = useState(false);
@@ -134,6 +135,17 @@ export function useVariableEditorV2({ keys, savedValues, account, repo, envName,
     setUpsertStatuses((cur) => cur.filter((s) => !changed.includes(s.key)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [populate ? JSON.stringify(populate) : ""]);
+
+  // When populateCounter increments, apply populate into the draft again, so a picker can undo a hand edit
+  // by picking the same value it already suggested.
+  const prevPopulateCounterRef = useRef(populateCounter);
+  useEffect(() => {
+    if (populateCounter === undefined || populateCounter === prevPopulateCounterRef.current || !populate) return;
+    prevPopulateCounterRef.current = populateCounter;
+    setLocalValues((cur) => ({ ...cur, ...populate }));
+    setUpsertStatuses((cur) => cur.filter((s) => !(s.key in populate)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [populateCounter]);
 
   // When autoSaveCounter increments, apply populate into the draft and save it immediately.
   const prevAutoSaveCounterRef = useRef(autoSaveCounter);
