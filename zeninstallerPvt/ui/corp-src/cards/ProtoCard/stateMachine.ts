@@ -3,10 +3,15 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { BaseCardContext, Lifecycle } from "../../components/useBaseCard";
+import type {
+  BaseCardContext,
+  BaseCardState,
+  BaseCardStateGraph,
+  BaseCardStateMachine,
+  Lifecycle,
+} from "../../components/basecardlifecycle";
 
-export type State = {
-  lifecycle: Lifecycle;
+export type State = BaseCardState<Lifecycle> & {
   baseCardContext: Omit<BaseCardContext, "lifecycle" | "prerequisiteIds"> & { prerequisiteIds: [string, string] };
   protoCardContext: ProtoCardContext;
 };
@@ -52,24 +57,24 @@ export function getBaseCardContext(state: State) {
   } as const;
 }
 
-const transitions: Record<Lifecycle, readonly Lifecycle[]> = {
-  blocked: ["loading"],
-  loading: ["ready", "action", "commit", "blocked"],
-  ready: ["action", "error"],
-  action: ["commit", "error"],
-  commit: ["complete", "error"],
-  complete: ["loading"],
-  error: ["loading"],
+export const stateGraph: BaseCardStateGraph<Lifecycle> = {
+  blocked: { label: "Blocked", baseCardLifecycle: "blocked", transitions: ["loading"] },
+  loading: { label: "Loading", baseCardLifecycle: "loading", transitions: ["ready", "action", "commit", "blocked"] },
+  ready: { label: "Ready", baseCardLifecycle: "ready", transitions: ["action", "error"] },
+  action: { label: "Action", baseCardLifecycle: "action", transitions: ["commit", "error"] },
+  commit: { label: "Commit", baseCardLifecycle: "commit", transitions: ["complete", "error"] },
+  complete: { label: "Complete", baseCardLifecycle: "complete", transitions: ["loading"] },
+  error: { label: "Error", baseCardLifecycle: "error", transitions: ["loading"] },
 };
 
 export function canLifecycleTransition(from: Lifecycle, to: Lifecycle): boolean {
-  return transitions[from].includes(to);
+  return stateGraph[from].transitions.includes(to);
 }
 
-export function canTransition(state: Pick<State, "lifecycle" | "protoCardContext">, lifecycle: Lifecycle): boolean {
-  return lifecycle !== "ready" && lifecycle !== "blocked"
-    && state.protoCardContext.unmetCardPrerequisites.length === 0
-    && canLifecycleTransition(state.lifecycle, lifecycle);
+export function canTransition(currentState: Pick<State, "lifecycle" | "protoCardContext">, nextState: Lifecycle): boolean {
+  return nextState !== "ready" && nextState !== "blocked"
+    && currentState.protoCardContext.unmetCardPrerequisites.length === 0
+    && canLifecycleTransition(currentState.lifecycle, nextState);
 }
 
 export function reducer(state: State, event: Event): State {
@@ -107,3 +112,15 @@ export function reducer(state: State, event: Event): State {
       return { ...state, lifecycle: event.lifecycle };
   }
 }
+
+export function toBaseCardLifecycle(state: Lifecycle): Lifecycle {
+  return stateGraph[state].baseCardLifecycle;
+}
+
+export const stateMachine: BaseCardStateMachine<Lifecycle, State, Event> = {
+  graph: stateGraph,
+  initialState,
+  canTransition,
+  reducer,
+  toBaseCardLifecycle,
+};

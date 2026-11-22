@@ -3,25 +3,33 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useRef, type ReactNode } from "react";
-import { Box, ButtonBase, CircularProgress, Collapse, IconButton, Typography } from "@mui/material";
+import { useRef, useState, type ReactNode } from "react";
+import { Box, ButtonBase, CircularProgress, Collapse, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import BlockIcon from "@mui/icons-material/Block";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { alpha, useTheme } from "@mui/material/styles";
 import { borderHoverTint, borderTint } from "../config/styles";
-import type { BaseCardContext, Lifecycle } from "./useBaseCard";
+import type { BaseCardContext, Lifecycle, StateGraph } from "./basecardlifecycle";
+import StateDiagram, { type StateDiagramLayout } from "./StateDiagram";
 
-type Props = {
+type Props<StateId extends string> = {
   baseCardContext: BaseCardContext;
   expanded: boolean;
   onToggle: () => void;
   action?: ReactNode;
   descriptionId?: string;
   children: ReactNode;
+  stateDiagram?: {
+    graph: StateGraph<StateId, Lifecycle>;
+    currentState: StateId;
+    layout?: StateDiagramLayout<StateId>;
+  };
 };
 
 const lifecycleLabels: Record<Lifecycle, string> = {
@@ -34,11 +42,13 @@ const lifecycleLabels: Record<Lifecycle, string> = {
   error: "Error",
 };
 
-export default function BaseCard({
-  baseCardContext, expanded, onToggle, action, descriptionId, children,
-}: Props) {
+export default function BaseCard<StateId extends string = Lifecycle>({
+  baseCardContext, expanded, onToggle, action, descriptionId, children, stateDiagram,
+}: Props<StateId>) {
   const { cardId, title, summary, lifecycle } = baseCardContext;
   const theme = useTheme();
+  const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
+  const [showStateDiagram, setShowStateDiagram] = useState(false);
   const colors = theme.vars.palette.card;
   const colorKey = lifecycle === "blocked" ? "idle" : lifecycle === "ready" || lifecycle === "action" || lifecycle === "commit" ? "warning" : lifecycle;
   const muted = lifecycle === "blocked";
@@ -59,6 +69,10 @@ export default function BaseCard({
   return (
     <Box
       id={`card-${cardId}`}
+      onContextMenu={stateDiagram ? (event) => {
+        event.preventDefault();
+        setContextMenu({ mouseX: event.clientX + 2, mouseY: event.clientY - 6 });
+      } : undefined}
       sx={{
         boxSizing: "border-box",
         width: "100%",
@@ -74,6 +88,28 @@ export default function BaseCard({
         "&:hover": { boxShadow: colors.hoverShadow },
       }}
     >
+      {stateDiagram && (
+        <Menu
+          open={contextMenu !== null}
+          onClose={() => setContextMenu(null)}
+          anchorReference="anchorPosition"
+          anchorPosition={contextMenu ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined}
+        >
+          <MenuItem
+            role="menuitemcheckbox"
+            aria-checked={showStateDiagram}
+            onClick={() => {
+              setShowStateDiagram((visible) => !visible);
+              setContextMenu(null);
+            }}
+          >
+            <ListItemIcon>
+              {showStateDiagram ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+            </ListItemIcon>
+            <ListItemText>{showStateDiagram ? "Hide read-only state diagram" : "Show read-only state diagram"}</ListItemText>
+          </MenuItem>
+        </Menu>
+      )}
       <Box
         onPointerDown={(event) => {
           pointerStart.current = { x: event.clientX, y: event.clientY };
@@ -202,6 +238,9 @@ export default function BaseCard({
       </Box>
       <Collapse in={expanded}>
         <Box id={contentId} role="region" aria-labelledby={titleId} sx={{ borderTop: `1px solid ${colors.contentDivider}`, px: 2.5, py: 2.5 }}>
+          {stateDiagram && showStateDiagram && (
+            <StateDiagram graph={stateDiagram.graph} currentState={stateDiagram.currentState} layout={stateDiagram.layout} />
+          )}
           {children}
         </Box>
       </Collapse>

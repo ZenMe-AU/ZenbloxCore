@@ -376,6 +376,7 @@ export function useGithubLoginCardV2() {
   return {
     ...githubLoginContext,
     baseCardContext,
+    machineLifecycle: lifecycle,
     githubLoginContext,
     shared: {
       title: baseCardContext.title, status: baseCardContext.lifecycle, githubAccount: account,

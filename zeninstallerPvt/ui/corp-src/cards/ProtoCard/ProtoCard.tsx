@@ -7,11 +7,12 @@ import { useRef, useState } from "react";
 import { stringify } from "yaml";
 import { Box, Button, CircularProgress, Link, TextField, Typography, useTheme } from "@mui/material";
 import BaseCard from "../../components/BaseCard";
+import type { StateDiagramLayout } from "../../components/StateDiagram";
 import type { Lifecycle } from "../../components/useBaseCard";
 import CollapsiblePanel from "../../components/CollapsiblePanel";
 import ViewLink from "../../components/ViewLink";
 import type { CardChrome } from "../../types";
-import { canTransition } from "./stateMachine";
+import { canTransition, stateGraph } from "./stateMachine";
 import type { UseProtoCard } from "./useProtoCard";
 
 type Props = {
@@ -44,6 +45,15 @@ const lifecycleEdges: { from: Lifecycle; to: Lifecycle; path: string }[] = [
   { from: "complete", to: "loading", path: "M830 130 V25 H130 V130" },
   { from: "error", to: "loading", path: "M470 320 V365 H16 V150 H44" },
 ];
+
+const lifecycleDiagramLayout: StateDiagramLayout<Lifecycle> = {
+  width: 950,
+  height: 390,
+  nodeWidth: 112,
+  nodeHeight: 40,
+  positions: Object.fromEntries(lifecycleNodes.map(({ lifecycle, x, y }) => [lifecycle, { x, y }])),
+  edgePaths: lifecycleEdges,
+};
 
 function PrerequisitesPanel({ protoCard, drafts, onDraftChange }: {
   protoCard: UseProtoCard;
@@ -332,6 +342,7 @@ export default function ProtoCard({ cardChrome, protoCard }: Props) {
       baseCardContext={baseCardContext}
       expanded={cardChrome.expanded}
       onToggle={cardChrome.onToggle}
+      stateDiagram={{ graph: stateGraph, currentState: protoCard.baseCardContext.lifecycle, layout: lifecycleDiagramLayout }}
       action={baseCardContext.lifecycle !== "loading" && !showBlockedContent
         ? <ViewLink href="http://localhost" label="Open External Site" />
         : undefined}
