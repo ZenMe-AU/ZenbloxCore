@@ -4,18 +4,18 @@
  */
 
 import { useCallback, useEffect, useReducer, useSyncExternalStore, type Dispatch } from "react";
-import type { CardHook } from "../../types";
 import type { AppContext } from "../../appContext";
 import { checkPrerequisites } from "../../components/useBaseCard";
 import { getBaseCardContext, initialState, reducer, type Event } from "./stateMachine";
 
 let forceUnlockedForPage = false;
 
-export interface UseProtoCard extends CardHook {
-  appContext: ReturnType<AppContext["getSnapshot"]>;
+export interface UseProtoCard {
   baseCardContext: ReturnType<typeof getBaseCardContext>;
-  privateContext: typeof initialState.privateContext;
-  dispatch: Dispatch<Event>;
+  privateContext: typeof initialState.privateContext & {
+    appContext: ReturnType<AppContext["getSnapshot"]>;
+    dispatch: Dispatch<Event>;
+  };
 }
 
 export function useProtoCard(appStore: AppContext): UseProtoCard {
@@ -39,23 +39,11 @@ export function useProtoCard(appStore: AppContext): UseProtoCard {
     return () => clearTimeout(timer);
   }, [state.lifecycle, state.baseCardContext.prerequisiteIds, state.privateContext.unmetCardPrerequisites]);
   const baseCardContext = getBaseCardContext(state);
-  const status = baseCardContext.lifecycle === "loading"
-    ? "loading"
-    : baseCardContext.lifecycle === "blocked" ? "idle"
-      : baseCardContext.lifecycle === "ready" || baseCardContext.lifecycle === "action" || baseCardContext.lifecycle === "commit"
-        ? "warning" : baseCardContext.lifecycle;
   useEffect(() => {
     appStore.update("proto_card", { title: baseCardContext.title, status: baseCardContext.lifecycle });
   }, [appStore, baseCardContext.title, baseCardContext.lifecycle]);
   return {
-    cardId: baseCardContext.cardId,
-    status,
-    summary: baseCardContext.summary,
-    done: baseCardContext.done,
-    cardDependencyLabel: "Protocard",
-    appContext,
     baseCardContext,
-    privateContext: state.privateContext,
-    dispatch,
+    privateContext: { ...state.privateContext, appContext, dispatch },
   };
 }

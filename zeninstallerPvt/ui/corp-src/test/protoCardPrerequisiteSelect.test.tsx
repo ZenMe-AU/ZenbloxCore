@@ -21,14 +21,8 @@ it("offers only registered prerequisite IDs and dispatches the selected ID", asy
     const state = reducer(initialState, { type: "check-prerequisites" });
     const dispatch = vi.fn();
     const protoCard: UseProtoCard = {
-        cardId: "proto_card",
-        status: "warning",
-        summary: "Ready to proceed",
-        done: false,
-        appContext: store.getSnapshot(),
         baseCardContext: getBaseCardContext(state),
-        privateContext: state.privateContext,
-        dispatch,
+        privateContext: { ...state.privateContext, appContext: store.getSnapshot(), dispatch },
     };
     const container = document.createElement("div");
     const root = createRoot(container);
@@ -36,19 +30,7 @@ it("offers only registered prerequisite IDs and dispatches the selected ID", asy
     try {
         await act(async () => root.render(
             <ThemeProvider theme={theme}>
-                <ProtoCardView
-                    protoCard={protoCard}
-                    cardChrome={{
-                        cardId: "proto_card",
-                        status: "warning",
-                        locked: false,
-                        requirements: [],
-                        unavailable: false,
-                        expanded: true,
-                        onToggle: () => { },
-                        onRequirementClick: () => { },
-                    }}
-                />
+                <ProtoCardView protoCard={protoCard} />
             </ThemeProvider>
         ));
 
@@ -79,43 +61,23 @@ it("links a failed registered prerequisite to its card", async () => {
     const loading = reducer(initialState, { type: "sync-card-prerequisites", unmet: ["repo_v2"] });
     const state = reducer(loading, { type: "check-prerequisites" });
     const protoCard: UseProtoCard = {
-        cardId: "proto_card",
-        status: "idle",
-        summary: "Blocked due to incomplete prerequisites: repo_v2",
-        done: false,
-        appContext: store.getSnapshot(),
         baseCardContext: getBaseCardContext(state),
-        privateContext: state.privateContext,
-        dispatch: vi.fn(),
+        privateContext: { ...state.privateContext, appContext: store.getSnapshot(), dispatch: vi.fn() },
     };
-    const onRequirementClick = vi.fn();
     const container = document.createElement("div");
     const root = createRoot(container);
 
     try {
         await act(async () => root.render(
             <ThemeProvider theme={theme}>
-                <ProtoCardView
-                    protoCard={protoCard}
-                    cardChrome={{
-                        cardId: "proto_card",
-                        status: "idle",
-                        locked: false,
-                        requirements: [],
-                        unavailable: false,
-                        expanded: true,
-                        onToggle: () => { },
-                        onRequirementClick,
-                    }}
-                />
+                <ProtoCardView protoCard={protoCard} />
             </ThemeProvider>
         ));
 
-        const repoLink = [...container.querySelectorAll<HTMLButtonElement>("button.MuiLink-root")]
+        const repoLink = [...container.querySelectorAll<HTMLAnchorElement>("a.MuiLink-root")]
             .find((button) => button.textContent?.includes("Repository V2 (repo_v2)"));
         expect(repoLink).toBeDefined();
-        await act(async () => repoLink?.click());
-        expect(onRequirementClick).toHaveBeenCalledWith("repo_v2");
+        expect(repoLink?.getAttribute("href")).toBe("#card-repo_v2");
     } finally {
         await act(async () => root.unmount());
         container.remove();
@@ -132,14 +94,8 @@ it("undoes force-unlock when its status message is clicked", async () => {
     const state = reducer(blocked, { type: "force-unlock", value: true });
     const dispatch = vi.fn();
     const protoCard: UseProtoCard = {
-        cardId: "proto_card",
-        status: "idle",
-        summary: "Blocked due to incomplete prerequisites: repo_v2",
-        done: false,
-        appContext: store.getSnapshot(),
         baseCardContext: getBaseCardContext(state),
-        privateContext: state.privateContext,
-        dispatch,
+        privateContext: { ...state.privateContext, appContext: store.getSnapshot(), dispatch },
     };
     const container = document.createElement("div");
     const root = createRoot(container);
@@ -147,19 +103,7 @@ it("undoes force-unlock when its status message is clicked", async () => {
     try {
         await act(async () => root.render(
             <ThemeProvider theme={theme}>
-                <ProtoCardView
-                    protoCard={protoCard}
-                    cardChrome={{
-                        cardId: "proto_card",
-                        status: "idle",
-                        locked: false,
-                        requirements: [],
-                        unavailable: false,
-                        expanded: true,
-                        onToggle: () => { },
-                        onRequirementClick: () => { },
-                    }}
-                />
+                <ProtoCardView protoCard={protoCard} />
             </ThemeProvider>
         ));
 

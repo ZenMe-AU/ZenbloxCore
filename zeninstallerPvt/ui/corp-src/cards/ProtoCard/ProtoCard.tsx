@@ -9,10 +9,9 @@ import { Box, Button, CircularProgress, Link, TextField, Typography, useTheme } 
 import type { AppContext } from "../../appContext";
 import BaseCard from "../../components/BaseCard";
 import type { StateDiagramLayout } from "../../components/StateDiagram";
-import type { Lifecycle } from "../../components/useBaseCard";
+import type { BaseCardContext, Lifecycle } from "../../components/useBaseCard";
 import CollapsiblePanel from "../../components/CollapsiblePanel";
 import ViewLink from "../../components/ViewLink";
-import type { CardChrome, CardId } from "../../types";
 import { canTransition } from "./stateMachine";
 import type { UseProtoCard } from "./useProtoCard";
 import { useProtoCard } from "./useProtoCard";
@@ -23,7 +22,6 @@ type Props = {
 
 type ViewProps = {
   protoCard: UseProtoCard;
-  cardChrome?: CardChrome;
 };
 
 const lifecycleNodes: { lifecycle: Lifecycle; label: string; x: number; y: number }[] = [
@@ -64,13 +62,14 @@ const lifecycleDiagramLayout: StateDiagramLayout<Lifecycle> = {
 function PrerequisitesPanel({ protoCard }: {
   protoCard: UseProtoCard;
 }) {
-  const { baseCardContext, privateContext, dispatch } = protoCard;
+  const { baseCardContext, privateContext } = protoCard;
+  const { appContext, dispatch } = privateContext;
   const state = { lifecycle: baseCardContext.lifecycle, privateContext };
   const lifecycle = baseCardContext.lifecycle;
-  const registeredCards = Object.entries(protoCard.appContext.cards)
+  const registeredCards = Object.entries(appContext.cards)
     .filter(([cardId]) => cardId !== baseCardContext.cardId)
     .map(([cardId, card]) => ({
-      id: cardId as CardId,
+      id: cardId as BaseCardContext["cardId"],
       label: card?.initialised ? `${card.title} (${cardId})` : cardId,
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
@@ -178,7 +177,9 @@ function PrerequisitesPanel({ protoCard }: {
 }
 
 function ResultsPanel({ protoCard }: { protoCard: UseProtoCard }) {
-  const { appContext, baseCardContext, privateContext } = protoCard;
+  const { baseCardContext, privateContext } = protoCard;
+  const { appContext, forceUnlocked, unmetCardPrerequisites } = privateContext;
+  const privateState = { forceUnlocked, unmetCardPrerequisites };
   const lifecycle = baseCardContext.lifecycle;
   const [panel, setPanel] = useState({ lifecycle, open: lifecycle === "commit" });
   const [widths, setWidths] = useState([100 / 3, 100 / 3, 100 / 3]);
@@ -199,7 +200,7 @@ function ResultsPanel({ protoCard }: { protoCard: UseProtoCard }) {
   }
 
   const contexts = [
-    { name: "privateContext", value: privateContext },
+    { name: "privateContext", value: privateState },
     { name: "baseCardContext", value: baseCardContext },
     { name: "appContext", value: appContext },
   ];
@@ -296,12 +297,12 @@ function LoadingContent() {
   );
 }
 
-function BlockedContent({ protoCard, cardChrome }: {
+function BlockedContent({ protoCard }: {
   protoCard: UseProtoCard;
-  cardChrome?: CardChrome;
 }) {
   const theme = useTheme();
   const colors = theme.vars.palette.card;
+  const { appContext, dispatch } = protoCard.privateContext;
 
   return (
     <>
@@ -328,22 +329,20 @@ function BlockedContent({ protoCard, cardChrome }: {
           <Link
             component="button"
             type="button"
-            onClick={() => protoCard.dispatch({ type: "force-unlock", value: true })}
+            onClick={() => dispatch({ type: "force-unlock", value: true })}
           >
             click here to force unlock this card.
           </Link>
         </Typography>
         {protoCard.baseCardContext.unmetCardPrerequisites.map((id, index) => {
-          const registered = Object.prototype.hasOwnProperty.call(protoCard.appContext.cards, id);
-          const card = protoCard.appContext.cards[id as CardId];
+          const registered = Object.prototype.hasOwnProperty.call(appContext.cards, id);
+          const card = appContext.cards[id as BaseCardContext["cardId"]];
           const label = card?.initialised ? `${card.title} (${id})` : id;
           return registered ? (
             <Link
               key={`${index}-${id}`}
-              component={cardChrome ? "button" : "a"}
-              type={cardChrome ? "button" : undefined}
-              href={cardChrome ? undefined : `#card-${id}`}
-              onClick={cardChrome ? () => cardChrome.onRequirementClick(id as CardId) : undefined}
+              component="a"
+              href={`#card-${id}`}
               sx={{ alignSelf: "flex-start", fontWeight: 500 }}
             >
               {label}
@@ -359,7 +358,7 @@ function BlockedContent({ protoCard, cardChrome }: {
   );
 }
 
-export function ProtoCardView({ protoCard, cardChrome }: ViewProps) {
+export function ProtoCardView({ protoCard }: ViewProps) {
   const { baseCardContext, privateContext } = protoCard;
   const { forceUnlocked } = privateContext;
   const showBlockedContent = baseCardContext.lifecycle === "blocked" && !forceUnlocked;
@@ -375,7 +374,7 @@ export function ProtoCardView({ protoCard, cardChrome }: ViewProps) {
       {baseCardContext.lifecycle === "loading"
         ? <LoadingContent />
         : showBlockedContent
-          ? <BlockedContent protoCard={protoCard} cardChrome={cardChrome} />
+          ? <BlockedContent protoCard={protoCard} />
           : (
             <>
               {forceUnlocked && baseCardContext.lifecycle === "blocked" && (
@@ -384,7 +383,7 @@ export function ProtoCardView({ protoCard, cardChrome }: ViewProps) {
                     component="button"
                     type="button"
                     color="warning.main"
-                    onClick={() => protoCard.dispatch({ type: "force-unlock", value: false })}
+                    onClick={() => privateContext.dispatch({ type: "force-unlock", value: false })}
                   >
                     This card is force-unlocked; its prerequisites are still incomplete. (Click to undo)
                   </Link>

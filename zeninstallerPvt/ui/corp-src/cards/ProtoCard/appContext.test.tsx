@@ -68,14 +68,15 @@ it("lets ProtoCard observe existing and later card data and status changes", asy
   }
   try {
     await act(async () => root.render(<Harness />));
-    expect(latest?.appContext.cards.repo).toBeUndefined();
+    expect(Object.keys(latest ?? {})).toEqual(["baseCardContext", "privateContext"]);
+    expect(latest?.privateContext.appContext.cards.repo).toBeUndefined();
     expect(store.getSnapshot().cards.proto_card).toMatchObject({ initialised: true, title: "ProtoCard prototype card", status: "loading" });
     await act(async () => store.update("repo", { title: "Repository & environment", status: "loading" }));
-    expect(latest?.appContext.cards.repo).toEqual({ initialised: true, title: "Repository & environment", status: "loading" });
+    expect(latest?.privateContext.appContext.cards.repo).toEqual({ initialised: true, title: "Repository & environment", status: "loading" });
     await act(async () => store.update("repo", { title: "Repository & environment", status: "complete" }));
-    expect(latest?.appContext.cards.repo).toEqual({ initialised: true, title: "Repository & environment", status: "complete" });
+    expect(latest?.privateContext.appContext.cards.repo).toEqual({ initialised: true, title: "Repository & environment", status: "complete" });
     const snapshot = store.getSnapshot();
-    await act(async () => latest?.dispatch({ type: "card-prerequisite", index: 0, cardId: "repo" }));
+    await act(async () => latest?.privateContext.dispatch({ type: "card-prerequisite", index: 0, cardId: "repo" }));
     expect(latest?.baseCardContext.prerequisiteIds[0]).toBe("repo");
     expect(store.getSnapshot()).toBe(snapshot);
     await act(async () => root.unmount());
@@ -83,7 +84,7 @@ it("lets ProtoCard observe existing and later card data and status changes", asy
     const laterRoot = createRoot(document.createElement("div"));
     try {
       await act(async () => laterRoot.render(<Harness />));
-      expect(latest?.appContext.cards.repo).toEqual({ initialised: true, title: "Repository & environment", status: "complete" });
+      expect(latest?.privateContext.appContext.cards.repo).toEqual({ initialised: true, title: "Repository & environment", status: "complete" });
     } finally {
       await act(async () => laterRoot.unmount());
     }
@@ -110,7 +111,7 @@ it("publishes typed GitHub snapshots and detects structural changes", async () =
       githubMode: "direct" as const,
     };
     await act(async () => store.update("github_login_v2", shared));
-    expect(latest?.appContext.cards.github_login_v2).toEqual({
+    expect(latest?.privateContext.appContext.cards.github_login_v2).toEqual({
       initialised: true,
       title: "GitHub login 2",
       status: "complete",
@@ -124,9 +125,9 @@ it("publishes typed GitHub snapshots and detects structural changes", async () =
     await act(async () => store.update("github_login_v2", { ...shared, githubAccount: { login: "first" } }));
     expect(store.getSnapshot()).toBe(snapshot);
     await act(async () => store.update("github_login_v2", { ...shared, githubAccount: { login: "second" } }));
-    expect(latest?.appContext.cards.github_login_v2).toMatchObject({ githubAccount: { login: "second" } });
+    expect(latest?.privateContext.appContext.cards.github_login_v2).toMatchObject({ githubAccount: { login: "second" } });
     await act(async () => store.update("github_login_v2", { ...shared, githubAccount: null }));
-    expect(latest?.appContext.cards.github_login_v2).toMatchObject({ githubAccount: null });
+    expect(latest?.privateContext.appContext.cards.github_login_v2).toMatchObject({ githubAccount: null });
   } finally {
     await act(async () => root.unmount());
   }
