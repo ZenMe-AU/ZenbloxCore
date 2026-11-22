@@ -15,9 +15,17 @@ import type {
 } from "../../components/basecardlifecycle";
 import type { CardId } from "../../types";
 
-export const azureLoginCardId: CardId = "azure_login_v2";
-export const repoCardId: CardId = "repo_v2";
-export const githubLoginCardId: CardId = "github_login_v2";
+declare module "../../appContext" {
+  interface SharedCardDataById {
+    azure_subscription_v2: {
+      azureSubscription?: Readonly<{ id: string; displayName: string; tenantId: string }> | null;
+    };
+  }
+}
+
+export const azureLoginCardId = "azure_login_v2" satisfies CardId;
+export const repoCardId = "repo_v2" satisfies CardId;
+export const githubLoginCardId = "github_login_v2" satisfies CardId;
 
 export const initialSubscriptionCardContext = {
   cardId: "azure_subscription_v2",

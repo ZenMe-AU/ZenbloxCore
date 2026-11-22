@@ -31,7 +31,7 @@ export interface UseAzureLoginCardV2 extends CardHook, LoginHook<AzureAccount> {
   cardDependencyLabel: string;
   baseCardContext: BaseCardContext<AzureLoginV2Lifecycle>;
   machineLifecycle: AzureLoginV2Lifecycle;
-  shared: SharedCard;
+  shared: SharedCard<"azure_login_v2">;
 
   login: () => Promise<void>;
   logout: () => Promise<void>;
@@ -312,6 +312,13 @@ export function useAzureLoginCardV2(): UseAzureLoginCardV2 {
     lifecycle: toBaseCardLifecycle(lifecycle),
     stateMachine: { graph: stateGraph, currentState: lifecycle },
   } satisfies BaseCardContext<AzureLoginV2Lifecycle>;
+  const sharedAzureAccount = account && {
+    homeAccountId: account.homeAccountId,
+    environment: account.environment,
+    tenantId: account.tenantId,
+    localAccountId: account.localAccountId,
+    username: account.username,
+  };
 
   return {
     // cardHook
@@ -333,9 +340,9 @@ export function useAzureLoginCardV2(): UseAzureLoginCardV2 {
     shared: {
       title: baseCardContext.title,
       status: baseCardContext.lifecycle,
-      azureAccount: account,
+      azureAccount: sharedAzureAccount,
       azureTenantId: done ? tenantId : null,
-    },
+    } satisfies SharedCard<"azure_login_v2">,
     loginError,
     redirecting,
     tenants,

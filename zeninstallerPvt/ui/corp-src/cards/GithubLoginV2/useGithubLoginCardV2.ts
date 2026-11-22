@@ -17,7 +17,7 @@ import {
 } from "../../config/githubConfig";
 import type { CardHook, CardStatus, LoginHook, User } from "../../types";
 import type { BaseCardContext } from "../../components/useBaseCard";
-import { SensitiveToken } from "../../appContext";
+import { SensitiveToken, type SharedCard } from "../../appContext";
 import {
   deriveLifecycle,
   initialState,
@@ -382,7 +382,7 @@ export function useGithubLoginCardV2() {
     shared: {
       title: baseCardContext.title, status: baseCardContext.lifecycle, githubAccount: account,
       githubToken: session?.token ?? null, githubMode: session?.mode ?? null,
-    },
+    } satisfies SharedCard<"github_login_v2">,
   };
 }
 

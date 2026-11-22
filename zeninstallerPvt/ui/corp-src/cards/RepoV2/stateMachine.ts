@@ -14,8 +14,21 @@ import type {
 } from "../../components/basecardlifecycle";
 import { checkPrerequisites } from "../../components/useBaseCard";
 import type { CardId } from "../../types";
+import type { Account, GhEnv, RepoOption } from "../../types";
 
-export const githubLoginCardId: CardId = "github_login_v2";
+declare module "../../appContext" {
+  interface SharedCardDataById {
+    repo_v2: {
+      githubRepository?: Readonly<{
+        account: Readonly<Account>;
+        repository: Readonly<Pick<RepoOption, "id" | "name">>;
+        environment: Readonly<GhEnv>;
+      }> | null;
+    };
+  }
+}
+
+export const githubLoginCardId = "github_login_v2" satisfies CardId;
 
 export const initialRepoCardContext = {
   cardId: "repo_v2",

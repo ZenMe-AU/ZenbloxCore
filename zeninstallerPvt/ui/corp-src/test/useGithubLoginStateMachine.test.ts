@@ -27,8 +27,10 @@ it("derives auth lifecycles and maps them to the BaseCard lifecycle", () => {
   expect(toBaseCardLifecycle(ready.lifecycle)).toBe("ready");
   expect(stateGraph.loading.transitions).toContain("ready");
   expect(canTransition(ready, "ready")).toBe(true);
-  expect(canTransition(ready, "signed-in")).toBe(false);
-  expect(() => reducer(ready, { type: "transition", lifecycle: "signed-in" })).toThrow();
+  expect(canTransition(ready, "signed-in")).toBe(true);
+  expect(canTransition(ready, "expired")).toBe(true);
+  expect(canTransition(ready, "loading")).toBe(false);
+  expect(() => reducer(ready, { type: "transition", lifecycle: "loading" })).toThrow();
   const signingIn = reducer(ready, { type: "transition", lifecycle: "signing-in" });
   expect(toBaseCardLifecycle(signingIn.lifecycle)).toBe("action");
   const signedIn = reducer(signingIn, { type: "transition", lifecycle: "signed-in" });

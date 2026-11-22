@@ -25,7 +25,7 @@ import {
 
 export interface UseRepoCardV2 extends CardHook {
   readonly cardId: "repo_v2";
-  shared: SharedCard;
+  shared: SharedCard<"repo_v2">;
   baseCardContext: BaseCardContext<Lifecycle>;
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
   githubEnvUrl: string | undefined;
@@ -101,6 +101,17 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
   const done = isRepoReady && isEnvReady && !errorSummary && !busySummary;
   const lifecycle: Lifecycle = !prerequisites ? "blocked" : errorSummary ? "error" : busySummary ? "action" : done ? "complete" : "ready";
   if (lifecycle !== state.lifecycle) dispatchLifecycle({ type: "transition", lifecycle });
+  const sharedGithubRepository = done && githubRepo.selectedAccount && githubRepo.selectedRepo && env.selectedEnv
+    ? {
+      account: {
+        id: githubRepo.selectedAccount.id,
+        login: githubRepo.selectedAccount.login,
+        type: githubRepo.selectedAccount.type,
+      },
+      repository: { id: githubRepo.selectedRepo.id, name: githubRepo.selectedRepo.name },
+      environment: { id: env.selectedEnv.id, name: env.selectedEnv.name, url: env.selectedEnv.url },
+    }
+    : null;
   const baseCardContext = {
     ...initialRepoCardContext,
     lifecycle: toBaseCardLifecycle(lifecycle),
@@ -118,10 +129,8 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
     shared: {
       title: baseCardContext.title,
       status: baseCardContext.lifecycle,
-      githubRepository: done && githubRepo.selectedAccount && githubRepo.selectedRepo && env.selectedEnv
-        ? { account: githubRepo.selectedAccount, repository: githubRepo.selectedRepo, environment: env.selectedEnv }
-        : null,
-    },
+      githubRepository: sharedGithubRepository,
+    } satisfies SharedCard<"repo_v2">,
     status,
     summary,
     cardDependencyLabel: baseCardContext.title,

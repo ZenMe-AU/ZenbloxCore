@@ -4,7 +4,7 @@
  */
 
 import { expect, it } from "vitest";
-import { createAppContext } from "../appContext";
+import { createAppContext, SensitiveToken, type SharedCard } from "../appContext";
 import { checkPrerequisites } from "../components/useBaseCard";
 import { initialState as initialGithubState, reducer as githubReducer, toBaseCardLifecycle as githubToBaseCardLifecycle } from "../cards/GithubLoginV2/stateMachine";
 import {
@@ -56,6 +56,33 @@ it("checks registered, initialised and complete prerequisites and rejects self-d
   store.update("repo_v2", { title: "Repository", status: "complete" });
   expect(check()).toEqual(["proto_card", "unknown"]);
   unsubscribe();
+});
+
+it("stores card-contributed data generically and compares plain snapshots structurally", () => {
+  const store = createAppContext();
+  const token = new SensitiveToken("test-secret");
+  const shared: SharedCard<"github_login_v2"> = {
+    title: "GitHub login 2",
+    status: "complete",
+    githubAccount: { login: "user" },
+    githubToken: token,
+    githubMode: "direct",
+  };
+
+  store.update("github_login_v2", shared);
+  const snapshot = store.getSnapshot();
+  expect(snapshot.cards.github_login_v2).toMatchObject({
+    initialised: true,
+    githubAccount: { login: "user" },
+    githubToken: token,
+    githubMode: "direct",
+  });
+  expect(JSON.stringify(snapshot)).not.toContain("test-secret");
+
+  store.update("github_login_v2", { ...shared, githubAccount: { login: "user" } });
+  expect(store.getSnapshot()).toBe(snapshot);
+  store.update("github_login_v2", { ...shared, githubToken: new SensitiveToken("test-secret") });
+  expect(store.getSnapshot()).not.toBe(snapshot);
 });
 
 it("keeps ProtoCard transition rules local to its state machine", () => {

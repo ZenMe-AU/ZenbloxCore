@@ -10,6 +10,18 @@ import type {
   BaseCardStateGraph,
   BaseCardStateMachine,
 } from "../../components/basecardlifecycle";
+import type { AzureAccount } from "../../types";
+
+type AzureLoginIdentity = Pick<AzureAccount, "homeAccountId" | "environment" | "tenantId" | "localAccountId" | "username">;
+
+declare module "../../appContext" {
+  interface SharedCardDataById {
+    azure_login_v2: {
+      azureAccount?: Readonly<AzureLoginIdentity> | null;
+      azureTenantId?: string | null;
+    };
+  }
+}
 
 export type Lifecycle =
   | "loading"

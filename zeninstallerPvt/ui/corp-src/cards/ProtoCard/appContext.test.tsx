@@ -92,7 +92,7 @@ it("lets ProtoCard observe existing and later card data and status changes", asy
   }
 });
 
-it("publishes GitHub account changes without exposing credentials", async () => {
+it("publishes typed GitHub snapshots and detects structural changes", async () => {
   const store = createAppContext();
   const root = createRoot(document.createElement("div"));
   let latest: UseProtoCard | undefined;
@@ -102,11 +102,23 @@ it("publishes GitHub account changes without exposing credentials", async () => 
   }
   try {
     await act(async () => root.render(<Harness />));
-    const shared = { title: "GitHub login 2", status: "complete" as const, githubAccount: { login: "first", token: "secret" }, token: "secret" };
+    const shared = {
+      title: "GitHub login 2",
+      status: "complete" as const,
+      githubAccount: { login: "first" },
+      githubToken: new SensitiveToken("test-secret"),
+      githubMode: "direct" as const,
+    };
     await act(async () => store.update("github_login_v2", shared));
     expect(latest?.appContext.cards.github_login_v2).toEqual({
-      initialised: true, title: "GitHub login 2", status: "complete", githubAccount: { login: "first" },
+      initialised: true,
+      title: "GitHub login 2",
+      status: "complete",
+      githubAccount: { login: "first" },
+      githubToken: shared.githubToken,
+      githubMode: "direct",
     });
+    expect(JSON.stringify(store.getSnapshot())).not.toContain("test-secret");
 
     const snapshot = store.getSnapshot();
     await act(async () => store.update("github_login_v2", { ...shared, githubAccount: { login: "first" } }));
@@ -132,9 +144,11 @@ it("publishes changed repository results and clears them", () => {
   expect(snapshot.cards.repo_v2).toMatchObject({ githubRepository });
   store.update("repo_v2", { title: "Repo 2", status: "complete", githubRepository: { ...githubRepository } });
   expect(store.getSnapshot()).toBe(snapshot);
-  store.update("repo_v2", { title: "Repo 2", status: "complete", githubRepository: {
-    ...githubRepository, environment: { ...githubRepository.environment, name: "TEST" },
-  } });
+  store.update("repo_v2", {
+    title: "Repo 2", status: "complete", githubRepository: {
+      ...githubRepository, environment: { ...githubRepository.environment, name: "TEST" },
+    }
+  });
   expect(store.getSnapshot().cards.repo_v2).toMatchObject({ githubRepository: { environment: { name: "TEST" } } });
   store.update("repo_v2", { title: "Repo 2", status: "ready", githubRepository: null });
   expect(store.getSnapshot().cards.repo_v2).toMatchObject({ githubRepository: null });

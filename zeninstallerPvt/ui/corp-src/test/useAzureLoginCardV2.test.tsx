@@ -153,7 +153,7 @@ describe("useAzureLoginCardV2", () => {
     expect(card.latest.redirecting).toBe(true);
     expect(msal.loginRedirect).toHaveBeenCalledWith({ scopes: ["login.scope"], authority: "https://login.microsoftonline.com/common", prompt: "select_account" });
 
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => { });
     await act(async () => {
       redirect.reject(new Error("popup_window_error"));
       await login;
@@ -214,11 +214,18 @@ describe("useAzureLoginCardV2", () => {
 });
 
 describe("AppContext Azure fields", () => {
-  it("copies only the account identity and publishes only real changes", () => {
+  it("stores the card-projected identity and publishes only real changes", () => {
     const store = createAppContext();
     const events: string[] = [];
     store.subscribe((event) => events.push(event.type));
-    const shared = { title: "Azure login 2", status: "complete" as const, azureAccount: homeAccount, azureTenantId: "tenant-1" };
+    const azureAccount = {
+      homeAccountId: homeAccount.homeAccountId,
+      environment: homeAccount.environment,
+      tenantId: homeAccount.tenantId,
+      localAccountId: homeAccount.localAccountId,
+      username: homeAccount.username,
+    };
+    const shared = { title: "Azure login 2", status: "complete" as const, azureAccount, azureTenantId: "tenant-1" };
 
     store.update("azure_login_v2", shared);
     const snapshot = store.getSnapshot();
@@ -226,11 +233,11 @@ describe("AppContext Azure fields", () => {
     expect(snapshot.cards.azure_login_v2).not.toHaveProperty("azureAccount.idToken");
     expect(snapshot.cards.azure_login_v2).not.toHaveProperty("azureAccount.tenantProfiles");
 
-    store.update("azure_login_v2", { ...shared, azureAccount: { ...homeAccount, idToken: "refreshed-id-token" } as AzureAccount });
+    store.update("azure_login_v2", { ...shared, azureAccount: { ...azureAccount } });
     expect(store.getSnapshot()).toBe(snapshot);
 
     store.update("azure_login_v2", { ...shared, azureTenantId: "tenant-2" });
-    store.update("azure_login_v2", { ...shared, azureAccount: { ...homeAccount, tenantId: "tenant-2" } });
+    store.update("azure_login_v2", { ...shared, azureAccount: { ...azureAccount, tenantId: "tenant-2" } });
     store.update("azure_login_v2", { ...shared, status: "ready", azureAccount: null, azureTenantId: null });
     expect(events).toEqual(["added", "initialised", "updated", "updated", "updated"]);
     expect(store.getSnapshot().cards.azure_login_v2).toMatchObject({ azureAccount: null, azureTenantId: null });

@@ -10,6 +10,18 @@ import type {
   BaseCardStateGraph,
   BaseCardStateMachine,
 } from "../../components/basecardlifecycle";
+import type { SensitiveToken } from "../../appContext";
+import type { User } from "../../types";
+
+declare module "../../appContext" {
+  interface SharedCardDataById {
+    github_login_v2: {
+      githubAccount?: Readonly<User> | null;
+      githubToken?: SensitiveToken | null;
+      githubMode?: "direct" | "backend" | null;
+    };
+  }
+}
 
 export const lifecycles = ["loading", "ready", "signing-in", "signed-in", "expired"] as const;
 export type Lifecycle = typeof lifecycles[number];
@@ -23,7 +35,7 @@ export const stateGraph = {
   ready: {
     label: "Ready",
     baseCardLifecycle: "ready",
-    transitions: ["signing-in"],
+    transitions: ["signing-in", "signed-in", "expired"],
   },
   "signing-in": {
     label: "Signing in",
@@ -38,7 +50,7 @@ export const stateGraph = {
   expired: {
     label: "Session expired",
     baseCardLifecycle: "error",
-    transitions: ["ready", "signing-in"],
+    transitions: ["ready", "signing-in", "signed-in"],
   },
 } as const satisfies BaseCardStateGraph<Lifecycle>;
 
