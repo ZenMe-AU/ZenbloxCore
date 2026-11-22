@@ -204,23 +204,16 @@ describe("ProtoCard state machine", () => {
         </ThemeProvider>
       );
     }
-    async function setInput(index: number, value: string, commit: "blur" | "enter" = "blur") {
-      const input = container.querySelectorAll<HTMLInputElement>('input[type="text"]')[index];
-      expect(input).toBeDefined();
+    async function selectPrerequisite(index: number, value: string) {
+      const select = container.querySelectorAll<HTMLSelectElement>("select")[index];
+      expect(select).toBeDefined();
       await act(async () => {
-        input.focus();
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-      });
-      expect(document.activeElement).toBe(input);
-      expect(latest?.baseCardContext.lifecycle).not.toBe("loading");
-      await act(async () => {
-        if (commit === "enter") input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-        else input.blur();
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(select, value);
+        select.dispatchEvent(new Event("change", { bubbles: true }));
       });
       expect(latest?.baseCardContext.lifecycle).toBe("loading");
       expect(container.querySelector("#proto-card-prerequisites")).toBeNull();
-      expect(container.querySelectorAll('input[type="text"]')).toHaveLength(0);
+      expect(container.querySelectorAll("select")).toHaveLength(0);
     }
     async function openPrerequisites() {
       const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="proto-card-prerequisites"]');
@@ -234,24 +227,18 @@ describe("ProtoCard state machine", () => {
       await act(async () => root.render(<Harness />));
       await act(async () => vi.advanceTimersByTime(2000));
       const panel = container.querySelector("#proto-card-prerequisites")!;
-      expect(container.querySelectorAll('input[type="text"]')).toHaveLength(2);
-      expect(panel.querySelectorAll('input[type="text"]')).toHaveLength(2);
+      expect(container.querySelectorAll("select")).toHaveLength(2);
+      expect(panel.querySelectorAll("select")).toHaveLength(2);
       expect(panel.querySelector('input[type="checkbox"]')).toBeNull();
       expect([...panel.querySelectorAll("button")].find((button) => button.textContent === "Block")).toBeUndefined();
-      const firstInput = panel.querySelector<HTMLInputElement>('input[type="text"]')!;
-      await act(async () => { firstInput.focus(); firstInput.blur(); });
-      expect(latest?.baseCardContext.lifecycle).toBe("ready");
-      await act(async () => {
-        firstInput.focus();
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(firstInput, "github");
-        firstInput.dispatchEvent(new Event("input", { bubbles: true }));
-      });
-      expect(latest?.baseCardContext.lifecycle).toBe("ready");
-      expect(document.activeElement).toBe(firstInput);
-      await setInput(0, "github_login_v2", "enter");
+      const prerequisiteSelect = panel.querySelector<HTMLSelectElement>("select")!;
+      expect([...prerequisiteSelect.options].map((option) => option.value)).toContain("github_login_v2");
+      expect([...prerequisiteSelect.options].map((option) => option.value)).not.toContain("unknown_card");
+      expect([...prerequisiteSelect.options].map((option) => option.value)).not.toContain("proto_card");
+      await selectPrerequisite(0, "github_login_v2");
       await act(async () => vi.advanceTimersByTime(2000));
       expect(latest?.baseCardContext.lifecycle).toBe("ready");
-      await setInput(1, "repo_v2");
+      await selectPrerequisite(1, "repo_v2");
       await act(async () => vi.advanceTimersByTime(2000));
       expect(latest?.baseCardContext).toMatchObject({ lifecycle: "blocked", unmetCardPrerequisites: ["repo_v2"] });
       expect(container.textContent).toContain("repo_v2");
@@ -269,18 +256,13 @@ describe("ProtoCard state machine", () => {
       expect(latest?.done).toBe(false);
       await act(async () => vi.advanceTimersByTime(2000));
       expect(latest?.baseCardContext).toMatchObject({ lifecycle: "blocked", unmetCardPrerequisites: ["github_login_v2"] });
-      expect(container.querySelectorAll('input[type="text"]')).toHaveLength(0);
+      expect(container.querySelectorAll("select")).toHaveLength(0);
       await act(async () => container.querySelector<HTMLButtonElement>("button.MuiLink-root")?.click());
       await openPrerequisites();
-      await setInput(0, "unknown_card");
-      await act(async () => vi.advanceTimersByTime(2000));
-      expect(latest?.baseCardContext).toMatchObject({ lifecycle: "blocked", unmetCardPrerequisites: ["unknown_card"] });
-      await openPrerequisites();
-      await setInput(0, "proto_card");
-      await act(async () => vi.advanceTimersByTime(2000));
-      expect(latest?.baseCardContext.unmetCardPrerequisites).toEqual(["proto_card"]);
-      await openPrerequisites();
-      await setInput(0, "");
+      const selects = container.querySelectorAll<HTMLSelectElement>("select");
+      expect([...selects[0].options].map((option) => option.value)).not.toContain("unknown_card");
+      expect([...selects[0].options].map((option) => option.value)).not.toContain("proto_card");
+      await selectPrerequisite(0, "repo_v2");
       await act(async () => vi.advanceTimersByTime(2000));
       expect(latest?.baseCardContext.lifecycle).toBe("ready");
     } finally {

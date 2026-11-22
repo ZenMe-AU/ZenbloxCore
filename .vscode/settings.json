@@ -8,6 +8,7 @@
   // "azureFunctions.projectLanguageModel": 4,
   // "azureFunctions.preDeployTask": "npm prune (functions)",
   "editor.formatOnSave": true,
+  "editor.defaultFormatter": "dbaeumer.vscode-eslint",
   "[javascript]": {
     "editor.defaultFormatter": "dbaeumer.vscode-eslint"
   },
