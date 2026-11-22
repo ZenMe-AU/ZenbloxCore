@@ -58,8 +58,8 @@ const lifecycleDiagramLayout: StateDiagramLayout<Lifecycle> = {
 function PrerequisitesPanel({ protoCard }: {
   protoCard: UseProtoCard;
 }) {
-  const { baseCardContext, protoCardContext, dispatch } = protoCard;
-  const state = { lifecycle: baseCardContext.lifecycle, protoCardContext };
+  const { baseCardContext, privateContext, dispatch } = protoCard;
+  const state = { lifecycle: baseCardContext.lifecycle, privateContext };
   const lifecycle = baseCardContext.lifecycle;
   const registeredCards = Object.entries(protoCard.appContext.cards)
     .filter(([cardId]) => cardId !== baseCardContext.cardId)
@@ -172,7 +172,7 @@ function PrerequisitesPanel({ protoCard }: {
 }
 
 function ResultsPanel({ protoCard }: { protoCard: UseProtoCard }) {
-  const { appContext, baseCardContext, protoCardContext } = protoCard;
+  const { appContext, baseCardContext, privateContext } = protoCard;
   const lifecycle = baseCardContext.lifecycle;
   const [panel, setPanel] = useState({ lifecycle, open: lifecycle === "commit" });
   const [widths, setWidths] = useState([100 / 3, 100 / 3, 100 / 3]);
@@ -193,7 +193,7 @@ function ResultsPanel({ protoCard }: { protoCard: UseProtoCard }) {
   }
 
   const contexts = [
-    { name: "protoCardContext", value: protoCardContext },
+    { name: "privateContext", value: privateContext },
     { name: "baseCardContext", value: baseCardContext },
     { name: "appContext", value: appContext },
   ];
@@ -353,8 +353,8 @@ function BlockedContent({ protoCard, cardChrome }: {
 }
 
 export default function ProtoCard({ cardChrome, protoCard }: Props) {
-  const { baseCardContext, protoCardContext } = protoCard;
-  const { forceUnlocked } = protoCardContext;
+  const { baseCardContext, privateContext } = protoCard;
+  const { forceUnlocked } = privateContext;
   const showBlockedContent = baseCardContext.lifecycle === "blocked" && !forceUnlocked;
 
   return (

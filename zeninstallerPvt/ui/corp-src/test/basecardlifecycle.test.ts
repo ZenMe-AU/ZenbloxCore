@@ -24,7 +24,7 @@ it("maps card-owned states to the shared BaseCard display lifecycle", () => {
   expect(protoStateMachine.canTransition(initialProtoState, "action")).toBe(true);
   expect(protoStateMachine.canTransition({
     ...initialProtoState,
-    protoCardContext: { ...initialProtoState.protoCardContext, unmetCardPrerequisites: ["repo_v2"] },
+    privateContext: { ...initialProtoState.privateContext, unmetCardPrerequisites: ["repo_v2"] },
   }, "action")).toBe(false);
 
   const proto = protoReducer(initialProtoState, { type: "check-prerequisites" });

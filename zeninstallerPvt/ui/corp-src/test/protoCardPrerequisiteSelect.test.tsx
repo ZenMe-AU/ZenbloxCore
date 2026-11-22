@@ -28,7 +28,7 @@ it("offers only registered prerequisite IDs and dispatches the selected ID", asy
         done: false,
         appContext: store.getSnapshot(),
         baseCardContext: getBaseCardContext(state),
-        protoCardContext: state.protoCardContext,
+        privateContext: state.privateContext,
         dispatch,
     };
     const container = document.createElement("div");
@@ -87,7 +87,7 @@ it("links a failed registered prerequisite to its card", async () => {
         done: false,
         appContext: store.getSnapshot(),
         baseCardContext: getBaseCardContext(state),
-        protoCardContext: state.protoCardContext,
+        privateContext: state.privateContext,
         dispatch: vi.fn(),
     };
     const onRequirementClick = vi.fn();
@@ -141,7 +141,7 @@ it("undoes force-unlock when its status message is clicked", async () => {
         done: false,
         appContext: store.getSnapshot(),
         baseCardContext: getBaseCardContext(state),
-        protoCardContext: state.protoCardContext,
+        privateContext: state.privateContext,
         dispatch,
     };
     const container = document.createElement("div");

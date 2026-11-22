@@ -15,7 +15,7 @@ export interface UseProtoCard extends CardHook {
   shared: SharedCard;
   appContext: ReturnType<AppContext["getSnapshot"]>;
   baseCardContext: ReturnType<typeof getBaseCardContext>;
-  protoCardContext: typeof initialState.protoCardContext;
+  privateContext: typeof initialState.privateContext;
   dispatch: Dispatch<Event>;
 }
 
@@ -23,11 +23,11 @@ export function useProtoCard(appStore: AppContext): UseProtoCard {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatchState] = useReducer(reducer, initialState, (initial) => ({
     ...initial,
-    protoCardContext: { ...initial.protoCardContext, forceUnlocked: forceUnlockedForPage },
+    privateContext: { ...initial.privateContext, forceUnlocked: forceUnlockedForPage },
   }));
   const unmet = checkPrerequisites(appContext, getBaseCardContext(state));
-  if (unmet.length !== state.protoCardContext.unmetCardPrerequisites.length
-    || unmet.some((id, index) => id !== state.protoCardContext.unmetCardPrerequisites[index])) {
+  if (unmet.length !== state.privateContext.unmetCardPrerequisites.length
+    || unmet.some((id, index) => id !== state.privateContext.unmetCardPrerequisites[index])) {
     dispatchState({ type: "sync-card-prerequisites", unmet });
   }
   const dispatch = useCallback((event: Event) => {
@@ -38,7 +38,7 @@ export function useProtoCard(appStore: AppContext): UseProtoCard {
     if (state.lifecycle !== "loading") return;
     const timer = setTimeout(() => dispatchState({ type: "check-prerequisites" }), 2000);
     return () => clearTimeout(timer);
-  }, [state.lifecycle, state.baseCardContext.prerequisiteIds, state.protoCardContext.unmetCardPrerequisites]);
+  }, [state.lifecycle, state.baseCardContext.prerequisiteIds, state.privateContext.unmetCardPrerequisites]);
   const baseCardContext = getBaseCardContext(state);
   const status = baseCardContext.lifecycle === "loading"
     ? "loading"
@@ -54,7 +54,7 @@ export function useProtoCard(appStore: AppContext): UseProtoCard {
     cardDependencyLabel: "Protocard",
     appContext,
     baseCardContext,
-    protoCardContext: state.protoCardContext,
+    privateContext: state.privateContext,
     dispatch,
   };
 }

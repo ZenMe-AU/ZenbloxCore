@@ -20,18 +20,20 @@ import {
   type Lifecycle as AzureLoginV2Lifecycle,
 } from "./stateMachine";
 
+const cardId = "azure_login_v2";
+
 // Its own key, so a tenant consent redirect started here is not confirmed by the original Azure login card on the way back.
 const SESSION_KEY = "zeninstaller_arm_tenant_v2";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface UseAzureLoginCardV2 extends CardHook, LoginHook<AzureAccount> {
-  readonly cardId: "azure_login_v2";
+  readonly cardId: typeof cardId;
   summary: string;
   cardDependencyLabel: string;
   baseCardContext: BaseCardContext<AzureLoginV2Lifecycle>;
   machineLifecycle: AzureLoginV2Lifecycle;
-  shared: SharedCard<"azure_login_v2">;
+  shared: SharedCard<typeof cardId>;
 
   login: () => Promise<void>;
   logout: () => Promise<void>;
@@ -305,7 +307,7 @@ export function useAzureLoginCardV2(): UseAzureLoginCardV2 {
   } satisfies Record<AzureLoginV2Lifecycle, string>)[lifecycle];
 
   const baseCardContext = {
-    cardId: "azure_login_v2",
+    cardId,
     title: "Azure login 2",
     prerequisiteIds: [],
     summary,
@@ -322,7 +324,7 @@ export function useAzureLoginCardV2(): UseAzureLoginCardV2 {
 
   return {
     // cardHook
-    cardId: "azure_login_v2" as const,
+    cardId,
     status,
     summary,
     cardRequirements: [],
@@ -342,7 +344,7 @@ export function useAzureLoginCardV2(): UseAzureLoginCardV2 {
       status: baseCardContext.lifecycle,
       azureAccount: sharedAzureAccount,
       azureTenantId: done ? tenantId : null,
-    } satisfies SharedCard<"azure_login_v2">,
+    } satisfies SharedCard<typeof cardId>,
     loginError,
     redirecting,
     tenants,
