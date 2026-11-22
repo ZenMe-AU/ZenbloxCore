@@ -22,6 +22,7 @@ import {
   deriveLifecycle,
   initialState,
   reducer,
+  stateGraph,
   toBaseCardLifecycle,
   type Lifecycle as GithubLoginV2Lifecycle,
 } from "./stateMachine";
@@ -372,11 +373,11 @@ export function useGithubLoginCardV2() {
     prerequisiteIds: [],
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),
-  } satisfies BaseCardContext;
+    stateMachine: { graph: stateGraph, currentState: lifecycle },
+  } satisfies BaseCardContext<GithubLoginV2Lifecycle>;
   return {
     ...githubLoginContext,
     baseCardContext,
-    machineLifecycle: lifecycle,
     githubLoginContext,
     shared: {
       title: baseCardContext.title, status: baseCardContext.lifecycle, githubAccount: account,

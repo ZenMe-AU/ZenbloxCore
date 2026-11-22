@@ -21,6 +21,17 @@ type ProtoCardContext = {
   unmetCardPrerequisites: string[];
 };
 
+const title = "ProtoCard prototype card";
+const defaultSummary = "Ready to proceed";
+
+function summaryFor(lifecycle: Lifecycle, unmetCardPrerequisites: readonly string[]): string {
+  return lifecycle === "loading"
+    ? "Checking prerequisites..."
+    : lifecycle === "blocked"
+      ? `Blocked due to incomplete prerequisites: ${unmetCardPrerequisites.join(", ")}`
+      : defaultSummary;
+}
+
 export type Event =
   | { type: "card-prerequisite"; index: 0 | 1; cardId: string }
   | { type: "sync-card-prerequisites"; unmet: string[] }
@@ -32,7 +43,7 @@ export const initialState: State = {
   lifecycle: "loading",
   baseCardContext: {
     cardId: "proto_card",
-    title: "ProtoCard prototype card",
+    title,
     prerequisiteIds: ["", ""],
   },
   protoCardContext: {
@@ -43,15 +54,11 @@ export const initialState: State = {
 
 export function getBaseCardContext(state: State) {
   const lifecycle = state.lifecycle;
-  const summary = lifecycle === "loading"
-    ? "Checking prerequisites..."
-    : lifecycle === "blocked"
-      ? `Blocked: ${state.protoCardContext.unmetCardPrerequisites.join(", ")}`
-      : "Summary";
   return {
     ...state.baseCardContext,
     lifecycle,
-    summary,
+    stateMachine: { graph: stateGraph, currentState: lifecycle },
+    summary: summaryFor(lifecycle, state.protoCardContext.unmetCardPrerequisites),
     unmetCardPrerequisites: state.protoCardContext.unmetCardPrerequisites,
     done: state.protoCardContext.unmetCardPrerequisites.length === 0 && lifecycle === "complete",
   } as const;

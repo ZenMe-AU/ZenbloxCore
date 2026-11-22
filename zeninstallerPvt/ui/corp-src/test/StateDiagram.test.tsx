@@ -68,10 +68,15 @@ it("shows and hides the read-only diagram from the BaseCard context menu", async
         await act(async () => root.render(
             <ThemeProvider theme={theme}>
                 <BaseCard
-                    baseCardContext={{ cardId: "proto_card", title: "Diagram test", lifecycle: "ready", prerequisiteIds: [] }}
+                    baseCardContext={{
+                        cardId: "proto_card",
+                        title: "Diagram test",
+                        lifecycle: "ready",
+                        prerequisiteIds: [],
+                        stateMachine: { graph, currentState: "ready" },
+                    }}
                     expanded
                     onToggle={() => { }}
-                    stateDiagram={{ graph, currentState: "ready" }}
                 >
                     <p>Card content</p>
                 </BaseCard>

@@ -9,6 +9,7 @@ import { checkPrerequisites } from "../components/useBaseCard";
 import { initialState as initialGithubState, reducer as githubReducer, toBaseCardLifecycle as githubToBaseCardLifecycle } from "../cards/GithubLoginV2/stateMachine";
 import {
   canLifecycleTransition,
+  getBaseCardContext,
   initialState as initialProtoState,
   reducer as protoReducer,
   stateMachine as protoStateMachine,
@@ -27,9 +28,11 @@ it("maps card-owned states to the shared BaseCard display lifecycle", () => {
   }, "action")).toBe(false);
 
   const proto = protoReducer(initialProtoState, { type: "check-prerequisites" });
+  const protoBaseCardContext = getBaseCardContext(proto);
   const repo = repoReducer(initialRepoState, { type: "phase-changed", phase: "working" });
   const github = githubReducer(initialGithubState, { type: "transition", lifecycle: "signing-in" });
   expect(proto.lifecycle).toBe("ready");
+  expect(protoBaseCardContext.stateMachine).toEqual({ currentState: "ready", graph: protoStateMachine.graph });
   expect(repoLifecycle(repo.phase)).toBe("action");
   expect(githubToBaseCardLifecycle(github.lifecycle)).toBe("action");
 });

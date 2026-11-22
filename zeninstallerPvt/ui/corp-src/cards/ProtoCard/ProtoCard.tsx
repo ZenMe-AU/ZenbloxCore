@@ -12,7 +12,7 @@ import type { Lifecycle } from "../../components/useBaseCard";
 import CollapsiblePanel from "../../components/CollapsiblePanel";
 import ViewLink from "../../components/ViewLink";
 import type { CardChrome } from "../../types";
-import { canTransition, stateGraph } from "./stateMachine";
+import { canTransition } from "./stateMachine";
 import type { UseProtoCard } from "./useProtoCard";
 
 type Props = {
@@ -342,7 +342,7 @@ export default function ProtoCard({ cardChrome, protoCard }: Props) {
       baseCardContext={baseCardContext}
       expanded={cardChrome.expanded}
       onToggle={cardChrome.onToggle}
-      stateDiagram={{ graph: stateGraph, currentState: protoCard.baseCardContext.lifecycle, layout: lifecycleDiagramLayout }}
+      stateDiagramLayout={lifecycleDiagramLayout}
       action={baseCardContext.lifecycle !== "loading" && !showBlockedContent
         ? <ViewLink href="http://localhost" label="Open External Site" />
         : undefined}

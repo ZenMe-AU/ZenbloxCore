@@ -15,21 +15,17 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { alpha, useTheme } from "@mui/material/styles";
 import { borderHoverTint, borderTint } from "../config/styles";
-import type { BaseCardContext, Lifecycle, StateGraph } from "./basecardlifecycle";
+import type { BaseCardContext, Lifecycle } from "./basecardlifecycle";
 import StateDiagram, { type StateDiagramLayout } from "./StateDiagram";
 
 type Props<StateId extends string> = {
-  baseCardContext: BaseCardContext;
+  baseCardContext: BaseCardContext<StateId>;
   expanded: boolean;
   onToggle: () => void;
   action?: ReactNode;
   descriptionId?: string;
   children: ReactNode;
-  stateDiagram?: {
-    graph: StateGraph<StateId, Lifecycle>;
-    currentState: StateId;
-    layout?: StateDiagramLayout<StateId>;
-  };
+  stateDiagramLayout?: StateDiagramLayout<StateId>;
 };
 
 const lifecycleLabels: Record<Lifecycle, string> = {
@@ -43,9 +39,10 @@ const lifecycleLabels: Record<Lifecycle, string> = {
 };
 
 export default function BaseCard<StateId extends string = Lifecycle>({
-  baseCardContext, expanded, onToggle, action, descriptionId, children, stateDiagram,
+  baseCardContext, expanded, onToggle, action, descriptionId, children, stateDiagramLayout,
 }: Props<StateId>) {
   const { cardId, title, summary, lifecycle } = baseCardContext;
+  const stateMachine = baseCardContext.stateMachine;
   const theme = useTheme();
   const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
   const [showStateDiagram, setShowStateDiagram] = useState(false);
@@ -69,7 +66,7 @@ export default function BaseCard<StateId extends string = Lifecycle>({
   return (
     <Box
       id={`card-${cardId}`}
-      onContextMenu={stateDiagram ? (event) => {
+      onContextMenu={stateMachine ? (event) => {
         event.preventDefault();
         setContextMenu({ mouseX: event.clientX + 2, mouseY: event.clientY - 6 });
       } : undefined}
@@ -88,7 +85,7 @@ export default function BaseCard<StateId extends string = Lifecycle>({
         "&:hover": { boxShadow: colors.hoverShadow },
       }}
     >
-      {stateDiagram && (
+      {stateMachine && (
         <Menu
           open={contextMenu !== null}
           onClose={() => setContextMenu(null)}
@@ -238,8 +235,8 @@ export default function BaseCard<StateId extends string = Lifecycle>({
       </Box>
       <Collapse in={expanded}>
         <Box id={contentId} role="region" aria-labelledby={titleId} sx={{ borderTop: `1px solid ${colors.contentDivider}`, px: 2.5, py: 2.5 }}>
-          {stateDiagram && showStateDiagram && (
-            <StateDiagram graph={stateDiagram.graph} currentState={stateDiagram.currentState} layout={stateDiagram.layout} />
+          {stateMachine && showStateDiagram && (
+            <StateDiagram graph={stateMachine.graph} currentState={stateMachine.currentState} layout={stateDiagramLayout} />
           )}
           {children}
         </Box>

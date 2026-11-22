@@ -15,11 +15,12 @@ export type BaseCardState<lifecycle extends string = Lifecycle> = { lifecycle: l
 export type BaseCardEvent<lifecycle extends string = Lifecycle> = { type: "transition"; lifecycle: lifecycle };
 
 /** The BaseCard context object that is passed to other components and hooks. */
-export type BaseCardContext = BaseCardState & {
+export type BaseCardContext<lifecycle extends string = Lifecycle> = BaseCardState & {
   cardId: CardId;
   title: string;
   prerequisiteIds: readonly string[];
   summary?: string;
+  stateMachine?: BaseCardStateMachineSnapshot<lifecycle>;
 };
 
 /** Describes a single state and the transitions allowed from it. */
@@ -38,6 +39,14 @@ export type StateGraph<lifecycle extends string, BaseLifecycle extends string> =
 
 /** A state graph whose nodes map to BaseCard's display states. */
 export type BaseCardStateGraph<lifecycle extends string = Lifecycle> = StateGraph<lifecycle, Lifecycle>;
+
+/** Serializable state-machine data published with a BaseCard context. */
+export type BaseCardStateMachineSnapshot<lifecycle extends string = Lifecycle> = {
+  /** Current state identifier in the specialized machine. */
+  currentState: lifecycle;
+  /** State nodes and allowed transitions for the specialized machine. */
+  graph: BaseCardStateGraph<lifecycle>;
+};
 
 /**
  * Contract for a card state machine composed with BaseCard.

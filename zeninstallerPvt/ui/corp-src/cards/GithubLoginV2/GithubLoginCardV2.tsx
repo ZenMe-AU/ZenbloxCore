@@ -12,7 +12,6 @@ import BaseCard from "../../components/BaseCard";
 import ViewLink from "../../components/ViewLink";
 import { getGithubUserUrl, GITHUB_LOGIN_URL } from "../../logic/github";
 import RefreshButton from "../../components/RefreshButton";
-import { stateGraph } from "./stateMachine";
 import { useRefreshIndicator } from "../../hooks/util/useRefreshIndicator";
 import type { CardChrome } from "../../types";
 import type { UseGithubLoginCardV2 } from "./useGithubLoginCardV2";
@@ -242,7 +241,6 @@ export default function GithubLoginCardV2({ cardChrome, auth }: Props) {
       baseCardContext={baseCardContext}
       expanded={cardChrome.expanded}
       onToggle={cardChrome.onToggle}
-      stateDiagram={{ graph: stateGraph, currentState: auth.machineLifecycle }}
       action={<GithubLoginAction login={githubLoginContext.account?.login} />}
     >
       <GithubLoginContent auth={githubLoginContext} />

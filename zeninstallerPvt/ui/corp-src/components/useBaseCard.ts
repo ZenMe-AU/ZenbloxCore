@@ -10,7 +10,7 @@ export type { BaseCardContext, Lifecycle } from "./basecardlifecycle";
 
 export function checkPrerequisites(
   appContext: ReturnType<AppContext["getSnapshot"]>,
-  baseCardContext: BaseCardContext,
+  baseCardContext: BaseCardContext<string>,
 ): string[] {
   return baseCardContext.prerequisiteIds
     .map((id) => id.trim())
