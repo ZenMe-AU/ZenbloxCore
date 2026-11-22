@@ -24,6 +24,7 @@ import { useAzureLoginCardV2 } from "./cards/AzureLoginV2/useAzureLoginCardV2";
 import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
 import { useAzureSubscriptionCardV2 } from "./cards/AzureSubscriptionV2/useAzureSubscriptionCardV2";
+import useAzureAppRegistrationCardV2 from "./cards/AzureAppRegistrationV2/useAzureAppRegistrationCardV2";
 import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
 import { useCreateAdminUsersCard } from "./cards/CreateAdminUsers/useCreateAdminUsersCard";
 import { useCoreInfraCard } from "./cards/CoreInfra/useCoreInfraCard";
@@ -58,6 +59,7 @@ import AzureLoginCardV2 from "./cards/AzureLoginV2/AzureLoginCardV2";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCard";
 import AzureSubscriptionCardV2 from "./cards/AzureSubscriptionV2/AzureSubscriptionCardV2";
+import AzureAppRegistrationCardV2 from "./cards/AzureAppRegistrationV2/AzureAppRegistrationCardV2";
 import CoreInfraCard from "./cards/CoreInfra/CoreInfraCard";
 import PrivateFrontendInfraCard from "./cards/PrivateFrontendInfra/PrivateFrontendInfraCard";
 import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
@@ -160,6 +162,7 @@ function AppDashboard() {
       manualTenantId: azureLogin.manualTenantId,
     })
   );
+  const azureAppRegistrationV2 = addCard(useAzureAppRegistrationCardV2(appStore));
 
   // AWS console sign-in: the Entra SAML app, then the CloudFormation stack that trusts it.
   const azureTenantId = azureLogin.confirmedTenantId || azureLogin.account?.tenantId || null;
@@ -548,6 +551,7 @@ function AppDashboard() {
                 variables={githubVariables}
                 githubUrl={githubRepoEnv.githubEnvUrl}
               />
+              <AzureAppRegistrationCardV2 cardChrome={cardProps("azure_app_registration_v2")} card={azureAppRegistrationV2} />
 
               <CoreInfraCard
                 card={cardProps("core_infra")}
