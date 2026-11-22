@@ -27,6 +27,7 @@ export type SharedCard = Readonly<{
   githubRepository?: Readonly<{ account: Readonly<Account>; repository: Readonly<RepoOption>; environment: Readonly<GhEnv> }> | null;
   azureAccount?: Readonly<AzureIdentity> | null;
   azureTenantId?: string | null; // The tenant ARM access was confirmed for.
+  azureSubscription?: Readonly<{ id: string; displayName: string; tenantId: string }> | null;
 }>;
 type CardEntry = Readonly<{ initialised: false }> | (Readonly<{ initialised: true }> & SharedCard);
 type SharedSnapshot = Readonly<{ cards: Readonly<Partial<Record<CardId, CardEntry>>> }>;
@@ -52,6 +53,7 @@ export function createAppContext() {
       const current = snapshot.cards[cardId];
       const result = shared.githubRepository;
       const azure = shared.azureAccount;
+      const subscription = shared.azureSubscription;
       const entry: CardEntry = {
         initialised: true,
         title: shared.title,
@@ -73,6 +75,9 @@ export function createAppContext() {
           } : null,
         } : {}),
         ...("azureTenantId" in shared ? { azureTenantId: shared.azureTenantId ?? null } : {}),
+        ...("azureSubscription" in shared ? {
+          azureSubscription: subscription ? { id: subscription.id, displayName: subscription.displayName, tenantId: subscription.tenantId } : null,
+        } : {}),
       };
       if (!current) {
         publish({ type: "added", cardId }, { initialised: false });
@@ -98,7 +103,11 @@ export function createAppContext() {
         || current.azureAccount?.tenantId !== azure?.tenantId
         || current.azureAccount?.localAccountId !== azure?.localAccountId
         || current.azureAccount?.username !== azure?.username
-        || current.azureTenantId !== shared.azureTenantId || ("azureTenantId" in current) !== ("azureTenantId" in shared)) {
+        || current.azureTenantId !== shared.azureTenantId || ("azureTenantId" in current) !== ("azureTenantId" in shared)
+        || ("azureSubscription" in current) !== ("azureSubscription" in shared)
+        || current.azureSubscription?.id !== subscription?.id
+        || current.azureSubscription?.displayName !== subscription?.displayName
+        || current.azureSubscription?.tenantId !== subscription?.tenantId) {
         publish({ type: "updated", cardId }, entry);
       }
     },

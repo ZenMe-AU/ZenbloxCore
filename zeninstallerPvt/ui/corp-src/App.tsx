@@ -23,6 +23,7 @@ import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
 import { useAzureLoginCardV2 } from "./cards/AzureLoginV2/useAzureLoginCardV2";
 import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
+import { useAzureSubscriptionCardV2 } from "./cards/AzureSubscriptionV2/useAzureSubscriptionCardV2";
 import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
 import { useCreateAdminUsersCard } from "./cards/CreateAdminUsers/useCreateAdminUsersCard";
 import { useCoreInfraCard } from "./cards/CoreInfra/useCoreInfraCard";
@@ -56,6 +57,7 @@ import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
 import AzureLoginCardV2 from "./cards/AzureLoginV2/AzureLoginCardV2";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCard";
+import AzureSubscriptionCardV2 from "./cards/AzureSubscriptionV2/AzureSubscriptionCardV2";
 import CoreInfraCard from "./cards/CoreInfra/CoreInfraCard";
 import PrivateFrontendInfraCard from "./cards/PrivateFrontendInfra/PrivateFrontendInfraCard";
 import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
@@ -142,6 +144,8 @@ function AppDashboard() {
       savedSubscriptionId: githubVariableValues.AZURE_SUBSCRIPTION_ID ?? "",
     })
   );
+  // Reads Azure login 2 from appStore and shares its pick there; nothing below reads it yet.
+  const azureSubscriptionV2 = addCard(useAzureSubscriptionCardV2(appStore));
 
   const azureAppSetup = addCard(
     useAzureAppRegistrationCard({
@@ -532,6 +536,7 @@ function AppDashboard() {
                 onOpenAzureLogin={() => openCard("azure_login")}
                 onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
               />
+              <AzureSubscriptionCardV2 cardChrome={cardProps("azure_subscription_v2")} subscription={azureSubscriptionV2} />
 
               <AzureAppRegistrationCard
                 card={cardProps("azure_app_registration")}

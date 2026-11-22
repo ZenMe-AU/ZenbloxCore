@@ -19,6 +19,7 @@ export type CardId =
   | "repo"
   | "repo_v2"
   | "azure_subscription"
+  | "azure_subscription_v2"
   | "azure_app_registration"
   | "core_infra"
   | "private_frontend_infra"
