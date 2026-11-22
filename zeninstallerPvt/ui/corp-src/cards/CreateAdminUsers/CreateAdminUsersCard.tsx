@@ -55,12 +55,13 @@ function Intro() {
 }
 
 export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
-  const { admins, rowErrors, addAdmin, missingGroups, existingAdmins, waitingAdmins, checking, recheck, entraLicence, roleTarget, usePim, setUsePim, access, steps, running, canRun, run, reset, error } = adminUsers;
+  const { admins, rowErrors, rowIssues, addAdmin, missingGroups, existingAdmins, waitingAdmins, checking, recheck, entraLicence, roleTarget, usePim, setUsePim, access, steps, running, canRun, run, reset, error } = adminUsers;
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(() => admins[0]?.key ?? null);
   const [editKey, setEditKey] = useState<string | null>(null);
   const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const incomplete = admins.filter((a) => rowErrors[a.key]).length;
+  const clashing = admins.some((admin) => rowIssues[admin.key]?.some((issue) => issue.kind === "conflict")); // Red only then; an empty field is unfinished, so amber.
   const groupSummary = error ? "Couldn't read Entra" : !missingGroups ? "Checking..." : `${missingGroups.length} to create · ${ADMIN_GROUPS.length - missingGroups.length} existing`;
   const toggle = (key: string) => setOpenKey(openKey === key ? null : key);
 
@@ -111,7 +112,7 @@ export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
             <Typography variant="sectionLabel">User accounts</Typography>
             <Typography color="text.muted">
               {admins.length} to add ·{" "}
-              <Box component="span" sx={incomplete ? { color: "error.main" } : undefined}>
+              <Box component="span" sx={{ color: clashing ? "error.main" : incomplete ? "warning.dark" : undefined }}>
                 {incomplete} incomplete
               </Box>
               {existingAdmins?.length ? ` · ${existingAdmins.length} existing` : ""}
@@ -164,6 +165,13 @@ export default function CreateAdminUsersCard({ card, adminUsers }: Props) {
               <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                 <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
                 <Typography color="error.main">Insufficient permissions to continue</Typography>
+              </Box>
+            )}
+            {/* Why Create can't run yet; the rows say what's missing. */}
+            {incomplete > 0 && (
+              <Box role="note" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                <Typography color="error.main">{incomplete} incomplete</Typography>
               </Box>
             )}
             {admins.length === 0 && (

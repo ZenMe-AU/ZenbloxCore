@@ -9,7 +9,7 @@ import { ThemeProvider } from "@mui/material";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountInfo } from "@azure/msal-browser";
 import { useCreateAdminUsersCard, type UseCreateAdminUsersCard } from "../cards/CreateAdminUsers/useCreateAdminUsersCard";
-import { adminRowErrors, byManager, duplicateUpns, managerLoop, resolveAdmin, type AdminRow } from "../cards/CreateAdminUsers/logic";
+import { adminRowErrors, adminRowIssues, byManager, duplicateUpns, issueHeadline, managerLoop, newAdmin, resolveAdmin, type AdminRow } from "../cards/CreateAdminUsers/logic";
 import CreateAdminUsersCard from "../cards/CreateAdminUsers/CreateAdminUsersCard";
 import { createAdminUsersAccess } from "../cards/CreateAdminUsers/config";
 import theme from "../theme";
@@ -32,6 +32,8 @@ const { mocks } = vi.hoisted(() => ({
     listAdminPairs: vi.fn(),
     getUserManagerId: vi.fn(),
     setUserManager: vi.fn(),
+    updateUser: vi.fn(),
+    listUsersByEmployeeId: vi.fn(),
     getSignedInUser: vi.fn(),
     ensureCardResourceAccess: vi.fn(),
   },
@@ -53,6 +55,8 @@ vi.mock("../api/azureGraph", () => ({
   listAdminPairs: mocks.listAdminPairs,
   getUserManagerId: mocks.getUserManagerId,
   setUserManager: mocks.setUserManager,
+  updateUser: mocks.updateUser,
+  listUsersByEmployeeId: mocks.listUsersByEmployeeId,
   getSignedInUser: mocks.getSignedInUser,
   searchUsers: vi.fn(),
 }));
@@ -127,7 +131,7 @@ describe("useCreateAdminUsersCard", () => {
     mocks.ensureDirectoryRoleEligibility.mockResolvedValue("created");
     mocks.ensureRbacRoleEligibility.mockResolvedValue("created");
     mocks.ensureFido2Enabled.mockResolvedValue(true);
-    mocks.getUserByUpn.mockImplementation(async (_a, upn: string) => (upn === "Ann.Lee@corp.com" ? { id: "u-Ann.Lee@corp.com", userPrincipalName: upn } : null));
+    mocks.getUserByUpn.mockImplementation(async (_a, upn: string) => (upn === "Ann.Lee@corp.com" ? { id: "u-Ann.Lee@corp.com", displayName: "Ann Lee", userPrincipalName: upn, employeeId: null } : null));
     mocks.createUser.mockImplementation(async (_a, params: { userPrincipalName: string }) => ({ id: `u-${params.userPrincipalName}`, userPrincipalName: params.userPrincipalName }));
     mocks.getEntraLicence.mockResolvedValue("p1");
     mocks.listVerifiedDomainsViaOrganization.mockResolvedValue([
@@ -137,6 +141,8 @@ describe("useCreateAdminUsersCard", () => {
     mocks.listAdminPairs.mockResolvedValue([]);
     mocks.getUserManagerId.mockResolvedValue(null);
     mocks.setUserManager.mockResolvedValue(undefined);
+    mocks.updateUser.mockResolvedValue(undefined);
+    mocks.listUsersByEmployeeId.mockResolvedValue([]);
     mocks.getSignedInUser.mockResolvedValue({ id: "me", displayName: "Max Ng", userPrincipalName: "max@corp.com" });
   });
 
@@ -193,6 +199,53 @@ describe("useCreateAdminUsersCard", () => {
     }
   });
 
+  it("keeps a new row's empty fields quiet until the operator leaves one", async () => {
+    let latest: UseCreateAdminUsersCard | null = null;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    function Harness() {
+      const value = useCreateAdminUsersCard({ azureAccount: account, tenantId: "tenant-1", subscriptionId: "sub-1" });
+      useEffect(() => { latest = value; }, [value]);
+      return (
+        <ThemeProvider theme={theme}>
+          <CreateAdminUsersCard
+            card={{ cardId: "create_admin_users", status: value.status, summary: value.summary, locked: false, requirements: [],
+              unavailable: false, expanded: true, onToggle: vi.fn(), onRequirementClick: vi.fn() }}
+            adminUsers={value}
+          />
+        </ThemeProvider>
+      );
+    }
+    try {
+      await act(async () => root.render(<Harness />));
+      await waitFor(() => expect(latest?.primaryDomain).toBe("corp.com"));
+      const header = container.querySelector(`[aria-controls="admin-user-${latest!.admins[0].key}"]`)!;
+      // Nothing typed yet: not started; beside Create, why it can't run.
+      const note = () => container.querySelector('[role="note"]')?.textContent;
+      expect(header.textContent).toContain("Not started");
+      expect(note()).toBe("1 incomplete");
+      const label = [...container.querySelectorAll("label")].find((item) => item.textContent?.startsWith("First name"))!;
+      const firstName = document.getElementById(label.htmlFor) as HTMLInputElement;
+      expect(firstName.getAttribute("aria-invalid")).toBe("false");
+      await act(async () => firstName.focus());
+      await act(async () => firstName.blur());
+      expect(header.textContent).toContain("First name missing");
+      expect(header.textContent).not.toContain("Not started");
+      expect(firstName.getAttribute("aria-invalid")).toBe("true");
+      // The red field is enough; the opened row doesn't spell it out.
+      expect(container.querySelector(`#admin-user-${latest!.admins[0].key}`)?.textContent).not.toContain("Enter the first name.");
+      // The surname wasn't left yet, so it stays quiet.
+      expect(header.textContent).not.toContain("Surname missing");
+      // Another row in the way: the note counts it.
+      await act(async () => { latest!.addAdmin(); });
+      expect(note()).toBe("2 incomplete");
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
+
   it("creates the groups, roles and admin accounts, each with its manager", async () => {
     const card = renderCard();
     await waitFor(() => expect(card.current.missingGroups).toEqual(["PrivilegedAccounts"]));
@@ -205,7 +258,7 @@ describe("useCreateAdminUsersCard", () => {
 
     act(() => {
       card.current.updateAdmin(card.current.admins[0].key, {
-        givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001", employeeId: "E001",
+        givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001", employeeId: "E001", confirmedAccountIds: ["u-Ann.Lee@corp.com"],
       });
       card.current.addAdmin();
     });
@@ -266,7 +319,7 @@ describe("useCreateAdminUsersCard", () => {
     await waitFor(() => expect(card.current.entraLicence).toBe("none"));
     expect(card.current.roleTarget).toBe("users");
     await waitFor(() => expect(card.current.missingGroups).not.toBeNull());
-    act(() => card.current.updateAdmin(card.current.admins[0].key, { givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001", employeeId: "E001" }));
+    act(() => card.current.updateAdmin(card.current.admins[0].key, { givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001", employeeId: "E001", confirmedAccountIds: ["u-Ann.Lee@corp.com"] }));
     await act(async () => {
       await card.current.run();
     });
@@ -305,12 +358,16 @@ describe("useCreateAdminUsersCard", () => {
 
   it("keeps an existing account's manager, defaults the others to the signed-in user, and moves the done admins out of the list to add", async () => {
     mocks.getUserManagerId.mockResolvedValue("boss");
+    // Ann's user account has no employee ID yet; her adm_ account has one.
+    mocks.getUserByUpn.mockImplementation(async (_a, upn: string) =>
+      /^(adm_)?Ann\.Lee@corp\.com$/.test(upn) ? { id: `u-${upn}`, displayName: upn, userPrincipalName: upn, employeeId: upn.startsWith("adm_") ? "E001" : null } : null);
     const card = renderCard();
     await waitFor(() => expect(card.current.signedInUser).not.toBeNull());
     await waitFor(() => expect(card.current.entraLicence).toBe("p1"));
     act(() => {
       card.current.updateAdmin(card.current.admins[0].key, {
         givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001", employeeId: "E001", manager: { kind: "entra", id: "e1", displayName: "Chris Tan", userPrincipalName: "chris@corp.com" },
+        confirmedAccountIds: ["u-Ann.Lee@corp.com", "u-adm_Ann.Lee@corp.com"],
       });
       card.current.addAdmin();
     });
@@ -323,13 +380,15 @@ describe("useCreateAdminUsersCard", () => {
       await card.current.run();
     });
 
-    // Ann.Lee already exists with a manager, so only the new accounts get one.
+    // Ann.Lee keeps her manager; her existing adm_ account is set back to her user account, or Entra can't pair them.
     expect(mocks.setUserManager.mock.calls.map((c) => [c[1], c[2]])).toEqual([
       ["u-adm_Ann.Lee@corp.com", "u-Ann.Lee@corp.com"],
       ["u-Cat.Ng@corp.com", "me"],
       ["u-adm_Cat.Ng@corp.com", "u-Cat.Ng@corp.com"],
     ]);
-    expect(card.current.steps.find((step) => step.id === `user:${ann}`)?.detail).toBe("Already existed, manager kept, member of PrivilegedAccountApproved");
+    expect(card.current.steps.find((step) => step.id === `user:${ann}`)?.detail).toBe("Already existed, manager kept, member of PrivilegedAccountApproved, employee ID E001 added");
+    expect(mocks.createUser.mock.calls.map((call) => call[1].userPrincipalName)).toEqual(["Cat.Ng@corp.com", "adm_Cat.Ng@corp.com"]);
+    expect(mocks.updateUser.mock.calls.map((call) => [call[1], call[2]])).toEqual([["u-Ann.Lee@corp.com", { employeeId: "E001" }]]);
     // Both admins are done, so they leave the list to add and wait, read-only, until Entra lists them.
     expect(card.current.admins).toEqual([]);
     await waitFor(() => expect(card.current.existingAdmins?.map((pair) => pair.user.userPrincipalName)).toEqual(["Ann.Lee@corp.com"]));
@@ -342,7 +401,7 @@ describe("useCreateAdminUsersCard", () => {
       dan = card.current.addAdmin();
     });
     act(() => card.current.updateAdmin(dan, { givenName: "Dan", surname: "Ho", mobile: "+61 400 000 004", employeeId: "E003" }));
-    expect(card.current.rowErrors[dan]).toBe("Employee ID E003 belongs to Cat.Ng@corp.com, an existing admin.");
+    expect(card.current.rowErrors[dan]).toBe("Employee ID E003 is associated with Cat.Ng@corp.com, which already has a Privileged Account. Enter a different Employee ID, or remove this entry if it refers to the same person.");
   });
 
   it("reads Entra again after a run, then marks the admins it still doesn't list, and Recheck reads again", async () => {
@@ -471,15 +530,65 @@ describe("useCreateAdminUsersCard", () => {
     expect(card.current.admins.map((admin) => admin.key)).toEqual([bob, cat]);
   });
 
-  it("warns about a row whose UPN Entra already has, without blocking the run", async () => {
+  it("asks whether an account Entra already has under the UPN is this person, and reuses it only once confirmed", async () => {
     const card = renderCard();
     await waitFor(() => expect(card.current.primaryDomain).toBe("corp.com"));
     const key = card.current.admins[0].key;
     act(() => card.current.updateAdmin(key, { givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001", employeeId: "E001" }));
-    await waitFor(() => expect(card.current.rowWarnings).toEqual({ [key]: "Already in Entra: Ann.Lee@corp.com. Running reuses this account instead of creating one." }));
+    await waitFor(() => expect(card.current.rowErrors).toEqual({ [key]: "Ann.Lee@corp.com (Ann Lee) is already in Entra but doesn't have a Privileged Account yet. If you use it, adm_Ann.Lee@corp.com will be created as its Privileged Account." }));
+    expect(card.current.rowWarnings).toEqual({});
+    act(() => card.current.updateAdmin(key, { confirmedAccountIds: ["u-Ann.Lee@corp.com"] }));
     expect(card.current.rowErrors).toEqual({});
+    expect(card.current.rowWarnings).toEqual({ [key]: "Reusing Ann.Lee@corp.com, confirmed as this person." });
     act(() => card.current.updateAdmin(key, { username: "ann2" }));
     expect(card.current.rowWarnings).toEqual({});
+  });
+
+  it("changes nothing on an account Entra already has that nobody confirmed, even when the run starts before the lookup", async () => {
+    const card = renderCard();
+    await waitFor(() => expect(card.current.signedInUser).not.toBeNull());
+    await waitFor(() => expect(card.current.entraLicence).toBe("p1"));
+    const ann = card.current.admins[0].key;
+    act(() => card.current.updateAdmin(ann, { givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001", employeeId: "E001" }));
+    // The lookup waits for typing to stop, so the row has no error yet.
+    expect(card.current.rowErrors).toEqual({});
+    await act(async () => {
+      await card.current.run();
+    });
+
+    expect(card.current.steps.find((step) => step.id === `user:${ann}`)).toMatchObject({ status: "error", detail: "Ann.Lee@corp.com is already in Entra and wasn't confirmed as this person, so nothing was changed." });
+    expect(card.current.steps.find((step) => step.id === `priv:${ann}`)).toMatchObject({ status: "error", detail: "Not created, because the user account failed" });
+    expect(mocks.createUser).not.toHaveBeenCalled();
+    expect(mocks.setUserManager).not.toHaveBeenCalled();
+    expect(mocks.updateUser).not.toHaveBeenCalled();
+    // The lookup after the run asks the question.
+    await waitFor(() => expect(card.current.rowErrors[ann]).toBe("Ann.Lee@corp.com (Ann Lee) is already in Entra but doesn't have a Privileged Account yet. If you use it, adm_Ann.Lee@corp.com will be created as its Privileged Account."));
+  });
+
+  it("offers the account Entra has with the employee ID under another UPN, and updates it instead of making another", async () => {
+    const alee = { id: "u-alee@corp.com", displayName: "Ann Lee", userPrincipalName: "alee@corp.com", employeeId: "E001" };
+    mocks.listUsersByEmployeeId.mockImplementation(async (_a, employeeId: string) => (employeeId === "E001" ? [alee] : []));
+    mocks.getUserByUpn.mockImplementation(async (_a, upn: string) => (upn === "alee@corp.com" ? alee : null));
+    const card = renderCard();
+    await waitFor(() => expect(card.current.signedInUser).not.toBeNull());
+    await waitFor(() => expect(card.current.entraLicence).toBe("p1"));
+    const ann = card.current.admins[0].key;
+    act(() => card.current.updateAdmin(ann, { givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001", employeeId: "E001" }));
+    await waitFor(() => expect(card.current.rowIssues[ann]?.map((issue) => [issue.field, issue.summary])).toEqual([["employeeId", "Employee ID already in Entra"]]));
+    const fix = card.current.rowIssues[ann][0].fix;
+    expect(fix?.label).toBe("Use alee@corp.com");
+
+    // The row takes that UPN, and the account counts as confirmed.
+    act(() => card.current.updateAdmin(ann, fix?.patch ?? {}));
+    await waitFor(() => expect(card.current.rowWarnings[ann]).toBe("Reusing alee@corp.com, confirmed as this person."));
+    expect(card.current.rowIssues).toEqual({});
+    await act(async () => {
+      await card.current.run();
+    });
+
+    expect(card.current.steps.filter((step) => step.id.endsWith(ann)).map((step) => step.label)).toEqual(["Update alee@corp.com", "Create adm_alee@corp.com"]);
+    expect(mocks.createUser.mock.calls.map((call) => call[1].userPrincipalName)).toEqual(["adm_alee@corp.com"]);
+    expect(card.current.steps.filter((step) => step.status === "error")).toEqual([]);
   });
 
   it("creates both accounts on the domain picked for that admin", async () => {
@@ -560,7 +669,7 @@ describe("useCreateAdminUsersCard", () => {
 
 describe("resolveAdmin", () => {
   const row = (patch: Partial<AdminRow>): AdminRow => ({
-    key: "1", givenName: "", surname: "", mobile: "", employeeId: "", displayName: null, username: null, domain: null, manager: null, ...patch,
+    key: "1", givenName: "", surname: "", mobile: "", employeeId: "", displayName: null, username: null, domain: null, manager: null, confirmedAccountIds: [], ...patch,
   });
 
   it("defaults the display name, UPN and privileged account from the legal names", () => {
@@ -577,21 +686,60 @@ describe("resolveAdmin", () => {
 
 describe("adminRowErrors", () => {
   const row = (key: string, username: string, patch: Partial<AdminRow> = {}): AdminRow => ({
-    key, givenName: "A", surname: "B", mobile: "+61 400 000 000", employeeId: `E${key}`, displayName: null, username, domain: null, manager: null, ...patch,
+    key, givenName: "A", surname: "B", mobile: "+61 400 000 000", employeeId: `E${key}`, displayName: null, username, domain: null, manager: null, confirmedAccountIds: [], ...patch,
+  });
+
+  it("asks before reusing an account Entra already has, and never reuses one with another employee ID", () => {
+    const ann = { id: "u-ann", displayName: "Ann Lee", userPrincipalName: "ann@corp.com", employeeId: null };
+    const taken = new Map([["ann@corp.com", ann]]);
+    expect(adminRowErrors([row("1", "ann")], [], "corp.com", taken)).toEqual({ 1: "ann@corp.com (Ann Lee) is already in Entra but doesn't have a Privileged Account yet. If you use it, adm_ann@corp.com will be created as its Privileged Account." });
+    expect(adminRowIssues([row("1", "ann")], [], "corp.com", taken)["1"][0]).toMatchObject({ kind: "decision", summary: "UPN already in Entra", fix: { label: "Use ann@corp.com", patch: { confirmedAccountIds: ["u-ann"] } } });
+    expect(adminRowErrors([row("1", "ann", { confirmedAccountIds: ["u-ann"] })], [], "corp.com", taken)).toEqual({});
+    // A confirmation is for that account only.
+    expect(adminRowErrors([row("1", "ann", { confirmedAccountIds: ["u-other"] })], [], "corp.com", taken)).toHaveProperty("1");
+    const someoneElse = new Map([["ann@corp.com", { ...ann, employeeId: "E055" }]]);
+    expect(adminRowErrors([row("1", "ann", { employeeId: "E200", confirmedAccountIds: ["u-ann"] })], [], "corp.com", someoneElse)).toEqual({
+      1: "ann@corp.com is associated with Ann Lee, whose Employee ID is E055, not E200. Enter a different UPN.",
+    });
+    // Before the employee ID is in, it asks too, and Use fills in the one Entra has.
+    const asked = adminRowIssues([row("1", "ann", { employeeId: "" })], [], "corp.com", someoneElse)["1"];
+    expect(asked.map((issue) => [issue.field, issue.kind])).toEqual([["employeeId", "input"], ["upn", "decision"]]);
+    expect(asked[1].fix?.patch).toEqual({ confirmedAccountIds: ["u-ann"], employeeId: "E055" });
+  });
+
+  it("says a row nothing was typed in isn't started, and counts the missing fields once it is", () => {
+    const empty = newAdmin();
+    expect(issueHeadline(empty, adminRowIssues([empty])[empty.key])).toBe("Not started");
+    const started = { ...empty, givenName: "Ann" };
+    expect(issueHeadline(started, adminRowIssues([started])[started.key])).toBe("3 fields missing");
+  });
+
+  it("lists every problem with its field, and offers the unlisted account that has the employee ID", () => {
+    const alee = { id: "u-alee", displayName: "Ann Lee", userPrincipalName: "alee@corp.com", employeeId: "E1" };
+    const privileged = { ...alee, id: "u-adm_alee", userPrincipalName: "adm_alee@corp.com" };
+    const issues = adminRowIssues([row("1", "Ann.Lee", { mobile: "" })], [], "corp.com", new Map(), new Map([["e1", [alee, privileged]]]));
+    expect(issues["1"].map((issue) => [issue.field, issue.kind, issue.summary])).toEqual([["mobile", "input", "Mobile number missing"], ["employeeId", "decision", "Employee ID already in Entra"]]);
+    expect(issues["1"][1].message).toBe("Employee ID E1 is associated with alee@corp.com and adm_alee@corp.com (Ann Lee), which aren't set up as admins yet. If you use them, no new accounts will be created.");
+    expect(issues["1"][1].fix).toEqual({ label: "Use alee@corp.com", patch: { username: "alee", domain: null, confirmedAccountIds: ["u-alee", "u-adm_alee"] } });
+    // Under that UPN, the accounts are the row's own.
+    expect(adminRowIssues([row("1", "alee")], [], "corp.com", new Map(), new Map([["e1", [alee, privileged]]]))).toEqual({});
+    // Two people's accounts: no single fix.
+    const other = { ...alee, id: "u-annl", userPrincipalName: "annl@corp.com" };
+    expect(adminRowIssues([row("1", "Ann.Lee")], [], "corp.com", new Map(), new Map([["e1", [alee, other]]]))["1"][0].fix).toBeUndefined();
   });
 
   it("flags missing names, missing or bad mobiles, missing employee IDs, bad UPNs, and duplicates", () => {
     expect(adminRowErrors([row("1", "ann", { givenName: "" })])).toHaveProperty("1");
     expect(adminRowErrors([row("1", "ann", { mobile: "abc" })])).toHaveProperty("1");
-    expect(adminRowErrors([row("1", "ann", { manager: { kind: "row", key: "gone" } })])).toEqual({ "1": "Pick another manager; that user was removed." });
+    expect(adminRowErrors([row("1", "ann", { manager: { kind: "row", key: "gone" } })])).toEqual({ "1": "The selected manager was removed from this list. Select another manager." });
     expect(adminRowErrors([row("1", "ann", { employeeId: " " })])).toEqual({ "1": "Enter the employee ID." });
-    expect(adminRowErrors([row("1", "ann", { employeeId: "e7" }), row("2", "bob", { employeeId: "E7 " })])).toEqual({ 2: "Each admin needs their own employee ID." });
+    expect(adminRowErrors([row("1", "ann", { employeeId: "e7" }), row("2", "bob", { employeeId: "E7 " })])).toEqual({ 2: "Employee ID E7 is already used by User 1. Enter a different Employee ID, or remove this entry if it refers to the same person." });
     expect(adminRowErrors([row("1", "ann", { mobile: "" })])).toHaveProperty("1");
     expect(adminRowErrors([row("1", "ann", { displayName: "" })])).toHaveProperty("1");
     expect(adminRowErrors([row("1", ".ann")])).toHaveProperty("1");
     expect(adminRowErrors([row("1", "ann@corp.com")])).toHaveProperty("1");
-    expect(adminRowErrors([row("1", "Ann.Lee"), row("2", "ann.lee")])).toEqual({ 2: "User 1 already uses ann.lee; each account needs its own UPN." });
-    expect(adminRowErrors([row("1", "bob"), row("2", "adm_bob")])).toEqual({ 2: "User 1 already uses adm_bob; each account needs its own UPN." });
+    expect(adminRowErrors([row("1", "Ann.Lee"), row("2", "ann.lee")], [], "corp.com")).toEqual({ 2: "ann.lee@corp.com is already used by User 1. Enter a different UPN." });
+    expect(adminRowErrors([row("1", "bob"), row("2", "adm_bob")], [], "corp.com")).toEqual({ 2: "adm_bob@corp.com is already used by User 1. Enter a different UPN." });
     expect(duplicateUpns([row("1", "bob"), row("2", "ann"), row("3", "adm_bob")])).toEqual({ 3: { upn: "adm_bob", row: 1 } });
     expect(duplicateUpns([row("1", ""), row("2", "")])).toEqual({});
     expect(adminRowErrors([row("1", "ann.lee"), row("2", "bob_wu-2")])).toEqual({});
@@ -615,7 +763,7 @@ describe("adminRowErrors", () => {
   it("blocks an employee ID an existing admin has, except a rerun for that admin", () => {
     const dan = { id: "u", displayName: "Dan Ho", userPrincipalName: "Dan.Ho@corp.com", manager: null, managerId: null, employeeId: "E9" };
     const existing = [{ user: dan, privileged: { ...dan, id: "p", userPrincipalName: "adm_Dan.Ho@corp.com" } }];
-    expect(adminRowErrors([row("1", "ann", { employeeId: "e9 " })], existing, "corp.com")).toEqual({ 1: "Employee ID e9 belongs to Dan.Ho@corp.com, an existing admin." });
+    expect(adminRowErrors([row("1", "ann", { employeeId: "e9 " })], existing, "corp.com")).toEqual({ 1: "Employee ID e9 is associated with Dan.Ho@corp.com, which already has a Privileged Account. Enter a different Employee ID, or remove this entry if it refers to the same person." });
     expect(adminRowErrors([row("1", "dan.ho", { employeeId: "E9" })], existing, "corp.com")).toEqual({});
   });
 });

@@ -757,13 +757,13 @@ export async function ensureDirectoryRoleEligibility(
 
 export type EntraUserRef = { id: string; userPrincipalName: string };
 
-// A filter rather than GET /users/{upn}, so a missing user is null instead of a 404.
-export async function getUserByUpn(account: AzureAccount, upn: string, overrideTenantId?: string): Promise<EntraUserRef | null> {
+// A filter rather than GET /users/{upn}, so a missing user is null instead of a 404. The name and employee ID tell who it is.
+export async function getUserByUpn(account: AzureAccount, upn: string, overrideTenantId?: string): Promise<(EntraUser & { employeeId: string | null }) | null> {
   const token = await getToken(account, USER_SCOPES, overrideTenantId);
   const filter = `userPrincipalName eq '${upn.replace(/'/g, "''")}'`;
-  const data = await gFetch(token, GRAPH, `/users?$filter=${encodeURIComponent(filter)}&$select=id,userPrincipalName`);
+  const data = await gFetch(token, GRAPH, `/users?$filter=${encodeURIComponent(filter)}&$select=id,displayName,userPrincipalName,employeeId`);
   const u = data?.value?.[0];
-  return u ? { id: u.id, userPrincipalName: u.userPrincipalName } : null;
+  return u ? { id: u.id, displayName: u.displayName ?? u.userPrincipalName, userPrincipalName: u.userPrincipalName, employeeId: u.employeeId ?? null } : null;
 }
 
 // Graph requires a password; nobody is shown it, since the account's first sign-in uses a Temporary Access Pass.
@@ -891,6 +891,20 @@ export async function setUserManager(account: AzureAccount, userId: string, mana
     method: "PUT",
     body: JSON.stringify({ "@odata.id": `${GRAPH}/users/${managerId}` }),
   });
+}
+
+// The users with this employee ID; one admin's user and adm_ accounts share it.
+export async function listUsersByEmployeeId(account: AzureAccount, employeeId: string, overrideTenantId?: string): Promise<(EntraUser & { employeeId: string | null })[]> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  const filter = `employeeId eq '${employeeId.replace(/'/g, "''")}'`;
+  const data: { value?: { id: string; displayName?: string; userPrincipalName: string; employeeId?: string | null }[] } =
+    await gFetch(token, GRAPH, `/users?$filter=${encodeURIComponent(filter)}&$select=id,displayName,userPrincipalName,employeeId`);
+  return (data?.value ?? []).map((user) => ({ id: user.id, displayName: user.displayName ?? user.userPrincipalName, userPrincipalName: user.userPrincipalName, employeeId: user.employeeId ?? null }));
+}
+
+export async function updateUser(account: AzureAccount, userId: string, patch: { employeeId?: string }, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  await gFetch(token, GRAPH, `/users/${userId}`, { method: "PATCH", body: JSON.stringify(patch) });
 }
 
 // ── AWS console sign-in (SAML) ─────────────────────────────────────────────────

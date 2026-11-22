@@ -21,9 +21,9 @@ import {
   type LicenceState,
   type RoleTarget,
 } from "./config";
-import { adminRowErrors, adminRowWarnings, duplicateUpns, errorText, newAdmin, rowUpns, waitingReducer, withoutCreated, type AdminRow, type WaitingAdmin } from "./logic";
+import { adminRowErrors, adminRowIssues, adminRowWarnings, duplicateUpns, errorText, newAdmin, rowUpns, waitingReducer, withoutCreated, type AdminRow, type FoundAccount, type RowIssue, type WaitingAdmin } from "./logic";
 import { adminUsersSteps, runAdminUsers } from "./steps";
-import { useAdminDirectory, useLicenceAndDomains, useTakenUpns } from "./useEntraReads";
+import { useAdminDirectory, useEmployeeIdAccounts, useLicenceAndDomains, useTakenUpns } from "./useEntraReads";
 
 // The card's hook only connects its parts: logic.ts (rows and checks), useEntraReads.ts (reads), steps.ts (the run).
 
@@ -39,10 +39,11 @@ export type UseCreateAdminUsersCardParams = {
 export type UseCreateAdminUsersCard = CardHook & {
   readonly cardId: "create_admin_users";
   admins: AdminRow[];
-  rowErrors: Record<string, string>;
-  rowWarnings: Record<string, string>; // A row whose UPN Entra already has; the run reuses that account instead of creating one.
+  rowErrors: Record<string, string>; // Each row's first problem; rowIssues has them all.
+  rowIssues: Record<string, RowIssue[]>; // Every problem, with its field and few words for the header.
+  rowWarnings: Record<string, string>; // A row reusing accounts Entra already has, confirmed as this person.
   duplicateUpns: Record<string, { upn: string; row: number }>; // A row whose UPN an earlier row already uses.
-  takenUpns: Set<string>; // Lowercase UPNs from the rows that Entra already has.
+  takenUpns: Map<string, FoundAccount>; // The accounts Entra already has under the rows' UPNs, by lowercase UPN.
   addAdmin: () => string; // Returns the new row's key.
   updateAdmin: (key: string, patch: Partial<Omit<AdminRow, "key">>) => void;
   removeAdmin: (key: string) => void;
@@ -94,7 +95,8 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   const recheck = useCallback(() => setCheckKey((key) => key + 1), []);
   const { entraLicence, domains, error: tenantError } = useLicenceAndDomains(azureAccount, tenantId);
   const primaryDomain = domains?.find((d) => d.isDefault)?.name ?? "";
-  const takenUpns = useTakenUpns(azureAccount, tenantId, admins.flatMap((a) => rowUpns(a, primaryDomain)));
+  const takenUpns = useTakenUpns(azureAccount, tenantId, admins.flatMap((a) => rowUpns(a, primaryDomain)), checkKey);
+  const employeeIdAccounts = useEmployeeIdAccounts(azureAccount, tenantId, admins.map((admin) => admin.employeeId), checkKey);
   const tid = tenantId || undefined;
   const findUsers = useCallback((query: string) => (azureAccount ? searchUsers(azureAccount, query, tid) : Promise.resolve([])), [azureAccount, tid]);
 
@@ -105,7 +107,8 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   // Their accounts exist, so they count as existing while Entra doesn't list them yet.
   const waitingAdmins = created.filter((createdAdmin) => !existingAdmins?.some((pair) => pair.user.id === createdAdmin.user.id));
   const existingAndWaitingAdmins = [...(existingAdmins ?? []), ...waitingAdmins];
-  const rowErrors = adminRowErrors(admins, existingAndWaitingAdmins, primaryDomain);
+  const rowErrors = adminRowErrors(admins, existingAndWaitingAdmins, primaryDomain, takenUpns, employeeIdAccounts);
+  const rowIssues = adminRowIssues(admins, existingAndWaitingAdmins, primaryDomain, takenUpns, employeeIdAccounts);
   const rowWarnings = adminRowWarnings(admins, primaryDomain, takenUpns, rowErrors);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const canRun = !running && !!primaryDomain && !!signedInUser && access.status === "ready" && licenceAllows("none", entraLicence) && Object.keys(rowErrors).length === 0;
@@ -114,7 +117,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   const [runNeedsConsent, setRunNeedsConsent] = useState(false);
   const run = useCallback(async () => {
     if (!azureAccount || !tenantId || !signedInUser || !canRun) return;
-    const input = { azureAccount, tenantId, subscriptionId, admins, primaryDomain, signedInUser, roleTarget, usePim };
+    const input = { azureAccount, tenantId, subscriptionId, admins, primaryDomain, signedInUser, roleTarget, usePim, takenUpns };
     setSteps(adminUsersSteps(input).map((s) => ({ ...s, status: "pending" as const })));
     setRunning(true);
     setRunNeedsConsent(false);
@@ -132,7 +135,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
       setRunning(false);
       setCheckKey((k) => k + 1);
     }
-  }, [azureAccount, tenantId, canRun, signedInUser, primaryDomain, admins, subscriptionId, roleTarget, usePim, setSteps, setRunning, updateStep]);
+  }, [azureAccount, tenantId, canRun, signedInUser, primaryDomain, admins, subscriptionId, roleTarget, usePim, takenUpns, setSteps, setRunning, updateStep]);
 
   // The reads after a run; a run that creates admins starts them again, and they stop once Entra lists everyone.
   const allListed = waitingAdmins.length === 0;
@@ -183,6 +186,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     done,
     admins,
     rowErrors,
+    rowIssues,
     rowWarnings,
     duplicateUpns: duplicateUpns(admins),
     takenUpns,

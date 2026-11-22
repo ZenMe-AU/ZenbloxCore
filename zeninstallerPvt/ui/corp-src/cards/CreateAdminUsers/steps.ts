@@ -18,14 +18,16 @@ import {
   getUserManagerId,
   isGroupMember,
   setUserManager,
+  updateUser,
   type AdminAccount,
   type EntraUser,
+  type EntraUserRef,
 } from "../../api/azureGraph";
 import { ensureRbacRoleAtScope, ensureRbacRoleEligibility } from "../../api/azureArm";
 import { generateRandomPassword } from "../../logic/password";
 import type { AzureAccount, SetupStep } from "../../types";
 import { ADMIN_GROUPS, PRIVILEGED_ACCOUNT_GROUPS, PRIVILEGED_GROUP, USER_ACCOUNT_GROUPS, roleLabel, type RoleTarget } from "./config";
-import { byManager, resolveAdmin, type AdminRow, type CreatedAdmin } from "./logic";
+import { byManager, resolveAdmin, type AdminRow, type CreatedAdmin, type FoundAccount } from "./logic";
 
 // What the run works on; the card hook runs only once all of it is there.
 export type AdminUsersInput = {
@@ -37,6 +39,7 @@ export type AdminUsersInput = {
   signedInUser: EntraUser;
   roleTarget: RoleTarget;
   usePim: boolean;
+  takenUpns: ReadonlyMap<string, FoundAccount>; // Accounts Entra already has under the rows' UPNs; a confirmed one is updated, not created.
 };
 
 export type AdminUsersRun = AdminUsersInput & {
@@ -75,12 +78,16 @@ function roleStepsOf({ roleTarget, usePim }: AdminUsersInput) {
 // The checklist, in the order the run goes.
 export function adminUsersSteps(input: AdminUsersInput): { id: string; label: string }[] {
   const accounts = accountsOf(input);
+  const reused = (upn: string, admin: AdminRow) => {
+    const account = input.takenUpns.get(upn.toLowerCase());
+    return !!account && admin.confirmedAccountIds.includes(account.id);
+  };
   return [
     { id: "groups", label: "Create the security groups" },
     ...(NESTED ? [{ id: "nesting", label: "Nest the groups" }] : []),
     ...roleStepsOf(input).map(({ id, label }) => ({ id, label })),
     { id: "fido2", label: "Allow passkey (FIDO2) sign-in" },
-    ...accounts.map((acc) => ({ id: `${acc.kind}:${acc.a.key}`, label: `Create ${acc.upn}` })),
+    ...accounts.map((acc) => ({ id: `${acc.kind}:${acc.a.key}`, label: `${reused(acc.upn, acc.a) ? "Update" : "Create"} ${acc.upn}` })),
     // ...(accounts.some((acc) => acc.manager) ? [{ id: "managers", label: "Set the managers" }] : []), // Deprecated: each account's manager is set as it is created; kept for reference.
   ];
 }
@@ -197,7 +204,13 @@ async function createAccounts(run: AdminUsersRun, ids: Map<string, string>): Pro
       continue;
     }
     try {
-      let user = await getUserByUpn(azureAccount, upn, tid);
+      const found = await getUserByUpn(azureAccount, upn, tid);
+      // An account Entra already has is reused only if the operator confirmed it's this person; otherwise nothing changes.
+      if (found && !a.confirmedAccountIds.includes(found.id)) {
+        updateStep(stepId, "error", `${upn} is already in Entra and wasn't confirmed as this person, so nothing was changed.`);
+        continue;
+      }
+      let user: EntraUserRef | null = found;
       const existed = !!user;
       if (!user) {
         user = await createUser(
@@ -216,9 +229,12 @@ async function createAccounts(run: AdminUsersRun, ids: Map<string, string>): Pro
         );
       }
       // Graph can't set the manager in the create call; if this fails, a rerun finds the account without one and sets it.
-      // An existing account keeps the manager it has.
-      const kept = existed && !!(await getUserManagerId(azureAccount, user.id, tid));
+      // An existing user account keeps the manager it has; an adm_ account's is always its user account, or Entra can't pair the two.
+      const kept = kind === "user" && existed && !!(await getUserManagerId(azureAccount, user.id, tid));
       if (!kept) await setUserManager(azureAccount, user.id, manager.id, tid);
+      // An existing account without an employee ID gets this one; Entra pairs the two accounts by it.
+      const backfill = !!found && !found.employeeId?.trim();
+      if (backfill) await updateUser(azureAccount, user.id, { employeeId: a.employeeId.trim() }, tid);
       users.set(stepId, { id: user.id, existed, displayName }); // Has a manager, so its reports can be created.
       for (const name of groups) {
         if (!(await isGroupMember(azureAccount, ids.get(name)!, user.id, tid))) await addGroupMember(azureAccount, ids.get(name)!, user.id, tid);
@@ -230,6 +246,7 @@ async function createAccounts(run: AdminUsersRun, ids: Map<string, string>): Pro
         kept ? "manager kept" : `manager ${manager.displayName}`,
         groups.length ? `member of ${groups.join(", ")}` : "in no groups",
         ...roles.map((r) => (usePim ? `eligible for ${r}` : r)),
+        ...(backfill ? [`employee ID ${a.employeeId.trim()} added`] : []),
       ].join(", ");
       updateStep(stepId, "done", existed ? `Already existed, ${membership}` : `Created, ${membership}`);
       // A kept manager isn't read here, so it shows as none until Entra lists the admin.

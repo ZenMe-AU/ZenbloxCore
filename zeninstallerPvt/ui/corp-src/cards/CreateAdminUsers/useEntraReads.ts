@@ -12,6 +12,7 @@ import {
   getSignedInUser,
   getUserByUpn,
   listAdminPairs,
+  listUsersByEmployeeId,
   listVerifiedDomainsViaOrganization,
   type AdminPair,
   type EntraUser,
@@ -19,7 +20,7 @@ import {
 } from "../../api/azureGraph";
 import type { AzureAccount } from "../../types";
 import { ADMIN_GROUPS, PRIVILEGED_ACCOUNT_GROUPS, USER_ACCOUNT_GROUPS, type LicenceState } from "./config";
-import { errorText } from "./logic";
+import { errorText, type FoundAccount } from "./logic";
 
 // The groups still missing, the admins already in Entra, and the signed-in user. Read again when checkKey changes; checking until that read is back.
 export function useAdminDirectory(azureAccount: AzureAccount | null, tenantId: string | null, checkKey: number) {
@@ -88,9 +89,10 @@ export function useLicenceAndDomains(azureAccount: AzureAccount | null, tenantId
   return { entraLicence, domains, error };
 }
 
-// The UPNs Entra already has, lowercase; looked up once typing stops.
-export function useTakenUpns(azureAccount: AzureAccount | null, tenantId: string | null, upns: string[]): Set<string> {
-  const [takenUpns, setTakenUpns] = useState<Set<string>>(new Set());
+// The accounts Entra already has under these UPNs, by lowercase UPN; looked up once typing stops, and again when checkKey changes.
+// A lookup that fails counts as not taken; the run looks again before it reuses anything.
+export function useTakenUpns(azureAccount: AzureAccount | null, tenantId: string | null, upns: string[], checkKey: number): Map<string, FoundAccount> {
+  const [takenUpns, setTakenUpns] = useState<Map<string, FoundAccount>>(new Map());
   const tid = tenantId || undefined;
   const list = [...new Set(upns)].join(" "); // A string, so the effect reruns only when the UPNs change.
 
@@ -99,15 +101,39 @@ export function useTakenUpns(azureAccount: AzureAccount | null, tenantId: string
     let cancelled = false;
     const timer = setTimeout(() => {
       const names = list.split(" ");
-      void Promise.all(names.map((upn) => getUserByUpn(azureAccount, upn, tid).then((u) => !!u, () => false))).then((found) => {
-        if (!cancelled) setTakenUpns(new Set(names.filter((_, i) => found[i]).map((upn) => upn.toLowerCase())));
+      void Promise.all(names.map((upn) => getUserByUpn(azureAccount, upn, tid).catch(() => null))).then((found) => {
+        if (!cancelled) setTakenUpns(new Map(names.flatMap((upn, index) => (found[index] ? [[upn.toLowerCase(), found[index]] as const] : []))));
       });
     }, 500);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [azureAccount, tid, list]);
+  }, [azureAccount, tid, list, checkKey]);
 
   return takenUpns;
+}
+
+// The accounts Entra already has with these employee IDs, by lowercase ID; looked up like useTakenUpns.
+export function useEmployeeIdAccounts(azureAccount: AzureAccount | null, tenantId: string | null, employeeIds: string[], checkKey: number): Map<string, FoundAccount[]> {
+  const [accounts, setAccounts] = useState<Map<string, FoundAccount[]>>(new Map());
+  const tid = tenantId || undefined;
+  const list = [...new Set(employeeIds.map((employeeId) => employeeId.trim()).filter(Boolean))].join("\n"); // A string, so the effect reruns only when the IDs change.
+
+  useEffect(() => {
+    if (!azureAccount || !list) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      const ids = list.split("\n");
+      void Promise.all(ids.map((employeeId) => listUsersByEmployeeId(azureAccount, employeeId, tid).catch(() => []))).then((found) => {
+        if (!cancelled) setAccounts(new Map(ids.map((employeeId, index) => [employeeId.toLowerCase(), found[index]])));
+      });
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [azureAccount, tid, list, checkKey]);
+
+  return accounts;
 }
