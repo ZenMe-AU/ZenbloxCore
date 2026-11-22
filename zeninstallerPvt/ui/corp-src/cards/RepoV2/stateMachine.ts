@@ -4,14 +4,7 @@
  */
 
 import type { AppContext } from "../../appContext";
-import {
-  lifecycleReducer,
-  checkPrerequisites,
-  initialLifecycle,
-  type BaseCardContext,
-  type Lifecycle,
-  type LifecycleState,
-} from "../../components/useBaseCard";
+import { checkPrerequisites, type BaseCardContext, type Lifecycle } from "../../components/useBaseCard";
 import type { CardId } from "../../types";
 
 export const githubLoginCardId: CardId = "github_login_v2";
@@ -22,13 +15,26 @@ export const initialRepoCardContext = {
   prerequisiteIds: [githubLoginCardId],
 } satisfies Omit<BaseCardContext, "lifecycle">;
 
-export type State = { lifecycle: LifecycleState & { targetPhase: Lifecycle } };
+export type RepoPhase = "checking" | "blocked" | "selecting" | "working" | "complete" | "error";
 
-export type Event = { type: "phase-changed"; phase: Lifecycle };
+export type State = { phase: RepoPhase };
 
-export const initialState: State = {
-  lifecycle: { targetPhase: "loading", context: initialLifecycle },
+export type Event = { type: "phase-changed"; phase: RepoPhase };
+
+export const initialState: State = { phase: "checking" };
+
+const baseLifecycleByPhase: Record<RepoPhase, Lifecycle> = {
+  checking: "loading",
+  blocked: "blocked",
+  selecting: "ready",
+  working: "action",
+  complete: "complete",
+  error: "error",
 };
+
+export function toBaseLifecycle(phase: RepoPhase): Lifecycle {
+  return baseLifecycleByPhase[phase];
+}
 
 export function getRepoPrerequisites(
   appContext: ReturnType<AppContext["getSnapshot"]>,
@@ -40,37 +46,6 @@ export function getRepoPrerequisites(
   return { user: login.githubAccount, token: login.githubToken, mode: login.githubMode };
 }
 
-function reconcileLifecycle(context: LifecycleState["context"], phase: Lifecycle): LifecycleState["context"] {
-  let current = context;
-  const transition = (lifecycle: Lifecycle) => {
-    current = lifecycleReducer(current, { type: "transition", lifecycle });
-  };
-  if (current.lifecycle === phase) return current;
-  if (current.lifecycle === "blocked" || current.lifecycle === "complete" || current.lifecycle === "error") transition("loading");
-  if ((phase === "loading" || phase === "blocked" || phase === "ready") && current.lifecycle !== "loading") {
-    transition("error");
-    transition("loading");
-  }
-  if (phase === "blocked" || phase === "ready") transition(phase);
-  if (phase === "action") transition("action");
-  if (phase === "complete") {
-    if (current.lifecycle === "ready") transition("action");
-    if (current.lifecycle === "loading" || current.lifecycle === "action") transition("commit");
-    transition("complete");
-  }
-  if (phase === "error") {
-    if (current.lifecycle === "loading") transition("action");
-    transition("error");
-  }
-  return current;
-}
-
 export function reducer(state: State, event: Event): State {
-  if (event.phase === state.lifecycle.targetPhase) return state;
-  return {
-    lifecycle: {
-      targetPhase: event.phase,
-      context: reconcileLifecycle(state.lifecycle.context, event.phase),
-    },
-  };
+  return event.phase === state.phase ? state : { phase: event.phase };
 }

@@ -51,7 +51,7 @@ function PrerequisitesPanel({ protoCard, drafts, onDraftChange }: {
   onDraftChange: (index: 0 | 1, value: string) => void;
 }) {
   const { baseCardContext, protoCardContext, dispatch } = protoCard;
-  const state = { lifecycle: { context: baseCardContext }, protoCardContext };
+  const state = { lifecycle: baseCardContext.lifecycle, protoCardContext };
   const lifecycle = baseCardContext.lifecycle;
   const [panel, setPanel] = useState({ lifecycle, open: lifecycle === "ready" });
   if (panel.lifecycle !== lifecycle) {

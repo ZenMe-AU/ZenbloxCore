@@ -6,7 +6,7 @@
 import { useMemo, useReducer, useSyncExternalStore } from "react";
 import type { CardHook, CardStatus } from "../../types";
 import type { SharedCard, AppContext } from "../../appContext";
-import type { BaseCardContext, Lifecycle } from "../../components/useBaseCard";
+import type { BaseCardContext } from "../../components/useBaseCard";
 import { createRepoApi } from "./api";
 import { useGithubRepo, type UseGithubRepo } from "./useGithubRepo";
 import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
@@ -16,6 +16,8 @@ import {
   initialRepoCardContext,
   initialState,
   reducer,
+  toBaseLifecycle,
+  type RepoPhase,
 } from "./stateMachine";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -33,9 +35,7 @@ export interface UseRepoCardV2 extends CardHook {
 export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatchLifecycle] = useReducer(reducer, initialState);
-  const initialBaseCardContext = {
-    ...initialRepoCardContext, ...state.lifecycle.context,
-  } satisfies BaseCardContext;
+  const initialBaseCardContext = { ...initialRepoCardContext, lifecycle: toBaseLifecycle(state.phase) } satisfies BaseCardContext;
   const prerequisites = getRepoPrerequisites(appContext, initialBaseCardContext);
   const token = prerequisites?.token;
   const mode = prerequisites?.mode;
@@ -94,10 +94,11 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
 
   const githubEnvUrl = githubRepo.repoFullName && env.selectedEnv ? getEnvSettingsUrl(githubRepo.repoFullName, env.selectedEnv.id) : undefined;
   const done = isRepoReady && isEnvReady && !errorSummary && !busySummary;
-  const phase: Lifecycle = !prerequisites ? "blocked" : errorSummary ? "error" : busySummary ? "action" : done ? "complete" : "ready";
-  if (phase !== state.lifecycle.targetPhase) dispatchLifecycle({ type: "phase-changed", phase });
+  const phase: RepoPhase = !prerequisites ? "blocked" : errorSummary ? "error" : busySummary ? "working" : done ? "complete" : "selecting";
+  if (phase !== state.phase) dispatchLifecycle({ type: "phase-changed", phase });
   const baseCardContext = {
-    ...initialBaseCardContext,
+    ...initialRepoCardContext,
+    lifecycle: toBaseLifecycle(phase),
     summary: phase === "blocked" ? "Sign in to GitHub login 2" : summary,
   } satisfies BaseCardContext;
 

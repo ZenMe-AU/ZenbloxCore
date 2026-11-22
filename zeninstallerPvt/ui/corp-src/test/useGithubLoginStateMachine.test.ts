@@ -8,17 +8,19 @@ import {
   getGithubLoginPhase,
   initialState,
   reducer,
+  toBaseLifecycle,
 } from "../cards/GithubLoginV2/stateMachine";
 
-it("derives auth phases and reconciles them through the shared lifecycle", () => {
-  expect(getGithubLoginPhase({ redirecting: null, verifying: false, loggingIn: true, account: null, sessionExpired: false })).toBeNull();
-  expect(getGithubLoginPhase({ redirecting: "login", verifying: false, loggingIn: false, account: null, sessionExpired: false })).toBe("action");
+it("derives auth phases and maps them to BaseCard display lifecycle", () => {
+  expect(getGithubLoginPhase({ redirecting: null, verifying: false, loggingIn: true, account: null, sessionExpired: false })).toBe("checking");
+  expect(getGithubLoginPhase({ redirecting: "login", verifying: false, loggingIn: false, account: null, sessionExpired: false })).toBe("signing-in");
 
-  const ready = reducer(initialState, { type: "phase-changed", phase: "ready" });
-  expect(ready.lifecycle.context.lifecycle).toBe("ready");
-  const action = reducer(ready, { type: "phase-changed", phase: "action" });
-  expect(action.lifecycle.context.lifecycle).toBe("action");
-  const complete = reducer(action, { type: "phase-changed", phase: "complete" });
-  expect(complete.lifecycle.context.lifecycle).toBe("complete");
-  expect(reducer(complete, { type: "phase-changed", phase: "ready" }).lifecycle.context.lifecycle).toBe("ready");
+  const signedOut = reducer(initialState, { type: "phase-changed", phase: "signed-out" });
+  expect(signedOut.phase).toBe("signed-out");
+  expect(toBaseLifecycle(signedOut.phase)).toBe("ready");
+  const signingIn = reducer(signedOut, { type: "phase-changed", phase: "signing-in" });
+  expect(toBaseLifecycle(signingIn.phase)).toBe("action");
+  const signedIn = reducer(signingIn, { type: "phase-changed", phase: "signed-in" });
+  expect(toBaseLifecycle(signedIn.phase)).toBe("complete");
+  expect(toBaseLifecycle(reducer(signedIn, { type: "phase-changed", phase: "expired" }).phase)).toBe("error");
 });

@@ -8,17 +8,17 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
-import { canTransition, type Lifecycle } from "../../components/useBaseCard";
+import type { Lifecycle } from "../../components/useBaseCard";
 import { createAppContext, SensitiveToken } from "../../appContext";
 import theme from "../../theme";
 import ProtoCard from "./ProtoCard";
 import { useProtoCard, type UseProtoCard } from "./useProtoCard";
-import { getBaseCardContext, initialState, reducer as protoReducer } from "./stateMachine";
+import { canLifecycleTransition, getBaseCardContext, initialState, reducer as protoReducer } from "./stateMachine";
 
 describe("ProtoCard state machine", () => {
   const appStore = createAppContext();
   it("checks prerequisites before entering ready or blocked and guards operations", () => {
-    expect(initialState.lifecycle.context.lifecycle).toBe("loading");
+    expect(initialState.lifecycle).toBe("loading");
     expect(() => protoReducer(initialState, { type: "transition", lifecycle: "complete" })).toThrow();
     const ready = protoReducer(initialState, { type: "check-prerequisites" });
     expect(getBaseCardContext(ready)).toMatchObject({ cardId: "proto_card", summary: "Summary", lifecycle: "ready", unmetCardPrerequisites: [] });
@@ -58,7 +58,7 @@ describe("ProtoCard state machine", () => {
 
   it.each(["action", "commit"] as const)("allows loading to transition to %s only with prerequisites met", (lifecycle) => {
     const entered = protoReducer(initialState, { type: "transition", lifecycle });
-    expect(entered.lifecycle.context.lifecycle).toBe(lifecycle);
+    expect(entered.lifecycle).toBe(lifecycle);
     expect(protoReducer(entered, { type: "check-prerequisites" })).toBe(entered);
     const missingRepo = protoReducer(initialState, { type: "sync-card-prerequisites", unmet: ["repo_v2"] });
     expect(() => protoReducer(missingRepo, { type: "transition", lifecycle })).toThrow();
@@ -371,7 +371,7 @@ describe("ProtoCard state machine", () => {
       expect(diagram).not.toBeNull();
       const states: Lifecycle[] = ["loading", "blocked", "ready", "action", "commit", "complete", "error"];
       const expectedEdges = states.flatMap((from) => states
-        .filter((to) => canTransition({ lifecycle: from }, to))
+        .filter((to) => canLifecycleTransition(from, to))
         .map((to) => `${from}-${to}`));
       const displayedEdges = [...diagram!.querySelectorAll("[data-from][data-to]")]
         .map((edge) => `${edge.getAttribute("data-from")}-${edge.getAttribute("data-to")}`);

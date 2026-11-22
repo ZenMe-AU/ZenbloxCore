@@ -4,21 +4,28 @@
  */
 
 import {
-  lifecycleReducer,
-  initialLifecycle,
   type Lifecycle,
-  type LifecycleState,
 } from "../../components/useBaseCard";
 
-export type AuthPhase = "ready" | "action" | "complete" | "error";
+export type AuthPhase = "checking" | "signed-out" | "signing-in" | "signed-in" | "expired";
 
-export type State = { lifecycle: LifecycleState & { targetPhase: AuthPhase | null } };
+export type State = { phase: AuthPhase };
 
-export type Event = { type: "phase-changed"; phase: AuthPhase | null };
+export type Event = { type: "phase-changed"; phase: AuthPhase };
 
-export const initialState: State = {
-  lifecycle: { targetPhase: null, context: initialLifecycle },
+export const initialState: State = { phase: "checking" };
+
+const baseLifecycleByPhase: Record<AuthPhase, Lifecycle> = {
+  checking: "loading",
+  "signed-out": "ready",
+  "signing-in": "action",
+  "signed-in": "complete",
+  expired: "error",
 };
+
+export function toBaseLifecycle(phase: AuthPhase): Lifecycle {
+  return baseLifecycleByPhase[phase];
+}
 
 export function getGithubLoginPhase({
   redirecting,
@@ -32,51 +39,12 @@ export function getGithubLoginPhase({
   loggingIn: boolean;
   account: unknown;
   sessionExpired: boolean;
-}): AuthPhase | null {
+}): AuthPhase {
   return redirecting === "login" || verifying
-    ? "action"
-    : loggingIn ? null : account ? "complete" : sessionExpired ? "error" : "ready";
-}
-
-function reconcileLifecycle(context: LifecycleState["context"], phase: AuthPhase): LifecycleState["context"] {
-  let current = context;
-  const transition = (lifecycle: Lifecycle) => {
-    current = lifecycleReducer(current, { type: "transition", lifecycle });
-  };
-  if (current.lifecycle === phase) return current;
-
-  if (current.lifecycle === "blocked" || current.lifecycle === "complete" || current.lifecycle === "error") transition("loading");
-
-  switch (phase) {
-    case "ready":
-      if (current.lifecycle === "action" || current.lifecycle === "commit") {
-        transition("error");
-        transition("loading");
-      }
-      if (current.lifecycle === "loading") transition("ready");
-      break;
-    case "action":
-      if (current.lifecycle === "loading" || current.lifecycle === "ready") transition("action");
-      break;
-    case "complete":
-      if (current.lifecycle === "ready") transition("action");
-      if (current.lifecycle === "loading" || current.lifecycle === "action") transition("commit");
-      if (current.lifecycle === "commit") transition("complete");
-      break;
-    case "error":
-      if (current.lifecycle === "loading") transition("action");
-      if (current.lifecycle === "ready" || current.lifecycle === "action" || current.lifecycle === "commit") transition("error");
-      break;
-  }
-  return current;
+    ? "signing-in"
+    : loggingIn ? "checking" : account ? "signed-in" : sessionExpired ? "expired" : "signed-out";
 }
 
 export function reducer(state: State, event: Event): State {
-  if (event.phase === state.lifecycle.targetPhase) return state;
-  return {
-    lifecycle: {
-      targetPhase: event.phase,
-      context: event.phase === null ? state.lifecycle.context : reconcileLifecycle(state.lifecycle.context, event.phase),
-    },
-  };
+  return event.phase === state.phase ? state : { phase: event.phase };
 }

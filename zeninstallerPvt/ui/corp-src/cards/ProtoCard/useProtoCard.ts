@@ -35,10 +35,10 @@ export function useProtoCard(appStore: AppContext): UseProtoCard {
     dispatchState(event);
   }, []);
   useEffect(() => {
-    if (state.lifecycle.context.lifecycle !== "loading") return;
+    if (state.lifecycle !== "loading") return;
     const timer = setTimeout(() => dispatchState({ type: "check-prerequisites" }), 2000);
     return () => clearTimeout(timer);
-  }, [state.lifecycle.context.lifecycle, state.baseCardContext.prerequisiteIds, state.protoCardContext.unmetCardPrerequisites]);
+  }, [state.lifecycle, state.baseCardContext.prerequisiteIds, state.protoCardContext.unmetCardPrerequisites]);
   const baseCardContext = getBaseCardContext(state);
   const status = baseCardContext.lifecycle === "loading"
     ? "loading"
