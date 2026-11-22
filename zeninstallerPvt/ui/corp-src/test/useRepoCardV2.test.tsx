@@ -37,7 +37,7 @@ beforeEach(() => {
 
 async function waitFor(assertion: () => void) {
   const deadline = Date.now() + 2000;
-  for (;;) {
+  for (; ;) {
     try { assertion(); return; } catch (error) {
       if (Date.now() > deadline) throw error;
       await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
@@ -58,6 +58,7 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
     await act(async () => root.render(<Harness />));
     expect(latest?.shared.status).toBe("blocked");
     expect(latest?.baseCardContext.prerequisiteIds).toEqual(["github_login_v2"]);
+    expect(latest?.baseCardContext.stateMachine?.currentState).toBe("blocked");
     const token = new SensitiveToken("v2-token");
     const login: SharedCard = {
       title: "GitHub login 2", status: "complete", githubAccount: { login: "v2-user" }, githubToken: token, githubMode: "backend",
@@ -81,6 +82,7 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
       expect(latest?.repo.repoList).toEqual([{ id: 2, name: "test-repo" }]);
       expect(latest?.shared.status).toBe("ready");
     });
+    expect(latest?.baseCardContext.stateMachine?.currentState).toBe("ready");
     expect(createRepoApi).toHaveBeenCalledWith(token, "backend");
     await act(async () => latest?.repo.setSelectedRepo({ id: 2, name: "test-repo" }));
     await waitFor(() => expect(latest?.env.envList).toHaveLength(1));
@@ -145,7 +147,7 @@ it("ignores an old account request after switching GitHub sessions", async () =>
 
 it("reports an account loading failure and recovers on refresh", async () => {
   api.fetchOrgList.mockRejectedValueOnce(new Error("network error"));
-  const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+  const errorLog = vi.spyOn(console, "error").mockImplementation(() => { });
   const store = createAppContext();
   let latest: UseRepoCardV2 | undefined;
   function Harness() {
