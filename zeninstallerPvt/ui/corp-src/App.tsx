@@ -20,6 +20,7 @@ import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useDeploymentPlan } from "./cards/Stage/useDeploymentPlan";
 import { useCorpStageCards } from "./cards/Stage/useCorpStageCards";
 import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
+import { useAzureLoginCardV2 } from "./cards/AzureLoginV2/useAzureLoginCardV2";
 import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
 import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
@@ -52,6 +53,7 @@ import GithubSignupCard from "./cards/GithubSignup/GithubSignupCard";
 import RepoCard from "./cards/Repo/RepoCard";
 import RepoCardV2 from "./cards/RepoV2/RepoCardV2";
 import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
+import AzureLoginCardV2 from "./cards/AzureLoginV2/AzureLoginCardV2";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCard";
 import CoreInfraCard from "./cards/CoreInfra/CoreInfraCard";
@@ -119,6 +121,8 @@ function AppDashboard() {
       savedTenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
     })
   );
+  // Shares its account and confirmed tenant through appStore only; nothing below reads it yet.
+  const azureLoginV2 = addCard(useAzureLoginCardV2());
 
   // AWS login is unused since the AWS console sign-in stack replaced AWS setup.
   // const awsLogin = addCard(useAwsLoginCard());
@@ -514,6 +518,7 @@ function AppDashboard() {
               <RepoCardV2 cardChrome={cardProps("repo_v2")} githubRepo={githubRepoEnvV2} />
 
               <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
+              <AzureLoginCardV2 cardChrome={cardProps("azure_login_v2")} azureLogin={azureLoginV2} />
 
               <AzureSubscriptionCard
                 card={cardProps("azure_subscription")}

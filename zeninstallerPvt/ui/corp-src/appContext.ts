@@ -4,7 +4,7 @@
  */
 
 import type { Lifecycle } from "./components/useBaseCard";
-import type { Account, CardId, CardStatus, GhEnv, RepoOption, User } from "./types";
+import type { Account, AzureAccount, CardId, CardStatus, GhEnv, RepoOption, User } from "./types";
 
 export class SensitiveToken {
   readonly #value: string;
@@ -15,6 +15,9 @@ export class SensitiveToken {
   toString(): string { return "[REDACTED]"; }
 }
 
+// What MSAL looks an account up by; the id token and its claims stay with the sign-in card.
+type AzureIdentity = Pick<AzureAccount, "homeAccountId" | "environment" | "tenantId" | "localAccountId" | "username">;
+
 export type SharedCard = Readonly<{
   title: string;
   status: CardStatus | Lifecycle;
@@ -22,6 +25,8 @@ export type SharedCard = Readonly<{
   githubToken?: SensitiveToken | null;
   githubMode?: "direct" | "backend" | null;
   githubRepository?: Readonly<{ account: Readonly<Account>; repository: Readonly<RepoOption>; environment: Readonly<GhEnv> }> | null;
+  azureAccount?: Readonly<AzureIdentity> | null;
+  azureTenantId?: string | null; // The tenant ARM access was confirmed for.
 }>;
 type CardEntry = Readonly<{ initialised: false }> | (Readonly<{ initialised: true }> & SharedCard);
 type SharedSnapshot = Readonly<{ cards: Readonly<Partial<Record<CardId, CardEntry>>> }>;
@@ -46,6 +51,7 @@ export function createAppContext() {
     update: (cardId: CardId, shared: SharedCard) => {
       const current = snapshot.cards[cardId];
       const result = shared.githubRepository;
+      const azure = shared.azureAccount;
       const entry: CardEntry = {
         initialised: true,
         title: shared.title,
@@ -60,6 +66,13 @@ export function createAppContext() {
             environment: { id: result.environment.id, name: result.environment.name, url: result.environment.url },
           } : null,
         } : {}),
+        ...("azureAccount" in shared ? {
+          azureAccount: azure ? {
+            homeAccountId: azure.homeAccountId, environment: azure.environment, tenantId: azure.tenantId,
+            localAccountId: azure.localAccountId, username: azure.username,
+          } : null,
+        } : {}),
+        ...("azureTenantId" in shared ? { azureTenantId: shared.azureTenantId ?? null } : {}),
       };
       if (!current) {
         publish({ type: "added", cardId }, { initialised: false });
@@ -78,7 +91,14 @@ export function createAppContext() {
         || current.githubRepository?.repository.name !== result?.repository.name
         || current.githubRepository?.environment.id !== result?.environment.id
         || current.githubRepository?.environment.name !== result?.environment.name
-        || current.githubRepository?.environment.url !== result?.environment.url) {
+        || current.githubRepository?.environment.url !== result?.environment.url
+        || ("azureAccount" in current) !== ("azureAccount" in shared)
+        || current.azureAccount?.homeAccountId !== azure?.homeAccountId
+        || current.azureAccount?.environment !== azure?.environment
+        || current.azureAccount?.tenantId !== azure?.tenantId
+        || current.azureAccount?.localAccountId !== azure?.localAccountId
+        || current.azureAccount?.username !== azure?.username
+        || current.azureTenantId !== shared.azureTenantId || ("azureTenantId" in current) !== ("azureTenantId" in shared)) {
         publish({ type: "updated", cardId }, entry);
       }
     },
