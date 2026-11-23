@@ -25,7 +25,7 @@ it("owns title expansion and the state-diagram context menu without App controls
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  const baseCardContext = getBaseCardContext(initialProtoState);
+  const baseCardContext = getBaseCardContext(protoReducer(initialProtoState, { type: "check-prerequisites" }));
 
   try {
     await act(async () => root.render(
@@ -48,6 +48,40 @@ it("owns title expansion and the state-diagram context menu without App controls
   }
 });
 
+it("owns force-unlock and undo for blocked cards", async () => {
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  const baseCardContext = {
+    cardId: "proto_card",
+    title: "Blocked card",
+    lifecycle: "blocked",
+    prerequisiteIds: ["repo_v2"],
+    unmetCardPrerequisites: ["repo_v2"],
+  } as const;
+
+  try {
+    await act(async () => root.render(
+      createElement(ThemeProvider, { theme },
+        createElement(BaseCard, { baseCardContext, expanded: true, onToggle: () => { }, children: createElement("p", null, "Card content") })
+      )
+    ));
+    expect(container.textContent).toContain("The following prerequisites are incomplete");
+    expect(container.textContent).not.toContain("Card content");
+
+    await act(async () => container.querySelector<HTMLButtonElement>("button.MuiLink-root")?.click());
+    expect(container.textContent).toContain("This card is force-unlocked; its prerequisites are still incomplete.");
+    expect(container.textContent).toContain("Card content");
+
+    await act(async () => [...container.querySelectorAll<HTMLButtonElement>("button.MuiLink-root")]
+      .find((button) => button.textContent?.includes("Click to undo"))?.click());
+    expect(container.textContent).not.toContain("Card content");
+    expect(container.textContent).toContain("The following prerequisites are incomplete");
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
 it("maps card-owned states to the shared BaseCard display lifecycle", () => {
   expect(initialProtoState.lifecycle).toBe("loading");
   expect(repoLifecycle(initialRepoState.lifecycle)).toBe("loading");
@@ -56,7 +90,7 @@ it("maps card-owned states to the shared BaseCard display lifecycle", () => {
   expect(protoStateMachine.canTransition(initialProtoState, "action")).toBe(true);
   expect(protoStateMachine.canTransition({
     ...initialProtoState,
-    privateContext: { ...initialProtoState.privateContext, unmetCardPrerequisites: ["repo_v2"] },
+    baseCardContext: { ...initialProtoState.baseCardContext, unmetCardPrerequisites: ["repo_v2"] },
   }, "action")).toBe(false);
 
   const proto = protoReducer(initialProtoState, { type: "check-prerequisites" });

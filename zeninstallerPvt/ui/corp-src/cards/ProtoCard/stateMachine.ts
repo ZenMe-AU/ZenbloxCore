@@ -18,14 +18,13 @@ declare module "../../appContext" {
 }
 
 export type State = BaseCardState<Lifecycle> & {
-  baseCardContext: Omit<BaseCardContext, "lifecycle" | "prerequisiteIds"> & { prerequisiteIds: [string, string] };
+  baseCardContext: Omit<BaseCardContext<Lifecycle>, "lifecycle"> & {
+    unmetCardPrerequisites: string[];
+  };
   privateContext: PrivateContext;
 };
 
-type PrivateContext = {
-  forceUnlocked: boolean;
-  unmetCardPrerequisites: string[];
-};
+type PrivateContext = Record<never, never>;
 
 const title = "ProtoCard prototype card";
 const defaultSummary = "Ready to proceed";
@@ -41,7 +40,6 @@ function summaryFor(lifecycle: Lifecycle, unmetCardPrerequisites: readonly strin
 export type Event =
   | { type: "card-prerequisite"; index: 0 | 1; cardId: string }
   | { type: "sync-card-prerequisites"; unmet: string[] }
-  | { type: "force-unlock"; value: boolean }
   | { type: "check-prerequisites" }
   | { type: "transition"; lifecycle: Lifecycle };
 
@@ -51,67 +49,67 @@ export const initialState: State = {
     cardId: "proto_card",
     title,
     prerequisiteIds: ["", ""],
-  },
-  privateContext: {
-    forceUnlocked: false,
     unmetCardPrerequisites: [],
   },
+  privateContext: {},
 };
 
 export function getBaseCardContext(state: State) {
   const lifecycle = state.lifecycle;
+  const unmetCardPrerequisites = state.baseCardContext.unmetCardPrerequisites;
   return {
     ...state.baseCardContext,
     lifecycle,
     stateMachine: { graph: stateGraph, currentState: lifecycle },
-    summary: summaryFor(lifecycle, state.privateContext.unmetCardPrerequisites),
-    unmetCardPrerequisites: state.privateContext.unmetCardPrerequisites,
-    done: state.privateContext.unmetCardPrerequisites.length === 0 && lifecycle === "complete",
+    summary: summaryFor(lifecycle, unmetCardPrerequisites),
+    done: unmetCardPrerequisites.length === 0 && lifecycle === "complete",
   } as const;
 }
 
 export const stateGraph: BaseCardStateGraph<Lifecycle> = {
-  blocked: { label: "Blocked", baseCardLifecycle: "blocked", transitions: ["loading"] },
+  blocked: { label: "Blocked", baseCardLifecycle: "blocked", transitions: ["loading", "forceUnlocked"] },
   loading: { label: "Loading", baseCardLifecycle: "loading", transitions: ["ready", "action", "commit", "blocked"] },
   ready: { label: "Ready", baseCardLifecycle: "ready", transitions: ["action", "error"] },
   action: { label: "Action", baseCardLifecycle: "action", transitions: ["commit", "error"] },
   commit: { label: "Commit", baseCardLifecycle: "commit", transitions: ["complete", "error"] },
   complete: { label: "Complete", baseCardLifecycle: "complete", transitions: ["loading"] },
   error: { label: "Error", baseCardLifecycle: "error", transitions: ["loading"] },
+  forceUnlocked: { label: "Force unlocked", baseCardLifecycle: "forceUnlocked", transitions: ["blocked"] },
 };
 
 export function canLifecycleTransition(from: Lifecycle, to: Lifecycle): boolean {
   return stateGraph[from].transitions.includes(to);
 }
 
-export function canTransition(currentState: Pick<State, "lifecycle" | "privateContext">, nextState: Lifecycle): boolean {
+export function canTransition(currentState: Pick<State, "lifecycle" | "baseCardContext">, nextState: Lifecycle): boolean {
+  if (!canLifecycleTransition(currentState.lifecycle, nextState)) return false;
+  if (currentState.lifecycle === "blocked" && nextState === "forceUnlocked") return true;
+  if (currentState.lifecycle === "forceUnlocked" && nextState === "blocked") return true;
   return nextState !== "ready" && nextState !== "blocked"
-    && currentState.privateContext.unmetCardPrerequisites.length === 0
-    && canLifecycleTransition(currentState.lifecycle, nextState);
+    && currentState.baseCardContext.unmetCardPrerequisites.length === 0;
 }
 
 export function reducer(state: State, event: Event): State {
   switch (event.type) {
     case "card-prerequisite": {
-      const prerequisiteIds: [string, string] = [...state.baseCardContext.prerequisiteIds];
-      prerequisiteIds[event.index] = event.cardId;
       return {
         ...state,
-        baseCardContext: { ...state.baseCardContext, prerequisiteIds },
+        baseCardContext: {
+          ...state.baseCardContext,
+          prerequisiteIds: state.baseCardContext.prerequisiteIds.map((cardId, index) => index === event.index ? event.cardId : cardId),
+        },
         lifecycle: "loading",
       };
     }
     case "sync-card-prerequisites":
       return {
         ...state,
-        privateContext: { ...state.privateContext, unmetCardPrerequisites: event.unmet },
+        baseCardContext: { ...state.baseCardContext, unmetCardPrerequisites: event.unmet },
         lifecycle: "loading",
       };
-    case "force-unlock":
-      return { ...state, privateContext: { ...state.privateContext, forceUnlocked: event.value } };
     case "check-prerequisites": {
       if (state.lifecycle !== "loading") return state;
-      const lifecycle = state.privateContext.unmetCardPrerequisites.length === 0 ? "ready" : "blocked";
+      const lifecycle = state.baseCardContext.unmetCardPrerequisites.length === 0 ? "ready" : "blocked";
       if (!canLifecycleTransition(state.lifecycle, lifecycle)) return state;
       return {
         ...state,

@@ -129,7 +129,6 @@ export default function StateDiagram<StateId extends string, BaseLifecycle exten
 
     return (
         <Box sx={{ mb: 2, pb: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>State graph</Typography>
             <Box sx={{ overflowX: "auto" }}>
                 <Box sx={{ minWidth: width, width, maxWidth: "100%" }}>
                     <svg

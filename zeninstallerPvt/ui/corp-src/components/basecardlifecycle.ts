@@ -6,7 +6,7 @@
 import type { CardId } from "../types";
 
 /** The set of states that are understood by BaseCard. */
-export type Lifecycle = "blocked" | "loading" | "ready" | "action" | "commit" | "complete" | "error";
+export type Lifecycle = "blocked" | "loading" | "ready" | "action" | "commit" | "complete" | "error" | "forceUnlocked";
 
 /** A single state from the lifecycle set for use in state machine transitions.. */
 export type BaseCardState<lifecycle extends string = Lifecycle> = { lifecycle: lifecycle };
@@ -19,6 +19,7 @@ export type BaseCardContext<lifecycle extends string = Lifecycle> = BaseCardStat
   cardId: CardId;
   title: string;
   prerequisiteIds: readonly string[];
+  unmetCardPrerequisites?: readonly string[];
   summary?: string;
   stateMachine?: BaseCardStateMachineSnapshot<lifecycle>;
 };

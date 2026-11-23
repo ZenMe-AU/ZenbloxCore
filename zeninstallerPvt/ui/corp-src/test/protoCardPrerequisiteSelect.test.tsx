@@ -8,8 +8,9 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { expect, it, vi } from "vitest";
 import { createAppContext } from "../appContext";
+import BaseCard from "../components/BaseCard";
 import { CardContentMain } from "../cards/ProtoCard/ProtoCard";
-import { getBaseCardContext, initialState, reducer } from "../cards/ProtoCard/stateMachine";
+import { getBaseCardContext, initialState, reducer, stateGraph } from "../cards/ProtoCard/stateMachine";
 import type { UseProtoCard } from "../cards/ProtoCard/useProtoCard";
 import theme from "../theme";
 
@@ -58,7 +59,9 @@ it("offers only registered prerequisite IDs and dispatches the selected ID", asy
     try {
         await act(async () => root.render(
             <ThemeProvider theme={theme}>
-                <CardContentMain {...protoCard} />
+                <BaseCard baseCardContext={protoCard.baseCardContext} appContext={protoCard.privateContext.appContext} expanded onToggle={() => { }}>
+                    <CardContentMain {...protoCard} />
+                </BaseCard>
             </ThemeProvider>
         ));
 
@@ -81,6 +84,19 @@ it("offers only registered prerequisite IDs and dispatches the selected ID", asy
     }
 });
 
+it("models forceUnlocked as a first-class lifecycle state", () => {
+    const blocked = reducer(
+        reducer(initialState, { type: "sync-card-prerequisites", unmet: ["repo_v2"] }),
+        { type: "check-prerequisites" },
+    );
+    expect(stateGraph.blocked.transitions).toContain("forceUnlocked");
+
+    const forceUnlocked = reducer(blocked, { type: "transition", lifecycle: "forceUnlocked" });
+    expect(forceUnlocked.lifecycle).toBe("forceUnlocked");
+    expect(stateGraph.forceUnlocked.transitions).toContain("blocked");
+    expect(reducer(forceUnlocked, { type: "transition", lifecycle: "blocked" }).lifecycle).toBe("blocked");
+});
+
 it("links a failed registered prerequisite to its card", async () => {
     const store = createAppContext();
     publishGithubLogin(store);
@@ -98,7 +114,9 @@ it("links a failed registered prerequisite to its card", async () => {
     try {
         await act(async () => root.render(
             <ThemeProvider theme={theme}>
-                <CardContentMain {...protoCard} />
+                <BaseCard baseCardContext={protoCard.baseCardContext} appContext={protoCard.privateContext.appContext} expanded onToggle={() => { }}>
+                    <CardContentMain {...protoCard} />
+                </BaseCard>
             </ThemeProvider>
         ));
 
@@ -112,36 +130,3 @@ it("links a failed registered prerequisite to its card", async () => {
     }
 });
 
-it("undoes force-unlock when its status message is clicked", async () => {
-    const store = createAppContext();
-    publishRepo(store, "ready");
-    const blocked = reducer(
-        reducer(initialState, { type: "sync-card-prerequisites", unmet: ["repo_v2"] }),
-        { type: "check-prerequisites" },
-    );
-    const state = reducer(blocked, { type: "force-unlock", value: true });
-    const dispatch = vi.fn();
-    const protoCard: UseProtoCard = {
-        baseCardContext: getBaseCardContext(state),
-        privateContext: { ...state.privateContext, appContext: store.getSnapshot(), dispatch },
-    };
-    const container = document.createElement("div");
-    const root = createRoot(container);
-
-    try {
-        await act(async () => root.render(
-            <ThemeProvider theme={theme}>
-                <CardContentMain {...protoCard} />
-            </ThemeProvider>
-        ));
-
-        const undo = [...container.querySelectorAll<HTMLButtonElement>("button.MuiLink-root")]
-            .find((button) => button.textContent?.includes("force-unlocked"));
-        expect(undo).toBeDefined();
-        await act(async () => undo?.click());
-        expect(dispatch).toHaveBeenCalledWith({ type: "force-unlock", value: false });
-    } finally {
-        await act(async () => root.unmount());
-        container.remove();
-    }
-});

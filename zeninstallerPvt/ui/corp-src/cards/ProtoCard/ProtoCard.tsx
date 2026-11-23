@@ -3,9 +3,9 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Fragment, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { useRef, useState, type ReactElement } from "react";
 import { stringify } from "yaml";
-import { Box, Button, CircularProgress, Link, TextField, Typography, useTheme } from "@mui/material";
+import { Box, Button, CircularProgress, TextField, Typography } from "@mui/material";
 import type { AppContext } from "../../appContext";
 import BaseCard from "../../components/BaseCard";
 import type { BaseCardContext, Lifecycle } from "../../components/useBaseCard";
@@ -23,6 +23,7 @@ const lifecycleNodes: { lifecycle: Lifecycle; label: string; x: number; y: numbe
   { lifecycle: "commit", label: "Commit", x: 650, y: 150 },
   { lifecycle: "complete", label: "Complete", x: 830, y: 150 },
   { lifecycle: "error", label: "Error", x: 470, y: 300 },
+  { lifecycle: "forceUnlocked", label: "Force unlocked", x: 290, y: 300 },
 ];
 
 const lifecycleEdges: { from: Lifecycle; to: Lifecycle; path: string }[] = [
@@ -39,11 +40,26 @@ const lifecycleEdges: { from: Lifecycle; to: Lifecycle; path: string }[] = [
   { from: "commit", to: "error", path: "M650 170 L526 285" },
   { from: "complete", to: "loading", path: "M830 130 V25 H130 V130" },
   { from: "error", to: "loading", path: "M470 320 V365 H16 V150 H44" },
+  { from: "blocked", to: "forceUnlocked", path: "M156 300 H234" },
+  { from: "forceUnlocked", to: "blocked", path: "M234 312 H156" },
 ];
+
+/**
+ * The Intro will be displayed even if the card is blocked.
+ */
+function Intro() {
+  return (
+    <>
+      <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+        The ProtoCard is a prototype card that shows how to implement new cards. It shows the 3 states of App, baseCard and Card context and lifecycles.
+      </Typography>
+    </>
+  );
+}
 
 function PrerequisitesPanel({ baseCardContext, privateContext }: UseProtoCard) {
   const { appContext, dispatch } = privateContext;
-  const state = { lifecycle: baseCardContext.lifecycle, privateContext };
+  const state = { lifecycle: baseCardContext.lifecycle, baseCardContext };
   const lifecycle = baseCardContext.lifecycle;
   const registeredCards = Object.entries(appContext.cards)
     .filter(([cardId]) => cardId !== baseCardContext.cardId)
@@ -156,8 +172,7 @@ function PrerequisitesPanel({ baseCardContext, privateContext }: UseProtoCard) {
 }
 
 function ResultsPanel({ baseCardContext, privateContext }: UseProtoCard) {
-  const { appContext, forceUnlocked, unmetCardPrerequisites } = privateContext;
-  const privateState = { forceUnlocked, unmetCardPrerequisites };
+  const { appContext } = privateContext;
   const lifecycle = baseCardContext.lifecycle;
   const [panel, setPanel] = useState({ lifecycle, open: lifecycle === "commit" });
   const [widths, setWidths] = useState([100 / 3, 100 / 3, 100 / 3]);
@@ -178,7 +193,7 @@ function ResultsPanel({ baseCardContext, privateContext }: UseProtoCard) {
   }
 
   const contexts = [
-    { name: "privateContext", value: privateState },
+    { name: "privateContext", value: {} },
     { name: "baseCardContext", value: baseCardContext },
     { name: "appContext", value: appContext },
   ];
@@ -250,105 +265,6 @@ function ResultsPanel({ baseCardContext, privateContext }: UseProtoCard) {
   );
 }
 
-/**
- * The Intro will be displayed even if the card is blocked.
- */
-function Intro() {
-  return (
-    <>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-        The ProtoCard is a prototype card that shows how to implement new cards. It shows the 3 states of App, baseCard and Card context and lifecycles.
-      </Typography>
-    </>
-  );
-}
-
-function LoadingContent() {
-  return (
-    <>
-      <Intro />
-      <Box role="status" sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-        <CircularProgress size={20} aria-hidden="true" />
-        <Typography>Loading...</Typography>
-      </Box>
-    </>
-  );
-}
-
-function BlockedContent({ baseCardContext, privateContext }: UseProtoCard) {
-  const theme = useTheme();
-  const colors = theme.vars.palette.card;
-  const { appContext, dispatch } = privateContext;
-
-  return (
-    <>
-      <Box sx={{ mb: 2 }}><Intro /></Box>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 0.75,
-          px: 1.75,
-          py: 1.5,
-          background: colors.requirementPanel,
-          border: `1px solid ${theme.vars.palette.divider}`,
-          borderRadius: "8px",
-        }}
-      >
-        <Typography
-          sx={{
-            typography: "body1",
-            color: theme.vars.palette.text.secondary,
-          }}
-        >
-          The following prerequisites are incomplete, or{" "}
-          <Link
-            component="button"
-            type="button"
-            onClick={() => dispatch({ type: "force-unlock", value: true })}
-          >
-            click here to force unlock this card.
-          </Link>
-        </Typography>
-        {baseCardContext.unmetCardPrerequisites.map((id, index) => {
-          const registered = Object.prototype.hasOwnProperty.call(appContext.cards, id);
-          const card = appContext.cards[id as BaseCardContext["cardId"]];
-          const label = card?.initialised ? `${card.title} (${id})` : id;
-          return registered ? (
-            <Link
-              key={`${index}-${id}`}
-              component="a"
-              href={`#card-${id}`}
-              sx={{ alignSelf: "flex-start", fontWeight: 500 }}
-            >
-              {label}
-            </Link>
-          ) : (
-            <Typography key={`${index}-${id}`} sx={{ typography: "body1", color: colors.requirementText, fontWeight: 500 }}>
-              {id}
-            </Typography>
-          );
-        })}
-      </Box>
-    </>
-  );
-}
-
-function ForceUnlockNotice({ onUndo }: { onUndo: () => void }) {
-  return (
-    <Typography role="status" sx={{ mb: 2 }}>
-      <Link
-        component="button"
-        type="button"
-        color="warning.main"
-        onClick={onUndo}
-      >
-        This card is force-unlocked; its prerequisites are still incomplete. (Click to undo)
-      </Link>
-    </Typography>
-  );
-}
-
 export function CardContentMain({ baseCardContext, privateContext }: UseProtoCard) {
   return (
     <>
@@ -367,28 +283,14 @@ export function CardContentMain({ baseCardContext, privateContext }: UseProtoCar
 
 const CardEntrypoint = (appCtx: AppContext): ReactElement => {
   const cardHook = useProtoCard(appCtx);
-  const { forceUnlocked } = cardHook.privateContext;
-  const showBlockedContent = cardHook.baseCardContext.lifecycle === "blocked" && !forceUnlocked;
-  const showForceUnlockNotice = forceUnlocked && cardHook.baseCardContext.lifecycle === "blocked";
-  const content: ReactNode[] = [];
-
-  if (cardHook.baseCardContext.lifecycle === "loading") {
-    content.push(<Fragment key="loading"><LoadingContent /></Fragment>);
-  } else if (showBlockedContent) {
-    content.push(<Fragment key="blocked"><BlockedContent baseCardContext={cardHook.baseCardContext} privateContext={cardHook.privateContext} /></Fragment>);
-  } else if (showForceUnlockNotice) {
-    content.push(<ForceUnlockNotice onUndo={() => cardHook.privateContext.dispatch({ type: "force-unlock", value: false })} />);
-  } else {
-    content.push(<CardContentMain baseCardContext={cardHook.baseCardContext} privateContext={cardHook.privateContext} />);
-  }
   return (
     <BaseCard
       baseCardContext={cardHook.baseCardContext}
-      action={cardHook.baseCardContext.lifecycle !== "loading" && !cardHook.privateContext.forceUnlocked
-        ? <ViewLink href="http://localhost" label="Open External Site" />
-        : undefined}
+      appContext={cardHook.privateContext.appContext}
+      blockedIntro={<Intro />}
+      action={<ViewLink href="http://localhost" label="Open External Site" />}
     >
-      {content}
+      <CardContentMain baseCardContext={cardHook.baseCardContext} privateContext={cardHook.privateContext} />
     </BaseCard>
   );
 }

@@ -3,12 +3,10 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useReducer, useSyncExternalStore, type Dispatch } from "react";
+import { useEffect, useReducer, useSyncExternalStore, type Dispatch } from "react";
 import type { AppContext } from "../../appContext";
 import { checkPrerequisites } from "../../components/useBaseCard";
 import { getBaseCardContext, initialState, reducer, type Event } from "./stateMachine";
-
-let forceUnlockedForPage = false;
 
 export interface UseProtoCard {
   baseCardContext: ReturnType<typeof getBaseCardContext>;
@@ -20,24 +18,17 @@ export interface UseProtoCard {
 
 export function useProtoCard(appCtx: AppContext): UseProtoCard {
   const appContext = useSyncExternalStore(appCtx.subscribe, appCtx.getSnapshot, appCtx.getSnapshot);
-  const [state, dispatchState] = useReducer(reducer, initialState, (initial) => ({
-    ...initial,
-    privateContext: { ...initial.privateContext, forceUnlocked: forceUnlockedForPage },
-  }));
+  const [state, dispatch] = useReducer(reducer, initialState);
   const unmet = checkPrerequisites(appContext, getBaseCardContext(state));
-  if (unmet.length !== state.privateContext.unmetCardPrerequisites.length
-    || unmet.some((id, index) => id !== state.privateContext.unmetCardPrerequisites[index])) {
-    dispatchState({ type: "sync-card-prerequisites", unmet });
+  if (unmet.length !== state.baseCardContext.unmetCardPrerequisites.length
+    || unmet.some((id, index) => id !== state.baseCardContext.unmetCardPrerequisites[index])) {
+    dispatch({ type: "sync-card-prerequisites", unmet });
   }
-  const dispatch = useCallback((event: Event) => {
-    if (event.type === "force-unlock") forceUnlockedForPage = event.value;
-    dispatchState(event);
-  }, []);
   useEffect(() => {
     if (state.lifecycle !== "loading") return;
-    const timer = setTimeout(() => dispatchState({ type: "check-prerequisites" }), 2000);
+    const timer = setTimeout(() => dispatch({ type: "check-prerequisites" }), 2000);
     return () => clearTimeout(timer);
-  }, [state.lifecycle, state.baseCardContext.prerequisiteIds, state.privateContext.unmetCardPrerequisites]);
+  }, [state.lifecycle, state.baseCardContext.prerequisiteIds, state.baseCardContext.unmetCardPrerequisites]);
   const baseCardContext = getBaseCardContext(state);
   useEffect(() => {
     appCtx.update("proto_card", {

@@ -4,7 +4,7 @@
  */
 
 import { useRef, useState, type ReactNode } from "react";
-import { Box, ButtonBase, CircularProgress, Collapse, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from "@mui/material";
+import { Box, ButtonBase, CircularProgress, Collapse, IconButton, Link, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
@@ -13,18 +13,24 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { alpha, useTheme } from "@mui/material/styles";
+import type { AppContext } from "../appContext";
 import { borderHoverTint, borderTint } from "../config/styles";
 import type { BaseCardContext, Lifecycle } from "./basecardlifecycle";
 import StateDiagram, { type StateDiagramLayout } from "./StateDiagram";
 
 type Props<StateId extends string> = {
   baseCardContext: BaseCardContext<StateId>;
+  appContext?: ReturnType<AppContext["getSnapshot"]>;
   expanded?: boolean;
   onToggle?: () => void;
   action?: ReactNode;
   descriptionId?: string;
   children: ReactNode;
+  blockedIntro?: ReactNode;
+  blockedContent?: ReactNode;
+  loadingContent?: ReactNode;
   stateDiagramLayout?: StateDiagramLayout<StateId>;
 };
 
@@ -36,21 +42,33 @@ const lifecycleLabels: Record<Lifecycle, string> = {
   commit: "Commit",
   complete: "Complete",
   error: "Error",
+  forceUnlocked: "Force unlocked",
 };
 
+
 export default function BaseCard<StateId extends string = Lifecycle>({
-  baseCardContext, expanded, onToggle, action, descriptionId, children, stateDiagramLayout,
+  baseCardContext, appContext, expanded, onToggle, action, descriptionId, children,
+  blockedIntro, blockedContent, loadingContent, stateDiagramLayout,
 }: Props<StateId>) {
   const [localExpanded, setLocalExpanded] = useState(false);
   const isExpanded = expanded ?? localExpanded;
   const toggle = onToggle ?? (() => setLocalExpanded((value) => !value));
-  const { cardId, title, summary, lifecycle } = baseCardContext;
+  const { cardId, title, summary, lifecycle: cardLifecycle } = baseCardContext;
+  const [displayLifecycle, setDisplayLifecycle] = useState<{ source: Lifecycle; current: Lifecycle }>(() => ({
+    source: cardLifecycle,
+    current: cardLifecycle,
+  }));
+  if (displayLifecycle.source !== cardLifecycle) {
+    setDisplayLifecycle({ source: cardLifecycle, current: cardLifecycle });
+  }
+  const lifecycle = displayLifecycle.current;
+  const forceUnlocked = lifecycle === "forceUnlocked";
   const stateMachine = baseCardContext.stateMachine;
   const theme = useTheme();
   const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
   const [showStateDiagram, setShowStateDiagram] = useState(false);
   const colors = theme.vars.palette.card;
-  const colorKey = lifecycle === "blocked" ? "idle" : lifecycle === "ready" || lifecycle === "action" || lifecycle === "commit" ? "warning" : lifecycle;
+  const colorKey = lifecycle === "blocked" ? "idle" : lifecycle === "forceUnlocked" || lifecycle === "ready" || lifecycle === "action" || lifecycle === "commit" ? "warning" : lifecycle;
   const muted = lifecycle === "blocked";
   const titleId = `card-title-${cardId}`;
   const contentId = `card-content-${cardId}`;
@@ -64,7 +82,76 @@ export default function BaseCard<StateId extends string = Lifecycle>({
         ? <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: iconColor }} />
         : lifecycle === "error"
           ? <ErrorOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: iconColor }} />
-          : <RadioButtonUncheckedIcon aria-hidden="true" sx={{ typography: "caption", color: iconColor }} />;
+          : lifecycle === "forceUnlocked"
+            ? <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: iconColor }} />
+            : <RadioButtonUncheckedIcon aria-hidden="true" sx={{ typography: "caption", color: iconColor }} />;
+
+  function setForceUnlock(value: boolean) {
+    setDisplayLifecycle({ source: cardLifecycle, current: value ? "forceUnlocked" : cardLifecycle });
+  }
+
+  const forceUnlockNotice = (
+    <Typography role="status" sx={{ mb: 2 }}>
+      <Link component="button" type="button" color="warning.main" onClick={() => setForceUnlock(false)}>
+        This card is force-unlocked; its prerequisites are still incomplete. (Click to undo)
+      </Link>
+    </Typography>
+  );
+
+  const defaultLoadingContent = (
+    <Box role="status" sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+      <CircularProgress size={20} aria-hidden="true" />
+      <Typography>Loading...</Typography>
+    </Box>
+  );
+
+  const blockedPrerequisites = baseCardContext.unmetCardPrerequisites ?? [];
+  const defaultBlockedContent = (
+    <>
+      {blockedIntro && <Box sx={{ mb: 2 }}>{blockedIntro}</Box>}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.75,
+          px: 1.75,
+          py: 1.5,
+          background: colors.requirementPanel,
+          border: `1px solid ${theme.vars.palette.divider}`,
+          borderRadius: "8px",
+        }}
+      >
+        <Typography sx={{ typography: "body1", color: theme.vars.palette.text.secondary }}>
+          The following prerequisites are incomplete, or{" "}
+          <Link component="button" type="button" onClick={() => setForceUnlock(true)}>
+            click here to force unlock this card.
+          </Link>
+        </Typography>
+        {blockedContent ?? blockedPrerequisites.map((id, index) => {
+          const card = Object.entries(appContext?.cards ?? {}).find(([registeredId]) => registeredId === id)?.[1];
+          return card?.initialised ? (
+            <Link key={`${index}-${id}`} component="a" href={`#card-${id}`} sx={{ alignSelf: "flex-start", fontWeight: 500 }}>
+              {card.title} ({id})
+            </Link>
+          ) : (
+            <Typography key={`${index}-${id}`} sx={{ typography: "body1", color: colors.requirementText, fontWeight: 500 }}>
+              {id}
+            </Typography>
+          );
+        })}
+      </Box>
+    </>
+  );
+
+  const stateDiagram = stateMachine && showStateDiagram ? (
+    <StateDiagram
+      graph={stateMachine.graph}
+      currentState={forceUnlocked && Object.hasOwn(stateMachine.graph, "forceUnlocked")
+        ? "forceUnlocked" as StateId
+        : stateMachine.currentState}
+      layout={stateDiagramLayout}
+    />
+  ) : null;
 
   return (
     <Box
@@ -84,12 +171,12 @@ export default function BaseCard<StateId extends string = Lifecycle>({
         "&:hover": { boxShadow: colors.hoverShadow },
       }}
     >
-      {stateMachine && (
+      {stateMachine && contextMenu && (
         <Menu
-          open={contextMenu !== null}
+          open
           onClose={() => setContextMenu(null)}
           anchorReference="anchorPosition"
-          anchorPosition={contextMenu ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined}
+          anchorPosition={{ top: contextMenu.mouseY, left: contextMenu.mouseX }}
         >
           <MenuItem
             role="menuitemcheckbox"
@@ -238,10 +325,16 @@ export default function BaseCard<StateId extends string = Lifecycle>({
       </Box>
       <Collapse in={isExpanded}>
         <Box id={contentId} role="region" aria-labelledby={titleId} sx={{ borderTop: `1px solid ${colors.contentDivider}`, px: 2.5, py: 2.5 }}>
-          {stateMachine && showStateDiagram && (
-            <StateDiagram graph={stateMachine.graph} currentState={stateMachine.currentState} layout={stateDiagramLayout} />
-          )}
-          {children}
+          {stateDiagram}
+          {/* START CONTENT SECTION, render based on lifecycle state */}
+          {lifecycle === "loading" ? loadingContent ?? defaultLoadingContent
+            : lifecycle === "blocked" ? defaultBlockedContent
+              : (/* ONLY RENDER THIS SECTION IF NOT LOADING OR BLOCKED */
+                <>
+                  {lifecycle === "forceUnlocked" && forceUnlockNotice}
+                  {children}
+                </>
+              )}
         </Box>
       </Collapse>
     </Box>
