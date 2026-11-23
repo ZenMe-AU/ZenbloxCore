@@ -20,13 +20,13 @@ import {
   reducer,
   stateGraph,
   toBaseCardLifecycle,
-  type Lifecycle as AzureSubscriptionV2Lifecycle,
+  type Lifecycle,
 } from "./stateMachine";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface PrivateContext {
-  currentState: AzureSubscriptionV2Lifecycle;
+  currentState: Lifecycle;
   blockedBy: readonly (typeof prerequisiteLinks)[number][]; // The prerequisites still to finish, while blocked.
   tenantId: string | null;
   subscriptions: Subscription[];
@@ -132,14 +132,14 @@ export function useAzureSubscriptionCardV2(appStore: AppContext) {
     unsaved: "Doesn't match what's saved to GitHub", // The header can't see the draft, so it states only what is true either way.
     saved: selectedSubscription?.displayName ?? "Subscription saved",
     error: subsError ?? "No subscriptions in this tenant",
-  } satisfies Record<AzureSubscriptionV2Lifecycle, string>)[lifecycle];
+  } satisfies Record<Lifecycle, string>)[lifecycle];
 
   const baseCardContext = {
     ...initialSubscriptionCardContext,
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),
     stateMachine: { graph: stateGraph, currentState: lifecycle },
-  } satisfies BaseCardContext<AzureSubscriptionV2Lifecycle>;
+  } satisfies BaseCardContext<Lifecycle>;
   useEffect(() => {
     appStore.update("azure_subscription_v2", {
       title: baseCardContext.title,
