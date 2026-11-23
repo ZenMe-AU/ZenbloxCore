@@ -35,17 +35,58 @@ export default function StateDiagram<StateId extends string, BaseLifecycle exten
     const theme = useTheme();
     const markerId = `state-diagram-arrow-${useId().replace(/:/g, "")}`;
     const states = Object.keys(graph) as StateId[];
-    const radiusX = Math.max(350, states.length * 44);
-    const radiusY = Math.max(140, states.length * 17);
     const nodeWidth = layout?.nodeWidth ?? defaultNodeWidth;
     const nodeHeight = layout?.nodeHeight ?? defaultNodeHeight;
-    const width = layout?.width ?? radiusX * 2 + nodeWidth + 48;
-    const height = layout?.height ?? radiusY * 2 + nodeHeight + 48;
-    const center = { x: width / 2, y: height / 2 };
-    const positions = new Map<StateId, Point>(states.map((state, index) => {
-        const angle = -Math.PI / 2 + (index * 2 * Math.PI) / states.length;
-        return [state, layout?.positions[state] ?? { x: center.x + radiusX * Math.cos(angle), y: center.y + radiusY * Math.sin(angle) }];
-    }));
+    const horizontalGap = 72;
+    const verticalGap = 48;
+    const padding = 32;
+    const incoming = new Set(states.flatMap((state) => graph[state].transitions));
+    const roots = states.filter((state) => !incoming.has(state));
+    const ranks = new Map<StateId, number>();
+
+    function assignReachable(startStates: readonly StateId[], startRank: number) {
+        const queue = startStates.filter((state) => !ranks.has(state)).map((state) => ({ state, rank: startRank }));
+        queue.forEach(({ state, rank }) => ranks.set(state, rank));
+        for (let index = 0; index < queue.length; index += 1) {
+            const { state, rank } = queue[index];
+            graph[state].transitions.forEach((nextState) => {
+                if (ranks.has(nextState)) return;
+                ranks.set(nextState, rank + 1);
+                queue.push({ state: nextState, rank: rank + 1 });
+            });
+        }
+    }
+
+    assignReachable(roots.length ? roots : states.slice(0, 1), 0);
+    states.forEach((state) => {
+        if (ranks.has(state)) return;
+        const nextRank = ranks.size ? Math.max(...ranks.values()) + 1 : 0;
+        assignReachable([state], nextRank);
+    });
+
+    const layers = new Map<number, StateId[]>();
+    states.forEach((state) => {
+        const rank = ranks.get(state)!;
+        layers.set(rank, [...(layers.get(rank) ?? []), state]);
+    });
+    const layerCount = layers.size;
+    const largestLayer = Math.max(1, ...[...layers.values()].map((layer) => layer.length));
+    const width = layout?.width ?? padding * 2 + layerCount * nodeWidth + Math.max(0, layerCount - 1) * horizontalGap;
+    const height = layout?.height ?? padding * 2 + largestLayer * nodeHeight + Math.max(0, largestLayer - 1) * verticalGap;
+    const positions = new Map<StateId, Point>();
+    layers.forEach((layer, rank) => {
+        const layerHeight = layer.length * nodeHeight + Math.max(0, layer.length - 1) * verticalGap;
+        layer.forEach((state, index) => {
+            positions.set(state, {
+                x: padding + nodeWidth / 2 + rank * (nodeWidth + horizontalGap),
+                y: (height - layerHeight) / 2 + nodeHeight / 2 + index * (nodeHeight + verticalGap),
+            });
+        });
+    });
+    states.forEach((state) => {
+        const customPosition = layout?.positions[state];
+        if (customPosition) positions.set(state, customPosition);
+    });
     const indexByState = new Map(states.map((state, index) => [state, index]));
     const edgePaths = new Map(layout?.edgePaths?.map(({ from, to, path }) => [`${from}-${to}`, path]));
     const transitions = states.flatMap((from) => graph[from].transitions.map((to) => ({ from, to })));

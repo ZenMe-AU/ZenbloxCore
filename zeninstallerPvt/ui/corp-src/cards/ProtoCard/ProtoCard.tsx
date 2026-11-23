@@ -7,8 +7,7 @@ import { Fragment, useRef, useState, type ReactElement, type ReactNode } from "r
 import { stringify } from "yaml";
 import { Box, Button, CircularProgress, Link, TextField, Typography, useTheme } from "@mui/material";
 import type { AppContext } from "../../appContext";
-import BaseCard, { type cardEntrypoint } from "../../components/BaseCard";
-import type { StateDiagramLayout } from "../../components/StateDiagram";
+import BaseCard from "../../components/BaseCard";
 import type { BaseCardContext, Lifecycle } from "../../components/useBaseCard";
 import CollapsiblePanel from "../../components/CollapsiblePanel";
 import ViewLink from "../../components/ViewLink";
@@ -41,15 +40,6 @@ const lifecycleEdges: { from: Lifecycle; to: Lifecycle; path: string }[] = [
   { from: "complete", to: "loading", path: "M830 130 V25 H130 V130" },
   { from: "error", to: "loading", path: "M470 320 V365 H16 V150 H44" },
 ];
-
-const lifecycleDiagramLayout: StateDiagramLayout<Lifecycle> = {
-  width: 950,
-  height: 390,
-  nodeWidth: 112,
-  nodeHeight: 40,
-  positions: Object.fromEntries(lifecycleNodes.map(({ lifecycle, x, y }) => [lifecycle, { x, y }])),
-  edgePaths: lifecycleEdges,
-};
 
 function PrerequisitesPanel({ baseCardContext, privateContext }: UseProtoCard) {
   const { appContext, dispatch } = privateContext;
@@ -394,7 +384,6 @@ const CardEntrypoint = (appCtx: AppContext): ReactElement => {
   return (
     <BaseCard
       baseCardContext={cardHook.baseCardContext}
-      stateDiagramLayout={lifecycleDiagramLayout}
       action={cardHook.baseCardContext.lifecycle !== "loading" && !cardHook.privateContext.forceUnlocked
         ? <ViewLink href="http://localhost" label="Open External Site" />
         : undefined}
