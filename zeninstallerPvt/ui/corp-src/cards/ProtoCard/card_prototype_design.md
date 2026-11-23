@@ -53,7 +53,7 @@ return (
   <BaseCard
     baseCardContext={card.baseCardContext}
     appContext={card.privateContext.appContext}
-    blockedIntro={<CardIntro />}
+    blockedIntro={<Intro />}
     loadingContent={<CardLoading />}
     action={<CardAction />}
   >
@@ -65,7 +65,7 @@ return (
 BaseCard selects content according to its display lifecycle:
 
 - `loading`: render `loadingContent` or the default spinner.
-- `blocked`: render `blockedIntro`, prerequisite links, and BaseCard's force-unlock control; use `blockedContent` to replace the default prerequisite list when needed.
+- `blocked`: always render the card's `Intro` through the required `blockedIntro={<Intro />}` prop, followed by prerequisite links and BaseCard's force-unlock control; use `blockedContent` to replace the default prerequisite list when needed.
 - `forceUnlocked`: render BaseCard's undo notice and the card children. The underlying prerequisite IDs remain unmet.
 - Other lifecycle states: render the card children.
 
@@ -104,12 +104,56 @@ Do not put the shared prerequisite matching algorithm in BaseCard's render path.
 
 ## Component Pattern
 
-- Keep the entrypoint small: call the card hook, render BaseCard, and pass normal content as children.
+- Every card implementation file follows ProtoCard's explicit top-level component shape and order:
+  1. `Intro` for card-specific introduction content; every card must pass `<Intro />` to BaseCard as `blockedIntro`, so the intro remains visible when blocked.
+  2. `PrerequisitesPanel` when the card needs an editable prerequisite/lifecycle panel.
+  3. `ResultsPanel` when the card needs a diagnostic/results panel.
+  4. `CardContentMain` to compose the intro, any panels, and the card's action content.
+  5. `CardEntrypoint` to call the card hook and wrap `CardContentMain` in BaseCard.
+  6. A default export of `CardEntrypoint`.
+- `PrerequisitesPanel` and `ResultsPanel` are optional. If implemented, both use the same destructured `UseCard` prop shape; neither creates another context contract or accepts pieces of the context as separate props.
+- Keep `CardEntrypoint` small: call the card hook, render BaseCard, and pass normal content as children. Do not put reducer logic or whole panel implementations in the entrypoint.
 - Pass `baseCardContext` to panels that display or mutate public card data.
 - Pass `privateContext` only to components that need dispatch or runtime services.
 - Keep card-specific UI in small components such as prerequisite panels, results, intro, and actions.
-- Use BaseCard's `blockedIntro`, `blockedContent`, and `loadingContent` slots rather than copying shared blocked/loading controls into each card.
+- Always provide `blockedIntro={<Intro />}`. Use BaseCard's `blockedContent` and `loadingContent` slots rather than copying shared blocked/loading controls into each card.
 - State diagrams should reflect the card's state graph. A custom diagram layout is optional; the default StateDiagram layout can be used when no card-specific arrangement is needed.
+
+Use the shared props consistently for the optional panels and main content. `UseCard` below means the result type exported by that card's hook; ProtoCard names this type `UseProtoCard`.
+
+```tsx
+function PrerequisitesPanel({ baseCardContext, privateContext }: UseCard) {
+  // Optional component: prerequisite controls and lifecycle diagnostics.
+}
+
+function ResultsPanel({ baseCardContext, privateContext }: UseCard) {
+  // Optional component: read-only state/context diagnostics.
+}
+
+function CardContentMain({ baseCardContext, privateContext }: UseCard) {
+  return (
+    <>
+      <Intro />
+      <PrerequisitesPanel baseCardContext={baseCardContext} privateContext={privateContext} />
+      <ResultsPanel baseCardContext={baseCardContext} privateContext={privateContext} />
+      {/* Card-specific action content */}
+    </>
+  );
+}
+
+const CardEntrypoint = (appCtx: AppContext): ReactElement => {
+  const card = useCard(appCtx);
+  return (
+    <BaseCard baseCardContext={card.baseCardContext} appContext={card.privateContext.appContext}>
+      <CardContentMain baseCardContext={card.baseCardContext} privateContext={card.privateContext} />
+    </BaseCard>
+  );
+};
+
+export default CardEntrypoint;
+```
+
+When a panel is omitted, omit its function and its invocation from `CardContentMain`; preserve the remaining structure and prop shape.
 
 ## Migration Checklist
 
@@ -119,7 +163,7 @@ Do not put the shared prerequisite matching algorithm in BaseCard's render path.
 4. Implement a pure reducer, transition guard, summary projection, and card-specific events.
 5. Subscribe to AppContext in the card hook and call the existing shared prerequisite checker.
 6. Ensure unmet prerequisite IDs are stored once in `baseCardContext` and drive blocked/ready transitions.
-7. Render the card through BaseCard, passing its AppContext snapshot and any appropriate intro/loading/content overrides.
+7. Render the card through BaseCard, passing its AppContext snapshot and always providing `blockedIntro={<Intro />}`; add loading/content overrides only when needed.
 8. Remove duplicate card-level blocked panels and force-unlock handlers; BaseCard owns those shared behaviors.
 9. Add reducer/transition tests, BaseCard blocked/force-unlock tests, and UI tests for prerequisite selection, live AppContext updates, and normal content rendering.
 10. Verify the card publishes its actual workflow lifecycle, not BaseCard's temporary force-unlocked display state.

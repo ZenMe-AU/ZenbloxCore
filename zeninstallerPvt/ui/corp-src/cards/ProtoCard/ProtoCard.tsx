@@ -265,7 +265,7 @@ function ResultsPanel({ baseCardContext, privateContext }: UseProtoCard) {
   );
 }
 
-export function CardContentMain({ baseCardContext, privateContext }: UseProtoCard) {
+function CardContentMain({ baseCardContext, privateContext }: UseProtoCard) {
   return (
     <>
       <Intro />
