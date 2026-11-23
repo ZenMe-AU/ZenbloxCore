@@ -38,98 +38,118 @@ function SaveHint({ children }: { children: string }) {
   );
 }
 
-function Action({ subscriptionId, tenantId }: { subscriptionId: string; tenantId?: string }) {
+function Action({ subscriptionId, tenantId }: { subscriptionId: string; tenantId: string | null }) {
   return (
     <ViewLink
-      href={subscriptionId ? getAzureSubscriptionUrl(tenantId, subscriptionId) : AZURE_SUBSCRIPTIONS_URL}
+      href={subscriptionId ? getAzureSubscriptionUrl(tenantId ?? undefined, subscriptionId) : AZURE_SUBSCRIPTIONS_URL}
       label={subscriptionId ? "Open Azure subscription" : "Browse Azure subscriptions"}
     />
   );
 }
 
-function Content({ privateContext }: { privateContext: PrivateContext }) {
-  const { currentState, blockedBy, tenantId, subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, github } = privateContext;
+function BlockedContent({ blockedBy }: Pick<PrivateContext, "blockedBy">) {
+  return (
+    <Box role="status" sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
+      {blockedBy.map((link) => (
+        <Link key={link.cardId} component="a" href={`#card-${link.cardId}`}>
+          {link.label}
+        </Link>
+      ))}
+    </Box>
+  );
+}
 
+function TenantSection({ tenantId }: Pick<PrivateContext, "tenantId">) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
+      <Typography color="text.muted">
+        Tenant: <Box component="span" data-sensitive="true" sx={{ color: "text.primary" }}>{tenantId}</Box>
+      </Typography>
+      <Link component="a" href={`#card-${azureLoginCardId}`} sx={{ py: 0, px: 0.5, textAlign: "left" }}>
+        Change on Azure login 2 →
+      </Link>
+    </Box>
+  );
+}
+
+function SubscriptionSection({ privateContext }: { privateContext: PrivateContext }) {
+  const { currentState, subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError } = privateContext;
+  return (
+    <Box>
+      <FieldLabel id="azure-subscription-v2-label" htmlFor="azure-subscription-v2-select">Subscription</FieldLabel>
+      {currentState === "loading" ? (
+        <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <CircularProgress aria-label="Loading Azure subscriptions" size={12} sx={{ color: "text.disabled" }} />
+          <Typography color="text.muted">Loading subscriptions...</Typography>
+        </Box>
+      ) : currentState === "error" ? (
+        <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
+          <Typography color="warning.main">{subsError}</Typography>
+        </Box>
+      ) : (
+        <Select
+          id="azure-subscription-v2-select"
+          aria-labelledby="azure-subscription-v2-label"
+          size="small"
+          value={selectedSubscriptionId}
+          displayEmpty
+          renderValue={(value) => {
+            if (!value) return <Typography color="text.muted">Select a subscription</Typography>;
+            const name = subscriptions.find((option) => option.id === value)?.displayName ?? value;
+            return <Typography data-sensitive="true">{name}</Typography>;
+          }}
+          sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%" }}
+        >
+          {subscriptions.map((option) => (
+            // onClick rather than the Select's onChange, which skips picking the subscription already selected.
+            <MenuItem key={option.id} value={option.id} onClick={() => setSelectedSubscriptionId(option.id)} sx={{ py: 0.75 }}>
+              <Box>
+                <Typography data-sensitive="true">{option.displayName}</Typography>
+                <Typography data-sensitive="true" variant="body2" color="text.muted">{option.id}</Typography>
+              </Box>
+            </MenuItem>
+          ))}
+        </Select>
+      )}
+    </Box>
+  );
+}
+
+function SavedGitHubSection({ privateContext }: { privateContext: PrivateContext }) {
+  const { github, variables, populate, populateCount, differsFromGithub } = privateContext;
+  if (!github) return null;
+
+  return (
+    <CloudVariableDetailV2
+      key={JSON.stringify([github.account.id, github.repoName, github.envName])}
+      keys={AZURE_TARGET_KEYS}
+      variables={variables}
+      populate={populate}
+      populateCounter={populateCount}
+      preserveDirtyOnSync
+      hiddenKeys={["VITE_AZURE_TENANT_ID"]}
+      title="Saved to GitHub"
+      saveHint={({ dirty }) => dirty
+        ? <SaveHint>Unsaved change — save to apply.</SaveHint>
+        : differsFromGithub
+          ? <SaveHint>Doesn't match what's saved to GitHub — pick the subscription again, then save.</SaveHint>
+          : undefined}
+    />
+  );
+}
+
+function Content({ privateContext }: { privateContext: PrivateContext }) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Intro />
-
-      {currentState === "blocked" ? (
-        <Box role="status" sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
-          {blockedBy.map((link) => (
-            <Link key={link.cardId} component="a" href={`#card-${link.cardId}`}>
-              {link.label}
-            </Link>
-          ))}
-        </Box>
+      {privateContext.currentState === "blocked" ? (
+        <BlockedContent blockedBy={privateContext.blockedBy} />
       ) : (
         <>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
-            <Typography color="text.muted">
-              Tenant: <Box component="span" data-sensitive="true" sx={{ color: "text.primary" }}>{tenantId}</Box>
-            </Typography>
-            <Link component="a" href={`#card-${azureLoginCardId}`} sx={{ py: 0, px: 0.5, textAlign: "left" }}>
-              Change on Azure login 2 →
-            </Link>
-          </Box>
-
-          <Box>
-            <FieldLabel id="azure-subscription-v2-label" htmlFor="azure-subscription-v2-select">Subscription</FieldLabel>
-            {currentState === "loading" ? (
-              <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <CircularProgress aria-label="Loading Azure subscriptions" size={12} sx={{ color: "text.disabled" }} />
-                <Typography color="text.muted">Loading subscriptions...</Typography>
-              </Box>
-            ) : currentState === "error" ? (
-              <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
-                <Typography color="warning.main">{subsError}</Typography>
-              </Box>
-            ) : (
-              <Select
-                id="azure-subscription-v2-select"
-                aria-labelledby="azure-subscription-v2-label"
-                size="small"
-                value={selectedSubscriptionId}
-                displayEmpty
-                renderValue={(value) => {
-                  if (!value) return <Typography color="text.muted">Select a subscription</Typography>;
-                  const name = subscriptions.find((option) => option.id === value)?.displayName ?? value;
-                  return <Typography data-sensitive="true">{name}</Typography>;
-                }}
-                sx={{ minWidth: { xs: 0, sm: 380 }, width: "100%" }}
-              >
-                {subscriptions.map((option) => (
-                  // onClick rather than the Select's onChange, which skips picking the subscription already selected.
-                  <MenuItem key={option.id} value={option.id} onClick={() => setSelectedSubscriptionId(option.id)} sx={{ py: 0.75 }}>
-                    <Box>
-                      <Typography data-sensitive="true">{option.displayName}</Typography>
-                      <Typography data-sensitive="true" variant="body2" color="text.muted">{option.id}</Typography>
-                    </Box>
-                  </MenuItem>
-                ))}
-              </Select>
-            )}
-          </Box>
-
-          {github && (
-            <CloudVariableDetailV2
-              key={JSON.stringify([github.account.id, github.repoName, github.envName])}
-              keys={AZURE_TARGET_KEYS}
-              variables={privateContext.variables}
-              populate={privateContext.populate}
-              populateCounter={privateContext.populateCount}
-              preserveDirtyOnSync
-              hiddenKeys={["VITE_AZURE_TENANT_ID"]}
-              title="Saved to GitHub"
-              // Edits waiting in the draft come first; otherwise say the pick and GitHub differ, which saving a clean draft can't fix.
-              saveHint={({ dirty }) => dirty
-                ? <SaveHint>Unsaved change — save to apply.</SaveHint>
-                : privateContext.differsFromGithub
-                  ? <SaveHint>Doesn't match what's saved to GitHub — pick the subscription again, then save.</SaveHint>
-                  : undefined}
-            />
-          )}
+          <TenantSection tenantId={privateContext.tenantId} />
+          <SubscriptionSection privateContext={privateContext} />
+          <SavedGitHubSection privateContext={privateContext} />
         </>
       )}
     </Box>
@@ -142,7 +162,7 @@ export default function AzureSubscriptionCardV2({ appCtxStore }: Props) {
   return (
     <BaseCard
       baseCardContext={baseCardContext}
-      action={<Action subscriptionId={privateContext.selectedSubscriptionId} tenantId={privateContext.tenantId ?? undefined} />}
+      action={<Action subscriptionId={privateContext.selectedSubscriptionId} tenantId={privateContext.tenantId} />}
     >
       <Content privateContext={privateContext} />
     </BaseCard>

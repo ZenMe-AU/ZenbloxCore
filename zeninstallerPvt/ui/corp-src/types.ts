@@ -33,6 +33,7 @@ export type CardId =
   | "azure_subscription"
   | "azure_subscription_v2"
   | "azure_app_registration"
+  | "azure_app_registration_v2"
   | "core_infra"
   | "private_frontend_infra"
   | "remote_terminal_infra"

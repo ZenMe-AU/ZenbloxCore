@@ -358,8 +358,23 @@ function BlockedContent({ protoCard }: {
   );
 }
 
-export function ProtoCardView({ protoCard }: ViewProps) {
-  const { baseCardContext, privateContext } = protoCard;
+function ForceUnlockNotice({ onUndo }: { onUndo: () => void }) {
+  return (
+    <Typography role="status" sx={{ mb: 2 }}>
+      <Link
+        component="button"
+        type="button"
+        color="warning.main"
+        onClick={onUndo}
+      >
+        This card is force-unlocked; its prerequisites are still incomplete. (Click to undo)
+      </Link>
+    </Typography>
+  );
+}
+
+export function ProtoCardView({ protoCard: cardHook }: ViewProps) {
+  const { baseCardContext, privateContext } = cardHook;
   const { forceUnlocked } = privateContext;
   const showBlockedContent = baseCardContext.lifecycle === "blocked" && !forceUnlocked;
 
@@ -374,30 +389,21 @@ export function ProtoCardView({ protoCard }: ViewProps) {
       {baseCardContext.lifecycle === "loading"
         ? <LoadingContent />
         : showBlockedContent
-          ? <BlockedContent protoCard={protoCard} />
+          ? <BlockedContent protoCard={cardHook} />
           : (
             <>
               {forceUnlocked && baseCardContext.lifecycle === "blocked" && (
-                <Typography role="status" sx={{ mb: 2 }}>
-                  <Link
-                    component="button"
-                    type="button"
-                    color="warning.main"
-                    onClick={() => privateContext.dispatch({ type: "force-unlock", value: false })}
-                  >
-                    This card is force-unlocked; its prerequisites are still incomplete. (Click to undo)
-                  </Link>
-                </Typography>
+                <ForceUnlockNotice onUndo={() => privateContext.dispatch({ type: "force-unlock", value: false })} />
               )}
               <Intro />
-              <PrerequisitesPanel protoCard={protoCard} />
+              <PrerequisitesPanel protoCard={cardHook} />
               {/* ============================================================
                   START ACTION CONTENT HERE
                   ============================================================ */}
               {/* ============================================================
                   END ACTION CONTENT HERE
                   ============================================================ */}
-              <ResultsPanel protoCard={protoCard} />
+              <ResultsPanel protoCard={cardHook} />
             </>
           )}
     </BaseCard>

@@ -6,17 +6,16 @@
 import { useEffect, useMemo, useReducer, useState, useSyncExternalStore } from "react";
 import { listSubscriptions, type Subscription } from "../../api/azureGraph";
 import { createGithubApi } from "../../api/github";
-import type { AppContext, SharedCard } from "../../appContext";
+import type { AppContext, AppContextCardId, SharedCard } from "../../appContext";
 import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
 import { useGithubVariablesV2, type GithubTarget, type UseGithubVariablesV2 } from "../../hooks/useGithubVariablesV2";
 import { getEnvSettingsUrl } from "../../logic/github";
 import {
   deriveLifecycle,
   getGithubTarget,
-  getSubscriptionPrerequisites,
+  getPrerequisites,
+  initialCardContext,
   initialState,
-  initialSubscriptionCardContext,
-  prerequisiteLinks,
   reducer,
   stateGraph,
   toBaseCardLifecycle,
@@ -27,7 +26,7 @@ import {
 
 export interface PrivateContext {
   currentState: Lifecycle;
-  blockedBy: readonly (typeof prerequisiteLinks)[number][]; // The prerequisites still to finish, while blocked.
+  blockedBy: readonly { cardId: AppContextCardId; label: string }[];
   tenantId: string | null;
   subscriptions: Subscription[];
   selectedSubscriptionId: string;
@@ -57,12 +56,15 @@ function friendlySubsError(err: unknown): string {
 export function useAzureSubscriptionCardV2(appStore: AppContext) {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatchLifecycle] = useReducer(reducer, initialState);
-  const prerequisiteContext = { ...initialSubscriptionCardContext, lifecycle: toBaseCardLifecycle(state.lifecycle) };
-  const prerequisites = getSubscriptionPrerequisites(appContext, prerequisiteContext);
+  const prerequisiteContext = { ...initialCardContext, lifecycle: toBaseCardLifecycle(state.lifecycle) };
+  const prerequisites = getPrerequisites(appContext, prerequisiteContext);
   const missing = checkPrerequisites(appContext, prerequisiteContext);
-  const missingLinks = prerequisiteLinks.filter((link) => missing.includes(link.cardId));
-  // Azure login 2 can be complete without an account in AppContext yet; its link is still the way on.
-  const blockedBy = missingLinks.length > 0 ? missingLinks : prerequisiteLinks.slice(0, 1);
+  // Azure login 2 can be complete without an account in AppContext yet; it is still the way on.
+  const blockedBy = (missing.length > 0 ? missing : initialCardContext.prerequisiteIds.slice(0, 1)).map((id) => {
+    const cardId = id as AppContextCardId;
+    const prerequisite = appContext.cards[cardId];
+    return { cardId, label: prerequisite?.initialised ? `${prerequisite.title} (${id})` : id };
+  });
   const account = prerequisites?.account ?? null;
   const tenantId = prerequisites?.tenantId ?? null;
   const key = account && tenantId ? `${account.homeAccountId}|${tenantId}` : null;
@@ -135,7 +137,7 @@ export function useAzureSubscriptionCardV2(appStore: AppContext) {
   } satisfies Record<Lifecycle, string>)[lifecycle];
 
   const baseCardContext = {
-    ...initialSubscriptionCardContext,
+    ...initialCardContext,
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),
     stateMachine: { graph: stateGraph, currentState: lifecycle },
