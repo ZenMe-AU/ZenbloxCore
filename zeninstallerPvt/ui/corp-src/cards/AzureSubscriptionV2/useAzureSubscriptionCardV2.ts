@@ -150,12 +150,13 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
   useEffect(() => {
     appStore.update("azure_subscription_v2", {
       title: baseCardContext.title,
-      status: baseCardContext.lifecycle,
+      currentBaseCardStatus: baseCardContext.lifecycle,
+      currentStatus: lifecycle,
       azureSubscription: done && selectedSubscription
         ? { id: selectedSubscription.id, displayName: selectedSubscription.displayName, tenantId: selectedSubscription.tenantId }
         : null,
     } satisfies SharedCard<"azure_subscription_v2">);
-  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, done, selectedSubscription]);
+  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, lifecycle, done, selectedSubscription]);
 
   return {
     // cardHook

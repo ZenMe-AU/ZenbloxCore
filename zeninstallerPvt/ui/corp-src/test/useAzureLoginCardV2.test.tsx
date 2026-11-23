@@ -109,7 +109,7 @@ describe("useAzureLoginCardV2", () => {
     expect(card.latest.machineLifecycle).toBe("selecting-tenant");
     expect(card.latest.baseCardContext).toMatchObject({ cardId: "azure_login_v2", lifecycle: "action", summary: "Select a tenant" });
     expect(store.getSnapshot().cards.azure_login_v2).toEqual({
-      initialised: true, title: "Azure login 2", status: "action", azureTenantId: null,
+      initialised: true, title: "Azure login 2", currentBaseCardStatus: "action", currentStatus: "selecting-tenant", azureTenantId: null,
       azureAccount: { homeAccountId: "home", environment: "login.microsoftonline.com", tenantId: "tenant-home", localAccountId: "local", username: "org@example.com" },
     });
     expect(checkPrerequisites(store.getSnapshot(), downstream)).toEqual(["azure_login_v2"]);
@@ -125,14 +125,14 @@ describe("useAzureLoginCardV2", () => {
     expect(card.latest.done).toBe(true);
     expect(card.latest.summary).toBe("org@example.com · Tenant One");
     expect(msal.acquireTokenSilent).toHaveBeenCalledWith(expect.objectContaining({ authority: "https://login.microsoftonline.com/tenant-1" }));
-    expect(store.getSnapshot().cards.azure_login_v2).toMatchObject({ status: "complete", azureTenantId: "tenant-1" });
+    expect(store.getSnapshot().cards.azure_login_v2).toMatchObject({ currentBaseCardStatus: "complete", currentStatus: "tenant-confirmed", azureTenantId: "tenant-1" });
     expect(checkPrerequisites(store.getSnapshot(), downstream)).toEqual([]);
     expect(JSON.stringify(store.getSnapshot())).not.toContain("secret-id-token");
 
     await act(async () => card.latest.logout());
     expect(msal.clearCache).toHaveBeenCalled();
     expect(card.latest.machineLifecycle).toBe("signed-out");
-    expect(store.getSnapshot().cards.azure_login_v2).toMatchObject({ status: "ready", azureAccount: null, azureTenantId: null });
+    expect(store.getSnapshot().cards.azure_login_v2).toMatchObject({ currentBaseCardStatus: "ready", currentStatus: "signed-out", azureAccount: null, azureTenantId: null });
     expect(card.history).toEqual(["loading", "selecting-tenant", "confirming-tenant", "tenant-confirmed", "signed-out"]);
   });
 
@@ -207,7 +207,7 @@ describe("useAzureLoginCardV2", () => {
     expect(card.latest.machineLifecycle).toBe("tenant-confirmed");
     expect(sessionStorage.getItem(V2_TENANT_KEY)).toBeNull();
     expect(store.getSnapshot().cards.azure_login_v2).toMatchObject({
-      status: "complete", azureTenantId: "tenant-2", azureAccount: { tenantId: "tenant-2", localAccountId: "local-2" },
+      currentBaseCardStatus: "complete", currentStatus: "tenant-confirmed", azureTenantId: "tenant-2", azureAccount: { tenantId: "tenant-2", localAccountId: "local-2" },
     });
   });
 });
@@ -224,7 +224,13 @@ describe("AppContext Azure fields", () => {
       localAccountId: homeAccount.localAccountId,
       username: homeAccount.username,
     };
-    const shared = { title: "Azure login 2", status: "complete" as const, azureAccount, azureTenantId: "tenant-1" };
+    const shared = {
+      title: "Azure login 2",
+      currentBaseCardStatus: "complete" as const,
+      currentStatus: "tenant-confirmed",
+      azureAccount,
+      azureTenantId: "tenant-1",
+    };
 
     store.update("azure_login_v2", shared);
     const snapshot = store.getSnapshot();
@@ -237,7 +243,7 @@ describe("AppContext Azure fields", () => {
 
     store.update("azure_login_v2", { ...shared, azureTenantId: "tenant-2" });
     store.update("azure_login_v2", { ...shared, azureAccount: { ...azureAccount, tenantId: "tenant-2" } });
-    store.update("azure_login_v2", { ...shared, status: "ready", azureAccount: null, azureTenantId: null });
+    store.update("azure_login_v2", { ...shared, currentBaseCardStatus: "ready", currentStatus: "signed-out", azureAccount: null, azureTenantId: null });
     expect(events).toEqual(["added", "initialised", "updated", "updated", "updated"]);
     expect(store.getSnapshot().cards.azure_login_v2).toMatchObject({ azureAccount: null, azureTenantId: null });
   });

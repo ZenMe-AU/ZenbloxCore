@@ -11,6 +11,12 @@ import type {
   Lifecycle,
 } from "../../components/basecardlifecycle";
 
+declare module "../../appContext" {
+  interface SharedCardDataById {
+    proto_card: Record<never, never>;
+  }
+}
+
 export type State = BaseCardState<Lifecycle> & {
   baseCardContext: Omit<BaseCardContext, "lifecycle" | "prerequisiteIds"> & { prerequisiteIds: [string, string] };
   privateContext: PrivateContext;

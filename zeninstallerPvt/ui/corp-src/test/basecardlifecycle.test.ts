@@ -81,11 +81,14 @@ it("checks registered, initialised and complete prerequisites and rejects self-d
   const unsubscribe = store.subscribe((event) => {
     if (event.type === "added") expect(check()).toContain(event.cardId);
   });
-  store.update("github_login_v2", { title: "Login", status: "complete" });
-  store.update("repo_v2", { title: "Repository", status: "ready" });
-  store.update("proto_card", { title: "ProtoCard", status: "complete" });
+  store.update("github_login_v2", {
+    title: "Login", currentBaseCardStatus: "complete", currentStatus: "signed-in",
+    githubAccount: null, githubToken: null, githubMode: null,
+  });
+  store.update("repo_v2", { title: "Repository", currentBaseCardStatus: "ready", currentStatus: "ready", githubRepository: null });
+  store.update("proto_card", { title: "ProtoCard", currentBaseCardStatus: "complete", currentStatus: "complete" });
   expect(check()).toEqual(["repo_v2", "proto_card", "unknown"]);
-  store.update("repo_v2", { title: "Repository", status: "complete" });
+  store.update("repo_v2", { title: "Repository", currentBaseCardStatus: "complete", currentStatus: "complete", githubRepository: null });
   expect(check()).toEqual(["proto_card", "unknown"]);
   unsubscribe();
 });
@@ -95,7 +98,8 @@ it("stores card-contributed data generically and compares plain snapshots struct
   const token = new SensitiveToken("test-secret");
   const shared: SharedCard<"github_login_v2"> = {
     title: "GitHub login 2",
-    status: "complete",
+    currentBaseCardStatus: "complete",
+    currentStatus: "signed-in",
     githubAccount: { login: "user" },
     githubToken: token,
     githubMode: "direct",
@@ -103,8 +107,10 @@ it("stores card-contributed data generically and compares plain snapshots struct
 
   store.update("github_login_v2", shared);
   const snapshot = store.getSnapshot();
-  expect(snapshot.cards.github_login_v2).toMatchObject({
+    expect(snapshot.cards.github_login_v2).toMatchObject({
     initialised: true,
+      currentBaseCardStatus: "complete",
+      currentStatus: "signed-in",
     githubAccount: { login: "user" },
     githubToken: token,
     githubMode: "direct",
@@ -115,6 +121,17 @@ it("stores card-contributed data generically and compares plain snapshots struct
   expect(store.getSnapshot()).toBe(snapshot);
   store.update("github_login_v2", { ...shared, githubToken: new SensitiveToken("test-secret") });
   expect(store.getSnapshot()).not.toBe(snapshot);
+});
+
+it("rejects unregistered IDs and incomplete migrated-card payloads at compile time", () => {
+  const store = createAppContext();
+  const invalidUpdates = () => {
+    // @ts-expect-error IDs must be registered by a migrated card's module augmentation.
+    store.update("locally_defined_card", { title: "Local card", currentBaseCardStatus: "loading", currentStatus: "loading" });
+    // @ts-expect-error Every GitHubLoginV2 payload must include its complete nullable projection.
+    store.update("github_login_v2", { title: "GitHub", currentBaseCardStatus: "loading", currentStatus: "loading" });
+  };
+  void invalidUpdates;
 });
 
 it("keeps ProtoCard transition rules local to its state machine", () => {

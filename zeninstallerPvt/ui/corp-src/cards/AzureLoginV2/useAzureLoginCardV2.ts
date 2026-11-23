@@ -316,17 +316,18 @@ export function useAzureLoginCardV2(appStore: AppContext): UseAzureLoginCardV2 {
   useEffect(() => {
     appStore.update(cardId, {
       title: baseCardContext.title,
-      status: baseCardContext.lifecycle,
-      azureAccount: account && {
+      currentBaseCardStatus: baseCardContext.lifecycle,
+      currentStatus: lifecycle,
+      azureAccount: account ? {
         homeAccountId: account.homeAccountId,
         environment: account.environment,
         tenantId: account.tenantId,
         localAccountId: account.localAccountId,
         username: account.username,
-      },
+      } : null,
       azureTenantId: done ? tenantId : null,
     } satisfies SharedCard<typeof cardId>);
-  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, account, done, tenantId]);
+  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, lifecycle, account, done, tenantId]);
 
   return {
     // cardHook

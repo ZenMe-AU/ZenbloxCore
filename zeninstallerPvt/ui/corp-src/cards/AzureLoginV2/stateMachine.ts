@@ -17,8 +17,8 @@ type AzureLoginIdentity = Pick<AzureAccount, "homeAccountId" | "environment" | "
 declare module "../../appContext" {
   interface SharedCardDataById {
     azure_login_v2: {
-      azureAccount?: Readonly<AzureLoginIdentity> | null;
-      azureTenantId?: string | null;
+      azureAccount: Readonly<AzureLoginIdentity> | null;
+      azureTenantId: string | null;
     };
   }
 }

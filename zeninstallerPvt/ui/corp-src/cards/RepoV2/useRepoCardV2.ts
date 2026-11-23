@@ -109,10 +109,11 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
       : null;
     appStore.update("repo_v2", {
       title: baseCardContext.title,
-      status: baseCardContext.lifecycle,
+      currentBaseCardStatus: baseCardContext.lifecycle,
+      currentStatus: lifecycle,
       githubRepository,
     } satisfies SharedCard<"repo_v2">);
-  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, done, githubRepo.selectedAccount, githubRepo.selectedRepo, env.selectedEnv]);
+  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, lifecycle, done, githubRepo.selectedAccount, githubRepo.selectedRepo, env.selectedEnv]);
 
   return {
     repo: githubRepo,

@@ -15,7 +15,6 @@ import {
   GITHUB_CLIENT_ID,
   GITHUB_SCOPES,
 } from "../../config/githubConfig";
-import type { CardHook, CardStatus, LoginHook, User } from "../../types";
 import type { BaseCardContext } from "../../components/useBaseCard";
 import { SensitiveToken, type AppContext } from "../../appContext";
 import {
@@ -24,31 +23,36 @@ import {
   reducer,
   stateGraph,
   toBaseCardLifecycle,
+  type GithubAccount,
   type Lifecycle as GithubLoginV2Lifecycle,
 } from "./stateMachine";
 
-const AUTH_RECORD_KEY = "zeninstaller_github_login_v2_auth";
-const GITHUB_PROVIDER = "github_login_v2";
-const GITHUB_TOKEN_KEY = "github_login_v2_access_token";
-const GITHUB_TOKEN_KEYS = [GITHUB_TOKEN_KEY, "github_login_v2_pat_token"] as const;
-const GITHUB_VERIFIER_KEY = "github_login_v2_pkce_verifier";
-const SESSION_EXPIRED_EVENT = "auth:session-expired:github_login_v2";
+const cardId = "github_login_v2" as const;
+const cardTitle: string = "GitHub Login 2";
+
+const AUTH_RECORD_KEY = cardId + "_auth";
+const GITHUB_PROVIDER = cardId;
+const GITHUB_TOKEN_KEY = cardId +"_access_token";
+const GITHUB_TOKEN_KEYS = [GITHUB_TOKEN_KEY, cardId +"_pat_token"] as const;
+const GITHUB_VERIFIER_KEY = cardId +"_pkce_verifier";
+const SESSION_EXPIRED_EVENT = "auth:session-expired:" + cardId;
 type GithubTokenKey = (typeof GITHUB_TOKEN_KEYS)[number];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type GithubAuthRecord = { mode: "direct"; token: string } | { mode: "backend" };
 
-export interface PrivateContext extends CardHook, LoginHook<User> {
-  readonly cardId: "github_login_v2";
+export interface PrivateContext {
+  account: GithubAccount | null;
+  loggingIn: boolean;
+  login: () => Promise<void>;
+  logout: () => Promise<void>;
+  refresh: () => Promise<void>;
   sessionExpired: boolean;
   redirecting: "login" | "logout" | null;
   verifying: boolean;
-  status: CardStatus; // "loading" while the auth check is in-flight; "complete" once signed in; "idle" otherwise.
-  cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Sign in to GitHub")
-
   mode: GithubAuthRecord["mode"] | null;
   setMode: (mode: GithubAuthRecord["mode"]) => void;
-  backendAvailable: boolean; // False without VITE_API_URL: the OAuth flow has no backend to exchange the code.
+  backendAvailable: boolean;
   token: string | null;
   setToken: (token: string | null) => void;
 }
@@ -134,7 +138,7 @@ function writeGithubAuthRecord(record: GithubAuthRecord | null): void {
 
 export function useGithubLoginCardV2(appStore: AppContext) {
   const [loggingIn, setLoggingIn] = useState(true);
-  const [account, setAccount] = useState<User | null>(null);
+  const [account, setAccount] = useState<GithubAccount | null>(null);
   const [session, setSession] = useState<{ token: SensitiveToken; mode: GithubAuthRecord["mode"] } | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false); // TODO: check if this is still needed
   const [redirecting, setRedirecting] = useState<"login" | "logout" | null>(null);
@@ -334,19 +338,9 @@ export function useGithubLoginCardV2(appStore: AppContext) {
     setTokenState(null);
   }, [setTokenState]);
 
-  const status: CardStatus = loggingIn ? "loading" : account ? "complete" : "idle";
   const summary = account ? `Signed in as ${account.login}` : "Connect your GitHub account";
 
-  const cardDependencyLabel: string = "Sign in to GitHub";
-
   const privateContext: PrivateContext = {
-    // cardHook
-    cardId: "github_login_v2" as const,
-    status,
-    summary,
-    cardDependencyLabel,
-    done: status === "complete",
-    // loginHook
     account,
     loggingIn,
     login,
@@ -368,17 +362,18 @@ export function useGithubLoginCardV2(appStore: AppContext) {
     dispatchLifecycle({ type: "transition", lifecycle });
   }
   useEffect(() => {
-    appStore.update("github_login_v2", {
-      title: "GitHub login 2",
-      status: toBaseCardLifecycle(lifecycle),
+    appStore.update(cardId, {
+      title: cardTitle,
+      currentBaseCardStatus: toBaseCardLifecycle(lifecycle),
+      currentStatus: lifecycle,
       githubAccount: account,
       githubToken: session?.token ?? null,
       githubMode: session?.mode ?? null,
     });
   }, [appStore, lifecycle, account, session]);
   const baseCardContext = {
-    cardId: privateContext.cardId,
-    title: "GitHub login 2",
+    cardId: cardId,
+    title: cardTitle,
     prerequisiteIds: [],
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),

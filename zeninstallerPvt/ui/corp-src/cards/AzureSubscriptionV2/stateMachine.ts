@@ -18,7 +18,7 @@ import type { CardId } from "../../types";
 declare module "../../appContext" {
   interface SharedCardDataById {
     azure_subscription_v2: {
-      azureSubscription?: Readonly<{ id: string; displayName: string; tenantId: string }> | null;
+      azureSubscription: Readonly<{ id: string; displayName: string; tenantId: string }> | null;
     };
   }
 }
@@ -104,7 +104,7 @@ export function getSubscriptionPrerequisites(
 export function getGithubTarget(appContext: ReturnType<AppContext["getSnapshot"]>) {
   const login = appContext.cards[githubLoginCardId];
   const repo = appContext.cards[repoCardId];
-  if (!login?.initialised || !repo?.initialised || login.status !== "complete" || repo.status !== "complete") return null;
+  if (!login?.initialised || !repo?.initialised || login.currentBaseCardStatus !== "complete" || repo.currentBaseCardStatus !== "complete") return null;
   if (!login.githubToken || !repo.githubRepository) return null;
   return { token: login.githubToken, ...repo.githubRepository };
 }

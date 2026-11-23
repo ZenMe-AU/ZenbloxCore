@@ -40,8 +40,12 @@ export function useProtoCard(appStore: AppContext): UseProtoCard {
   }, [state.lifecycle, state.baseCardContext.prerequisiteIds, state.privateContext.unmetCardPrerequisites]);
   const baseCardContext = getBaseCardContext(state);
   useEffect(() => {
-    appStore.update("proto_card", { title: baseCardContext.title, status: baseCardContext.lifecycle });
-  }, [appStore, baseCardContext.title, baseCardContext.lifecycle]);
+    appStore.update("proto_card", {
+      title: baseCardContext.title,
+      currentBaseCardStatus: baseCardContext.lifecycle,
+      currentStatus: state.lifecycle,
+    });
+  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, state.lifecycle]);
   return {
     baseCardContext,
     privateContext: { ...state.privateContext, appContext, dispatch },

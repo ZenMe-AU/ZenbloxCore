@@ -13,11 +13,39 @@ import { getBaseCardContext, initialState, reducer } from "../cards/ProtoCard/st
 import type { UseProtoCard } from "../cards/ProtoCard/useProtoCard";
 import theme from "../theme";
 
+function publishGithubLogin(store: ReturnType<typeof createAppContext>) {
+    store.update("github_login_v2", {
+        title: "GitHub login 2",
+        currentBaseCardStatus: "complete",
+        currentStatus: "signed-in",
+        githubAccount: null,
+        githubToken: null,
+        githubMode: null,
+    });
+}
+
+function publishRepo(store: ReturnType<typeof createAppContext>, currentBaseCardStatus: "ready" | "complete") {
+    store.update("repo_v2", {
+        title: "Repository V2",
+        currentBaseCardStatus,
+        currentStatus: currentBaseCardStatus,
+        githubRepository: null,
+    });
+}
+
+function publishProto(store: ReturnType<typeof createAppContext>) {
+    store.update("proto_card", {
+        title: "ProtoCard prototype card",
+        currentBaseCardStatus: "ready",
+        currentStatus: "ready",
+    });
+}
+
 it("offers only registered prerequisite IDs and dispatches the selected ID", async () => {
     const store = createAppContext();
-    store.update("github_login_v2", { title: "GitHub login 2", status: "complete" });
-    store.update("repo_v2", { title: "Repository V2", status: "ready" });
-    store.update("proto_card", { title: "ProtoCard prototype card", status: "ready" });
+    publishGithubLogin(store);
+    publishRepo(store, "ready");
+    publishProto(store);
     const state = reducer(initialState, { type: "check-prerequisites" });
     const dispatch = vi.fn();
     const protoCard: UseProtoCard = {
@@ -55,9 +83,9 @@ it("offers only registered prerequisite IDs and dispatches the selected ID", asy
 
 it("links a failed registered prerequisite to its card", async () => {
     const store = createAppContext();
-    store.update("github_login_v2", { title: "GitHub login 2", status: "complete" });
-    store.update("repo_v2", { title: "Repository V2", status: "ready" });
-    store.update("proto_card", { title: "ProtoCard prototype card", status: "ready" });
+    publishGithubLogin(store);
+    publishRepo(store, "ready");
+    publishProto(store);
     const loading = reducer(initialState, { type: "sync-card-prerequisites", unmet: ["repo_v2"] });
     const state = reducer(loading, { type: "check-prerequisites" });
     const protoCard: UseProtoCard = {
@@ -86,7 +114,7 @@ it("links a failed registered prerequisite to its card", async () => {
 
 it("undoes force-unlock when its status message is clicked", async () => {
     const store = createAppContext();
-    store.update("repo_v2", { title: "Repository V2", status: "ready" });
+    publishRepo(store, "ready");
     const blocked = reducer(
         reducer(initialState, { type: "sync-card-prerequisites", unmet: ["repo_v2"] }),
         { type: "check-prerequisites" },

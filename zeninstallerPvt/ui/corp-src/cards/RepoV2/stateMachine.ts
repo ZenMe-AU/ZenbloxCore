@@ -18,7 +18,7 @@ import type { GithubAccount, GithubEnvironment, GithubRepositoryOption } from ".
 declare module "../../appContext" {
   interface SharedCardDataById {
     repo_v2: {
-      githubRepository?: Readonly<{
+      githubRepository: Readonly<{
         account: Readonly<GithubAccount>;
         repository: Readonly<Pick<GithubRepositoryOption, "id" | "name">>;
         environment: Readonly<GithubEnvironment>;

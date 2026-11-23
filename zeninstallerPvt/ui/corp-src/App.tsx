@@ -72,7 +72,7 @@ import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
-import { createAppContext, type SharedCard } from "./appContext";
+import { createAppContext } from "./appContext";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -82,11 +82,9 @@ const { save: saveExpandedCards, load: loadExpandedCards } = createResultStorage
 function AppDashboard() {
   const [appCtxStore] = useState(createAppContext);
   const allCards: Record<string, CardHook> = {};
-  const sharedCards: { cardId: CardId; shared: SharedCard }[] = [];
 
-  function addCard<T extends CardHook & { shared?: SharedCard }>(newCard: T): T {
+  function addCard<T extends CardHook>(newCard: T): T {
     allCards[newCard.cardId] = newCard;
-    if (newCard.shared) sharedCards.push({ cardId: newCard.cardId, shared: newCard.shared });
     return newCard;
   }
   // ── Hooks ──────────────────────────────────────────────────────────────────
@@ -251,10 +249,6 @@ function AppDashboard() {
   const avdGallery = addCard(useAvdGalleryCard(privAvdTarget));
   const pawImage = addCard(usePawImageCard(privAvdTarget));
   const pawDeploy = addCard(usePawDeployCard(privAvdTarget));
-
-  useEffect(() => {
-    for (const { cardId, shared } of sharedCards) appCtxStore.update(cardId, shared);
-  });
 
   const plan = useDeploymentPlan({
     account: githubRepoEnv.repo.selectedAccount,

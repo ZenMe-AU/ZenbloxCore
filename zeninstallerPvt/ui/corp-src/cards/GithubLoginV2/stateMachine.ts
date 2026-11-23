@@ -11,14 +11,15 @@ import type {
   BaseCardStateMachine,
 } from "../../components/basecardlifecycle";
 import type { SensitiveToken } from "../../appContext";
-import type { User } from "../../types";
+
+export type GithubAccount = { login: string };
 
 declare module "../../appContext" {
   interface SharedCardDataById {
     github_login_v2: {
-      githubAccount?: Readonly<User> | null;
-      githubToken?: SensitiveToken | null;
-      githubMode?: "direct" | "backend" | null;
+      githubAccount: Readonly<GithubAccount> | null;
+      githubToken: SensitiveToken | null;
+      githubMode: "direct" | "backend" | null;
     };
   }
 }

@@ -567,7 +567,7 @@ describe("useGithubLoginCard", () => {
       expect(oldContent).not.toHaveBeenCalled();
       expect(latest?.baseCardContext.lifecycle).toBe("ready");
       expect(latest).not.toHaveProperty("shared");
-      expect(getV2Shared()).toMatchObject({ status: "ready", githubAccount: null, githubToken: null });
+      expect(getV2Shared()).toMatchObject({ currentBaseCardStatus: "ready", currentStatus: "ready", githubAccount: null, githubToken: null });
       await act(async () => {
         latest?.privateContext.setMode("direct");
         latest?.privateContext.setToken("ghp_test");
@@ -580,10 +580,9 @@ describe("useGithubLoginCard", () => {
       expect(container.textContent).toContain("Connect with PAT");
       await act(async () => { void latest?.privateContext.login(); });
       expect(latest?.baseCardContext.lifecycle).toBe("action");
-      expect(getV2Shared()).toEqual({ initialised: true, title: "GitHub login 2", status: "action", githubAccount: null, githubToken: null, githubMode: null });
+      expect(getV2Shared()).toEqual({ initialised: true, title: "GitHub Login 2", currentBaseCardStatus: "action", currentStatus: "signing-in", githubAccount: null, githubToken: null, githubMode: null });
       await act(async () => resolveVerification({ login: "octocat" }));
       expect(latest?.baseCardContext.lifecycle).toBe("complete");
-      expect(latest?.privateContext.done).toBe(true);
       expect(latest?.privateContext.account).toEqual({ login: "octocat" });
       expect(JSON.stringify(getV2Shared())).not.toContain("ghp_test");
       expect(container.textContent).toContain("Authenticated as");
@@ -592,14 +591,12 @@ describe("useGithubLoginCard", () => {
       await act(async () => { await latest?.privateContext.logout(); });
       expect(latest?.baseCardContext.lifecycle).toBe("ready");
       expect(latest?.privateContext.sessionExpired).toBe(false);
-      expect(latest?.privateContext.done).toBe(false);
       await act(async () => latest?.privateContext.setToken("ghp_test"));
       apiMocks.verifyAuth.mockRejectedValueOnce(new Error("invalid token"));
       const errorLog = vi.spyOn(console, "error").mockImplementation(() => { });
       try {
         await act(async () => { await latest?.privateContext.login(); });
         expect(latest?.baseCardContext.lifecycle).toBe("error");
-        expect(latest?.privateContext.done).toBe(false);
         await act(async () => { await latest?.privateContext.login(); });
         expect(latest?.baseCardContext.lifecycle).toBe("complete");
       } finally {
@@ -622,7 +619,7 @@ describe("useGithubLoginCard", () => {
         <V2Harness onUpdate={(value) => { v2 = value; }} />
       </>));
       expect(legacy?.cardId).toBe("github_login");
-      expect(v2?.privateContext.cardId).toBe("github_login_v2");
+      expect(v2?.baseCardContext.cardId).toBe("github_login_v2");
       await act(async () => {
         legacy?.setMode("direct");
         legacy?.setToken("legacy-token");
@@ -635,7 +632,7 @@ describe("useGithubLoginCard", () => {
       setStoredToken("github_access_token", "legacy-oauth-token");
       setStoredToken("github_login_v2_access_token", "v2-oauth-token");
       expect(legacy?.account).toEqual({ login: "legacy-user" });
-      expect(getV2Shared()).toMatchObject({ title: "GitHub login 2", status: "complete", githubAccount: { login: "v2-user" }, githubMode: "direct" });
+      expect(getV2Shared()).toMatchObject({ title: "GitHub Login 2", currentBaseCardStatus: "complete", currentStatus: "signed-in", githubAccount: { login: "v2-user" }, githubMode: "direct" });
       expect(getV2Shared()?.githubToken?.reveal()).toBe("v2-token");
       expect(apiMocks.switchToDirect).toHaveBeenCalledOnce();
       expect(apiMocks.switchToDirect).toHaveBeenCalledWith("legacy-token");
@@ -695,7 +692,7 @@ describe("useGithubLoginCard", () => {
       await act(async () => { void latest?.privateContext.login(); });
       await act(async () => { await latest?.privateContext.logout(); });
       await act(async () => resolveVerification({ login: "late-user" }));
-      expect(getV2Shared()).toMatchObject({ githubAccount: null, githubToken: null, githubMode: null, status: "ready" });
+      expect(getV2Shared()).toMatchObject({ githubAccount: null, githubToken: null, githubMode: null, currentBaseCardStatus: "ready", currentStatus: "ready" });
     } finally {
       await act(async () => root.unmount());
     }

@@ -3,8 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { Lifecycle } from "./components/useBaseCard";
-import type { CardId, CardStatus } from "./types";
+import type { Lifecycle } from "./components/basecardlifecycle";
 
 export class SensitiveToken {
   readonly #value: string;
@@ -16,22 +15,23 @@ export class SensitiveToken {
 }
 
 export interface SharedCardDataById {
-  readonly __registryMarker?: never;
+  readonly __registryMarker: never;
 }
 
-type SharedData<Card extends CardId> = Card extends keyof SharedCardDataById
-  ? SharedCardDataById[Card]
-  : Record<never, never>;
+export type AppContextCardId = Extract<keyof SharedCardDataById, string>;
 
-export type SharedCard<Card extends CardId = CardId> = Card extends CardId ? Readonly<{
+type SharedData<Card extends AppContextCardId> = SharedCardDataById[Card];
+
+export type SharedCard<Card extends AppContextCardId> = Readonly<{
   title: string;
-  status: CardStatus | Lifecycle;
-} & SharedData<Card>> : never;
+  currentBaseCardStatus: Lifecycle;
+  currentStatus: string;
+} & SharedData<Card>>;
 
-type CardEntry<Card extends CardId> = Readonly<{ initialised: false }> | (Readonly<{ initialised: true }> & SharedCard<Card>);
-type CardEntryMap = { [Card in CardId]?: CardEntry<Card> };
+type CardEntry<Card extends AppContextCardId> = Readonly<{ initialised: false }> | (Readonly<{ initialised: true }> & SharedCard<Card>);
+type CardEntryMap = { [Card in AppContextCardId]?: CardEntry<Card> };
 type SharedSnapshot = Readonly<{ cards: Readonly<CardEntryMap> }>;
-type CardEvent<Card extends CardId = CardId> = Readonly<{ type: "added" | "initialised" | "updated"; cardId: Card }>;
+type CardEvent<Card extends AppContextCardId = AppContextCardId> = Readonly<{ type: "added" | "initialised" | "updated"; cardId: Card }>;
 
 function sameSharedValue(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true;
@@ -58,7 +58,7 @@ export function createAppContext() {
   let snapshot: SharedSnapshot = { cards: {} };
   const listeners = new Set<(event: CardEvent) => void>();
 
-  function publish<Card extends CardId>(event: CardEvent<Card>, entry: CardEntry<Card>) {
+  function publish<Card extends AppContextCardId>(event: CardEvent<Card>, entry: CardEntry<Card>) {
     snapshot = { cards: { ...snapshot.cards, [event.cardId]: entry } as CardEntryMap };
     listeners.forEach((listener) => listener(event));
   }
@@ -70,7 +70,7 @@ export function createAppContext() {
       return () => { listeners.delete(listener); };
     },
     // Called after the card hook returns and React commits; initialised is not lifecycle ready.
-    update: <Card extends CardId>(cardId: Card, shared: SharedCard<Card>) => {
+    update: <Card extends AppContextCardId>(cardId: Card, shared: SharedCard<Card>) => {
       const current = snapshot.cards[cardId];
       const entry: CardEntry<Card> = {
         initialised: true,

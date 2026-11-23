@@ -15,6 +15,39 @@ import { ProtoCardView } from "./ProtoCard";
 import { useProtoCard, type UseProtoCard } from "./useProtoCard";
 import { canLifecycleTransition, getBaseCardContext, initialState, reducer as protoReducer } from "./stateMachine";
 
+type TestAppStore = ReturnType<typeof createAppContext>;
+
+function publishGithubLogin(
+  store: TestAppStore,
+  currentBaseCardStatus: Lifecycle,
+  currentStatus: string,
+  githubAccount: { login: string } | null = null,
+  githubToken: SensitiveToken | null = null,
+  githubMode: "direct" | "backend" | null = null,
+) {
+  store.update("github_login_v2", {
+    title: "GitHub login 2",
+    currentBaseCardStatus,
+    currentStatus,
+    githubAccount,
+    githubToken,
+    githubMode,
+  });
+}
+
+function publishRepo(store: TestAppStore, currentBaseCardStatus: Lifecycle, currentStatus = currentBaseCardStatus) {
+  store.update("repo_v2", {
+    title: "Repository & environment 2",
+    currentBaseCardStatus,
+    currentStatus,
+    githubRepository: null,
+  });
+}
+
+function publishProto(store: TestAppStore, currentBaseCardStatus: Lifecycle, currentStatus = currentBaseCardStatus) {
+  store.update("proto_card", { title: "ProtoCard", currentBaseCardStatus, currentStatus });
+}
+
 describe("ProtoCard state machine", () => {
   const appStore = createAppContext();
   it("checks prerequisites before entering ready or blocked and guards operations", () => {
@@ -180,9 +213,9 @@ describe("ProtoCard state machine", () => {
       if (toggle?.getAttribute("aria-expanded") === "false") await act(async () => toggle.click());
     }
     try {
-      store.update("github_login_v2", { title: "Login", status: "complete" });
-      store.update("repo_v2", { title: "Repository", status: "ready" });
-      store.update("proto_card", { title: "ProtoCard", status: "complete" });
+      publishGithubLogin(store, "complete", "signed-in");
+      publishRepo(store, "ready");
+      publishProto(store, "complete");
       await act(async () => root.render(<Harness />));
       await act(async () => vi.advanceTimersByTime(2000));
       const panel = container.querySelector("#proto-card-prerequisites")!;
@@ -201,7 +234,7 @@ describe("ProtoCard state machine", () => {
       await act(async () => vi.advanceTimersByTime(2000));
       expect(latest?.baseCardContext).toMatchObject({ lifecycle: "blocked", unmetCardPrerequisites: ["repo_v2"] });
       expect(container.textContent).toContain("repo_v2");
-      await act(async () => store.update("repo_v2", { title: "Repository", status: "complete" }));
+      await act(async () => publishRepo(store, "complete"));
       expect(latest?.baseCardContext.lifecycle).toBe("loading");
       await act(async () => vi.advanceTimersByTime(2000));
       expect(latest?.baseCardContext.lifecycle).toBe("ready");
@@ -211,7 +244,7 @@ describe("ProtoCard state machine", () => {
         latest?.privateContext.dispatch({ type: "transition", lifecycle: "complete" });
       });
       expect(latest?.baseCardContext.done).toBe(true);
-      await act(async () => store.update("github_login_v2", { title: "Login", status: "error" }));
+      await act(async () => publishGithubLogin(store, "error", "expired"));
       expect(latest?.baseCardContext.done).toBe(false);
       await act(async () => vi.advanceTimersByTime(2000));
       expect(latest?.baseCardContext).toMatchObject({ lifecycle: "blocked", unmetCardPrerequisites: ["github_login_v2"] });
@@ -315,11 +348,8 @@ describe("ProtoCard state machine", () => {
       expect(prerequisitesToggle?.getAttribute("aria-expanded")).toBe("true");
       expect(container.querySelector("#proto-card-prerequisites")?.textContent).toContain("Lifecycle: ready");
       await act(async () => {
-        appStore.update("repo_v2", { title: "Repository 2", status: "ready" });
-        appStore.update("github_login_v2", {
-          title: "GitHub login 2", status: "complete", githubAccount: { login: "test-user" },
-          githubToken: new SensitiveToken("test-secret"), githubMode: "direct",
-        });
+        publishRepo(appStore, "ready");
+        publishGithubLogin(appStore, "complete", "signed-in", { login: "test-user" }, new SensitiveToken("test-secret"), "direct");
       });
       await act(async () => resultsToggle?.click());
       expect(resultsToggle?.getAttribute("aria-expanded")).toBe("true");
@@ -338,10 +368,10 @@ describe("ProtoCard state machine", () => {
       let appYaml = container.querySelector('[aria-label="appContext YAML"] pre')?.textContent;
       expect(container.querySelector('[aria-label="appContext YAML"] pre')?.getAttribute("data-sensitive")).toBe("true");
       expect(appYaml).not.toContain("test-secret");
-      expect(parse(appYaml!).cards.repo_v2.status).toBe("ready");
-      await act(async () => appStore.update("repo_v2", { title: "Repository 2", status: "complete" }));
+      expect(parse(appYaml!).cards.repo_v2.currentBaseCardStatus).toBe("ready");
+      await act(async () => publishRepo(appStore, "complete"));
       appYaml = container.querySelector('[aria-label="appContext YAML"] pre')?.textContent;
-      expect(parse(appYaml!).cards.repo_v2.status).toBe("complete");
+      expect(parse(appYaml!).cards.repo_v2.currentBaseCardStatus).toBe("complete");
       const separator = container.querySelector<HTMLDivElement>('[aria-label="Resize privateContext column"]');
       expect(separator?.getAttribute("aria-valuenow")).toBe("33");
       await act(async () => separator?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })));
@@ -356,7 +386,7 @@ describe("ProtoCard state machine", () => {
       expect(cardToggle?.getAttribute("aria-expanded")).toBe("true");
       await act(async () => {
         latest?.privateContext.dispatch({ type: "card-prerequisite", index: 0, cardId: "repo_v2" });
-        appStore.update("repo_v2", { title: "Repository 2", status: "ready" });
+        publishRepo(appStore, "ready");
       });
       expect(latest?.baseCardContext.lifecycle).toBe("loading");
       await act(async () => vi.advanceTimersByTime(2000));
@@ -386,7 +416,7 @@ describe("ProtoCard state machine", () => {
       const complete = [...container.querySelectorAll("button")].find((button) => button.textContent === "Complete");
       expect(complete).toBeDefined();
       expect(complete?.disabled).toBe(true);
-      await act(async () => appStore.update("repo_v2", { title: "Repository 2", status: "complete" }));
+      await act(async () => publishRepo(appStore, "complete"));
       await act(async () => vi.advanceTimersByTime(2000));
       await openPrerequisites();
       expect(container.textContent).toContain("Lifecycle: ready");
@@ -453,7 +483,7 @@ describe("ProtoCard state machine", () => {
       expect([...container.querySelectorAll("button")].find((button) => button.textContent === "Block")).toBeUndefined();
       await act(async () => {
         latest?.privateContext.dispatch({ type: "force-unlock", value: false });
-        appStore.update("repo_v2", { title: "Repository 2", status: "ready" });
+        publishRepo(appStore, "ready");
       });
       expect(latest?.privateContext.forceUnlocked).toBe(false);
       await act(async () => vi.advanceTimersByTime(2000));

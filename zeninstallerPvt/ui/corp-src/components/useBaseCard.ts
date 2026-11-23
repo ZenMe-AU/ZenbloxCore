@@ -17,6 +17,6 @@ export function checkPrerequisites(
     .filter((id) => {
       if (!id) return false;
       const entry = Object.entries(appContext.cards).find(([key]) => key === id)?.[1];
-      return id === baseCardContext.cardId || !entry?.initialised || entry.status !== "complete";
+      return id === baseCardContext.cardId || !entry?.initialised || entry.currentBaseCardStatus !== "complete";
     });
 }
