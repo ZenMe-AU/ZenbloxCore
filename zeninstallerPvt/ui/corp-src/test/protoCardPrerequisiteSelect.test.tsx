@@ -8,7 +8,7 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { expect, it, vi } from "vitest";
 import { createAppContext } from "../appContext";
-import { ProtoCardView } from "../cards/ProtoCard/ProtoCard";
+import { CardContentMain } from "../cards/ProtoCard/ProtoCard";
 import { getBaseCardContext, initialState, reducer } from "../cards/ProtoCard/stateMachine";
 import type { UseProtoCard } from "../cards/ProtoCard/useProtoCard";
 import theme from "../theme";
@@ -58,7 +58,7 @@ it("offers only registered prerequisite IDs and dispatches the selected ID", asy
     try {
         await act(async () => root.render(
             <ThemeProvider theme={theme}>
-                <ProtoCardView protoCard={protoCard} />
+                <CardContentMain {...protoCard} />
             </ThemeProvider>
         ));
 
@@ -98,7 +98,7 @@ it("links a failed registered prerequisite to its card", async () => {
     try {
         await act(async () => root.render(
             <ThemeProvider theme={theme}>
-                <ProtoCardView protoCard={protoCard} />
+                <CardContentMain {...protoCard} />
             </ThemeProvider>
         ));
 
@@ -131,7 +131,7 @@ it("undoes force-unlock when its status message is clicked", async () => {
     try {
         await act(async () => root.render(
             <ThemeProvider theme={theme}>
-                <ProtoCardView protoCard={protoCard} />
+                <CardContentMain {...protoCard} />
             </ThemeProvider>
         ));
 

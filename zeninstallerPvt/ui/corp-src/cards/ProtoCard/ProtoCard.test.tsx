@@ -11,7 +11,7 @@ import { parse } from "yaml";
 import type { Lifecycle } from "../../components/useBaseCard";
 import { createAppContext, SensitiveToken } from "../../appContext";
 import theme from "../../theme";
-import { ProtoCardView } from "./ProtoCard";
+import { CardContentMain } from "./ProtoCard";
 import { useProtoCard, type UseProtoCard } from "./useProtoCard";
 import { canLifecycleTransition, getBaseCardContext, initialState, reducer as protoReducer } from "./stateMachine";
 
@@ -109,7 +109,7 @@ describe("ProtoCard state machine", () => {
     try {
       await act(async () => root.render(
         <ThemeProvider theme={theme}>
-          <ProtoCardView protoCard={protoCard} />
+          <CardContentMain {...protoCard} />
         </ThemeProvider>
       ));
       const content = container.querySelector("#card-content-proto_card");
@@ -139,7 +139,7 @@ describe("ProtoCard state machine", () => {
     try {
       await act(async () => root.render(
         <ThemeProvider theme={theme}>
-          <ProtoCardView protoCard={protoCard} />
+          <CardContentMain {...protoCard} />
         </ThemeProvider>
       ));
       expect(container.textContent).toContain("repo_v2");
@@ -192,7 +192,7 @@ describe("ProtoCard state machine", () => {
       latest = useProtoCard(store);
       return (
         <ThemeProvider theme={theme}>
-          <ProtoCardView protoCard={latest} />
+          <CardContentMain {...latest} />
         </ThemeProvider>
       );
     }
@@ -300,7 +300,7 @@ describe("ProtoCard state machine", () => {
       latest = protoCard;
       return (
         <ThemeProvider theme={theme}>
-          <ProtoCardView protoCard={protoCard} />
+          <CardContentMain {...protoCard} />
         </ThemeProvider>
       );
     }

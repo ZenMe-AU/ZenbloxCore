@@ -3,11 +3,11 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { stringify } from "yaml";
 import { Box, Button, CircularProgress, Link, TextField, Typography, useTheme } from "@mui/material";
 import type { AppContext } from "../../appContext";
-import BaseCard from "../../components/BaseCard";
+import BaseCard, { type cardEntrypoint } from "../../components/BaseCard";
 import type { StateDiagramLayout } from "../../components/StateDiagram";
 import type { BaseCardContext, Lifecycle } from "../../components/useBaseCard";
 import CollapsiblePanel from "../../components/CollapsiblePanel";
@@ -15,14 +15,6 @@ import ViewLink from "../../components/ViewLink";
 import { canTransition } from "./stateMachine";
 import type { UseProtoCard } from "./useProtoCard";
 import { useProtoCard } from "./useProtoCard";
-
-type Props = {
-  appCtxStore: AppContext;
-};
-
-type ViewProps = {
-  protoCard: UseProtoCard;
-};
 
 const lifecycleNodes: { lifecycle: Lifecycle; label: string; x: number; y: number }[] = [
   { lifecycle: "loading", label: "Loading", x: 100, y: 150 },
@@ -59,10 +51,7 @@ const lifecycleDiagramLayout: StateDiagramLayout<Lifecycle> = {
   edgePaths: lifecycleEdges,
 };
 
-function PrerequisitesPanel({ protoCard }: {
-  protoCard: UseProtoCard;
-}) {
-  const { baseCardContext, privateContext } = protoCard;
+function PrerequisitesPanel({ baseCardContext, privateContext }: UseProtoCard) {
   const { appContext, dispatch } = privateContext;
   const state = { lifecycle: baseCardContext.lifecycle, privateContext };
   const lifecycle = baseCardContext.lifecycle;
@@ -176,8 +165,7 @@ function PrerequisitesPanel({ protoCard }: {
   );
 }
 
-function ResultsPanel({ protoCard }: { protoCard: UseProtoCard }) {
-  const { baseCardContext, privateContext } = protoCard;
+function ResultsPanel({ baseCardContext, privateContext }: UseProtoCard) {
   const { appContext, forceUnlocked, unmetCardPrerequisites } = privateContext;
   const privateState = { forceUnlocked, unmetCardPrerequisites };
   const lifecycle = baseCardContext.lifecycle;
@@ -297,12 +285,10 @@ function LoadingContent() {
   );
 }
 
-function BlockedContent({ protoCard }: {
-  protoCard: UseProtoCard;
-}) {
+function BlockedContent({ baseCardContext, privateContext }: UseProtoCard) {
   const theme = useTheme();
   const colors = theme.vars.palette.card;
-  const { appContext, dispatch } = protoCard.privateContext;
+  const { appContext, dispatch } = privateContext;
 
   return (
     <>
@@ -334,7 +320,7 @@ function BlockedContent({ protoCard }: {
             click here to force unlock this card.
           </Link>
         </Typography>
-        {protoCard.baseCardContext.unmetCardPrerequisites.map((id, index) => {
+        {baseCardContext.unmetCardPrerequisites.map((id, index) => {
           const registered = Object.prototype.hasOwnProperty.call(appContext.cards, id);
           const card = appContext.cards[id as BaseCardContext["cardId"]];
           const label = card?.initialised ? `${card.title} (${id})` : id;
@@ -373,44 +359,49 @@ function ForceUnlockNotice({ onUndo }: { onUndo: () => void }) {
   );
 }
 
-export function ProtoCardView({ protoCard: cardHook }: ViewProps) {
-  const { baseCardContext, privateContext } = cardHook;
-  const { forceUnlocked } = privateContext;
-  const showBlockedContent = baseCardContext.lifecycle === "blocked" && !forceUnlocked;
+export function CardContentMain({ baseCardContext, privateContext }: UseProtoCard) {
+  return (
+    <>
+      <Intro />
+      <PrerequisitesPanel baseCardContext={baseCardContext} privateContext={privateContext} />
+      {/* ============================================================
+          START ACTION CONTENT HERE
+          ============================================================ */}
+      {/* ============================================================
+          END ACTION CONTENT HERE
+          ============================================================ */}
+      <ResultsPanel baseCardContext={baseCardContext} privateContext={privateContext} />
+    </>
+  );
+}
 
+const CardEntrypoint = (appCtx: AppContext): ReactElement => {
+  const cardHook = useProtoCard(appCtx);
+  const { forceUnlocked } = cardHook.privateContext;
+  const showBlockedContent = cardHook.baseCardContext.lifecycle === "blocked" && !forceUnlocked;
+  const showForceUnlockNotice = forceUnlocked && cardHook.baseCardContext.lifecycle === "blocked";
+  const content: ReactNode[] = [];
+
+  if (cardHook.baseCardContext.lifecycle === "loading") {
+    content.push(<Fragment key="loading"><LoadingContent /></Fragment>);
+  } else if (showBlockedContent) {
+    content.push(<Fragment key="blocked"><BlockedContent baseCardContext={cardHook.baseCardContext} privateContext={cardHook.privateContext} /></Fragment>);
+  } else if (showForceUnlockNotice) {
+    content.push(<ForceUnlockNotice onUndo={() => cardHook.privateContext.dispatch({ type: "force-unlock", value: false })} />);
+  } else {
+    content.push(<CardContentMain baseCardContext={cardHook.baseCardContext} privateContext={cardHook.privateContext} />);
+  }
   return (
     <BaseCard
-      baseCardContext={baseCardContext}
+      baseCardContext={cardHook.baseCardContext}
       stateDiagramLayout={lifecycleDiagramLayout}
-      action={baseCardContext.lifecycle !== "loading" && !showBlockedContent
+      action={cardHook.baseCardContext.lifecycle !== "loading" && !cardHook.privateContext.forceUnlocked
         ? <ViewLink href="http://localhost" label="Open External Site" />
         : undefined}
     >
-      {baseCardContext.lifecycle === "loading"
-        ? <LoadingContent />
-        : showBlockedContent
-          ? <BlockedContent protoCard={cardHook} />
-          : (
-            <>
-              {forceUnlocked && baseCardContext.lifecycle === "blocked" && (
-                <ForceUnlockNotice onUndo={() => privateContext.dispatch({ type: "force-unlock", value: false })} />
-              )}
-              <Intro />
-              <PrerequisitesPanel protoCard={cardHook} />
-              {/* ============================================================
-                  START ACTION CONTENT HERE
-                  ============================================================ */}
-              {/* ============================================================
-                  END ACTION CONTENT HERE
-                  ============================================================ */}
-              <ResultsPanel protoCard={cardHook} />
-            </>
-          )}
+      {content}
     </BaseCard>
   );
 }
 
-export default function ProtoCard({ appCtxStore }: Props) {
-  const protoCard = useProtoCard(appCtxStore);
-  return <ProtoCardView protoCard={protoCard} />;
-}
+export default CardEntrypoint;

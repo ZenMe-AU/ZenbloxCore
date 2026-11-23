@@ -18,8 +18,8 @@ export interface UseProtoCard {
   };
 }
 
-export function useProtoCard(appStore: AppContext): UseProtoCard {
-  const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
+export function useProtoCard(appCtx: AppContext): UseProtoCard {
+  const appContext = useSyncExternalStore(appCtx.subscribe, appCtx.getSnapshot, appCtx.getSnapshot);
   const [state, dispatchState] = useReducer(reducer, initialState, (initial) => ({
     ...initial,
     privateContext: { ...initial.privateContext, forceUnlocked: forceUnlockedForPage },
@@ -40,12 +40,12 @@ export function useProtoCard(appStore: AppContext): UseProtoCard {
   }, [state.lifecycle, state.baseCardContext.prerequisiteIds, state.privateContext.unmetCardPrerequisites]);
   const baseCardContext = getBaseCardContext(state);
   useEffect(() => {
-    appStore.update("proto_card", {
+    appCtx.update("proto_card", {
       title: baseCardContext.title,
       currentBaseCardStatus: baseCardContext.lifecycle,
       currentStatus: state.lifecycle,
     });
-  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, state.lifecycle]);
+  }, [appCtx, baseCardContext.title, baseCardContext.lifecycle, state.lifecycle]);
   return {
     baseCardContext,
     privateContext: { ...state.privateContext, appContext, dispatch },

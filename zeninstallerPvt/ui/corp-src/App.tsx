@@ -493,7 +493,7 @@ function AppDashboard() {
                 />
               </Box>
 
-              <ProtoCard appCtxStore={appCtxStore} />
+              <ProtoCard {...appCtxStore} />
 
               <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
               <GithubLoginCardV2 appCtxStore={appCtxStore} />
