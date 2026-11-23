@@ -31,7 +31,7 @@ export interface UseAzureSubscriptionCardV2 extends CardHook {
   summary: string;
   cardDependencyLabel: string;
   baseCardContext: BaseCardContext<AzureSubscriptionV2Lifecycle>;
-  machineLifecycle: AzureSubscriptionV2Lifecycle;
+  currentState: AzureSubscriptionV2Lifecycle;
   blockedBy: readonly (typeof prerequisiteLinks)[number][]; // The prerequisites still to finish, while blocked.
 
   tenantId: string | null;
@@ -166,7 +166,7 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
     done,
     // extra
     baseCardContext,
-    machineLifecycle: lifecycle,
+    currentState: lifecycle,
     blockedBy,
     tenantId,
     subscriptions,

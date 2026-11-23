@@ -5,21 +5,21 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { RepoApi } from "./api";
-import { type Account, type Branch, type CardStatus, type GhEnv, type RepoOption } from "../../types";
+import type { GithubAccount, GithubBranch, GithubEnvironment, GithubRepositoryOption, RepoStatus } from "./types";
 import { matchBranch } from "./env";
 import { findIgnoreCase } from "../../logic/search";
 import type { UrlRestoreField } from "../../hooks/useUrlStateManager";
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface UseGithubEnvironment {
   // Env
-  envList: GhEnv[];
-  selectedEnv: GhEnv | null;
-  setSelectedEnv: (env: GhEnv | null) => void;
+  envList: GithubEnvironment[];
+  selectedEnv: GithubEnvironment | null;
+  setSelectedEnv: (env: GithubEnvironment | null) => void;
   branchMatchWarning: string | null;
   branchMatchError: string | null;
   // Status
   envLoading: boolean;
-  status: CardStatus;
+  status: RepoStatus;
   envRefreshFailed: boolean;
   // Actions
   onRefresh: () => void;
@@ -33,10 +33,10 @@ export interface UseGithubEnvironment {
 
 export type UseGithubEnvironmentParams = {
   api: RepoApi | null;
-  account: Account | null;
-  repo: RepoOption | null;
+  account: GithubAccount | null;
+  repo: GithubRepositoryOption | null;
   isRepoReady: boolean;
-  branches: Branch[];
+  branches: GithubBranch[];
 };
 
 export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithubEnvironment {
@@ -56,9 +56,9 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
   });
 
   // ── Env state ─────────────────────────────────────────────────────────────
-  const [envList, setEnvList] = useState<GhEnv[]>([]);
+  const [envList, setEnvList] = useState<GithubEnvironment[]>([]);
   const [envsLoaded, setEnvsLoaded] = useState(false);
-  const [selectedEnv, setSelectedEnv] = useState<GhEnv | null>(null);
+  const [selectedEnv, setSelectedEnv] = useState<GithubEnvironment | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [envRefreshFailed, setEnvRefreshFailed] = useState(false);
   const accountId = opts.account?.id ?? null;
@@ -74,7 +74,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
   }
 
   // ── Loaders ───────────────────────────────────────────────────────────────
-  const loadEnvs = useCallback(async (account: Account, repo: RepoOption) => {
+  const loadEnvs = useCallback(async (account: GithubAccount, repo: GithubRepositoryOption) => {
     const api = opts.api;
     if (!api) return;
     const sequence = ++loadSequence.current;
@@ -111,7 +111,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     ? `Multiple branches match environment "${selectedEnv!.name}". Please resolve the conflict.`
     : match?.status === "none" ? `No branch found matching environment "${selectedEnv!.name}".` : null;
   const envLoading = refreshing || (!!opts.api && opts.isRepoReady && !envsLoaded);
-  const status: CardStatus = !match ? "idle" : match.status === "exact" ? "complete" : "warning";
+  const status: RepoStatus = !match ? "idle" : match.status === "exact" ? "complete" : "warning";
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const onRefresh = useCallback(() => {

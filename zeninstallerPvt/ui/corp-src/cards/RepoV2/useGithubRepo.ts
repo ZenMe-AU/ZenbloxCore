@@ -8,19 +8,19 @@ import type { RepoApi } from "./api";
 import { TEMPLATE_REPO, VALID_ENVS } from "../../config/githubConfig";
 import { findIgnoreCase } from "../../logic/search";
 import type { UrlRestoreField } from "../../hooks/useUrlStateManager";
-import type { Account, Branch, CardStatus, Repo, RepoOption, User } from "../../types";
+import type { GithubAccount, GithubBranch, GithubRepository, GithubRepositoryOption, GithubUser, RepoStatus } from "./types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface UseGithubRepo {
   // Account
-  accountList: Account[];
-  selectedAccount: Account | null;
-  setSelectedAccount: (a: Account | null) => void;
+  accountList: GithubAccount[];
+  selectedAccount: GithubAccount | null;
+  setSelectedAccount: (a: GithubAccount | null) => void;
   // Repository
-  repoList: Repo[];
-  selectedRepo: RepoOption | null;
-  setSelectedRepo: (r: RepoOption | null) => void;
+  repoList: GithubRepository[];
+  selectedRepo: GithubRepositoryOption | null;
+  setSelectedRepo: (r: GithubRepositoryOption | null) => void;
   // Template
   templateStatus: "checking" | "ready" | "not_clone" | "error";
   templateName: string | null;
@@ -37,13 +37,13 @@ export interface UseGithubRepo {
   setCreateEnvs: (v: boolean) => void;
   cloneEnvWarning: string | null;
   // Branch
-  branchList: Branch[];
+  branchList: GithubBranch[];
   sourceBranch: string;
   setSourceBranch: (v: string) => void;
   creatingBranch: boolean;
   createBranchError: string | null;
   // Status
-  status: CardStatus;
+  status: RepoStatus;
   repoLoading: boolean;
   repoRefreshFailed: boolean;
   repoError?: string | null;
@@ -65,14 +65,14 @@ export interface UseGithubRepo {
  * (which just needs status) and useGithubEnvironment (which needs the account,
  * selected repo, and branches to load environments and match a branch).
  */
-export function useGithubRepo(user: User | null, api: RepoApi | null): UseGithubRepo {
+export function useGithubRepo(user: GithubUser | null, api: RepoApi | null): UseGithubRepo {
   // ── State ─────────────────────────────────────────────────────────────────
-  const [accountList, setAccountList] = useState<Account[]>([]);
+  const [accountList, setAccountList] = useState<GithubAccount[]>([]);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [repoList, setRepoList] = useState<Repo[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<GithubAccount | null>(null);
+  const [repoList, setRepoList] = useState<GithubRepository[]>([]);
   const [reposLoaded, setReposLoaded] = useState(false);
-  const [selectedRepo, setSelectedRepo] = useState<RepoOption | null>(null);
+  const [selectedRepo, setSelectedRepo] = useState<GithubRepositoryOption | null>(null);
 
   const [templateStatus, setTemplateStatus] = useState<UseGithubRepo["templateStatus"]>("not_clone");
   const [templateName, setTemplateName] = useState<string | null>(null);
@@ -85,20 +85,20 @@ export function useGithubRepo(user: User | null, api: RepoApi | null): UseGithub
   const [createEnvs, setCreateEnvs] = useState(true);
   const [cloneEnvWarning, setCloneEnvWarning] = useState<string | null>(null);
 
-  const [branchList, setBranchList] = useState<Branch[]>([]);
+  const [branchList, setBranchList] = useState<GithubBranch[]>([]);
   const [sourceBranch, setSourceBranch] = useState<string>("main");
   const [creatingBranch, setCreatingBranch] = useState(false);
   const [createBranchError, setCreateBranchError] = useState<string | null>(null);
 
-  const [status, setStatus] = useState<CardStatus>("idle");
-  const [verifiedSelection, setVerifiedSelection] = useState<{ accountId: Account["id"]; repoId: RepoOption["id"] } | null>(null);
+  const [status, setStatus] = useState<RepoStatus>("idle");
+  const [verifiedSelection, setVerifiedSelection] = useState<{ accountId: GithubAccount["id"]; repoId: GithubRepositoryOption["id"] } | null>(null);
   const [repoLoading, setRepoLoading] = useState(false);
   const [repoRefreshFailed, setRepoRefreshFailed] = useState(false);
   const [repoError, setRepoError] = useState<string | null>(null);
   const repoCheckSequence = useRef(0);
 
   // Pure cache to avoid refetching a repo list already seen this session — never rendered directly.
-  const repoCache = useRef<Record<string, Repo[]>>({});
+  const repoCache = useRef<Record<string, GithubRepository[]>>({});
   const apiRef = useRef(api);
   useLayoutEffect(() => {
     const sequence = repoCheckSequence;
@@ -145,7 +145,7 @@ export function useGithubRepo(user: User | null, api: RepoApi | null): UseGithub
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const checkSelectedRepo = useCallback(
-    async (account: Account | null, repo: RepoOption | null) => {
+    async (account: GithubAccount | null, repo: GithubRepositoryOption | null) => {
       const sequence = ++repoCheckSequence.current;
       setTemplateStatus(account && repo && !repo.isNew ? "checking" : "not_clone");
       setTemplateName(null);

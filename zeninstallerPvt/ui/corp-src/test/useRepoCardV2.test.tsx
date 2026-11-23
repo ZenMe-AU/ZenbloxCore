@@ -94,7 +94,7 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
     await act(async () => latest?.env.setSelectedEnv({ id: 3, name: "PROD", url: "https://example.test/env" }));
     await waitFor(() => {
       expect(getPublishedRepo(store)?.status).toBe("complete");
-      expect(latest?.done).toBe(true);
+      expect(latest?.baseCardContext.lifecycle).toBe("complete");
       expect(getPublishedRepo(store)?.githubRepository).toEqual({
         account: { id: 1, login: "v2-user", type: "User" },
         repository: { id: 2, name: "test-repo" },
@@ -113,7 +113,7 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
     expect(getPublishedRepo(store)?.status).toBe("blocked");
     expect(latest?.repo.selectedRepo).toBeNull();
     expect(latest?.env.selectedEnv).toBeNull();
-    expect(latest?.done).toBe(false);
+    expect(latest?.baseCardContext.lifecycle).toBe("blocked");
     expect(getPublishedRepo(store)?.githubRepository).toBeNull();
     await act(async () => resolveCheck({ templateName: "ZenMe-AU/ZenbloxCore" }));
     expect(getPublishedRepo(store)?.status).toBe("blocked");
@@ -169,7 +169,7 @@ it("reports an account loading failure and recovers on refresh", async () => {
     }));
     await waitFor(() => {
       expect(getPublishedRepo(store)?.status).toBe("error");
-      expect(latest?.summary).toBe("Could not load GitHub accounts");
+      expect(latest?.baseCardContext.summary).toBe("Could not load GitHub accounts");
     });
     await act(async () => latest?.repo.onRefresh());
     await waitFor(() => {

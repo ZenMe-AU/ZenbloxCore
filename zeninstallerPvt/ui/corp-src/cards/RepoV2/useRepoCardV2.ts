@@ -4,7 +4,6 @@
  */
 
 import { useEffect, useMemo, useReducer, useSyncExternalStore } from "react";
-import type { CardHook, CardStatus } from "../../types";
 import type { SharedCard, AppContext } from "../../appContext";
 import type { BaseCardContext } from "../../components/useBaseCard";
 import { createRepoApi } from "./api";
@@ -23,10 +22,8 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseRepoCardV2 extends CardHook {
-  readonly cardId: "repo_v2";
+export interface UseRepoCardV2 {
   baseCardContext: BaseCardContext<Lifecycle>;
-  cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Choose an environment")
   githubEnvUrl: string | undefined;
   repo: UseGithubRepo;
   env: UseGithubEnvironment;
@@ -71,28 +68,20 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
     : githubRepo.templateStatus === "ready" && githubRepo.status === "loading" ? "Loading repository branches"
     : githubRepo.selectedRepo && !githubRepo.selectedRepo.isNew && (githubRepo.templateStatus === "checking" || githubRepo.status === "loading") ? "Checking repository template"
     : isRepoReady && env.envLoading ? "Loading environments" : null;
-  let status: CardStatus;
   let summary: string;
   if (errorSummary) {
-    status = "error";
     summary = errorSummary;
   } else if (busySummary) {
-    status = "loading";
     summary = busySummary;
   } else if (!user || !githubRepo.selectedAccount || !githubRepo.selectedRepo) {
-    status = "idle";
     summary = "Select repository and environment";
   } else if (!isRepoReady) {
-    status = "warning";
     summary = githubRepo.cloneValidationWarning || "Select or clone a supported template repository";
   } else if (env.branchMatchError || env.branchMatchWarning) {
-    status = "warning";
     summary = env.branchMatchError || env.branchMatchWarning!;
   } else if (!envName) {
-    status = "warning";
     summary = "Select an environment";
   } else {
-    status = "complete";
     summary = `${githubRepo.repoFullName} · ${envName}`;
   }
 
@@ -129,12 +118,6 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
     repo: githubRepo,
     env,
     githubEnvUrl,
-    // cardHook
-    cardId: "repo_v2" as const,
     baseCardContext,
-    status,
-    summary,
-    cardDependencyLabel: baseCardContext.title,
-    done,
   };
 }
