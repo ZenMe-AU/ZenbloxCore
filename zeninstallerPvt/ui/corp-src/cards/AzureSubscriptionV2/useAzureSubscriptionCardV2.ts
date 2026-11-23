@@ -10,7 +10,6 @@ import type { AppContext, SharedCard } from "../../appContext";
 import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
 import { useGithubVariablesV2, type GithubTarget, type UseGithubVariablesV2 } from "../../hooks/useGithubVariablesV2";
 import { getEnvSettingsUrl } from "../../logic/github";
-import type { CardHook, CardStatus } from "../../types";
 import {
   deriveLifecycle,
   getGithubTarget,
@@ -26,14 +25,9 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseAzureSubscriptionCardV2 extends CardHook {
-  readonly cardId: "azure_subscription_v2";
-  summary: string;
-  cardDependencyLabel: string;
-  baseCardContext: BaseCardContext<AzureSubscriptionV2Lifecycle>;
+export interface PrivateContext {
   currentState: AzureSubscriptionV2Lifecycle;
   blockedBy: readonly (typeof prerequisiteLinks)[number][]; // The prerequisites still to finish, while blocked.
-
   tenantId: string | null;
   subscriptions: Subscription[];
   selectedSubscriptionId: string;
@@ -60,7 +54,7 @@ function friendlySubsError(err: unknown): string {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscriptionCardV2 {
+export function useAzureSubscriptionCardV2(appStore: AppContext) {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatchLifecycle] = useReducer(reducer, initialState);
   const prerequisiteContext = { ...initialSubscriptionCardContext, lifecycle: toBaseCardLifecycle(state.lifecycle) };
@@ -131,7 +125,6 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
     ? { AZURE_TENANT_ID: tenantId, AZURE_SUBSCRIPTION_ID: selectedSubscriptionId, VITE_AZURE_TENANT_ID: tenantId }
     : undefined;
   const differsFromGithub = lifecycle === "unsaved" && !variables.loading;
-  const status: CardStatus = done ? "complete" : lifecycle === "error" || lifecycle === "unsaved" ? "warning" : lifecycle === "loading" ? "loading" : "idle";
   const summary = ({
     blocked: blockedBy[0].label,
     loading: "Loading subscriptions...",
@@ -159,25 +152,20 @@ export function useAzureSubscriptionCardV2(appStore: AppContext): UseAzureSubscr
   }, [appStore, baseCardContext.title, baseCardContext.lifecycle, lifecycle, done, selectedSubscription]);
 
   return {
-    // cardHook
-    cardId: "azure_subscription_v2" as const,
-    status,
-    summary,
-    cardDependencyLabel: "Select a subscription",
-    done,
-    // extra
     baseCardContext,
-    currentState: lifecycle,
-    blockedBy,
-    tenantId,
-    subscriptions,
-    selectedSubscriptionId,
-    setSelectedSubscriptionId,
-    populateCount,
-    subsError,
-    github,
-    variables,
-    populate,
-    differsFromGithub,
+    privateContext: {
+      currentState: lifecycle,
+      blockedBy,
+      tenantId,
+      subscriptions,
+      selectedSubscriptionId,
+      setSelectedSubscriptionId,
+      populateCount,
+      subsError,
+      github,
+      variables,
+      populate,
+      differsFromGithub,
+    },
   };
 }

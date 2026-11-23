@@ -14,7 +14,7 @@ import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/co
 import { AZURE_TARGET_KEYS } from "../../logic/variables";
 import CloudVariableDetailV2 from "../CloudVariableDetailV2";
 import { azureLoginCardId } from "./stateMachine";
-import { useAzureSubscriptionCardV2, type UseAzureSubscriptionCardV2 } from "./useAzureSubscriptionCardV2";
+import { useAzureSubscriptionCardV2, type PrivateContext } from "./useAzureSubscriptionCardV2";
 
 type Props = {
   appCtxStore: AppContext;
@@ -47,8 +47,8 @@ function Action({ subscriptionId, tenantId }: { subscriptionId: string; tenantId
   );
 }
 
-function Content({ subscription }: { subscription: UseAzureSubscriptionCardV2 }) {
-  const { currentState, blockedBy, tenantId, subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, github } = subscription;
+function Content({ privateContext }: { privateContext: PrivateContext }) {
+  const { currentState, blockedBy, tenantId, subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError, github } = privateContext;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -116,16 +116,16 @@ function Content({ subscription }: { subscription: UseAzureSubscriptionCardV2 })
             <CloudVariableDetailV2
               key={JSON.stringify([github.account.id, github.repoName, github.envName])}
               keys={AZURE_TARGET_KEYS}
-              variables={subscription.variables}
-              populate={subscription.populate}
-              populateCounter={subscription.populateCount}
+              variables={privateContext.variables}
+              populate={privateContext.populate}
+              populateCounter={privateContext.populateCount}
               preserveDirtyOnSync
               hiddenKeys={["VITE_AZURE_TENANT_ID"]}
               title="Saved to GitHub"
               // Edits waiting in the draft come first; otherwise say the pick and GitHub differ, which saving a clean draft can't fix.
               saveHint={({ dirty }) => dirty
                 ? <SaveHint>Unsaved change — save to apply.</SaveHint>
-                : subscription.differsFromGithub
+                : privateContext.differsFromGithub
                   ? <SaveHint>Doesn't match what's saved to GitHub — pick the subscription again, then save.</SaveHint>
                   : undefined}
             />
@@ -138,13 +138,13 @@ function Content({ subscription }: { subscription: UseAzureSubscriptionCardV2 })
 
 export default function AzureSubscriptionCardV2({ appCtxStore }: Props) {
   const subscription = useAzureSubscriptionCardV2(appCtxStore);
-  const { baseCardContext, selectedSubscriptionId, tenantId } = subscription;
+  const { baseCardContext, privateContext } = subscription;
   return (
     <BaseCard
       baseCardContext={baseCardContext}
-      action={<Action subscriptionId={selectedSubscriptionId} tenantId={tenantId ?? undefined} />}
+      action={<Action subscriptionId={privateContext.selectedSubscriptionId} tenantId={privateContext.tenantId ?? undefined} />}
     >
-      <Content subscription={subscription} />
+      <Content privateContext={privateContext} />
     </BaseCard>
   );
 }

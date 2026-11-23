@@ -14,8 +14,10 @@ export class SensitiveToken {
   toString(): string { return "[REDACTED]"; }
 }
 
+declare const sharedCardDataRegistryMarker: unique symbol;
+
 export interface SharedCardDataById {
-  readonly __registryMarker: never;
+  readonly [sharedCardDataRegistryMarker]?: never;
 }
 
 export type AppContextCardId = Extract<keyof SharedCardDataById, string>;
