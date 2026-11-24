@@ -13,6 +13,7 @@ import ProtoCard from "./cards/ProtoCard/ProtoCard";
 import { useGithubSignupCard } from "./cards/GithubSignup/useGithubSignupCard";
 import { useRepoCard } from "./cards/Repo/useRepoCard";
 import { useGithubVariables } from "./hooks/useGithubVariables";
+import { useGithubVariablesCacheSession } from "./hooks/useGithubVariablesV2";
 import { INITIAL_URL_PARAMS, useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useDeploymentPlan as useGaDeploymentPlan } from "./cards/GaStage/useDeploymentPlan";
 import { createGaStageCardModel } from "./cards/GaStage/createGaStageCardModel";
@@ -87,6 +88,7 @@ const { save: saveExpandedCards, load: loadExpandedCards } = createResultStorage
 
 function AppDashboard() {
   const [appCtxStore] = useState(() => createAppContext(Object.fromEntries(INITIAL_URL_PARAMS.entries())));
+  useGithubVariablesCacheSession(appCtxStore);
   const allCards: Record<string, CardHook> = {};
 
   function addCard<T extends CardHook>(newCard: T): T {
