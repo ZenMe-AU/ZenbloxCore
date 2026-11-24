@@ -3,80 +3,116 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RepoApi } from "./api";
 import { TEMPLATE_REPO, VALID_ENVS } from "../../config/githubConfig";
 import { findIgnoreCase } from "../../logic/search";
 import type { GithubAccount, GithubBranch, GithubRepository, GithubRepositoryOption, GithubUser, RepoStatus } from "./types";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export interface UseGithubRepo {
-  // Account
   accountList: GithubAccount[];
   selectedAccount: GithubAccount | null;
-  setSelectedAccount: (a: GithubAccount | null) => void;
-  // Repository
+  setSelectedAccount: (account: GithubAccount | null) => void;
   repoList: GithubRepository[];
   selectedRepo: GithubRepositoryOption | null;
-  setSelectedRepo: (r: GithubRepositoryOption | null) => void;
-  // Template
+  setSelectedRepo: (repo: GithubRepositoryOption | null) => void;
   templateStatus: "checking" | "ready" | "not_clone" | "error";
   templateName: string | null;
   repoFullName: string | null;
-  // Clone
   isPrivate: boolean;
-  setIsPrivate: (v: boolean) => void;
+  setIsPrivate: (value: boolean) => void;
   includeAllBranch: boolean;
-  setIncludeAllBranch: (v: boolean) => void;
+  setIncludeAllBranch: (value: boolean) => void;
   cloning: boolean;
   cloneError: string | null;
   cloneValidationWarning?: string | null;
   createEnvs: boolean;
-  setCreateEnvs: (v: boolean) => void;
+  setCreateEnvs: (value: boolean) => void;
   cloneEnvWarning: string | null;
-  // Branch
   branchList: GithubBranch[];
   sourceBranch: string;
-  setSourceBranch: (v: string) => void;
+  setSourceBranch: (value: string) => void;
   creatingBranch: boolean;
   createBranchError: string | null;
-  // Status
   status: RepoStatus;
   accountsLoaded: boolean;
   reposLoaded: boolean;
   repoLoading: boolean;
   repoRefreshFailed: boolean;
   repoError?: string | null;
-  // Actions
   onClone: () => Promise<void>;
   onRefresh: () => void;
   onCreateBranch: (targetName: string) => Promise<void>;
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
-/*
- * The GitHub account/repo/clone/branch layer — not a card. Shared by the repo card
- * (which just needs status) and useGithubEnvironment (which needs the account,
- * selected repo, and branches to load environments and match a branch).
- */
 export function useGithubRepo(
   user: GithubUser | null,
   api: RepoApi | null,
   initialAccountLogin?: string,
   initialRepoName?: string,
 ): UseGithubRepo {
-  // ── State ─────────────────────────────────────────────────────────────────
-  const [accountList, setAccountList] = useState<GithubAccount[]>([]);
-  const [accountsLoaded, setAccountsLoaded] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState<GithubAccount | null>(null);
-  const [repoList, setRepoList] = useState<GithubRepository[]>([]);
-  const [reposLoaded, setReposLoaded] = useState(false);
-  const [selectedRepo, setSelectedRepo] = useState<GithubRepositoryOption | null>(null);
+  const queryClient = useQueryClient();
+  const userLogin = user?.login ?? null;
+  const accountsQuery = useQuery({
+    queryKey: ["repo_v2", "accounts", userLogin],
+    enabled: !!userLogin && !!api,
+    staleTime: 5 * 60 * 1000,
+    queryFn: () => api!.fetchOrgList(),
+  });
+  const accountList: GithubAccount[] = accountsQuery.data ?? [];
+  const [accountPick, setAccountPick] = useState<{ userLogin: string | null; account: GithubAccount } | null>(null);
+  const selectedAccount = accountPick && accountPick.userLogin === userLogin && accountList.some((account) => account.id === accountPick.account.id)
+    ? accountList.find((account) => account.id === accountPick.account.id)!
+    : (initialAccountLogin ? findIgnoreCase(accountList, (account) => account.login, initialAccountLogin) : undefined)
+      ?? accountList[0] ?? null;
 
-  const [templateStatus, setTemplateStatus] = useState<UseGithubRepo["templateStatus"]>("not_clone");
-  const [templateName, setTemplateName] = useState<string | null>(null);
+  const reposQuery = useQuery({
+    queryKey: ["repo_v2", "repositories", userLogin, selectedAccount?.id],
+    enabled: !!api && !!selectedAccount,
+    staleTime: 5 * 60 * 1000,
+    queryFn: () => api!.fetchRepos(selectedAccount!),
+  });
+  const repoList: GithubRepository[] = reposQuery.data ?? [];
+  const [repoPick, setRepoPick] = useState<{ userLogin: string | null; accountId: number; repo: GithubRepositoryOption } | null>(null);
+  const selectedRepo: GithubRepositoryOption | null = repoPick && repoPick.userLogin === userLogin && repoPick.accountId === selectedAccount?.id
+    ? repoPick.repo
+    : initialRepoName
+      ? (() => {
+        const match = findIgnoreCase(repoList, (repo) => repo.name, initialRepoName);
+        return match ? { id: match.id, name: match.name } : null;
+      })()
+      : null;
+
+  const verificationQuery = useQuery({
+    queryKey: ["repo_v2", "repository-verification", userLogin, selectedAccount?.id, selectedRepo && !selectedRepo.isNew ? selectedRepo.id : "new"],
+    enabled: !!api && !!selectedAccount && !!selectedRepo && !selectedRepo.isNew,
+    queryFn: async () => {
+      const template = await api!.checkTemplate(selectedAccount!, selectedRepo!.name);
+      const templateName = template.templateName || null;
+      if (templateName !== TEMPLATE_REPO) {
+        return { templateName, templateStatus: "not_clone" as const, branches: [] };
+      }
+      const branches = await api!.fetchBranches(selectedAccount!, selectedRepo!.name);
+      return { templateName, templateStatus: "ready" as const, branches };
+    },
+  });
+  const templateName = verificationQuery.data?.templateName ?? null;
+  const templateStatus = verificationQuery.isError
+    ? "error"
+    : selectedRepo?.isNew || !selectedRepo
+      ? "not_clone"
+      : verificationQuery.data?.templateStatus ?? "checking";
+  const [extraBranches, setExtraBranches] = useState<{ key: string; branches: GithubBranch[] }>({ key: "", branches: [] });
+  const branchKey = `${selectedAccount?.id ?? ""}|${selectedRepo?.id ?? ""}`;
+  const branchList = useMemo(
+    () => [...(verificationQuery.data?.branches ?? []), ...(extraBranches.key === branchKey ? extraBranches.branches : [])],
+    [verificationQuery.data?.branches, extraBranches, branchKey]
+  );
+  const [sourceBranchPick, setSourceBranchPick] = useState<{ key: string; name: string } | null>(null);
+  const sourceBranch = sourceBranchPick?.key === branchKey && branchList.some((branch) => branch.name === sourceBranchPick.name)
+    ? sourceBranchPick.name
+    : branchList.find((branch) => branch.name === "main")?.name ?? branchList[0]?.name ?? "";
 
   const [isPrivate, setIsPrivate] = useState(true);
   const [includeAllBranch, setIncludeAllBranch] = useState(false);
@@ -85,223 +121,13 @@ export function useGithubRepo(
   const [cloneValidationWarning, setCloneValidationWarning] = useState<string | null>(null);
   const [createEnvs, setCreateEnvs] = useState(true);
   const [cloneEnvWarning, setCloneEnvWarning] = useState<string | null>(null);
-
-  const [branchList, setBranchList] = useState<GithubBranch[]>([]);
-  const [sourceBranch, setSourceBranch] = useState<string>("main");
   const [creatingBranch, setCreatingBranch] = useState(false);
   const [createBranchError, setCreateBranchError] = useState<string | null>(null);
 
-  const [status, setStatus] = useState<RepoStatus>("idle");
-  const [verifiedSelection, setVerifiedSelection] = useState<{ accountId: GithubAccount["id"]; repoId: GithubRepositoryOption["id"] } | null>(null);
-  const [repoLoading, setRepoLoading] = useState(false);
-  const [repoRefreshFailed, setRepoRefreshFailed] = useState(false);
-  const [repoError, setRepoError] = useState<string | null>(null);
-  const repoCheckSequence = useRef(0);
-
-  // Pure cache to avoid refetching a repo list already seen this session — never rendered directly.
-  const repoCache = useRef<Record<string, GithubRepository[]>>({});
-  const initialAccountApplied = useRef(false);
-  const initialRepoApplied = useRef(false);
-  const apiRef = useRef(api);
-  useLayoutEffect(() => {
-    const sequence = repoCheckSequence;
-    apiRef.current = api;
-    repoCache.current = {};
-    sequence.current++;
-    return () => { apiRef.current = null; sequence.current++; };
-  }, [api]);
-  const [scope, setScope] = useState(api);
-  if (scope !== api) {
-    setScope(api);
-    setAccountList([]);
-    setAccountsLoaded(false);
-    setSelectedAccount(null);
-    setRepoList([]);
-    setReposLoaded(false);
-    setSelectedRepo(null);
-    setTemplateStatus("not_clone");
-    setTemplateName(null);
-    setCloning(false);
-    setCloneError(null);
-    setCloneValidationWarning(null);
-    setCloneEnvWarning(null);
-    setBranchList([]);
-    setSourceBranch("main");
-    setCreatingBranch(false);
-    setCreateBranchError(null);
-    setStatus("idle");
-    setVerifiedSelection(null);
-    setRepoLoading(false);
-    setRepoRefreshFailed(false);
-    setRepoError(null);
-  }
-
-  // ── Derived ───────────────────────────────────────────────────────────────
-  const isNewRepo = selectedRepo?.isNew ?? false;
-  const repoFullName = selectedAccount && selectedRepo && !isNewRepo ? `${selectedAccount.login}/${selectedRepo.name}` : null;
-
-  // Auto-clear clone error when a different repo is selected
-  useEffect(() => {
-    setCloneError(null);
-    setCloneValidationWarning(null);
-  }, [selectedRepo?.id]);
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  const checkSelectedRepo = useCallback(
-    async (account: GithubAccount | null, repo: GithubRepositoryOption | null) => {
-      const sequence = ++repoCheckSequence.current;
-      setTemplateStatus(account && repo && !repo.isNew ? "checking" : "not_clone");
-      setTemplateName(null);
-      setBranchList([]);
-      setCreateBranchError(null);
-      setRepoError(null);
-      if (!api || !account || !repo || repo.isNew) {
-        setStatus(repo?.isNew ? "warning" : "idle");
-        return;
-      }
-      setStatus("loading");
-      let verifiedTemplate = false;
-      try {
-        const data = await api.checkTemplate(account, repo.name);
-        if (apiRef.current !== api || sequence !== repoCheckSequence.current) return;
-        const tName = data.templateName || null;
-        setTemplateName(tName);
-        const isTemplate = tName !== null && tName === TEMPLATE_REPO;
-        if (!isTemplate) {
-          setTemplateStatus("not_clone");
-          setStatus("warning");
-          return;
-        }
-
-        verifiedTemplate = true;
-        setTemplateStatus("ready");
-        const list = await api.fetchBranches(account, repo.name);
-        if (apiRef.current !== api || sequence !== repoCheckSequence.current) return;
-        setBranchList(list);
-        setSourceBranch(list.find((branch) => branch.name === "main")?.name ?? list[0]?.name ?? "");
-        setVerifiedSelection({ accountId: account.id, repoId: repo.id });
-        setStatus("complete");
-      } catch (e) {
-        if (apiRef.current !== api || sequence !== repoCheckSequence.current) return;
-        console.error(verifiedTemplate ? "Failed to fetch branches:" : "Failed to check template:", e);
-        setRepoError(`${verifiedTemplate ? "Could not load repository branches" : "Could not verify repository template"}: ${e instanceof Error ? e.message : String(e)}`);
-        setTemplateStatus(verifiedTemplate ? "ready" : "error");
-        setStatus("error");
-      }
-    },
-    [api]
-  );
-
-  // ── Effects ───────────────────────────────────────────────────────────────
-
-  // Load organizations once user authenticates
-  const userLogin = user?.login;
-  useEffect(() => {
-    if (!userLogin || !api) return;
-    let cancelled = false;
-    api.fetchOrgList()
-      .then((data) => {
-        if (cancelled || apiRef.current !== api) return;
-        setAccountList(data);
-        const initialAccount = !initialAccountApplied.current && initialAccountLogin
-          ? findIgnoreCase(data, (account) => account.login, initialAccountLogin)
-          : undefined;
-        initialAccountApplied.current = true;
-        setSelectedAccount(initialAccount ?? data[0] ?? null);
-      })
-      .catch((error) => {
-        if (cancelled || apiRef.current !== api) return;
-        console.error(error);
-        setRepoError("Could not load GitHub accounts");
-      })
-      .finally(() => { if (!cancelled && apiRef.current === api) setAccountsLoaded(true); });
-    return () => { cancelled = true; };
-  }, [userLogin, api, initialAccountLogin]);
-
-  // Load repositories when account changes
-  useEffect(() => {
-    setRepoList([]);
-    setSelectedRepo(null);
-    setStatus("idle");
-    setReposLoaded(false);
-    setRepoLoading(false);
-    setRepoError(null);
-    setRepoRefreshFailed(false);
-    setCloneError(null);
-    setCloneEnvWarning(null);
-    setCreateBranchError(null);
-    if (!selectedAccount || !api) return;
-    const key = String(selectedAccount.id);
-    if (repoCache.current[key]) {
-      const list = repoCache.current[key];
-      setRepoList(list);
-      const initialRepo = !initialRepoApplied.current && initialRepoName
-        ? list.find((repo) => repo.name.toLowerCase() === initialRepoName.toLowerCase())
-        : undefined;
-      initialRepoApplied.current = true;
-      if (initialRepo) setSelectedRepo({ id: initialRepo.id, name: initialRepo.name });
-      setReposLoaded(true);
-      return;
-    }
-    let cancelled = false;
-    setRepoLoading(true);
-    api.fetchRepos(selectedAccount)
-      .then((list) => {
-        if (apiRef.current !== api) return;
-        repoCache.current[key] = list;
-        if (!cancelled) {
-          setRepoList(list);
-          const initialRepo = !initialRepoApplied.current && initialRepoName
-            ? list.find((repo) => repo.name.toLowerCase() === initialRepoName.toLowerCase())
-            : undefined;
-          initialRepoApplied.current = true;
-          if (initialRepo) setSelectedRepo({ id: initialRepo.id, name: initialRepo.name });
-        }
-      })
-      .catch((error) => {
-        console.error(error);
-        if (!cancelled && apiRef.current === api) {
-          setRepoRefreshFailed(true);
-          setRepoError("Could not load repositories");
-        }
-      })
-      .finally(() => {
-        if (!cancelled && apiRef.current === api) {
-          setReposLoaded(true);
-          setRepoLoading(false);
-        }
-      });
-    setTemplateName(null);
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedAccount, api, initialRepoName]);
-
-  // Check selected repository
-  useEffect(() => {
-    checkSelectedRepo(selectedAccount, selectedRepo);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRepo?.id, selectedAccount?.id, checkSelectedRepo]);
-
-  // ── Stable refs (for callbacks below that shouldn't re-create on every state change) ──
-  const repoListRef = useRef(repoList);
-  const selectedAccountRef = useRef(selectedAccount);
-  const selectedRepoRef = useRef(selectedRepo);
-  const sourceBranchRef = useRef(sourceBranch);
-  useLayoutEffect(() => {
-    repoListRef.current = repoList;
-    selectedAccountRef.current = selectedAccount;
-    selectedRepoRef.current = selectedRepo;
-    sourceBranchRef.current = sourceBranch;
-  });
-
-  // ── Actions ───────────────────────────────────────────────────────────────
   const onClone = useCallback(async () => {
-    const acc = selectedAccountRef.current;
-    const repo = selectedRepoRef.current;
-    if (!api || !acc || !repo) return;
-    const name = repo.name;
-    if (repoListRef.current.find((r) => r.name === name)) {
+    if (!api || !selectedAccount || !selectedRepo) return;
+    const name = selectedRepo.name;
+    if (repoList.some((repo) => repo.name === name)) {
       setCloneError(null);
       setCloneValidationWarning(`Repository "${name}" already exists. Select it or choose a different name.`);
       return;
@@ -311,92 +137,79 @@ export function useGithubRepo(
     setCloneValidationWarning(null);
     setCloneEnvWarning(null);
     try {
-      const { repo: newRepo, envSuccess, results } = await api.generateRepo(acc, name, isPrivate, includeAllBranch, createEnvs, TEMPLATE_REPO, VALID_ENVS);
-      if (apiRef.current !== api) return;
-      const updated = [...repoListRef.current, newRepo];
-      setRepoList(updated);
-      repoCache.current[String(acc.id)] = updated;
-      setSelectedRepo({ id: newRepo.id, name: newRepo.name });
-      if (!envSuccess) {
-        const failed = results.envs.filter((e) => !e.success).map((e) => e.name);
-        setCloneEnvWarning(`Repo created but failed to create environments: ${failed.join(", ")}`);
+      const result = await api.generateRepo(selectedAccount, name, isPrivate, includeAllBranch, createEnvs, TEMPLATE_REPO, VALID_ENVS);
+      queryClient.setQueryData<GithubRepository[]>(
+        ["repo_v2", "repositories", userLogin, selectedAccount.id],
+        (current = []) => [...current, result.repo]
+      );
+      setRepoPick({ userLogin, accountId: selectedAccount.id, repo: { id: result.repo.id, name: result.repo.name } });
+      if (!result.envSuccess) {
+        setCloneEnvWarning(`Repo created but failed to create environments: ${result.results.envs.filter((env) => !env.success).map((env) => env.name).join(", ")}`);
       }
     } catch {
-      if (apiRef.current === api) setCloneError("Clone failed");
+      setCloneError("Clone failed");
     } finally {
-      if (apiRef.current === api) setCloning(false);
+      setCloning(false);
     }
-  }, [api, isPrivate, includeAllBranch, createEnvs]);
+  }, [api, createEnvs, includeAllBranch, isPrivate, queryClient, repoList, selectedAccount, selectedRepo, userLogin]);
 
   const onRefresh = useCallback(() => {
-    const acc = selectedAccountRef.current;
-    if (!api || (!acc && !user)) return;
-    setRepoLoading(true);
-    setRepoRefreshFailed(false);
-    setRepoError(null);
-    setCloneEnvWarning(null);
-    setStatus("loading");
-    if (acc) delete repoCache.current[String(acc.id)];
-    Promise.all([api.fetchOrgList(), acc ? api.fetchRepos(acc) : Promise.resolve([])])
-      .then(async ([orgs, list]) => {
-        if (apiRef.current !== api || selectedAccountRef.current?.id !== acc?.id) return;
-        setAccountList(orgs);
-        if (!acc) {
-          const initialAccount = !initialAccountApplied.current && initialAccountLogin
-            ? findIgnoreCase(orgs, (account) => account.login, initialAccountLogin)
-            : undefined;
-          initialAccountApplied.current = true;
-          setSelectedAccount(initialAccount ?? orgs[0] ?? null);
-          return;
-        }
-        setRepoList(list);
-        repoCache.current[String(acc.id)] = list;
-        setRepoError(null);
-        await checkSelectedRepo(acc, selectedRepoRef.current);
-      })
-      .catch((e) => {
-        if (apiRef.current !== api) return;
-        console.error(e);
-        setRepoRefreshFailed(true);
-        setRepoError("Could not refresh repositories");
-      })
-      .finally(() => { if (apiRef.current === api) setRepoLoading(false); });
-  }, [api, checkSelectedRepo, user, initialAccountLogin]);
+    void accountsQuery.refetch();
+    if (selectedAccount) void reposQuery.refetch();
+    if (selectedRepo && !selectedRepo.isNew) void verificationQuery.refetch();
+  }, [accountsQuery, reposQuery, selectedAccount, selectedRepo, verificationQuery]);
 
   const onCreateBranch = useCallback(async (targetName: string) => {
-    const acc = selectedAccountRef.current;
-    const repo = selectedRepoRef.current;
-    if (!api || !acc || !repo) return;
+    if (!api || !selectedAccount || !selectedRepo || !sourceBranch) return;
     setCreatingBranch(true);
     setCreateBranchError(null);
     try {
-      const newBranch = await api.createBranch(acc, repo.name, targetName, sourceBranchRef.current);
-      if (apiRef.current !== api) return;
-      setBranchList((prev) => [...prev, newBranch]);
+      const branch = await api.createBranch(selectedAccount, selectedRepo.name, targetName, sourceBranch);
+      setExtraBranches((current) => ({
+        key: branchKey,
+        branches: [...(current.key === branchKey ? current.branches : []), branch],
+      }));
     } catch {
-      if (apiRef.current === api) setCreateBranchError("Failed to create branch");
+      setCreateBranchError("Failed to create branch");
     } finally {
-      if (apiRef.current === api) setCreatingBranch(false);
+      setCreatingBranch(false);
     }
-  }, [api]);
+  }, [api, branchKey, selectedAccount, selectedRepo, sourceBranch]);
+
+  const repoError = accountsQuery.isError
+    ? "Could not load GitHub accounts"
+    : reposQuery.isError
+      ? "Could not load repositories"
+      : verificationQuery.isError
+        ? `Could not verify repository template: ${verificationQuery.error instanceof Error ? verificationQuery.error.message : String(verificationQuery.error)}`
+        : null;
+  const status: RepoStatus = selectedRepo?.isNew ? "warning"
+    : !selectedAccount || !selectedRepo ? "idle"
+    : verificationQuery.isPending ? "loading"
+    : verificationQuery.isError ? "error"
+    : templateStatus === "ready" ? "complete" : "warning";
 
   return {
-    // Account
     accountList,
     selectedAccount,
-    setSelectedAccount,
-    // Repository
+    setSelectedAccount: (account) => {
+      setAccountPick(account ? { userLogin, account } : null);
+      setCloneError(null);
+      setCloneValidationWarning(null);
+      setCloneEnvWarning(null);
+    },
     repoList,
     selectedRepo,
     setSelectedRepo: (repo) => {
+      if (selectedAccount && repo) setRepoPick({ userLogin, accountId: selectedAccount.id, repo });
+      else setRepoPick(null);
+      setCloneError(null);
+      setCloneValidationWarning(null);
       setCloneEnvWarning(null);
-      setSelectedRepo(repo);
     },
-    // Template
     templateStatus,
     templateName,
-    repoFullName,
-    // Clone
+    repoFullName: selectedAccount && selectedRepo && !selectedRepo.isNew ? `${selectedAccount.login}/${selectedRepo.name}` : null,
     isPrivate,
     setIsPrivate,
     includeAllBranch,
@@ -407,24 +220,19 @@ export function useGithubRepo(
     createEnvs,
     setCreateEnvs,
     cloneEnvWarning,
-    // Branch
     branchList,
     sourceBranch,
-    setSourceBranch,
+    setSourceBranch: (name) => setSourceBranchPick({ key: branchKey, name }),
     creatingBranch,
     createBranchError,
-    // Status
-    status: status === "complete" && selectedAccount && selectedRepo
-      && (verifiedSelection?.accountId !== selectedAccount.id || verifiedSelection.repoId !== selectedRepo.id)
-      ? "loading" : status,
-    repoLoading,
-    repoRefreshFailed,
+    status,
+    accountsLoaded: !accountsQuery.isPending,
+    reposLoaded: !selectedAccount || !reposQuery.isPending,
+    repoLoading: accountsQuery.isFetching || reposQuery.isFetching || verificationQuery.isFetching,
+    repoRefreshFailed: accountsQuery.isError || reposQuery.isError,
     repoError,
-    // Actions
     onClone,
     onRefresh,
     onCreateBranch,
-      accountsLoaded,
-      reposLoaded,
   };
 }

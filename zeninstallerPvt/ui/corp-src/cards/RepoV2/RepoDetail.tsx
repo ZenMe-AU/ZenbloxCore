@@ -144,8 +144,7 @@ export default function RepoDetail({
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
       {/* ── Description + Refresh ── */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Intro />
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
         <RefreshButton
           busy={repoLoading}
           result={refreshResult}

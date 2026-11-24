@@ -75,7 +75,8 @@ it("uses the canonical two-context contract and publishes the saved subscription
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
 
     expect(Object.keys(latest ?? {})).toEqual(["baseCardContext", "privateContext"]);
-    expect(latest?.baseCardContext).toMatchObject({ lifecycle: "complete", done: true });
+    expect(latest?.baseCardContext).toMatchObject({ lifecycle: "complete" });
+    expect(latest?.baseCardContext).not.toHaveProperty("done");
     expect(latest?.baseCardContext).not.toHaveProperty("subscriptions");
     expect(latest?.baseCardContext).not.toHaveProperty("selectedSubscriptionId");
     expect(latest?.privateContext.subscriptions).toEqual([

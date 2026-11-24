@@ -11,7 +11,7 @@ import RepoDetail, { Intro as RepoDetailIntro } from "./RepoDetail";
 import EnvDetail from "./EnvDetail";
 import { getRepoUrl } from "../../logic/github";
 import { TEMPLATE_REPO, VALID_ENVS } from "../../config/githubConfig";
-import { useRepoCardV2, type UseRepoCardV2 } from "./useRepoCardV2";
+import { useRepoV2, type UseRepoV2 } from "./useRepoV2";
 
 type Props = {
   appCtxStore: AppContext;
@@ -30,7 +30,7 @@ function Action({ repoFullName }: { repoFullName: string | null }) {
   return <ViewLink href={getRepoUrl(repoFullName)} label="Open GitHub repository" />;
 }
 
-export function CardContentMain({ privateContext: { repo, env } }: UseRepoCardV2) {
+export function CardContentMain({ privateContext: { repo, env } }: UseRepoV2) {
   return (
     <>
       <Intro />
@@ -88,7 +88,7 @@ export function CardContentMain({ privateContext: { repo, env } }: UseRepoCardV2
 }
 
 function CardEntrypoint({ appCtxStore }: Props) {
-  const card = useRepoCardV2(appCtxStore);
+  const card = useRepoV2(appCtxStore);
   const { baseCardContext, privateContext } = card;
   return (
     <BaseCard

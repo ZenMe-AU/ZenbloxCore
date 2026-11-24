@@ -44,7 +44,7 @@ interface PrivateContext {
 }
 
 export interface UseAzureSubscriptionV2 {
-  baseCardContext: BaseCardContext<Lifecycle> & { done: boolean };
+  baseCardContext: BaseCardContext<Lifecycle>;
   privateContext: PrivateContext;
 }
 
@@ -153,8 +153,7 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),
     stateMachine: { graph: stateGraph, currentState: lifecycle },
-    done,
-  } satisfies BaseCardContext<Lifecycle> & { done: boolean };
+  } satisfies BaseCardContext<Lifecycle>;
   useEffect(() => {
     if (initialSubscription && !forThisKey) return;
     appStore.updateUrl({ subscription: selectedSubscriptionId || undefined });

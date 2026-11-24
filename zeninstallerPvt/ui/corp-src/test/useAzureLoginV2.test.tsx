@@ -134,7 +134,7 @@ describe("useAzureLoginV2", () => {
     await act(async () => silent.resolve());
 
     expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("tenant-confirmed");
-    expect(card.latest.baseCardContext.done).toBe(true);
+    expect(card.latest.baseCardContext).not.toHaveProperty("done");
     expect(card.latest.baseCardContext.summary).toBe("org@example.com · Tenant One");
     expect(msal.acquireTokenSilent).toHaveBeenCalledWith(expect.objectContaining({ authority: "https://login.microsoftonline.com/tenant-1" }));
     expect(store.getSnapshot().cards.azure_login_v2).toMatchObject({ currentBaseCardStatus: "complete", currentStatus: "tenant-confirmed", azureTenantId: "tenant-1" });

@@ -76,7 +76,7 @@ function friendlyTenantError(err: unknown): string {
 export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { account, manualTenantId, confirmedTenantId } = state;
+  const { account, manualTenantId, confirmedTenantId, loginError, tenantIdError } = state.privateContext;
   const [initialTenantId] = useState(() => appContext.urlParams.tenant);
   const initialTenantApplied = useRef(false);
   const hasActiveUrlSession = useRef(false);
@@ -281,12 +281,12 @@ export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
   }, []);
 
   // Reserved for manually refreshing the Azure session and tenant data.
-  const refresh = useCallback(() => {}, []);
+  const refresh = useCallback(() => { void tenantsQuery.refetch(); }, [tenantsQuery.refetch]);
 
   // ── Projection ────────────────────────────────────────────────────────────
   const tenantId = PINNED_TENANT_ID ?? confirmedTenantId;
   const baseCardContext = getBaseCardContext(state, tenants);
-  const done = baseCardContext.done;
+  const done = state.lifecycle === "tenant-confirmed";
   const initialTenantMatch = initialTenantId
     ? tenants.find((tenant) => tenant.tenantId.toLowerCase() === initialTenantId.toLowerCase())
       ?? findIgnoreCase(tenants, (tenant) => tenant.displayName, initialTenantId)
@@ -321,14 +321,14 @@ export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
     privateContext: {
       appContext,
       signedInUsername: account?.username ?? null,
-      loginError: state.loginError,
+      loginError,
       tenants,
       tenantsLoaded,
       tenantsRefreshing: tenantsQuery.isFetching && !tenantsQuery.isPending,
       tenantsError: tenantsQuery.error instanceof Error ? tenantsQuery.error.message : null,
       tenantPinned: !!PINNED_TENANT_ID,
       manualTenantId: PINNED_TENANT_ID ?? matchedTenant?.tenantId ?? manualTenantId,
-      tenantIdError: state.tenantIdError,
+      tenantIdError,
       login,
       logout,
       refresh,

@@ -41,7 +41,7 @@ export const stateGraph = {
   },
   unconfigured: {
     label: "Not configured",
-    baseCardLifecycle: "blocked",
+    baseCardLifecycle: "error",
     transitions: [],
   },
   "signed-out": {
@@ -79,11 +79,13 @@ export const stateGraph = {
 export type State = {
   lifecycle: Lifecycle;
   baseCardContext: Omit<BaseCardContext<Lifecycle>, "lifecycle" | "summary" | "stateMachine">;
-  account: AzureAccount | null;
-  manualTenantId: string;
-  confirmedTenantId: string | null;
-  loginError: string | null;
-  tenantIdError: string | null;
+  privateContext: {
+    account: AzureAccount | null;
+    manualTenantId: string;
+    confirmedTenantId: string | null;
+    loginError: string | null;
+    tenantIdError: string | null;
+  };
 };
 
 export type Event =
@@ -101,12 +103,19 @@ export type Event =
 
 export const initialState: State = {
   lifecycle: "loading",
-  baseCardContext: { cardId: "azure_login_v2", title: "Azure login 2", prerequisiteIds: [] },
-  account: null,
-  manualTenantId: "",
-  confirmedTenantId: null,
-  loginError: null,
-  tenantIdError: null,
+  baseCardContext: {
+    cardId: "azure_login_v2",
+    title: "Azure login 2",
+    prerequisiteIds: [],
+    unmetCardPrerequisites: [],
+  },
+  privateContext: {
+    account: null,
+    manualTenantId: "",
+    confirmedTenantId: null,
+    loginError: null,
+    tenantIdError: null,
+  },
 };
 
 export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
@@ -128,47 +137,60 @@ export function reducer(state: State, event: Event): State {
     case "unconfigured":
       return transition(state, "unconfigured");
     case "session-empty":
-      return transition(state, "signed-out", { account: null, loginError: null });
+      return transition(state, "signed-out", {
+        privateContext: { ...state.privateContext, account: null, loginError: null },
+      });
     case "session-restored":
       return transition(state, event.confirmedTenantId ? "tenant-confirmed" : "selecting-tenant", {
-        account: event.account,
-        manualTenantId: event.prefilledTenantId,
-        confirmedTenantId: event.confirmedTenantId,
-        loginError: null,
-        tenantIdError: null,
+        privateContext: {
+          ...state.privateContext,
+          account: event.account,
+          manualTenantId: event.prefilledTenantId,
+          confirmedTenantId: event.confirmedTenantId,
+          loginError: null,
+          tenantIdError: null,
+        },
       });
     case "login-requested":
-      return transition(state, "signing-in", { loginError: null });
+      return transition(state, "signing-in", {
+        privateContext: { ...state.privateContext, loginError: null },
+      });
     case "login-failed":
-      return transition(state, "error", { loginError: event.error });
+      return transition(state, "error", { privateContext: { ...state.privateContext, loginError: event.error } });
     case "manual-tenant-changed":
-      return { ...state, manualTenantId: event.tenantId, tenantIdError: null };
+      return { ...state, privateContext: { ...state.privateContext, manualTenantId: event.tenantId, tenantIdError: null } };
     case "tenant-confirmation-started":
-      return transition(state, "confirming-tenant", { manualTenantId: event.tenantId, tenantIdError: null });
+      return transition(state, "confirming-tenant", {
+        privateContext: { ...state.privateContext, manualTenantId: event.tenantId, tenantIdError: null },
+      });
     case "tenant-confirmed":
       return transition(state, "tenant-confirmed", {
-        account: event.account,
-        manualTenantId: event.tenantId,
-        confirmedTenantId: event.tenantId,
-        tenantIdError: null,
+        privateContext: {
+          ...state.privateContext,
+          account: event.account,
+          manualTenantId: event.tenantId,
+          confirmedTenantId: event.tenantId,
+          tenantIdError: null,
+        },
       });
     case "tenant-confirmation-failed":
-      return transition(state, "error", { tenantIdError: event.error });
+      return transition(state, "error", { privateContext: { ...state.privateContext, tenantIdError: event.error } });
     case "tenant-consent-redirected":
       return transition(state, "selecting-tenant");
     case "logout-completed":
       return transition(state, "signed-out", {
-        account: null,
-        manualTenantId: "",
-        confirmedTenantId: null,
-        loginError: null,
-        tenantIdError: null,
+        privateContext: {
+          account: null,
+          manualTenantId: "",
+          confirmedTenantId: null,
+          loginError: null,
+          tenantIdError: null,
+        },
       });
   }
 }
 
 export function getBaseCardContext(state: State, tenants: AzureTenant[] = []) {
-  const done = state.lifecycle === "tenant-confirmed";
   const summary = ({
     loading: "Checking session...",
     unconfigured: "Unavailable",
@@ -176,15 +198,14 @@ export function getBaseCardContext(state: State, tenants: AzureTenant[] = []) {
     "signing-in": "Connecting...",
     "selecting-tenant": "Select a tenant",
     "confirming-tenant": "Confirming tenant...",
-    "tenant-confirmed": [state.account?.username, tenantDisplayName(tenants, state.confirmedTenantId)].filter(Boolean).join(" · ") || "Signed in",
-    error: state.loginError ?? state.tenantIdError ?? "Error",
+    "tenant-confirmed": [state.privateContext.account?.username, tenantDisplayName(tenants, state.privateContext.confirmedTenantId)].filter(Boolean).join(" · ") || "Signed in",
+    error: state.privateContext.loginError ?? state.privateContext.tenantIdError ?? "Error",
   } satisfies Record<Lifecycle, string>)[state.lifecycle];
   return {
     ...state.baseCardContext,
     summary,
     lifecycle: toBaseCardLifecycle(state.lifecycle),
     stateMachine: { graph: stateGraph, currentState: state.lifecycle },
-    done,
   } as const;
 }
 

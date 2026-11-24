@@ -3,29 +3,25 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { RepoApi } from "./api";
 import type { GithubAccount, GithubBranch, GithubEnvironment, GithubRepositoryOption, RepoStatus } from "./types";
 import { matchBranch } from "./env";
 import { findIgnoreCase } from "../../logic/search";
-// ─── Types ────────────────────────────────────────────────────────────────────
+
 export interface UseGithubEnvironment {
-  // Env
   envList: GithubEnvironment[];
   selectedEnv: GithubEnvironment | null;
   setSelectedEnv: (env: GithubEnvironment | null) => void;
   branchMatchWarning: string | null;
   branchMatchError: string | null;
-  // Status
   envsLoaded: boolean;
   envLoading: boolean;
   status: RepoStatus;
   envRefreshFailed: boolean;
-  // Actions
   onRefresh: () => void;
 }
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export type UseGithubEnvironmentParams = {
   api: RepoApi | null;
@@ -37,75 +33,21 @@ export type UseGithubEnvironmentParams = {
 };
 
 export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithubEnvironment {
-  const apiRef = useRef(opts.api);
-  const loadSequence = useRef(0);
-  useLayoutEffect(() => {
-    const sequence = loadSequence;
-    apiRef.current = opts.api;
-    sequence.current++;
-    return () => { apiRef.current = null; sequence.current++; };
-  }, [opts.api, opts.account?.id, opts.repo?.id]);
-  const accountRef = useRef(opts.account);
-  const repoRef = useRef(opts.repo);
-  useEffect(() => {
-    accountRef.current = opts.account;
-    repoRef.current = opts.repo;
+  const queryKey = ["repo_v2", "environments", opts.account?.id, opts.repo?.id];
+  const environmentsQuery = useQuery({
+    queryKey,
+    enabled: !!opts.api && !!opts.account && !!opts.repo && opts.isRepoReady,
+    staleTime: 5 * 60 * 1000,
+    queryFn: () => opts.api!.fetchEnvs(opts.account!, opts.repo!.name),
   });
-
-  // ── Env state ─────────────────────────────────────────────────────────────
-  const [envList, setEnvList] = useState<GithubEnvironment[]>([]);
-  const [envsLoaded, setEnvsLoaded] = useState(false);
-  const [selectedEnv, setSelectedEnv] = useState<GithubEnvironment | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [envRefreshFailed, setEnvRefreshFailed] = useState(false);
-  const initialEnvApplied = useRef(false);
-  const accountId = opts.account?.id ?? null;
-  const repoId = opts.repo?.id ?? null;
-  const [scope, setScope] = useState({ api: opts.api, accountId, repoId });
-  if (scope.api !== opts.api || scope.accountId !== accountId || scope.repoId !== repoId) {
-    setScope({ api: opts.api, accountId, repoId });
-    setEnvList([]);
-    setEnvsLoaded(false);
-    setSelectedEnv(null);
-    setRefreshing(false);
-    setEnvRefreshFailed(false);
-  }
-
-  // ── Loaders ───────────────────────────────────────────────────────────────
-  const loadEnvs = useCallback(async (account: GithubAccount, repo: GithubRepositoryOption) => {
-    const api = opts.api;
-    if (!api) return;
-    const sequence = ++loadSequence.current;
-    try {
-      const list = await api.fetchEnvs(account, repo.name);
-      if (apiRef.current === api && loadSequence.current === sequence) {
-        setEnvList(list);
-        const initialEnv = !initialEnvApplied.current && opts.initialEnvName
-          ? findIgnoreCase(list, (environment) => environment.name, opts.initialEnvName!)
-          : undefined;
-        initialEnvApplied.current = true;
-        if (initialEnv) setSelectedEnv(initialEnv);
-        setEnvRefreshFailed(false);
-      }
-    } catch (e) {
-      if (apiRef.current === api && loadSequence.current === sequence) {
-        console.error(e);
-        setEnvRefreshFailed(true);
-      }
-    } finally {
-      if (apiRef.current === api && loadSequence.current === sequence) {
-        setRefreshing(false);
-        setEnvsLoaded(true);
-      }
-    }
-  }, [opts.api, opts.initialEnvName]);
-
-  // Load envs when repo is ready
-  useEffect(() => {
-    if (!opts.account || !opts.repo || !opts.isRepoReady) return;
-    loadEnvs(opts.account, opts.repo);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opts.account?.id, opts.repo?.id, opts.isRepoReady, loadEnvs]);
+  const envList = environmentsQuery.data ?? [];
+  const key = `${opts.account?.id ?? ""}|${opts.repo?.id ?? ""}`;
+  const [envPick, setEnvPick] = useState<{ api: RepoApi | null; key: string; env: GithubEnvironment | null } | null>(null);
+  const selectedEnv = envPick?.api === opts.api && envPick.key === key
+    ? envPick.env && envList.some((env) => env.id === envPick.env!.id) ? envPick.env : envPick.env === null ? null : null
+    : opts.initialEnvName
+      ? findIgnoreCase(envList, (env) => env.name, opts.initialEnvName) ?? null
+      : null;
 
   const match = selectedEnv ? matchBranch(selectedEnv.name, opts.branches) : null;
   const branchMatchWarning = match?.status === "case"
@@ -113,33 +55,18 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
   const branchMatchError = match?.status === "multiple"
     ? `Multiple branches match environment "${selectedEnv!.name}". Please resolve the conflict.`
     : match?.status === "none" ? `No branch found matching environment "${selectedEnv!.name}".` : null;
-  const envLoading = refreshing || (!!opts.api && opts.isRepoReady && !envsLoaded);
   const status: RepoStatus = !match ? "idle" : match.status === "exact" ? "complete" : "warning";
 
-  // ── Actions ───────────────────────────────────────────────────────────────
-  const onRefresh = useCallback(() => {
-    const acc = accountRef.current;
-    const repo = repoRef.current;
-    if (acc && repo) {
-      setRefreshing(true);
-      setEnvRefreshFailed(false);
-      loadEnvs(acc, repo);
-    }
-  }, [loadEnvs]);
-
   return {
-    // Env
     envList,
     selectedEnv,
-    setSelectedEnv,
+    setSelectedEnv: (env) => setEnvPick({ api: opts.api, key, env }),
     branchMatchWarning,
     branchMatchError,
-    // Status
-    envsLoaded,
-    envLoading,
-    status: envRefreshFailed ? "error" : envLoading ? "loading" : status,
-    envRefreshFailed,
-    // Actions
-    onRefresh,
+    envsLoaded: !environmentsQuery.isPending,
+    envLoading: environmentsQuery.isFetching,
+    status: environmentsQuery.isError ? "error" : environmentsQuery.isFetching ? "loading" : status,
+    envRefreshFailed: environmentsQuery.isError,
+    onRefresh: () => { void environmentsQuery.refetch(); },
   };
 }

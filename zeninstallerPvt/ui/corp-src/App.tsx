@@ -48,9 +48,9 @@ import GithubLoginCard from "./cards/GithubLogin/GithubLoginCard";
 import GithubLoginV2 from "./cards/GithubLoginV2/GithubLoginV2";
 import GithubSignupCard from "./cards/GithubSignup/GithubSignupCard";
 import RepoCard from "./cards/Repo/RepoCard";
-import RepoCardV2 from "./cards/RepoV2/RepoCardV2";
+import RepoV2 from "./cards/RepoV2/RepoV2";
 import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
-import AzureLoginCardV2 from "./cards/AzureLoginV2/AzureLoginV2";
+import AzureLoginV2 from "./cards/AzureLoginV2/AzureLoginV2";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCard";
 import AzureSubscriptionCardV2 from "./cards/AzureSubscriptionV2/AzureSubscriptionV2";
@@ -501,10 +501,10 @@ function AppDashboard() {
               <GithubSignupCard card={cardProps("github_signup")} signup={githubSignup} onOpenLogin={() => openCard("github_login")} />
 
               <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
-              <RepoCardV2 appCtxStore={appCtxStore} />
+              <RepoV2 appCtxStore={appCtxStore} />
 
               <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
-              <AzureLoginCardV2 appCtxStore={appCtxStore} />
+              <AzureLoginV2 appCtxStore={appCtxStore} />
 
               <AzureSubscriptionCard
                 card={cardProps("azure_subscription")}

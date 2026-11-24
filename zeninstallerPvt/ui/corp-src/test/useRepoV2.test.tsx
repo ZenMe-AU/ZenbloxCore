@@ -5,9 +5,13 @@
 
 import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
+import { ThemeProvider } from "@mui/material";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, it, vi } from "vitest";
 import { createAppContext, SensitiveToken, type SharedCard } from "../appContext";
-import { useRepoCardV2, type UseRepoCardV2 } from "../cards/RepoV2/useRepoCardV2";
+import RepoV2 from "../cards/RepoV2/RepoV2";
+import { useRepoV2, type UseRepoV2 } from "../cards/RepoV2/useRepoV2";
+import theme from "../theme";
 
 const { api, createRepoApi } = vi.hoisted(() => {
   const api = {
@@ -50,17 +54,46 @@ async function waitFor(assertion: () => void) {
   }
 }
 
+it("renders the registered prerequisite through BaseCard while blocked", async () => {
+  const store = createAppContext();
+  store.update("github_login_v2", {
+    title: "GitHub login 2",
+    currentBaseCardStatus: "ready",
+    currentStatus: "ready",
+    githubAccount: null,
+    githubToken: null,
+    githubMode: null,
+  });
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  try {
+    await act(async () => root.render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}>
+          <RepoV2 appCtxStore={store} />
+        </ThemeProvider>
+      </QueryClientProvider>
+    ));
+    await act(async () => container.querySelector<HTMLButtonElement>("#card-title-repo_v2 button")?.click());
+    expect(container.querySelector<HTMLAnchorElement>('a[href="#card-github_login_v2"]')?.textContent).toContain("GitHub login 2");
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
 it("uses the V2 shared session, tracks its lifecycle, and clears selections on logout", async () => {
   const store = createAppContext();
-  let latest: UseRepoCardV2 | undefined;
+  let latest: UseRepoV2 | undefined;
   function Harness() {
-    const value = useRepoCardV2(store);
+    const value = useRepoV2(store);
     useEffect(() => { latest = value; }, [value]);
     return null;
   }
   const root = createRoot(document.createElement("div"));
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   try {
-    await act(async () => root.render(<Harness />));
+    await act(async () => root.render(<QueryClientProvider client={queryClient}><Harness /></QueryClientProvider>));
     expect(Object.keys(latest ?? {})).toEqual(["baseCardContext", "privateContext"]);
     expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("blocked");
     expect(latest?.baseCardContext.prerequisiteIds).toEqual(["github_login_v2"]);
@@ -135,15 +168,16 @@ it("restores the V2 repository chain from the initial URL params", async () => {
     { id: 2, login: "v2-user", type: "User" },
   ]);
   const store = createAppContext({ account: "v2-user", repo: "test-repo", env: "PROD" });
-  let latest: UseRepoCardV2 | undefined;
+  let latest: UseRepoV2 | undefined;
   function Harness() {
-    const value = useRepoCardV2(store);
+    const value = useRepoV2(store);
     useEffect(() => { latest = value; }, [value]);
     return null;
   }
   const root = createRoot(document.createElement("div"));
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   try {
-    await act(async () => root.render(<Harness />));
+    await act(async () => root.render(<QueryClientProvider client={queryClient}><Harness /></QueryClientProvider>));
     await act(async () => store.update("github_login_v2", {
       title: "GitHub login 2", currentBaseCardStatus: "complete", currentStatus: "signed-in",
       githubAccount: { login: "v2-user" }, githubToken: new SensitiveToken("token"), githubMode: "direct",
@@ -169,9 +203,9 @@ it("ignores an old account request after switching GitHub sessions", async () =>
   let resolveOld!: (value: { id: number; login: string; type: "User" }[]) => void;
   api.fetchOrgList.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }));
   const store = createAppContext();
-  let latest: UseRepoCardV2 | undefined;
+  let latest: UseRepoV2 | undefined;
   function Harness() {
-    const value = useRepoCardV2(store);
+    const value = useRepoV2(store);
     useEffect(() => { latest = value; }, [value]);
     return null;
   }
@@ -180,9 +214,10 @@ it("ignores an old account request after switching GitHub sessions", async () =>
     title: "GitHub login 2", currentBaseCardStatus: "complete", currentStatus: "signed-in",
     githubAccount: { login }, githubToken: new SensitiveToken(login), githubMode: "direct",
   });
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
   try {
-    await act(async () => root.render(<Harness />));
+    await act(async () => root.render(<QueryClientProvider client={queryClient}><Harness /></QueryClientProvider>));
     await act(async () => publish("old-user"));
     expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("action");
     await act(async () => publish("new-user"));
@@ -198,15 +233,16 @@ it("reports an account loading failure and recovers on refresh", async () => {
   api.fetchOrgList.mockRejectedValueOnce(new Error("network error"));
   const errorLog = vi.spyOn(console, "error").mockImplementation(() => { });
   const store = createAppContext();
-  let latest: UseRepoCardV2 | undefined;
+  let latest: UseRepoV2 | undefined;
   function Harness() {
-    const value = useRepoCardV2(store);
+    const value = useRepoV2(store);
     useEffect(() => { latest = value; }, [value]);
     return null;
   }
   const root = createRoot(document.createElement("div"));
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   try {
-    await act(async () => root.render(<Harness />));
+    await act(async () => root.render(<QueryClientProvider client={queryClient}><Harness /></QueryClientProvider>));
     await act(async () => store.update("github_login_v2", {
       title: "GitHub login 2", currentBaseCardStatus: "complete", currentStatus: "signed-in", githubAccount: { login: "v2-user" },
       githubToken: new SensitiveToken("token"), githubMode: "direct",

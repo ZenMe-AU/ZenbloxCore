@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { AppContext } from "../../appContext";
+import type { AppContext, AppContextCardId } from "../../appContext";
 import type {
   BaseCardContext,
   BaseCardEvent,
@@ -38,11 +38,27 @@ export const initialRepoCardContext = {
 export const lifecycles = ["loading", "blocked", "ready", "action", "complete", "error"] as const;
 export type Lifecycle = typeof lifecycles[number];
 
-export type State = BaseCardState<Lifecycle>;
+export type State = BaseCardState<Lifecycle> & {
+  baseCardContext: Omit<BaseCardContext<Lifecycle>, "lifecycle"> & {
+    unmetCardPrerequisites: AppContextCardId[];
+  };
+};
 
-export type Event = BaseCardEvent<Lifecycle>;
+export type Event =
+  | BaseCardEvent<Lifecycle>
+  | {
+    type: "sync";
+    lifecycle: Lifecycle;
+    unmetCardPrerequisites: AppContextCardId[];
+  };
 
-export const initialState: State = { lifecycle: "loading" };
+export const initialState: State = {
+  lifecycle: "loading",
+  baseCardContext: {
+    ...initialRepoCardContext,
+    unmetCardPrerequisites: [githubLoginCardId],
+  },
+};
 
 export const stateGraph: BaseCardStateGraph<Lifecycle> = {
   loading: { label: "Loading", baseCardLifecycle: "loading", transitions: ["blocked", "ready", "action", "complete", "error"] },
@@ -73,13 +89,32 @@ export function canTransition(currentState: State, nextState: Lifecycle): boolea
 }
 
 export function reducer(state: State, event: Event): State {
-  if (!canTransition(state, event.lifecycle)) {
-    throw new Error(`Cannot transition from ${state.lifecycle} to ${event.lifecycle}`);
+  const nextState = event.lifecycle;
+  if (!canTransition(state, nextState)) {
+    throw new Error(`Cannot transition from ${state.lifecycle} to ${nextState}`);
   }
-  return event.lifecycle === state.lifecycle ? state : { lifecycle: event.lifecycle };
+  const sameLifecycle = nextState === state.lifecycle;
+  if (event.type === "transition") return sameLifecycle ? state : { ...state, lifecycle: nextState };
+  const samePrerequisites = state.baseCardContext.unmetCardPrerequisites.length === event.unmetCardPrerequisites.length
+    && state.baseCardContext.unmetCardPrerequisites.every((id, index) => id === event.unmetCardPrerequisites[index]);
+  if (sameLifecycle && samePrerequisites) return state;
+  return {
+    ...state,
+    lifecycle: nextState,
+    baseCardContext: { ...state.baseCardContext, unmetCardPrerequisites: event.unmetCardPrerequisites },
+  };
 }
 
-export const stateMachine: BaseCardStateMachine<Lifecycle> = {
+export function getBaseCardContext(state: State, summary: string) {
+  return {
+    ...state.baseCardContext,
+    lifecycle: toBaseCardLifecycle(state.lifecycle),
+    stateMachine: { graph: stateGraph, currentState: state.lifecycle },
+    summary,
+  } as const;
+}
+
+export const stateMachine: BaseCardStateMachine<Lifecycle, State, Event> = {
   graph: stateGraph,
   initialState,
   canTransition,
