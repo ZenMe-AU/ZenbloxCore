@@ -13,21 +13,37 @@ This document describes the card architecture demonstrated by <CardName> and giv
 
 ## Ownership
 
-| Concern | Owner | Notes |
-| --- | --- | --- |
-| Card workflow lifecycle and transitions | Card state machine | Reducer validates card-specific events and transitions. |
-| Card ID, title, prerequisite IDs, unmet prerequisite IDs, summary, completion data | `baseCardContext` | This is the state consumed by BaseCard. Do not mirror these fields in `privateContext`. |
-| Card registry and inter-card shared data | AppContext | Each card publishes typed public data; other cards read the registry to discover prerequisites and inspect their published status/data. Keep private state and callbacks out of this channel. |
-| AppContext subscription and publishing | Card hook | Subscribe with `useSyncExternalStore`; publish this card's title and status after render. |
-| Card-local runtime model | `privateContext` | Keep dispatch, services, callbacks, and local UI/domain state here when they are not published to another card. This context is not itself the AppContext publication contract. |
-| Card ID, title, prerequisite IDs, unmet prerequisite IDs, summary, lifecycle, state machine, completion data | `baseCardContext` | This is the card's public state for the BaseCard contract. Do not mirror these fields in `privateContext`. Cross-card data must still be published through AppContext. |
-| Card registry and inter-card shared data | AppContext | Each card publishes typed public data; other cards read the registry to discover prerequisites and inspect their published status/data. Keep private state and callbacks out of this channel. |
-| AppContext subscription and publishing | Card hook | Subscribe with `useSyncExternalStore`; publish this card's title and status after render. |
-| Card-internal state, query projections, commands, and runtime services | `privateContext` | UI data such as loading/error flags, fetched collections, selections, callbacks, dispatch, and service snapshots stays private to the card. |
-| Prerequisite matching rule | `checkPrerequisites` in `components/useBaseCard.ts` | Call the shared function; do not reimplement matching in an individual card. |
-| Loading, blocked, force-unlocked presentation | BaseCard | Cards may provide intro/content overrides when the shared defaults do not fit. |
-| Force-unlock display override | BaseCard | This is local display state. It does not complete prerequisites or change the card's workflow state. |
-| Card-specific panels and operations | Card components | These receive the BaseCard contract plus the card's private context. |
+### AppContext
+
+- **Card registry and static card IDs:** `SharedCardDataById` is the source of truth for registered card IDs. Derive `AppContextCardId` from this registry; do not maintain a parallel ID union for new cards.
+- **Cross-card data:** Cards publish only the smallest typed projection another card needs. Prerequisite consumers read the registry's titles, lifecycle/status, and shared data.
+- **Private data:** Keep callbacks, dispatch, local workflow state, and card-only UI data out of AppContext.
+
+### Card state machine
+
+- **Workflow state:** Own card-specific events, transitions, and transition guards.
+- **Public BaseCard projection:** Keep card ID, title, prerequisite IDs, unmet prerequisite IDs, summary, lifecycle, state-machine snapshot, and completion data under `baseCardContext`. Do not mirror them in `privateContext`.
+
+### Card hook
+
+- **Runtime wiring:** Subscribe to AppContext with `useSyncExternalStore`, evaluate prerequisites with the shared `checkPrerequisites` helper, and dispatch reducer events.
+- **Publication:** Publish the card's title, lifecycle/status, and typed cross-card projection after render.
+- **Return contract:** Return exactly `{ baseCardContext, privateContext }`.
+
+### Card `privateContext`
+
+- **Card-local model:** Own fetched collections, selections, loading/error flags, query projections, commands, callbacks, dispatch, and the current AppContext snapshot.
+- **Publication boundary:** Private context is not shared automatically; only explicitly published AppContext data is available to other cards.
+
+### BaseCard
+
+- **Shared presentation:** Own expansion, status chrome, loading and blocked content, prerequisite links, the force-unlock display override, and the optional state diagram.
+- **Override behavior:** Cards may provide intro or content slots. Force unlocking changes only BaseCard display state; it never completes prerequisites or the workflow.
+- **Shared rule:** Prerequisite matching is implemented once in `checkPrerequisites`; cards do not reimplement it.
+
+### Card components
+
+- **Card-specific UI:** Own panels, forms, actions, and domain presentation using `baseCardContext` plus any required `privateContext`.
 
 ## Context and State
 
