@@ -8,8 +8,6 @@ import { checkPrerequisites } from "../../components/useBaseCard";
 import type {
   Lifecycle as BaseCardLifecycle,
   BaseCardContext,
-  BaseCardEvent,
-  BaseCardState,
   BaseCardStateGraph,
   BaseCardStateMachine,
 } from "../../components/basecardlifecycle";
@@ -51,32 +49,45 @@ export const stateGraph = {
   selecting: {
     label: "Select a subscription",
     baseCardLifecycle: "ready",
-    transitions: ["blocked", "loading", "unsaved", "saved"],
+    transitions: ["blocked", "loading", "unsaved", "saved", "error"],
   },
   // Picked, but GitHub holds a different tenant or subscription (or none) until it is saved.
   unsaved: {
     label: "Unsaved change",
     baseCardLifecycle: "commit",
-    transitions: ["blocked", "loading", "selecting", "saved"],
+    transitions: ["blocked", "loading", "selecting", "saved", "error"],
   },
   saved: {
     label: "Saved to GitHub",
     baseCardLifecycle: "complete",
-    transitions: ["blocked", "loading", "selecting", "unsaved"],
+    transitions: ["blocked", "loading", "selecting", "unsaved", "error"],
   },
   // No subscriptions, or the list could not load; a new tenant or sign-in loads it again.
   error: {
     label: "No subscriptions",
     baseCardLifecycle: "error",
-    transitions: ["blocked", "loading"],
+    transitions: ["blocked", "loading", "selecting", "unsaved", "saved"],
   },
 } as const satisfies BaseCardStateGraph<Lifecycle>;
 
-export type State = BaseCardState<Lifecycle>;
+export type State = {
+  lifecycle: Lifecycle;
+  scopeKey: string | null;
+  selectedSubscriptionId: string;
+  populateCount: number;
+};
 
-export type Event = BaseCardEvent<Lifecycle>;
+export type Event =
+  | { type: "scope-synced"; scopeKey: string | null; selectedSubscriptionId: string }
+  | { type: "subscription-selected"; subscriptionId: string }
+  | { type: "transition"; lifecycle: Lifecycle };
 
-export const initialState: State = { lifecycle: "blocked" };
+export const initialState: State = {
+  lifecycle: "blocked",
+  scopeKey: null,
+  selectedSubscriptionId: "",
+  populateCount: 0,
+};
 
 export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
   return stateGraph[state].baseCardLifecycle;
@@ -128,11 +139,22 @@ export function canTransition(currentState: State, nextState: Lifecycle): boolea
 }
 
 export function reducer(state: State, event: Event): State {
+  if (event.type === "scope-synced") {
+    if (state.scopeKey === event.scopeKey && state.selectedSubscriptionId === event.selectedSubscriptionId) return state;
+    return { ...state, scopeKey: event.scopeKey, selectedSubscriptionId: event.selectedSubscriptionId };
+  }
+  if (event.type === "subscription-selected") {
+    return {
+      ...state,
+      selectedSubscriptionId: event.subscriptionId,
+      populateCount: state.populateCount + 1,
+    };
+  }
   if (!canTransition(state, event.lifecycle)) {
     throw new Error(`Cannot transition from ${state.lifecycle} to ${event.lifecycle}`);
   }
   if (event.lifecycle === state.lifecycle) return state;
-  return { lifecycle: event.lifecycle };
+  return { ...state, lifecycle: event.lifecycle };
 }
 
 export const stateMachine: BaseCardStateMachine<Lifecycle> = {

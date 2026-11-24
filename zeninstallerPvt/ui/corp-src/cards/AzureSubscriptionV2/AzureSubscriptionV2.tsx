@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Box, Link, MenuItem, Select, Typography } from "@mui/material";
+import { Box, Button, Link, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { AppContext } from "../../appContext";
 import { warningMessageIconSx } from "../../config/styles";
@@ -61,11 +61,28 @@ function TenantSection({ tenantId }: Pick<UseAzureSubscriptionV2["privateContext
 }
 
 function SubscriptionSection({ baseCardContext, privateContext }: UseAzureSubscriptionV2) {
-  const { subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError } = privateContext;
+  const {
+    subscriptions,
+    subscriptionsRefreshing,
+    subscriptionsRefreshError,
+    refreshSubscriptions,
+    selectedSubscriptionId,
+    setSelectedSubscriptionId,
+    subsError,
+  } = privateContext;
   const currentState = baseCardContext.stateMachine?.currentState;
   return (
     <Box>
-      <FieldLabel id="azure-subscription-v2-label" htmlFor="azure-subscription-v2-select">Subscription</FieldLabel>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+        <FieldLabel id="azure-subscription-v2-label" htmlFor="azure-subscription-v2-select">Subscription</FieldLabel>
+        <Button
+          size="small"
+          disabled={subscriptionsRefreshing}
+          onClick={() => void refreshSubscriptions()}
+        >
+          {subscriptionsRefreshing ? "Refreshing..." : "Refresh subscriptions"}
+        </Button>
+      </Box>
       {currentState === "error" ? (
         <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
           <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
@@ -95,6 +112,11 @@ function SubscriptionSection({ baseCardContext, privateContext }: UseAzureSubscr
             </MenuItem>
           ))}
         </Select>
+      )}
+      {subscriptionsRefreshError && (
+        <Typography role="status" color="warning.main" sx={{ mt: 0.75 }}>
+          {subscriptionsRefreshError} The existing list is still available.
+        </Typography>
       )}
     </Box>
   );
