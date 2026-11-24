@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppContext, type AppContext } from "../appContext";
@@ -108,6 +108,7 @@ describe("useAzureLoginV2", () => {
     root = card.root;
 
     expect(Object.keys(card.latest)).toEqual(["baseCardContext", "privateContext"]);
+    expect(Object.keys(card.latest.privateContext)).toEqual(["appContext", "login", "logout", "refresh", "setManualTenantId", "selectTenant"]);
     expect(card.latest.privateContext.appContext.cards.azure_login_v2).toMatchObject({ initialised: true });
     expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("selecting-tenant");
     expect(card.latest.baseCardContext).toMatchObject({ cardId: "azure_login_v2", lifecycle: "action", summary: "Select a tenant" });
@@ -152,7 +153,7 @@ describe("useAzureLoginV2", () => {
     let login: Promise<void> | undefined;
     await act(async () => { login = card.latest.privateContext.login(); });
     expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("signing-in");
-    expect(card.latest.privateContext.redirecting).toBe(true);
+    expect(card.latest.baseCardContext.lifecycle).toBe("action");
     expect(msal.loginRedirect).toHaveBeenCalledWith({ scopes: ["login.scope"], authority: "https://login.microsoftonline.com/common", prompt: "select_account" });
 
     vi.spyOn(console, "error").mockImplementation(() => { });
@@ -165,7 +166,7 @@ describe("useAzureLoginV2", () => {
 
     await act(async () => card.latest.privateContext.login());
     expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("signing-in");
-    expect(card.latest.privateContext.loginError).toBeNull();
+    expect(card.latest.baseCardContext.loginError).toBeNull();
   });
 
   it("shows a tenant failure, then keeps its consent redirect apart from the original card", async () => {
@@ -177,7 +178,7 @@ describe("useAzureLoginV2", () => {
     msal.acquireTokenSilent.mockRejectedValueOnce(new Error("AADSTS90072: not a member"));
     await act(async () => card.latest.privateContext.selectTenant("tenant-2"));
     expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("error");
-    expect(card.latest.privateContext.tenantIdError).toMatch(/isn't a member of that tenant/);
+    expect(card.latest.baseCardContext.tenantIdError).toMatch(/isn't a member of that tenant/);
 
     msal.acquireTokenSilent.mockRejectedValueOnce(new Error("interaction_required"));
     await act(async () => card.latest.privateContext.selectTenant("tenant-2"));
@@ -193,9 +194,9 @@ describe("useAzureLoginV2", () => {
     msalMocks.getMsal.mockResolvedValue(createMsal([msaAccount]));
     const card = await renderCard(createAppContext());
     root = card.root;
-    expect(card.latest.privateContext.manualTenantId).toBe("tenant-9");
+    expect(card.latest.baseCardContext.manualTenantId).toBe("tenant-9");
     expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("selecting-tenant");
-    expect(card.latest.privateContext.tenantsLoaded).toBe(true);
+    expect(card.latest.baseCardContext.tenantsLoaded).toBe(true);
   });
 
   it("confirms the tenant it redirected for when the page comes back", async () => {
@@ -212,6 +213,23 @@ describe("useAzureLoginV2", () => {
     expect(store.getSnapshot().cards.azure_login_v2).toMatchObject({
       currentBaseCardStatus: "complete", currentStatus: "tenant-confirmed", azureTenantId: "tenant-2", azureAccount: { tenantId: "tenant-2", localAccountId: "local-2" },
     });
+  });
+
+  it("hydrates one redirect result when StrictMode replays the mount effect", async () => {
+    const msal = createMsal([]);
+    msal.handleRedirectPromise.mockResolvedValue({ account: homeAccount } as never);
+    msalMocks.getMsal.mockResolvedValue(msal);
+    const store = createAppContext();
+    let latest: UseAzureLoginV2 | undefined;
+    function Harness() { latest = useAzureLoginV2(store); return null; }
+    root = createRoot(document.createElement("div"));
+
+    await act(async () => root!.render(<StrictMode><Harness /></StrictMode>));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+
+    expect(latest?.baseCardContext.signedInUsername).toBe(homeAccount.username);
+    expect(latest?.baseCardContext.stateMachine?.currentState).toBe("selecting-tenant");
+    expect(msal.handleRedirectPromise).toHaveBeenCalledTimes(1);
   });
 });
 

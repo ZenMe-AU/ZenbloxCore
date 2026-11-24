@@ -5,12 +5,12 @@
 
 import type {
   Lifecycle as BaseCardLifecycle,
-  BaseCardEvent,
-  BaseCardState,
+  BaseCardContext,
   BaseCardStateGraph,
   BaseCardStateMachine,
 } from "../../components/basecardlifecycle";
-import type { AzureAccount } from "../../types";
+import { tenantDisplayName } from "../../logic/tenant";
+import type { AzureAccount, AzureTenant } from "../../types";
 
 type AzureLoginIdentity = Pick<AzureAccount, "homeAccountId" | "environment" | "tenantId" | "localAccountId" | "username">;
 
@@ -33,15 +33,12 @@ export type Lifecycle =
   | "tenant-confirmed"
   | "error";
 
-// The lifecycle is derived after React batches updates, so a fast reply can skip signing-in or
-// confirming-tenant; the edges that skip them are listed too, or the reducer would throw mid-render.
 export const stateGraph = {
   loading: {
     label: "Checking session",
     baseCardLifecycle: "loading",
     transitions: ["unconfigured", "signed-out", "selecting-tenant", "tenant-confirmed"],
   },
-  // No VITE_AZURE_CLIENT_ID: fixed at build time, so nothing leaves this state.
   unconfigured: {
     label: "Not configured",
     baseCardLifecycle: "blocked",
@@ -79,44 +76,46 @@ export const stateGraph = {
   },
 } as const satisfies BaseCardStateGraph<Lifecycle>;
 
-export type State = BaseCardState<Lifecycle>;
+export type State = {
+  lifecycle: Lifecycle;
+  baseCardContext: Omit<BaseCardContext<Lifecycle>, "lifecycle" | "summary" | "stateMachine">;
+  account: AzureAccount | null;
+  tenants: AzureTenant[];
+  tenantsLoaded: boolean;
+  manualTenantId: string;
+  confirmedTenantId: string | null;
+  loginError: string | null;
+  tenantIdError: string | null;
+};
 
-export type Event = BaseCardEvent<Lifecycle>;
+export type Event =
+  | { type: "unconfigured" }
+  | { type: "session-empty" }
+  | { type: "session-restored"; account: AzureAccount; prefilledTenantId: string; confirmedTenantId: string | null }
+  | { type: "login-requested" }
+  | { type: "login-failed"; error: string }
+  | { type: "tenants-loaded"; accountId: string; tenants: AzureTenant[] }
+  | { type: "manual-tenant-changed"; tenantId: string }
+  | { type: "tenant-confirmation-started"; tenantId: string }
+  | { type: "tenant-confirmed"; tenantId: string; account: AzureAccount }
+  | { type: "tenant-confirmation-failed"; error: string }
+  | { type: "tenant-consent-redirected" }
+  | { type: "logout-completed" };
 
-export const initialState: State = { lifecycle: "loading" };
+export const initialState: State = {
+  lifecycle: "loading",
+  baseCardContext: { cardId: "azure_login_v2", title: "Azure login 2", prerequisiteIds: [] },
+  account: null,
+  tenants: [],
+  tenantsLoaded: false,
+  manualTenantId: "",
+  confirmedTenantId: null,
+  loginError: null,
+  tenantIdError: null,
+};
 
 export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
   return stateGraph[state].baseCardLifecycle;
-}
-
-// Read from the facts every render; the reducer then checks the step against the graph.
-export function deriveLifecycle({
-  configured,
-  loggingIn,
-  redirecting,
-  account,
-  confirming,
-  loginError,
-  tenantIdError,
-  tenantId,
-}: {
-  configured: boolean;
-  loggingIn: boolean;
-  redirecting: boolean;
-  account: unknown;
-  confirming: boolean;
-  loginError: string | null;
-  tenantIdError: string | null;
-  tenantId: string | null;
-}): Lifecycle {
-  if (!configured) return "unconfigured";
-  if (loggingIn) return "loading";
-  if (redirecting) return "signing-in";
-  if (!account) return loginError ? "error" : "signed-out";
-  if (confirming) return "confirming-tenant";
-  // A failed pick wins over an earlier confirmed tenant: the tenant on screen is the one that failed.
-  if (tenantIdError) return "error";
-  return tenantId ? "tenant-confirmed" : "selecting-tenant";
 }
 
 export function canTransition(currentState: State, nextState: Lifecycle): boolean {
@@ -124,15 +123,93 @@ export function canTransition(currentState: State, nextState: Lifecycle): boolea
     || stateGraph[currentState.lifecycle].transitions.some((lifecycle) => lifecycle === nextState);
 }
 
-export function reducer(state: State, event: Event): State {
-  if (!canTransition(state, event.lifecycle)) {
-    throw new Error(`Cannot transition from ${state.lifecycle} to ${event.lifecycle}`);
-  }
-  if (event.lifecycle === state.lifecycle) return state;
-  return { lifecycle: event.lifecycle };
+function transition(state: State, lifecycle: Lifecycle, changes: Partial<State> = {}): State {
+  if (!canTransition(state, lifecycle)) throw new Error(`Cannot transition from ${state.lifecycle} to ${lifecycle}`);
+  return { ...state, ...changes, lifecycle };
 }
 
-export const stateMachine: BaseCardStateMachine<Lifecycle> = {
+export function reducer(state: State, event: Event): State {
+  switch (event.type) {
+    case "unconfigured":
+      return transition(state, "unconfigured");
+    case "session-empty":
+      return transition(state, "signed-out", { account: null, loginError: null });
+    case "session-restored":
+      return transition(state, event.confirmedTenantId ? "tenant-confirmed" : "selecting-tenant", {
+        account: event.account,
+        manualTenantId: event.prefilledTenantId,
+        confirmedTenantId: event.confirmedTenantId,
+        loginError: null,
+        tenantIdError: null,
+      });
+    case "login-requested":
+      return transition(state, "signing-in", { loginError: null });
+    case "login-failed":
+      return transition(state, "error", { loginError: event.error });
+    case "tenants-loaded": {
+      if (event.accountId !== state.account?.homeAccountId) return state;
+      const match = event.tenants.find((tenant) => tenant.tenantId.toLowerCase() === state.manualTenantId.toLowerCase())
+        ?? event.tenants.find((tenant) => tenant.displayName.toLowerCase() === state.manualTenantId.toLowerCase());
+      return { ...state, tenants: event.tenants, tenantsLoaded: true, manualTenantId: match?.tenantId ?? state.manualTenantId };
+    }
+    case "manual-tenant-changed":
+      return { ...state, manualTenantId: event.tenantId, tenantIdError: null };
+    case "tenant-confirmation-started":
+      return transition(state, "confirming-tenant", { manualTenantId: event.tenantId, tenantIdError: null });
+    case "tenant-confirmed":
+      return transition(state, "tenant-confirmed", {
+        account: event.account,
+        tenantsLoaded: event.account === state.account ? state.tenantsLoaded : false,
+        manualTenantId: event.tenantId,
+        confirmedTenantId: event.tenantId,
+        tenantIdError: null,
+      });
+    case "tenant-confirmation-failed":
+      return transition(state, "error", { tenantIdError: event.error });
+    case "tenant-consent-redirected":
+      return transition(state, "selecting-tenant");
+    case "logout-completed":
+      return transition(state, "signed-out", {
+        account: null,
+        tenants: [],
+        tenantsLoaded: false,
+        manualTenantId: "",
+        confirmedTenantId: null,
+        loginError: null,
+        tenantIdError: null,
+      });
+  }
+}
+
+export function getBaseCardContext(state: State, pinnedTenantId?: string) {
+  const done = state.lifecycle === "tenant-confirmed";
+  const summary = ({
+    loading: "Checking session...",
+    unconfigured: "Unavailable",
+    "signed-out": "Sign in to Azure",
+    "signing-in": "Connecting...",
+    "selecting-tenant": "Select a tenant",
+    "confirming-tenant": "Confirming tenant...",
+    "tenant-confirmed": [state.account?.username, tenantDisplayName(state.tenants, state.confirmedTenantId)].filter(Boolean).join(" · ") || "Signed in",
+    error: state.loginError ?? state.tenantIdError ?? "Error",
+  } satisfies Record<Lifecycle, string>)[state.lifecycle];
+  return {
+    ...state.baseCardContext,
+    summary,
+    lifecycle: toBaseCardLifecycle(state.lifecycle),
+    stateMachine: { graph: stateGraph, currentState: state.lifecycle },
+    done,
+    signedInUsername: state.account?.username ?? null,
+    tenants: state.tenants,
+    tenantsLoaded: state.tenantsLoaded,
+    tenantPinned: !!pinnedTenantId,
+    manualTenantId: pinnedTenantId ?? state.manualTenantId,
+    loginError: state.loginError,
+    tenantIdError: state.tenantIdError,
+  } as const;
+}
+
+export const stateMachine: BaseCardStateMachine<Lifecycle, State, Event> = {
   graph: stateGraph,
   initialState,
   canTransition,

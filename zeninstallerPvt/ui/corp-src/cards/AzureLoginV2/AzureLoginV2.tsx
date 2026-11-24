@@ -40,57 +40,45 @@ function Action() {
   return <ViewLink href={getEntraOverviewUrl()} label="Open Entra tenant overview" />;
 }
 
-export function CardContentMain({ privateContext }: UseAzureLoginV2) {
+export function CardContentMain({ baseCardContext, privateContext }: UseAzureLoginV2) {
   const {
-    account: azureAccount,
-    loggingIn,
+    signedInUsername,
     loginError,
-    login,
-    logout,
-    redirecting,
     tenants,
     manualTenantId,
-    setManualTenantId,
-    selectTenant,
-    confirming,
     tenantIdError,
     tenantsLoaded,
     tenantPinned,
-  } = privateContext;
+  } = baseCardContext;
+  const { login, logout, setManualTenantId, selectTenant } = privateContext;
+  const currentState = baseCardContext.stateMachine?.currentState;
+  const redirecting = currentState === "signing-in";
+  const confirming = currentState === "confirming-tenant";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Intro />
 
-      {!azureAccount ? (
+      {!signedInUsername ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
-          {loggingIn ? (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <CircularProgress size={14} color="primary" aria-hidden="true" />
-              <StatusText>Checking session...</StatusText>
-            </Box>
-          ) : (
-            <>
-              <Button
-                variant="contained"
-                onClick={login}
-                disabled={redirecting}
-                startIcon={redirecting ? <CircularProgress size={14} sx={{ color: "text.disabled" }} /> : undefined}
-                sx={{ alignSelf: "flex-start" }}
-              >
-                {redirecting ? "Connecting..." : "Sign in with Azure"}
-              </Button>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap" }}>
-                <Typography variant="body1" color="text.muted">To create a new Azure account, follow this guide:</Typography>
-                <ExternalLink href={CREATE_ACCOUNT_URL} label="How to create a free Azure account">
-                  <>
-                    How to create a free Azure account <OpenInNewIcon fontSize="inherit" />
-                  </>
-                </ExternalLink>
-                <Typography variant="body1" color="text.muted">A payment method is required for verification; you are not charged unless you upgrade to Pay As You Go.</Typography>
-              </Box>
-            </>
-          )}
+          <Button
+            variant="contained"
+            onClick={login}
+            disabled={redirecting}
+            startIcon={redirecting ? <CircularProgress size={14} sx={{ color: "text.disabled" }} /> : undefined}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            {redirecting ? "Connecting..." : "Sign in with Azure"}
+          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap" }}>
+            <Typography variant="body1" color="text.muted">To create a new Azure account, follow this guide:</Typography>
+            <ExternalLink href={CREATE_ACCOUNT_URL} label="How to create a free Azure account">
+              <>
+                How to create a free Azure account <OpenInNewIcon fontSize="inherit" />
+              </>
+            </ExternalLink>
+            <Typography variant="body1" color="text.muted">A payment method is required for verification; you are not charged unless you upgrade to Pay As You Go.</Typography>
+          </Box>
           {loginError && <ErrorText>{loginError}</ErrorText>}
         </Box>
       ) : (
@@ -99,7 +87,7 @@ export function CardContentMain({ privateContext }: UseAzureLoginV2) {
             <Typography variant="body2" color="text.secondary">
               Signed in as{" "}
               <Box component="span" data-sensitive="true" sx={{ color: "success.main", fontWeight: 600 }}>
-                {azureAccount.username}
+                {signedInUsername}
               </Box>
             </Typography>
             {/* A confirmation still in flight would put the account back after signing out. */}

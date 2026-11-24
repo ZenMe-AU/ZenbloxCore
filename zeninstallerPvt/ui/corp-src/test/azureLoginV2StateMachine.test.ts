@@ -4,46 +4,58 @@
  */
 
 import { expect, it } from "vitest";
-import {
-  canTransition,
-  deriveLifecycle,
-  initialState,
-  reducer,
-  stateGraph,
-  stateMachine,
-  toBaseCardLifecycle,
-  type Lifecycle,
-  type State,
-} from "../cards/AzureLoginV2/stateMachine";
+import { canTransition, getBaseCardContext, initialState, reducer, stateGraph, stateMachine, toBaseCardLifecycle } from "../cards/AzureLoginV2/stateMachine";
+import type { AzureAccount } from "../types";
 
-const signedOut = {
-  configured: true, loggingIn: false, redirecting: false, account: null, confirming: false,
-  loginError: null, tenantIdError: null, tenantId: null,
-};
-const signedIn = { ...signedOut, account: { username: "org@example.com" } };
+const account = {
+  username: "org@example.com",
+  homeAccountId: "home",
+  environment: "login.microsoftonline.com",
+  tenantId: "tenant-home",
+  localAccountId: "local",
+} as AzureAccount;
 
-function walk(path: Lifecycle[]): State {
-  return path.reduce((state, lifecycle) => reducer(state, { type: "transition", lifecycle }), initialState);
-}
+it("owns the session and login workflow facts", () => {
+  const signedOut = reducer(initialState, { type: "session-empty" });
+  expect(getBaseCardContext(signedOut)).toMatchObject({ lifecycle: "ready", summary: "Sign in to Azure", done: false });
 
-it("derives every lifecycle from the sign-in facts", () => {
-  expect(deriveLifecycle({ ...signedOut, configured: false, loggingIn: true })).toBe("unconfigured");
-  expect(deriveLifecycle({ ...signedOut, loggingIn: true })).toBe("loading");
-  expect(deriveLifecycle(signedOut)).toBe("signed-out");
-  expect(deriveLifecycle({ ...signedOut, redirecting: true })).toBe("signing-in");
-  expect(deriveLifecycle({ ...signedOut, loginError: "Login failed" })).toBe("error");
-  expect(deriveLifecycle(signedIn)).toBe("selecting-tenant");
-  expect(deriveLifecycle({ ...signedIn, confirming: true, tenantId: "tenant-1" })).toBe("confirming-tenant");
-  expect(deriveLifecycle({ ...signedIn, tenantId: "tenant-1" })).toBe("tenant-confirmed");
-  // A failed later pick outranks the tenant confirmed before it.
-  expect(deriveLifecycle({ ...signedIn, tenantId: "tenant-1", tenantIdError: "Couldn't reach that tenant" })).toBe("error");
-  // The home tenant is confirmed as "" on startup, which is not a tenant choice yet.
-  expect(deriveLifecycle({ ...signedIn, tenantId: "" })).toBe("selecting-tenant");
+  const signingIn = reducer(signedOut, { type: "login-requested" });
+  expect(signingIn.lifecycle).toBe("signing-in");
+  const failed = reducer(signingIn, { type: "login-failed", error: "Login failed" });
+  expect(getBaseCardContext(failed)).toMatchObject({ lifecycle: "error", summary: "Login failed" });
+  expect(reducer(failed, { type: "login-requested" }).loginError).toBeNull();
 });
 
-it("maps each state to its BaseCard lifecycle and keeps transitions inside the graph", () => {
+it("owns tenant selection, confirmation, errors and logout", () => {
+  const restored = reducer(initialState, { type: "session-restored", account, prefilledTenantId: "Tenant One", confirmedTenantId: null });
+  expect(reducer(restored, { type: "tenants-loaded", accountId: "old-account", tenants: [] })).toBe(restored);
+  const loaded = reducer(restored, { type: "tenants-loaded", accountId: "home", tenants: [{ tenantId: "tenant-1", displayName: "Tenant One" }] });
+  expect(loaded).toMatchObject({ lifecycle: "selecting-tenant", manualTenantId: "tenant-1", tenantsLoaded: true });
+  expect(getBaseCardContext(loaded)).toMatchObject({
+    signedInUsername: "org@example.com",
+    tenants: [{ tenantId: "tenant-1", displayName: "Tenant One" }],
+    tenantsLoaded: true,
+    tenantPinned: false,
+    manualTenantId: "tenant-1",
+    loginError: null,
+    tenantIdError: null,
+  });
+  expect(getBaseCardContext(loaded, "pinned-tenant")).toMatchObject({ tenantPinned: true, manualTenantId: "pinned-tenant" });
+
+  const confirming = reducer(loaded, { type: "tenant-confirmation-started", tenantId: "tenant-1" });
+  expect(getBaseCardContext(confirming).lifecycle).toBe("commit");
+  const confirmed = reducer(confirming, { type: "tenant-confirmed", tenantId: "tenant-1", account });
+  expect(getBaseCardContext(confirmed)).toMatchObject({ lifecycle: "complete", summary: "org@example.com · Tenant One", done: true });
+
+  const retrying = reducer(confirmed, { type: "tenant-confirmation-started", tenantId: "tenant-2" });
+  const failed = reducer(retrying, { type: "tenant-confirmation-failed", error: "No access" });
+  expect(getBaseCardContext(failed)).toMatchObject({ lifecycle: "error", summary: "No access", done: false });
+  expect(reducer(failed, { type: "logout-completed" })).toMatchObject({ lifecycle: "signed-out", account: null, confirmedTenantId: null, tenants: [] });
+});
+
+it("maps every workflow state to BaseCard and rejects invalid events", () => {
   expect(stateMachine.graph).toBe(stateGraph);
-  expect(Object.fromEntries(Object.keys(stateGraph).map((state) => [state, toBaseCardLifecycle(state as Lifecycle)]))).toEqual({
+  expect(Object.fromEntries(Object.keys(stateGraph).map((state) => [state, toBaseCardLifecycle(state as keyof typeof stateGraph)]))).toEqual({
     loading: "loading",
     unconfigured: "blocked",
     "signed-out": "ready",
@@ -53,23 +65,9 @@ it("maps each state to its BaseCard lifecycle and keeps transitions inside the g
     "tenant-confirmed": "complete",
     error: "error",
   });
-  for (const node of Object.values(stateGraph)) {
-    for (const target of node.transitions) expect(stateGraph).toHaveProperty([target]);
-  }
-});
-
-it("walks the sign-in and tenant paths and rejects steps the graph does not allow", () => {
-  expect(walk(["signed-out", "signing-in", "error", "signing-in"]).lifecycle).toBe("signing-in");
-  const confirmed = walk(["selecting-tenant", "confirming-tenant", "tenant-confirmed"]);
-  expect(toBaseCardLifecycle(confirmed.lifecycle)).toBe("complete");
-  expect(walk(["tenant-confirmed", "confirming-tenant", "error", "confirming-tenant", "selecting-tenant", "signed-out"]).lifecycle)
-    .toBe("signed-out");
-  expect(reducer(confirmed, { type: "transition", lifecycle: "tenant-confirmed" })).toBe(confirmed);
-
-  // A fast silent token can land in the same render batch as the pick, skipping confirming-tenant.
-  expect(canTransition(walk(["selecting-tenant"]), "tenant-confirmed")).toBe(true);
-  expect(canTransition(walk(["signed-out"]), "tenant-confirmed")).toBe(false);
-  expect(() => walk(["signed-out", "tenant-confirmed"])).toThrow("Cannot transition from signed-out to tenant-confirmed");
-  expect(() => walk(["unconfigured", "loading"])).toThrow();
-  expect(() => walk(["signed-out", "signing-in", "signed-out"])).toThrow();
+  expect(canTransition(reducer(initialState, { type: "session-empty" }), "tenant-confirmed")).toBe(false);
+  expect(() => reducer(reducer(initialState, { type: "session-empty" }), {
+    type: "tenant-confirmed", tenantId: "tenant-1", account,
+  })).toThrow("Cannot transition from signed-out to tenant-confirmed");
+  expect(reducer(initialState, { type: "unconfigured" }).lifecycle).toBe("unconfigured");
 });
