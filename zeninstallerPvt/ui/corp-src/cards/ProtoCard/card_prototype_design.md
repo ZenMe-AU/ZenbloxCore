@@ -7,8 +7,9 @@ This document describes the card architecture demonstrated by <CardName> and giv
 - Each card owns its workflow state machine and domain behavior.
 - BaseCard owns shared card presentation: expansion, status chrome, loading and blocked content, force-unlock display, and the optional state diagram.
 - AppContext owns the card registry and the typed shared data cards publish for other cards to consume, including titles and lifecycle/status needed for prerequisite discovery and checks.
-- `baseCardContext` is the public, serializable card state consumed by BaseCard and other cards.
-- `privateContext` carries runtime-only dependencies such as dispatch and the current AppContext snapshot.
+- `baseCardContext` contains only the standard BaseCard contract used to render and coordinate the card shell.
+- `privateContext` contains card-internal data, query projections, commands, and runtime dependencies.
+- AppContext is the only cross-card contract. A card explicitly publishes the smallest typed projection that another card needs.
 - Shared rules, especially prerequisite evaluation, have one implementation.
 
 ## Ownership
@@ -16,18 +17,18 @@ This document describes the card architecture demonstrated by <CardName> and giv
 | Concern | Owner | Notes |
 | --- | --- | --- |
 | Card workflow lifecycle and transitions | Card state machine | Reducer validates card-specific events and transitions. |
-| Card ID, title, prerequisite IDs, unmet prerequisite IDs, summary, completion data | `baseCardContext` | This is the card's public state. Do not mirror these fields in `privateContext`. |
+| Card ID, title, prerequisite IDs, unmet prerequisite IDs, summary, lifecycle, state machine, completion data | `baseCardContext` | This is the card's public state for the BaseCard contract. Do not mirror these fields in `privateContext`. Cross-card data must still be published through AppContext. |
 | Card registry and inter-card shared data | AppContext | Each card publishes typed public data; other cards read the registry to discover prerequisites and inspect their published status/data. Keep private state and callbacks out of this channel. |
 | AppContext subscription and publishing | Card hook | Subscribe with `useSyncExternalStore`; publish this card's title and status after render. |
-| Dispatch and runtime services | `privateContext` | Keep callbacks, dispatch, and service snapshots out of serialized base-card data. |
+| Card-internal state, query projections, commands, and runtime services | `privateContext` | UI data such as loading/error flags, fetched collections, selections, callbacks, dispatch, and service snapshots stays private to the card. |
 | Prerequisite matching rule | `checkPrerequisites` in `components/useBaseCard.ts` | Call the shared function; do not reimplement matching in an individual card. |
 | Loading, blocked, force-unlocked presentation | BaseCard | Cards may provide intro/content overrides when the shared defaults do not fit. |
 | Force-unlock display override | BaseCard | This is local display state. It does not complete prerequisites or change the card's workflow state. |
-| Card-specific panels and operations | Card components | These receive the public context plus required runtime dependencies. |
+| Card-specific panels and operations | Card components | These receive the BaseCard contract plus the card's private context. |
 
 ## Context and State
 
-A card state machine typically keeps its workflow lifecycle at the top level and its public card data under `baseCardContext`:
+A card state machine typically keeps its workflow lifecycle at the top level and the standard BaseCard fields under `baseCardContext`:
 
 ```ts
 export type State = BaseCardState<Lifecycle> & {
@@ -40,13 +41,15 @@ export type State = BaseCardState<Lifecycle> & {
 
 The `lifecycle` omission is intentional: the reducer stores the workflow lifecycle once, then `getBaseCardContext` projects it into the public context. Prerequisite IDs remain the shared `BaseCardContext` field; do not omit and redeclare them with a card-specific copy.
 
-`privateContext` should contain only runtime dependencies. <CardName> currently uses an empty reducer-owned private context; its hook adds `appContext` and `dispatch` for component use. Do not put serializable card state in that runtime channel.
+`privateContext` is private by visibility, not by serialization. It may contain serializable card-internal UI/query data as well as callbacks and runtime services. Other cards must never depend on it. When another card needs a value, publish an intentional, typed projection through AppContext instead of moving that value into `baseCardContext`.
+
+TanStack Query owns server-state caching, deduplication, cancellation, and refresh status. The hook projects the query result needed by its own UI into `privateContext`; it publishes only stable cross-card output to AppContext after the card's workflow confirms that output.
 
 The shared `Lifecycle` union includes `forceUnlocked`. A card's graph should cover the states required by its workflow and any BaseCard display-state behavior it chooses to demonstrate. <CardName> includes `blocked -> forceUnlocked -> blocked` so its state diagram can describe the override. BaseCard owns the actual force-unlock UI state; it does not dispatch a force-unlock event into <CardName>'s reducer.
 
 ## BaseCard Contract
 
-A migrated card entrypoint should pass the public context and runtime AppContext snapshot to BaseCard, then render the card's normal content as children:
+A migrated card entrypoint should pass the standard BaseCard context and runtime AppContext snapshot to BaseCard, then render the card's normal content as children:
 
 ```tsx
 return (
@@ -76,11 +79,12 @@ Pass the AppContext snapshot when BaseCard needs registered card titles for prer
 Define the card's state, events, initial state, graph, transition guard, and reducer in `stateMachine.ts`.
 
 - Keep events focused on card-owned workflow and data changes.
-- Store prerequisite IDs and unmet IDs in `baseCardContext`.
+- Store standard prerequisite IDs and unmet IDs in `baseCardContext`.
 - Make prerequisite edits return a new `baseCardContext` object and a new `prerequisiteIds` array.
 - Use `canTransition` both in UI controls and in the reducer so disabled controls are not the only guard.
 - Treat BaseCard's force-unlock display as separate from whether prerequisites are met; do not set `done` or publish `complete` because the user force-unlocked the card.
-- Derive summary and completion fields from the reducer state in `getBaseCardContext` rather than maintaining duplicate values.
+- Derive BaseCard summary and completion fields from the reducer/query state in `getBaseCardContext` rather than maintaining duplicate values.
+- Keep domain records, query loading/error state, form inputs, and card commands out of `baseCardContext`.
 
 <CardName>'s core events illustrate the pattern:
 
@@ -97,7 +101,7 @@ The card hook connects the pure state machine to React and AppContext:
 2. Initialize the reducer with the card's initial state.
 3. Call the shared `checkPrerequisites(appContext, baseCardContext)` and dispatch a sync event only when its result changes.
 4. If the workflow is loading, schedule the card's prerequisite-check event in an effect and cancel the timer on dependency changes or unmount.
-5. Publish the card's title and workflow status to AppContext in an effect.
+5. Publish the card's title, workflow status, and only the typed domain output required by other cards to AppContext in an effect.
 6. Return `{ baseCardContext, privateContext }` to the entrypoint.
 
 Do not put the shared prerequisite matching algorithm in BaseCard's render path. Hooks and state-machine helpers need the result before rendering in order to gate operations and lifecycle transitions. BaseCard consumes that result to present blocked UI.
@@ -125,8 +129,8 @@ Use `.tsx` for the hook file only if it contains JSX; otherwise use `.ts`. For e
   6. A default export of `CardEntrypoint`.
 - `PrerequisitesPanel` and `ResultsPanel` are optional. If implemented, both use the same destructured `UseCard` prop shape; neither creates another context contract or accepts pieces of the context as separate props.
 - Keep `CardEntrypoint` small: call the card hook, render BaseCard, and pass normal content as children. Do not put reducer logic or whole panel implementations in the entrypoint.
-- Pass `baseCardContext` to panels that display or mutate public card data.
-- Pass `privateContext` only to components that need dispatch or runtime services.
+- Pass `baseCardContext` to panels that need the standard BaseCard lifecycle or metadata.
+- Pass `privateContext` to card components that need internal query/UI state, commands, dispatch, or runtime services.
 - Keep card-specific UI in small components such as prerequisite panels, results, intro, and actions.
 - Always provide `blockedIntro={<Intro />}`. Use BaseCard's `blockedContent` and `loadingContent` slots rather than copying shared blocked/loading controls into each card.
 - State diagrams should reflect the card's state graph. A custom diagram layout is optional; the default StateDiagram layout can be used when no card-specific arrangement is needed.
@@ -170,15 +174,16 @@ When a panel is omitted, omit its function and its invocation from `CardContentM
 ## Migration Checklist
 
 1. Define the card's domain lifecycle union and state graph.
-2. Define reducer state with one top-level workflow lifecycle and a `baseCardContext` containing the card ID, title, prerequisite IDs, and other shared public state.
-3. Keep runtime dependencies and dispatch in `privateContext` only.
+2. Define reducer state with one top-level workflow lifecycle and a `baseCardContext` containing only the standard BaseCard fields.
+3. Keep card-internal state, query projections, runtime dependencies, commands, and dispatch in `privateContext`.
 4. Implement a pure reducer, transition guard, summary projection, and card-specific events.
-5. Subscribe to AppContext in the card hook and call the existing shared prerequisite checker.
+5. Subscribe to AppContext in the card hook, call the existing shared prerequisite checker, and publish only explicitly shared typed outputs to AppContext.
 6. Ensure unmet prerequisite IDs are stored once in `baseCardContext` and drive blocked/ready transitions.
 7. Render the card through BaseCard, passing its AppContext snapshot and always providing `blockedIntro={<Intro />}`; add loading/content overrides only when needed.
 8. Remove duplicate card-level blocked panels and force-unlock handlers; BaseCard owns those shared behaviors.
 9. Add reducer/transition tests, BaseCard blocked/force-unlock tests, and UI tests for prerequisite selection, live AppContext updates, and normal content rendering.
-10. Verify the card publishes its actual workflow lifecycle, not BaseCard's temporary force-unlocked display state.
+10. Verify no other card reads `privateContext` or card-specific fields from `baseCardContext`; cross-card dependencies must use AppContext.
+11. Verify the card publishes its actual workflow lifecycle, not BaseCard's temporary force-unlocked display state.
 
 ## Validation
 
