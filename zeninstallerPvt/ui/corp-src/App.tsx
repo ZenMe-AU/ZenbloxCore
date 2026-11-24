@@ -562,6 +562,8 @@ function AppDashboard() {
 
               <CreateAdminUsersCard card={cardProps("create_admin_users")} adminUsers={adminUsers} />
 
+              <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
+
               <RemoteTerminalInfraCard
                 card={cardProps("remote_terminal_infra")}
                 infra={remoteTerminalInfra}
@@ -611,6 +613,27 @@ function AppDashboard() {
                 }
               />
 
+              <AvdGalleryCard
+                card={cardProps("privavd_gallery")}
+                privAvd={avdGallery}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
+              <PawImageCard
+                card={cardProps("privavd_image")}
+                privAvd={pawImage}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
+              <PawDeployCard
+                card={cardProps("privavd_paw")}
+                privAvd={pawDeploy}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
               {/* <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} /> */}
 
               <AwsSsoCard
@@ -638,30 +661,6 @@ function AppDashboard() {
               {stageCards.map(({ key, ...stageCard }) => (
                 <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
               ))}
-
-              <AvdGalleryCard
-                card={cardProps("privavd_gallery")}
-                privAvd={avdGallery}
-                {...privAvdTarget}
-                variables={githubVariables}
-              />
-
-              <PawImageCard
-                card={cardProps("privavd_image")}
-                privAvd={pawImage}
-                {...privAvdTarget}
-                variables={githubVariables}
-              />
-
-              <PawDeployCard
-                card={cardProps("privavd_paw")}
-                privAvd={pawDeploy}
-                {...privAvdTarget}
-                variables={githubVariables}
-              />
-
-              <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
-
             </Box>
           </Box>
         </Box >
