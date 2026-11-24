@@ -14,8 +14,8 @@ import ErrorText from "../../components/ErrorText";
 import ExternalLink from "../../components/ExternalLink";
 import FieldLabel from "../../components/FieldLabel";
 import StatusText from "../../components/StatusText";
-import type { UseCard } from "./useCard";
-import { useCard } from "./useCard";
+import type { UseAzureLoginV2 } from "./useAzureLoginV2";
+import { useAzureLoginV2 } from "./useAzureLoginV2";
 import { tenantDisplayName } from "../../logic/tenant";
 
 // The same links as AzureLogin's config, kept here so this card does not depend on that folder.
@@ -40,7 +40,7 @@ function Action() {
   return <ViewLink href={getEntraOverviewUrl()} label="Open Entra tenant overview" />;
 }
 
-export function CardContentMain({ privateContext }: UseCard) {
+export function CardContentMain({ privateContext }: UseAzureLoginV2) {
   const {
     account: azureAccount,
     loggingIn,
@@ -201,8 +201,8 @@ export function CardContentMain({ privateContext }: UseCard) {
 }
 
 function CardEntrypoint({ appCtxStore }: Props) {
-  const card = useCard(appCtxStore);
-  const { baseCardContext, privateContext } = card;
+  const cardHook = useAzureLoginV2(appCtxStore);
+  const { baseCardContext, privateContext } = cardHook;
   const unconfigured = baseCardContext.stateMachine?.currentState === "unconfigured";
   return (
     <BaseCard

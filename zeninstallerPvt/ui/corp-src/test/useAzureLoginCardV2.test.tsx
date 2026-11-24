@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppContext, type AppContext } from "../appContext";
 import { checkPrerequisites } from "../components/useBaseCard";
 import type { Lifecycle } from "../cards/AzureLoginV2/stateMachine";
-import { useCard, type UseCard } from "../cards/AzureLoginV2/useCard";
+import { useAzureLoginV2, type UseAzureLoginV2 } from "../cards/AzureLoginV2/useAzureLoginV2";
 import type { AzureAccount } from "../types";
 
 const { msalMocks } = vi.hoisted(() => ({
@@ -66,9 +66,9 @@ function deferred() {
 
 // Render the hook with its AppContext store so publication uses the production path.
 async function renderCard(store: AppContext) {
-  const card: { latest?: UseCard; history: Lifecycle[]; root?: Root } = { history: [] };
+  const card: { latest?: UseAzureLoginV2; history: Lifecycle[]; root?: Root } = { history: [] };
   function Harness() {
-    const value = useCard(store);
+    const value = useAzureLoginV2(store);
     card.latest = value;
     const lifecycle = value.baseCardContext.stateMachine!.currentState;
     if (card.history.at(-1) !== lifecycle) card.history.push(lifecycle);
@@ -77,12 +77,12 @@ async function renderCard(store: AppContext) {
   card.root = createRoot(document.createElement("div"));
   await act(async () => card.root!.render(<Harness />));
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
-  return card as typeof card & { latest: UseCard; root: Root };
+  return card as typeof card & { latest: UseAzureLoginV2; root: Root };
 }
 
 const downstream = { cardId: "proto_card", title: "Downstream", lifecycle: "loading", prerequisiteIds: ["azure_login_v2"] } as const;
 
-describe("AzureLoginV2 useCard", () => {
+describe("useAzureLoginV2", () => {
   let root: Root | undefined;
 
   beforeEach(() => {

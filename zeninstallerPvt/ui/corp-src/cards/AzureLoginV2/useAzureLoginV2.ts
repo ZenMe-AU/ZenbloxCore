@@ -27,7 +27,7 @@ const SESSION_KEY = "zeninstaller_arm_tenant_v2";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseCard {
+export interface UseAzureLoginV2 {
   baseCardContext: BaseCardContext<AzureLoginV2Lifecycle> & { done: boolean };
   privateContext: {
     appContext: ReturnType<AppContext["getSnapshot"]>;
@@ -65,7 +65,7 @@ function friendlyTenantError(err: unknown): string {
  * It leaves out the parts that belong to the original card's neighbours: the saved-tenant auto-apply from
  * the GitHub variables, the URL restore, the app-registration result's MSA tenant, and setActiveAzureIdentity.
  */
-export function useCard(appStore: AppContext): UseCard {
+export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [account, setAccount] = useState<AzureAccount | null>(null);
   const [tenants, setTenants] = useState<AzureTenant[]>([]);
