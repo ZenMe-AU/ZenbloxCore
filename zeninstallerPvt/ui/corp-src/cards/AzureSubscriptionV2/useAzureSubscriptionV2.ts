@@ -10,6 +10,7 @@ import type { AppContext, AppContextCardId, SharedCard } from "../../appContext"
 import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
 import { useGithubVariablesV2, type GithubTarget, type UseGithubVariablesV2 } from "../../hooks/useGithubVariablesV2";
 import { getEnvSettingsUrl } from "../../logic/github";
+import { findIgnoreCase } from "../../logic/search";
 import {
   deriveLifecycle,
   getGithubTarget,
@@ -73,6 +74,7 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
   const account = prerequisites?.account ?? null;
   const tenantId = prerequisites?.tenantId ?? null;
   const key = account && tenantId ? `${account.homeAccountId}|${tenantId}` : null;
+  const [initialSubscription] = useState(() => appContext.urlParams.subscription);
 
   const [loaded, setLoaded] = useState<{ key: string; subs: Subscription[]; error: string | null } | null>(null);
   const [picked, setPicked] = useState<{ key: string; id: string } | null>(null);
@@ -108,18 +110,23 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
   const variableApi = useMemo(() => githubToken ? createGithubApi(githubToken.reveal()) : null, [githubToken]);
   const variables = useGithubVariablesV2({ target: github, api: variableApi });
   const forThisKey = !!key && loaded?.key === key;
-  const subscriptions = forThisKey ? loaded.subs : [];
+  const subscriptions = useMemo(() => forThisKey ? loaded.subs : [], [forThisKey, loaded]);
   const subsError = forThisKey ? loaded.error : null;
   const savedSubscriptionId = variables.values.AZURE_SUBSCRIPTION_ID ?? "";
   const pickedId = key && picked?.key === key ? picked.id : "";
-  const selectedSubscriptionId = pickedId || (subscriptions.some((subscription) => subscription.id === savedSubscriptionId) ? savedSubscriptionId : "");
+  const initialMatch = initialSubscription
+    ? subscriptions.find((subscription) => subscription.id === initialSubscription)
+      ?? findIgnoreCase(subscriptions, (subscription) => subscription.displayName, initialSubscription)
+    : undefined;
+  const selectedSubscriptionId = pickedId
+    || (initialSubscription ? initialMatch?.id ?? ""
+      : subscriptions.some((subscription) => subscription.id === savedSubscriptionId) ? savedSubscriptionId : "");
   const selectedSubscription = subscriptions.find((subscription) => subscription.id === selectedSubscriptionId) ?? null;
   const setSelectedSubscriptionId = (id: string) => {
     if (!key) return;
     setPicked({ key, id });
     setPopulateCount((count) => count + 1);
   };
-
   const saved = !variables.loading
     && variables.values.AZURE_SUBSCRIPTION_ID === selectedSubscriptionId && variables.values.AZURE_TENANT_ID === tenantId;
   const lifecycle = deriveLifecycle({ prerequisitesMet: !!key, loaded: forThisKey, error: subsError, picked: !!selectedSubscription, saved });
@@ -148,6 +155,10 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
     stateMachine: { graph: stateGraph, currentState: lifecycle },
     done,
   } satisfies BaseCardContext<Lifecycle> & { done: boolean };
+  useEffect(() => {
+    if (initialSubscription && !forThisKey) return;
+    appStore.updateUrl({ subscription: selectedSubscriptionId || undefined });
+  }, [appStore, initialSubscription, forThisKey, selectedSubscriptionId]);
   useEffect(() => {
     appStore.update("azure_subscription_v2", {
       title: baseCardContext.title,

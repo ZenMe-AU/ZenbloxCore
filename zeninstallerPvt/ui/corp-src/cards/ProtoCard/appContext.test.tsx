@@ -10,10 +10,50 @@ import { stringify } from "yaml";
 import { createAppContext, SensitiveToken } from "../../appContext";
 import { useProtoCard, type UseProtoCard } from "./useProtoCard";
 
+it("keeps startup URL params available as cards register and publish", () => {
+  const store = createAppContext({ repo: "example-repo", tenant: "tenant-123" });
+  const initialUrlParams = store.getSnapshot().urlParams;
+
+  expect(initialUrlParams).toEqual({ repo: "example-repo", tenant: "tenant-123" });
+  store.update("proto_card", {
+    title: "ProtoCard",
+    currentBaseCardStatus: "loading",
+    currentStatus: "loading",
+  });
+  expect(store.getSnapshot().urlParams).toBe(initialUrlParams);
+});
+
+it("merges URL updates, preserves unrelated params, and lets the last update win", () => {
+  const originalUrl = window.location.href;
+  window.history.replaceState({}, "", "/core?account=octocat&repo=old&tenant=t1#repo-card");
+  const store = createAppContext({ account: "octocat", repo: "old", tenant: "t1" });
+  const events: unknown[] = [];
+  const unsubscribe = store.subscribe((event) => events.push(event));
+
+  try {
+    store.updateUrl({ repo: "new", env: "PROD" });
+    store.updateUrl({ repo: "latest", env: null });
+
+    expect(store.getSnapshot().urlParams).toEqual({ account: "octocat", repo: "latest", tenant: "t1" });
+    expect(new URLSearchParams(window.location.search).get("repo")).toBe("latest");
+    expect(new URLSearchParams(window.location.search).get("env")).toBeNull();
+    expect(new URLSearchParams(window.location.search).get("account")).toBe("octocat");
+    expect(window.location.hash).toBe("#repo-card");
+    expect(events).toEqual([
+      { type: "url-updated", keys: ["repo", "env"] },
+      { type: "url-updated", keys: ["repo", "env"] },
+    ]);
+  } finally {
+    unsubscribe();
+    window.history.replaceState({}, "", originalUrl);
+  }
+});
+
 it("publishes added before initialised, and only publishes real changes", () => {
   const store = createAppContext();
   const events: unknown[] = [];
   const unsubscribe = store.subscribe((event) => {
+    if (event.type === "url-updated") return;
     events.push({ event, entry: store.getSnapshot().cards[event.cardId] });
   });
 

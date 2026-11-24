@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useMemo, useReducer, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useReducer, useState, useSyncExternalStore } from "react";
 import type { SharedCard, AppContext } from "../../appContext";
 import type { BaseCardContext } from "../../components/useBaseCard";
 import { createRepoApi } from "./api";
@@ -41,8 +41,9 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
   const token = prerequisites?.token;
   const mode = prerequisites?.mode;
   const user = prerequisites?.user ?? null;
+  const [initialUrlParams] = useState(() => appContext.urlParams);
   const api = useMemo(() => token && mode ? createRepoApi(token, mode) : null, [token, mode]);
-  const githubRepo = useGithubRepo(user, api);
+  const githubRepo = useGithubRepo(user, api, initialUrlParams.account, initialUrlParams.repo);
   const isRepoReady = !!user && !!githubRepo.selectedAccount && !!githubRepo.selectedRepo && !githubRepo.selectedRepo.isNew
     && githubRepo.status === "complete" && githubRepo.templateStatus === "ready";
 
@@ -52,6 +53,7 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
     repo: githubRepo.selectedRepo,
     branches: githubRepo.branchList,
     isRepoReady: isRepoReady,
+    initialEnvName: initialUrlParams.env,
   });
 
   const isEnvReady = !!env.selectedEnv && !env.branchMatchError && !env.envLoading && !env.envRefreshFailed && (env.status === "complete" || env.status === "warning");
@@ -61,7 +63,7 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
     || (githubRepo.repoRefreshFailed ? "Could not refresh repositories" : null)
     || (githubRepo.status === "error" ? "Could not verify repository" : null)
     || (isRepoReady && env.envRefreshFailed ? "Could not load environments" : null);
-  const busySummary = api && !githubRepo.restore.account.ready ? "Loading GitHub accounts"
+  const busySummary = api && !githubRepo.accountsLoaded ? "Loading GitHub accounts"
     : githubRepo.cloning ? "Cloning repository"
     : githubRepo.creatingBranch ? "Creating environment branch"
     : githubRepo.repoLoading ? "Refreshing repositories"
@@ -95,6 +97,17 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
     stateMachine: { graph: stateGraph, currentState: lifecycle },
     summary: lifecycle === "blocked" ? "Sign in to GitHub login 2" : summary,
   } satisfies BaseCardContext<Lifecycle>;
+  useEffect(() => {
+    if ((initialUrlParams.account && !githubRepo.accountsLoaded)
+      || (initialUrlParams.repo && !githubRepo.reposLoaded)
+      || (initialUrlParams.env && !env.envsLoaded)) return;
+    const selectedRepo = githubRepo.selectedRepo && !githubRepo.selectedRepo.isNew ? githubRepo.selectedRepo : null;
+    appStore.updateUrl({
+      account: githubRepo.selectedAccount?.login,
+      repo: selectedRepo?.name,
+      env: env.selectedEnv?.name,
+    });
+  }, [appStore, initialUrlParams, githubRepo.accountsLoaded, githubRepo.reposLoaded, env.envsLoaded, githubRepo.selectedAccount?.login, githubRepo.selectedRepo, env.selectedEnv?.name]);
   useEffect(() => {
     const githubRepository = done && githubRepo.selectedAccount && githubRepo.selectedRepo && env.selectedEnv
       ? {

@@ -125,6 +125,42 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
   }
 });
 
+it("restores the V2 repository chain from the initial URL params", async () => {
+  api.fetchOrgList.mockResolvedValue([
+    { id: 1, login: "other-user", type: "User" },
+    { id: 2, login: "v2-user", type: "User" },
+  ]);
+  const store = createAppContext({ account: "v2-user", repo: "test-repo", env: "PROD" });
+  let latest: UseRepoCardV2 | undefined;
+  function Harness() {
+    const value = useRepoCardV2(store);
+    useEffect(() => { latest = value; }, [value]);
+    return null;
+  }
+  const root = createRoot(document.createElement("div"));
+  try {
+    await act(async () => root.render(<Harness />));
+    await act(async () => store.update("github_login_v2", {
+      title: "GitHub login 2", currentBaseCardStatus: "complete", currentStatus: "signed-in",
+      githubAccount: { login: "v2-user" }, githubToken: new SensitiveToken("token"), githubMode: "direct",
+    }));
+
+    await waitFor(() => {
+      expect(latest?.repo.selectedAccount?.login).toBe("v2-user");
+      expect(latest?.repo.selectedRepo?.name).toBe("test-repo");
+      expect(latest?.env.selectedEnv?.name).toBe("PROD");
+      expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("complete");
+    });
+    expect(store.getSnapshot().urlParams).toMatchObject({
+      account: "v2-user",
+      repo: "test-repo",
+      env: "PROD",
+    });
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
 it("ignores an old account request after switching GitHub sessions", async () => {
   let resolveOld!: (value: { id: number; login: string; type: "User" }[]) => void;
   api.fetchOrgList.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }));

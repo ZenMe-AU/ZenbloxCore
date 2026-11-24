@@ -140,6 +140,26 @@ describe("useAzureLoginV2", () => {
     expect(card.history).toEqual(["loading", "selecting-tenant", "confirming-tenant", "tenant-confirmed", "signed-out"]);
   });
 
+  it("restores and confirms the tenant from the initial URL params", async () => {
+    const msal = createMsal([homeAccount]);
+    msalMocks.getMsal.mockResolvedValue(msal);
+    const store = createAppContext({ tenant: "tenant-2" });
+    const card = await renderCard(store);
+    root = card.root;
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("tenant-confirmed");
+    expect(card.latest.baseCardContext.manualTenantId).toBe("tenant-2");
+    expect(msal.acquireTokenSilent).toHaveBeenCalledWith(expect.objectContaining({
+      authority: "https://login.microsoftonline.com/tenant-2",
+    }));
+    expect(store.getSnapshot().urlParams.tenant).toBe("tenant-2");
+  });
+
   it("redirects to Microsoft on login and shows a failed redirect as an error", async () => {
     const msal = createMsal([]);
     msalMocks.getMsal.mockResolvedValue(msal);

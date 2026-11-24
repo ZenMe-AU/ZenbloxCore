@@ -3,13 +3,14 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useReducer, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import type { AuthenticationResult } from "@azure/msal-browser";
 import { cleanTenantId, getMsal, getToken, LOGIN_AUTHORITY, MSA_TENANT, PINNED_TENANT_ID } from "../../auth/msal";
 import { listTenants } from "../../api/azureGraph";
 import { ARM_SCOPES, AZURE_CLIENT_ID, LOGIN_SCOPES } from "../../config/azureConfig";
 import type { AppContext, SharedCard } from "../../appContext";
 import type { AzureAccount } from "../../types";
+import { findIgnoreCase } from "../../logic/search";
 import {
   getBaseCardContext,
   initialState,
@@ -66,6 +67,9 @@ export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatch] = useReducer(reducer, initialState);
   const { account, manualTenantId, confirmedTenantId } = state;
+  const [initialTenantId] = useState(() => appContext.urlParams.tenant);
+  const initialTenantApplied = useRef(false);
+  const hasActiveUrlSession = useRef(false);
 
   // Fetch the tenant list via ARM (display names); fall back to the account's known tenant IDs for MSA.
   const loadTenants = useCallback(
@@ -253,6 +257,14 @@ export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
     [account, confirmTenantId]
   );
 
+  useEffect(() => {
+    if (initialTenantApplied.current || !initialTenantId || !account || !state.tenantsLoaded) return;
+    initialTenantApplied.current = true;
+    const match = state.tenants.find((tenant) => tenant.tenantId.toLowerCase() === initialTenantId.toLowerCase())
+      ?? findIgnoreCase(state.tenants, (tenant) => tenant.displayName, initialTenantId);
+    if (match) selectTenant(match.tenantId);
+  }, [initialTenantId, account, state.tenantsLoaded, state.tenants, selectTenant]);
+
   // One MSAL client serves both Azure login cards, so this clears the original card's cached tokens too.
   const logout = useCallback(async () => {
     const msal = await getMsal();
@@ -267,6 +279,19 @@ export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
   const tenantId = PINNED_TENANT_ID ?? confirmedTenantId;
   const baseCardContext = getBaseCardContext(state, PINNED_TENANT_ID);
   const done = baseCardContext.done;
+  const initialTenantMatch = initialTenantId
+    ? state.tenants.find((tenant) => tenant.tenantId.toLowerCase() === initialTenantId.toLowerCase())
+      ?? findIgnoreCase(state.tenants, (tenant) => tenant.displayName, initialTenantId)
+    : undefined;
+  const urlInitialised = !initialTenantId || (state.tenantsLoaded && (
+    !initialTenantMatch || state.lifecycle === "confirming-tenant" || state.lifecycle === "tenant-confirmed" || state.lifecycle === "error"
+  ));
+  useEffect(() => {
+    if (!urlInitialised || state.lifecycle === "confirming-tenant") return;
+    if (account) hasActiveUrlSession.current = true;
+    else if (!hasActiveUrlSession.current) return;
+    appStore.updateUrl({ tenant: done ? tenantId : undefined });
+  }, [appStore, account, urlInitialised, state.lifecycle, done, tenantId]);
   useEffect(() => {
     appStore.update(cardId, {
       title: baseCardContext.title,

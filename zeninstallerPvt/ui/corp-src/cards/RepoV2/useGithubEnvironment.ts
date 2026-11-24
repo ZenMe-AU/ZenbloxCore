@@ -8,7 +8,6 @@ import type { RepoApi } from "./api";
 import type { GithubAccount, GithubBranch, GithubEnvironment, GithubRepositoryOption, RepoStatus } from "./types";
 import { matchBranch } from "./env";
 import { findIgnoreCase } from "../../logic/search";
-import type { UrlRestoreField } from "../../hooks/useUrlStateManager";
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface UseGithubEnvironment {
   // Env
@@ -18,15 +17,12 @@ export interface UseGithubEnvironment {
   branchMatchWarning: string | null;
   branchMatchError: string | null;
   // Status
+  envsLoaded: boolean;
   envLoading: boolean;
   status: RepoStatus;
   envRefreshFailed: boolean;
   // Actions
   onRefresh: () => void;
-  // Restore
-  restore: {
-    env: UrlRestoreField;
-  };
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -37,6 +33,7 @@ export type UseGithubEnvironmentParams = {
   repo: GithubRepositoryOption | null;
   isRepoReady: boolean;
   branches: GithubBranch[];
+  initialEnvName?: string;
 };
 
 export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithubEnvironment {
@@ -61,6 +58,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
   const [selectedEnv, setSelectedEnv] = useState<GithubEnvironment | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [envRefreshFailed, setEnvRefreshFailed] = useState(false);
+  const initialEnvApplied = useRef(false);
   const accountId = opts.account?.id ?? null;
   const repoId = opts.repo?.id ?? null;
   const [scope, setScope] = useState({ api: opts.api, accountId, repoId });
@@ -82,6 +80,11 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
       const list = await api.fetchEnvs(account, repo.name);
       if (apiRef.current === api && loadSequence.current === sequence) {
         setEnvList(list);
+        const initialEnv = !initialEnvApplied.current && opts.initialEnvName
+          ? findIgnoreCase(list, (environment) => environment.name, opts.initialEnvName!)
+          : undefined;
+        initialEnvApplied.current = true;
+        if (initialEnv) setSelectedEnv(initialEnv);
         setEnvRefreshFailed(false);
       }
     } catch (e) {
@@ -95,7 +98,7 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
         setEnvsLoaded(true);
       }
     }
-  }, [opts.api]);
+  }, [opts.api, opts.initialEnvName]);
 
   // Load envs when repo is ready
   useEffect(() => {
@@ -124,16 +127,6 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     }
   }, [loadEnvs]);
 
-  const restoreEnv = useCallback(
-    (value: string): boolean => {
-      const match = findIgnoreCase(envList, (e) => e.name, value);
-      if (!match) return false;
-      setSelectedEnv(match);
-      return true;
-    },
-    [envList]
-  );
-
   return {
     // Env
     envList,
@@ -142,14 +135,11 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     branchMatchWarning,
     branchMatchError,
     // Status
+    envsLoaded,
     envLoading,
     status: envRefreshFailed ? "error" : envLoading ? "loading" : status,
     envRefreshFailed,
     // Actions
     onRefresh,
-    // Restore
-    restore: {
-      env: { ready: envsLoaded, scope: opts.repo?.id ?? null, apply: restoreEnv },
-    },
   };
 }

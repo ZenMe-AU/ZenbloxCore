@@ -7,7 +7,6 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import type { RepoApi } from "./api";
 import { TEMPLATE_REPO, VALID_ENVS } from "../../config/githubConfig";
 import { findIgnoreCase } from "../../logic/search";
-import type { UrlRestoreField } from "../../hooks/useUrlStateManager";
 import type { GithubAccount, GithubBranch, GithubRepository, GithubRepositoryOption, GithubUser, RepoStatus } from "./types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,6 +43,8 @@ export interface UseGithubRepo {
   createBranchError: string | null;
   // Status
   status: RepoStatus;
+  accountsLoaded: boolean;
+  reposLoaded: boolean;
   repoLoading: boolean;
   repoRefreshFailed: boolean;
   repoError?: string | null;
@@ -51,11 +52,6 @@ export interface UseGithubRepo {
   onClone: () => Promise<void>;
   onRefresh: () => void;
   onCreateBranch: (targetName: string) => Promise<void>;
-  // Restore
-  restore: {
-    account: UrlRestoreField;
-    repo: UrlRestoreField;
-  };
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -65,7 +61,12 @@ export interface UseGithubRepo {
  * (which just needs status) and useGithubEnvironment (which needs the account,
  * selected repo, and branches to load environments and match a branch).
  */
-export function useGithubRepo(user: GithubUser | null, api: RepoApi | null): UseGithubRepo {
+export function useGithubRepo(
+  user: GithubUser | null,
+  api: RepoApi | null,
+  initialAccountLogin?: string,
+  initialRepoName?: string,
+): UseGithubRepo {
   // ── State ─────────────────────────────────────────────────────────────────
   const [accountList, setAccountList] = useState<GithubAccount[]>([]);
   const [accountsLoaded, setAccountsLoaded] = useState(false);
@@ -99,6 +100,8 @@ export function useGithubRepo(user: GithubUser | null, api: RepoApi | null): Use
 
   // Pure cache to avoid refetching a repo list already seen this session — never rendered directly.
   const repoCache = useRef<Record<string, GithubRepository[]>>({});
+  const initialAccountApplied = useRef(false);
+  const initialRepoApplied = useRef(false);
   const apiRef = useRef(api);
   useLayoutEffect(() => {
     const sequence = repoCheckSequence;
@@ -200,7 +203,11 @@ export function useGithubRepo(user: GithubUser | null, api: RepoApi | null): Use
       .then((data) => {
         if (cancelled || apiRef.current !== api) return;
         setAccountList(data);
-        setSelectedAccount(data[0] ?? null);
+        const initialAccount = !initialAccountApplied.current && initialAccountLogin
+          ? findIgnoreCase(data, (account) => account.login, initialAccountLogin)
+          : undefined;
+        initialAccountApplied.current = true;
+        setSelectedAccount(initialAccount ?? data[0] ?? null);
       })
       .catch((error) => {
         if (cancelled || apiRef.current !== api) return;
@@ -209,7 +216,7 @@ export function useGithubRepo(user: GithubUser | null, api: RepoApi | null): Use
       })
       .finally(() => { if (!cancelled && apiRef.current === api) setAccountsLoaded(true); });
     return () => { cancelled = true; };
-  }, [userLogin, api]);
+  }, [userLogin, api, initialAccountLogin]);
 
   // Load repositories when account changes
   useEffect(() => {
@@ -226,7 +233,13 @@ export function useGithubRepo(user: GithubUser | null, api: RepoApi | null): Use
     if (!selectedAccount || !api) return;
     const key = String(selectedAccount.id);
     if (repoCache.current[key]) {
-      setRepoList(repoCache.current[key]);
+      const list = repoCache.current[key];
+      setRepoList(list);
+      const initialRepo = !initialRepoApplied.current && initialRepoName
+        ? list.find((repo) => repo.name.toLowerCase() === initialRepoName.toLowerCase())
+        : undefined;
+      initialRepoApplied.current = true;
+      if (initialRepo) setSelectedRepo({ id: initialRepo.id, name: initialRepo.name });
       setReposLoaded(true);
       return;
     }
@@ -236,7 +249,14 @@ export function useGithubRepo(user: GithubUser | null, api: RepoApi | null): Use
       .then((list) => {
         if (apiRef.current !== api) return;
         repoCache.current[key] = list;
-        if (!cancelled) setRepoList(list);
+        if (!cancelled) {
+          setRepoList(list);
+          const initialRepo = !initialRepoApplied.current && initialRepoName
+            ? list.find((repo) => repo.name.toLowerCase() === initialRepoName.toLowerCase())
+            : undefined;
+          initialRepoApplied.current = true;
+          if (initialRepo) setSelectedRepo({ id: initialRepo.id, name: initialRepo.name });
+        }
       })
       .catch((error) => {
         console.error(error);
@@ -255,7 +275,7 @@ export function useGithubRepo(user: GithubUser | null, api: RepoApi | null): Use
     return () => {
       cancelled = true;
     };
-  }, [selectedAccount, api]);
+  }, [selectedAccount, api, initialRepoName]);
 
   // Check selected repository
   useEffect(() => {
@@ -322,7 +342,11 @@ export function useGithubRepo(user: GithubUser | null, api: RepoApi | null): Use
         if (apiRef.current !== api || selectedAccountRef.current?.id !== acc?.id) return;
         setAccountList(orgs);
         if (!acc) {
-          setSelectedAccount(orgs[0] ?? null);
+          const initialAccount = !initialAccountApplied.current && initialAccountLogin
+            ? findIgnoreCase(orgs, (account) => account.login, initialAccountLogin)
+            : undefined;
+          initialAccountApplied.current = true;
+          setSelectedAccount(initialAccount ?? orgs[0] ?? null);
           return;
         }
         setRepoList(list);
@@ -337,7 +361,7 @@ export function useGithubRepo(user: GithubUser | null, api: RepoApi | null): Use
         setRepoError("Could not refresh repositories");
       })
       .finally(() => { if (apiRef.current === api) setRepoLoading(false); });
-  }, [api, checkSelectedRepo, user]);
+  }, [api, checkSelectedRepo, user, initialAccountLogin]);
 
   const onCreateBranch = useCallback(async (targetName: string) => {
     const acc = selectedAccountRef.current;
@@ -355,27 +379,6 @@ export function useGithubRepo(user: GithubUser | null, api: RepoApi | null): Use
       if (apiRef.current === api) setCreatingBranch(false);
     }
   }, [api]);
-
-  // ── Restore ───────────────────────────────────────────────────────────────
-  const restoreAccount = useCallback(
-    (value: string): boolean => {
-      const match = findIgnoreCase(accountList, (a) => a.login, value);
-      // Fall back to the default selection on a miss — leaving nothing selected strands the UI.
-      setSelectedAccount(match ?? accountList[0] ?? null);
-      return !!match;
-    },
-    [accountList]
-  );
-
-  const restoreRepo = useCallback(
-    (value: string): boolean => {
-      const match = findIgnoreCase(repoList, (r) => r.name, value);
-      if (!match) return false;
-      setSelectedRepo({ id: match.id, name: match.name });
-      return true;
-    },
-    [repoList]
-  );
 
   return {
     // Account
@@ -421,10 +424,7 @@ export function useGithubRepo(user: GithubUser | null, api: RepoApi | null): Use
     onClone,
     onRefresh,
     onCreateBranch,
-    // Restore
-    restore: {
-      account: { ready: accountsLoaded, scope: user?.login ?? null, apply: restoreAccount },
-      repo: { ready: reposLoaded, scope: selectedAccount?.id ?? null, apply: restoreRepo },
-    },
+      accountsLoaded,
+      reposLoaded,
   };
 }

@@ -14,7 +14,7 @@ import ProtoCard from "./cards/ProtoCard/ProtoCard";
 import { useGithubSignupCard } from "./cards/GithubSignup/useGithubSignupCard";
 import { useRepoCard } from "./cards/Repo/useRepoCard";
 import { useGithubVariables } from "./hooks/useGithubVariables";
-import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
+import { INITIAL_URL_PARAMS, useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useDeploymentPlan } from "./cards/Stage/useDeploymentPlan";
 import { useCorpStageCards } from "./cards/Stage/useCorpStageCards";
 import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
@@ -82,7 +82,7 @@ const EXPANDED_CARDS_KEY = "zeninstaller_corp_expanded_cards";
 const { save: saveExpandedCards, load: loadExpandedCards } = createResultStorage<CardId[]>(EXPANDED_CARDS_KEY);
 
 function AppDashboard() {
-  const [appCtxStore] = useState(createAppContext);
+  const [appCtxStore] = useState(() => createAppContext(Object.fromEntries(INITIAL_URL_PARAMS.entries())));
   const allCards: Record<string, CardHook> = {};
 
   function addCard<T extends CardHook>(newCard: T): T {
