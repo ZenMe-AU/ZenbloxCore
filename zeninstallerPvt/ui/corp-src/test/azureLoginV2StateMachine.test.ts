@@ -15,6 +15,8 @@ const account = {
   localAccountId: "local",
 } as AzureAccount;
 
+const tenants = [{ tenantId: "tenant-1", displayName: "Tenant One" }];
+
 it("owns the session and login workflow facts", () => {
   const signedOut = reducer(initialState, { type: "session-empty" });
   expect(getBaseCardContext(signedOut)).toMatchObject({ lifecycle: "ready", summary: "Sign in to Azure", done: false });
@@ -28,29 +30,25 @@ it("owns the session and login workflow facts", () => {
 
 it("owns tenant selection, confirmation, errors and logout", () => {
   const restored = reducer(initialState, { type: "session-restored", account, prefilledTenantId: "Tenant One", confirmedTenantId: null });
-  expect(reducer(restored, { type: "tenants-loaded", accountId: "old-account", tenants: [] })).toBe(restored);
-  const loaded = reducer(restored, { type: "tenants-loaded", accountId: "home", tenants: [{ tenantId: "tenant-1", displayName: "Tenant One" }] });
-  expect(loaded).toMatchObject({ lifecycle: "selecting-tenant", manualTenantId: "tenant-1", tenantsLoaded: true });
-  expect(getBaseCardContext(loaded)).toMatchObject({
-    signedInUsername: "org@example.com",
-    tenants: [{ tenantId: "tenant-1", displayName: "Tenant One" }],
-    tenantsLoaded: true,
-    tenantPinned: false,
-    manualTenantId: "tenant-1",
-    loginError: null,
-    tenantIdError: null,
+  expect(restored).toMatchObject({ lifecycle: "selecting-tenant", manualTenantId: "Tenant One" });
+  expect(getBaseCardContext(restored, tenants)).toMatchObject({
+    cardId: "azure_login_v2",
+    lifecycle: "action",
+    summary: "Select a tenant",
+    done: false,
   });
-  expect(getBaseCardContext(loaded, "pinned-tenant")).toMatchObject({ tenantPinned: true, manualTenantId: "pinned-tenant" });
+  expect(getBaseCardContext(restored, tenants)).not.toHaveProperty("tenants");
+  expect(getBaseCardContext(restored, tenants)).not.toHaveProperty("manualTenantId");
 
-  const confirming = reducer(loaded, { type: "tenant-confirmation-started", tenantId: "tenant-1" });
+  const confirming = reducer(restored, { type: "tenant-confirmation-started", tenantId: "tenant-1" });
   expect(getBaseCardContext(confirming).lifecycle).toBe("commit");
   const confirmed = reducer(confirming, { type: "tenant-confirmed", tenantId: "tenant-1", account });
-  expect(getBaseCardContext(confirmed)).toMatchObject({ lifecycle: "complete", summary: "org@example.com · Tenant One", done: true });
+  expect(getBaseCardContext(confirmed, tenants)).toMatchObject({ lifecycle: "complete", summary: "org@example.com · Tenant One", done: true });
 
   const retrying = reducer(confirmed, { type: "tenant-confirmation-started", tenantId: "tenant-2" });
   const failed = reducer(retrying, { type: "tenant-confirmation-failed", error: "No access" });
   expect(getBaseCardContext(failed)).toMatchObject({ lifecycle: "error", summary: "No access", done: false });
-  expect(reducer(failed, { type: "logout-completed" })).toMatchObject({ lifecycle: "signed-out", account: null, confirmedTenantId: null, tenants: [] });
+  expect(reducer(failed, { type: "logout-completed" })).toMatchObject({ lifecycle: "signed-out", account: null, confirmedTenantId: null });
 });
 
 it("maps every workflow state to BaseCard and rejects invalid events", () => {

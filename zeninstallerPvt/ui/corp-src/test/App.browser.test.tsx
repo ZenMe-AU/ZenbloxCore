@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import React from "react";
 import { createRoot } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@mui/material";
 import App from "../App";
 import { createAppContext } from "../appContext";
@@ -33,7 +33,7 @@ describe("App - Home Page", () => {
     const root = createRoot(container);
 
     expect(() => {
-      root.render(React.createElement(App));
+      root.render(<QueryClientProvider client={new QueryClient()}><App /></QueryClientProvider>);
     }).not.toThrow();
 
     root.unmount();
@@ -50,7 +50,11 @@ describe("App - Home Page", () => {
     const root = createRoot(container);
     vi.mocked(createAppContext).mockClear();
     try {
-      root.render(<ThemeProvider theme={theme}><App /></ThemeProvider>);
+      root.render(
+        <QueryClientProvider client={new QueryClient()}>
+          <ThemeProvider theme={theme}><App /></ThemeProvider>
+        </QueryClientProvider>
+      );
       await expect.poll(() => vi.mocked(createAppContext).mock.results.at(-1)?.value.getSnapshot().cards.repo_v2).toMatchObject({
         initialised: true, title: "Repository & environment 2",
       });

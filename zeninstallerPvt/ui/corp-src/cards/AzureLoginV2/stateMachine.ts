@@ -80,8 +80,6 @@ export type State = {
   lifecycle: Lifecycle;
   baseCardContext: Omit<BaseCardContext<Lifecycle>, "lifecycle" | "summary" | "stateMachine">;
   account: AzureAccount | null;
-  tenants: AzureTenant[];
-  tenantsLoaded: boolean;
   manualTenantId: string;
   confirmedTenantId: string | null;
   loginError: string | null;
@@ -94,7 +92,6 @@ export type Event =
   | { type: "session-restored"; account: AzureAccount; prefilledTenantId: string; confirmedTenantId: string | null }
   | { type: "login-requested" }
   | { type: "login-failed"; error: string }
-  | { type: "tenants-loaded"; accountId: string; tenants: AzureTenant[] }
   | { type: "manual-tenant-changed"; tenantId: string }
   | { type: "tenant-confirmation-started"; tenantId: string }
   | { type: "tenant-confirmed"; tenantId: string; account: AzureAccount }
@@ -106,8 +103,6 @@ export const initialState: State = {
   lifecycle: "loading",
   baseCardContext: { cardId: "azure_login_v2", title: "Azure login 2", prerequisiteIds: [] },
   account: null,
-  tenants: [],
-  tenantsLoaded: false,
   manualTenantId: "",
   confirmedTenantId: null,
   loginError: null,
@@ -146,12 +141,6 @@ export function reducer(state: State, event: Event): State {
       return transition(state, "signing-in", { loginError: null });
     case "login-failed":
       return transition(state, "error", { loginError: event.error });
-    case "tenants-loaded": {
-      if (event.accountId !== state.account?.homeAccountId) return state;
-      const match = event.tenants.find((tenant) => tenant.tenantId.toLowerCase() === state.manualTenantId.toLowerCase())
-        ?? event.tenants.find((tenant) => tenant.displayName.toLowerCase() === state.manualTenantId.toLowerCase());
-      return { ...state, tenants: event.tenants, tenantsLoaded: true, manualTenantId: match?.tenantId ?? state.manualTenantId };
-    }
     case "manual-tenant-changed":
       return { ...state, manualTenantId: event.tenantId, tenantIdError: null };
     case "tenant-confirmation-started":
@@ -159,7 +148,6 @@ export function reducer(state: State, event: Event): State {
     case "tenant-confirmed":
       return transition(state, "tenant-confirmed", {
         account: event.account,
-        tenantsLoaded: event.account === state.account ? state.tenantsLoaded : false,
         manualTenantId: event.tenantId,
         confirmedTenantId: event.tenantId,
         tenantIdError: null,
@@ -171,8 +159,6 @@ export function reducer(state: State, event: Event): State {
     case "logout-completed":
       return transition(state, "signed-out", {
         account: null,
-        tenants: [],
-        tenantsLoaded: false,
         manualTenantId: "",
         confirmedTenantId: null,
         loginError: null,
@@ -181,7 +167,7 @@ export function reducer(state: State, event: Event): State {
   }
 }
 
-export function getBaseCardContext(state: State, pinnedTenantId?: string) {
+export function getBaseCardContext(state: State, tenants: AzureTenant[] = []) {
   const done = state.lifecycle === "tenant-confirmed";
   const summary = ({
     loading: "Checking session...",
@@ -190,7 +176,7 @@ export function getBaseCardContext(state: State, pinnedTenantId?: string) {
     "signing-in": "Connecting...",
     "selecting-tenant": "Select a tenant",
     "confirming-tenant": "Confirming tenant...",
-    "tenant-confirmed": [state.account?.username, tenantDisplayName(state.tenants, state.confirmedTenantId)].filter(Boolean).join(" · ") || "Signed in",
+    "tenant-confirmed": [state.account?.username, tenantDisplayName(tenants, state.confirmedTenantId)].filter(Boolean).join(" · ") || "Signed in",
     error: state.loginError ?? state.tenantIdError ?? "Error",
   } satisfies Record<Lifecycle, string>)[state.lifecycle];
   return {
@@ -199,13 +185,6 @@ export function getBaseCardContext(state: State, pinnedTenantId?: string) {
     lifecycle: toBaseCardLifecycle(state.lifecycle),
     stateMachine: { graph: stateGraph, currentState: state.lifecycle },
     done,
-    signedInUsername: state.account?.username ?? null,
-    tenants: state.tenants,
-    tenantsLoaded: state.tenantsLoaded,
-    tenantPinned: !!pinnedTenantId,
-    manualTenantId: pinnedTenantId ?? state.manualTenantId,
-    loginError: state.loginError,
-    tenantIdError: state.tenantIdError,
   } as const;
 }
 

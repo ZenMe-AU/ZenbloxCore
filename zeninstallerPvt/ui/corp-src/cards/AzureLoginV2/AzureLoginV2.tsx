@@ -49,8 +49,11 @@ export function CardContentMain({ baseCardContext, privateContext }: UseAzureLog
     tenantIdError,
     tenantsLoaded,
     tenantPinned,
-  } = baseCardContext;
-  const { login, logout, setManualTenantId, selectTenant } = privateContext;
+    login,
+    logout,
+    setManualTenantId,
+    selectTenant,
+  } = privateContext;
   const currentState = baseCardContext.stateMachine?.currentState;
   const redirecting = currentState === "signing-in";
   const confirming = currentState === "confirming-tenant";
