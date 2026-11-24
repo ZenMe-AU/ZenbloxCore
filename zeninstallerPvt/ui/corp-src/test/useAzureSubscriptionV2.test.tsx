@@ -76,6 +76,11 @@ it("uses the canonical two-context contract and publishes the saved subscription
 
     expect(Object.keys(latest ?? {})).toEqual(["baseCardContext", "privateContext"]);
     expect(latest?.baseCardContext).toMatchObject({ lifecycle: "complete", done: true });
+    expect(latest?.baseCardContext).not.toHaveProperty("subscriptions");
+    expect(latest?.baseCardContext).not.toHaveProperty("selectedSubscriptionId");
+    expect(latest?.privateContext.subscriptions).toEqual([
+      { id: "subscription-1", displayName: "Production", tenantId: "tenant-1" },
+    ]);
     expect(latest?.privateContext).not.toHaveProperty("currentState");
     expect(latest?.privateContext.appContext.cards.azure_subscription_v2).toMatchObject({
       initialised: true,

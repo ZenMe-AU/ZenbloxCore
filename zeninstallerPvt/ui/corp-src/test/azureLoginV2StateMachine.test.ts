@@ -15,12 +15,7 @@ const account = {
   localAccountId: "local",
 } as AzureAccount;
 
-const tenantsQuery = {
-  tenants: [{ tenantId: "tenant-1", displayName: "Tenant One" }],
-  tenantsLoading: false,
-  tenantsRefreshing: false,
-  tenantsError: null,
-};
+const tenants = [{ tenantId: "tenant-1", displayName: "Tenant One" }];
 
 it("owns the session and login workflow facts", () => {
   const signedOut = reducer(initialState, { type: "session-empty" });
@@ -36,23 +31,19 @@ it("owns the session and login workflow facts", () => {
 it("owns tenant selection, confirmation, errors and logout", () => {
   const restored = reducer(initialState, { type: "session-restored", account, prefilledTenantId: "Tenant One", confirmedTenantId: null });
   expect(restored).toMatchObject({ lifecycle: "selecting-tenant", manualTenantId: "Tenant One" });
-  expect(getBaseCardContext(restored, undefined, tenantsQuery)).toMatchObject({
-    signedInUsername: "org@example.com",
-    tenants: [{ tenantId: "tenant-1", displayName: "Tenant One" }],
-    tenantsLoading: false,
-    tenantsRefreshing: false,
-    tenantsError: null,
-    tenantPinned: false,
-    manualTenantId: "tenant-1",
-    loginError: null,
-    tenantIdError: null,
+  expect(getBaseCardContext(restored, tenants)).toMatchObject({
+    cardId: "azure_login_v2",
+    lifecycle: "action",
+    summary: "Select a tenant",
+    done: false,
   });
-  expect(getBaseCardContext(restored, "pinned-tenant", tenantsQuery)).toMatchObject({ tenantPinned: true, manualTenantId: "pinned-tenant" });
+  expect(getBaseCardContext(restored, tenants)).not.toHaveProperty("tenants");
+  expect(getBaseCardContext(restored, tenants)).not.toHaveProperty("manualTenantId");
 
   const confirming = reducer(restored, { type: "tenant-confirmation-started", tenantId: "tenant-1" });
   expect(getBaseCardContext(confirming).lifecycle).toBe("commit");
   const confirmed = reducer(confirming, { type: "tenant-confirmed", tenantId: "tenant-1", account });
-  expect(getBaseCardContext(confirmed, undefined, tenantsQuery)).toMatchObject({ lifecycle: "complete", summary: "org@example.com · Tenant One", done: true });
+  expect(getBaseCardContext(confirmed, tenants)).toMatchObject({ lifecycle: "complete", summary: "org@example.com · Tenant One", done: true });
 
   const retrying = reducer(confirmed, { type: "tenant-confirmation-started", tenantId: "tenant-2" });
   const failed = reducer(retrying, { type: "tenant-confirmation-failed", error: "No access" });

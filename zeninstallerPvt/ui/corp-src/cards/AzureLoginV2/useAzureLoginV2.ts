@@ -3,14 +3,14 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import type { AuthenticationResult } from "@azure/msal-browser";
 import { useQuery } from "@tanstack/react-query";
 import { cleanTenantId, getMsal, getToken, LOGIN_AUTHORITY, MSA_TENANT, PINNED_TENANT_ID } from "../../auth/msal";
 import { listTenants } from "../../api/azureGraph";
 import { ARM_SCOPES, AZURE_CLIENT_ID, LOGIN_SCOPES } from "../../config/azureConfig";
 import type { AppContext, SharedCard } from "../../appContext";
-import type { AzureAccount } from "../../types";
+import type { AzureAccount, AzureTenant } from "../../types";
 import { findIgnoreCase } from "../../logic/search";
 import {
   getBaseCardContext,
@@ -41,6 +41,15 @@ export interface UseAzureLoginV2 {
   baseCardContext: ReturnType<typeof getBaseCardContext>;
   privateContext: {
     appContext: ReturnType<AppContext["getSnapshot"]>;
+    signedInUsername: string | null;
+    loginError: string | null;
+    tenants: AzureTenant[];
+    tenantsLoaded: boolean;
+    tenantsRefreshing: boolean;
+    tenantsError: string | null;
+    tenantPinned: boolean;
+    manualTenantId: string;
+    tenantIdError: string | null;
     login: () => Promise<void>;
     logout: () => Promise<void>;
     refresh: () => void;
@@ -88,6 +97,10 @@ export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
       return ids.map((id) => ({ tenantId: id, displayName: id }));
     },
   });
+  const tenants = useMemo(() => tenantsQuery.data ?? [], [tenantsQuery.data]);
+  const tenantsLoaded = !!account && !tenantsQuery.isPending;
+  const matchedTenant = tenants.find((tenant) => tenant.tenantId.toLowerCase() === manualTenantId.toLowerCase())
+    ?? tenants.find((tenant) => tenant.displayName.toLowerCase() === manualTenantId.toLowerCase());
 
   // On mount: handle the redirect callback OR restore an existing session.
   useEffect(() => {
@@ -253,12 +266,12 @@ export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
   );
 
   useEffect(() => {
-    if (initialTenantApplied.current || !initialTenantId || !account || !state.tenantsLoaded) return;
+    if (initialTenantApplied.current || !initialTenantId || !account || !tenantsLoaded) return;
     initialTenantApplied.current = true;
-    const match = state.tenants.find((tenant) => tenant.tenantId.toLowerCase() === initialTenantId.toLowerCase())
-      ?? findIgnoreCase(state.tenants, (tenant) => tenant.displayName, initialTenantId);
+    const match = tenants.find((tenant) => tenant.tenantId.toLowerCase() === initialTenantId.toLowerCase())
+      ?? findIgnoreCase(tenants, (tenant) => tenant.displayName, initialTenantId);
     if (match) selectTenant(match.tenantId);
-  }, [initialTenantId, account, state.tenantsLoaded, state.tenants, selectTenant]);
+  }, [initialTenantId, account, tenantsLoaded, tenants, selectTenant]);
 
   // One MSAL client serves both Azure login cards, so this clears the original card's cached tokens too.
   const logout = useCallback(async () => {
@@ -272,18 +285,13 @@ export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
 
   // ── Projection ────────────────────────────────────────────────────────────
   const tenantId = PINNED_TENANT_ID ?? confirmedTenantId;
-  const baseCardContext = getBaseCardContext(state, PINNED_TENANT_ID, {
-    tenants: tenantsQuery.data ?? [],
-    tenantsLoading: !!account && tenantsQuery.isPending,
-    tenantsRefreshing: tenantsQuery.isFetching && !tenantsQuery.isPending,
-    tenantsError: tenantsQuery.error instanceof Error ? tenantsQuery.error.message : null,
-  });
+  const baseCardContext = getBaseCardContext(state, tenants);
   const done = baseCardContext.done;
   const initialTenantMatch = initialTenantId
-    ? state.tenants.find((tenant) => tenant.tenantId.toLowerCase() === initialTenantId.toLowerCase())
-      ?? findIgnoreCase(state.tenants, (tenant) => tenant.displayName, initialTenantId)
+    ? tenants.find((tenant) => tenant.tenantId.toLowerCase() === initialTenantId.toLowerCase())
+      ?? findIgnoreCase(tenants, (tenant) => tenant.displayName, initialTenantId)
     : undefined;
-  const urlInitialised = !initialTenantId || (state.tenantsLoaded && (
+  const urlInitialised = !initialTenantId || (tenantsLoaded && (
     !initialTenantMatch || state.lifecycle === "confirming-tenant" || state.lifecycle === "tenant-confirmed" || state.lifecycle === "error"
   ));
   useEffect(() => {
@@ -312,6 +320,15 @@ export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
     baseCardContext,
     privateContext: {
       appContext,
+      signedInUsername: account?.username ?? null,
+      loginError: state.loginError,
+      tenants,
+      tenantsLoaded,
+      tenantsRefreshing: tenantsQuery.isFetching && !tenantsQuery.isPending,
+      tenantsError: tenantsQuery.error instanceof Error ? tenantsQuery.error.message : null,
+      tenantPinned: !!PINNED_TENANT_ID,
+      manualTenantId: PINNED_TENANT_ID ?? matchedTenant?.tenantId ?? manualTenantId,
+      tenantIdError: state.tenantIdError,
       login,
       logout,
       refresh,

@@ -167,24 +167,8 @@ export function reducer(state: State, event: Event): State {
   }
 }
 
-export type TenantQueryProjection = {
-  tenants: AzureTenant[];
-  tenantsLoading: boolean;
-  tenantsRefreshing: boolean;
-  tenantsError: string | null;
-};
-
-const emptyTenantQuery: TenantQueryProjection = {
-  tenants: [],
-  tenantsLoading: false,
-  tenantsRefreshing: false,
-  tenantsError: null,
-};
-
-export function getBaseCardContext(state: State, pinnedTenantId?: string, tenantQuery = emptyTenantQuery) {
+export function getBaseCardContext(state: State, tenants: AzureTenant[] = []) {
   const done = state.lifecycle === "tenant-confirmed";
-  const matchedTenant = tenantQuery.tenants.find((tenant) => tenant.tenantId.toLowerCase() === state.manualTenantId.toLowerCase())
-    ?? tenantQuery.tenants.find((tenant) => tenant.displayName.toLowerCase() === state.manualTenantId.toLowerCase());
   const summary = ({
     loading: "Checking session...",
     unconfigured: "Unavailable",
@@ -192,7 +176,7 @@ export function getBaseCardContext(state: State, pinnedTenantId?: string, tenant
     "signing-in": "Connecting...",
     "selecting-tenant": "Select a tenant",
     "confirming-tenant": "Confirming tenant...",
-    "tenant-confirmed": [state.account?.username, tenantDisplayName(tenantQuery.tenants, state.confirmedTenantId)].filter(Boolean).join(" · ") || "Signed in",
+    "tenant-confirmed": [state.account?.username, tenantDisplayName(tenants, state.confirmedTenantId)].filter(Boolean).join(" · ") || "Signed in",
     error: state.loginError ?? state.tenantIdError ?? "Error",
   } satisfies Record<Lifecycle, string>)[state.lifecycle];
   return {
@@ -201,12 +185,6 @@ export function getBaseCardContext(state: State, pinnedTenantId?: string, tenant
     lifecycle: toBaseCardLifecycle(state.lifecycle),
     stateMachine: { graph: stateGraph, currentState: state.lifecycle },
     done,
-    signedInUsername: state.account?.username ?? null,
-    ...tenantQuery,
-    tenantPinned: !!pinnedTenantId,
-    manualTenantId: pinnedTenantId ?? matchedTenant?.tenantId ?? state.manualTenantId,
-    loginError: state.loginError,
-    tenantIdError: state.tenantIdError,
   } as const;
 }
 
