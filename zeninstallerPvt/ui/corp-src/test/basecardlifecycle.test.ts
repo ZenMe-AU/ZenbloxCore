@@ -9,7 +9,7 @@ import { ThemeProvider } from "@mui/material";
 import { expect, it } from "vitest";
 import { createAppContext, SensitiveToken, type SharedCard } from "../appContext";
 import BaseCard from "../components/BaseCard";
-import { checkPrerequisites } from "../components/useBaseCard";
+import { checkPrerequisites, type BaseCardContext } from "../components/useBaseCard";
 import { initialState as initialGithubState, reducer as githubReducer, toBaseCardLifecycle as githubToBaseCardLifecycle } from "../cards/GithubLoginV2/stateMachine";
 import {
   canLifecycleTransition,
@@ -109,7 +109,7 @@ it("checks registered, initialised and complete prerequisites and rejects self-d
   const baseCardContext = {
     cardId: "proto_card", title: "ProtoCard", lifecycle: "loading",
     prerequisiteIds: ["", "  ", " github_login_v2 ", "repo_v2", "proto_card", "unknown"],
-  } as const;
+  } as unknown as BaseCardContext;
   const check = () => checkPrerequisites(store.getSnapshot(), baseCardContext);
   expect(check()).toEqual(["github_login_v2", "repo_v2", "proto_card", "unknown"]);
   const unsubscribe = store.subscribe((event) => {

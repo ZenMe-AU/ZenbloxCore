@@ -13,7 +13,6 @@ import type {
   BaseCardStateGraph,
   BaseCardStateMachine,
 } from "../../components/basecardlifecycle";
-import type { CardId } from "../../types";
 
 declare module "../../appContext" {
   interface SharedCardDataById {
@@ -23,9 +22,9 @@ declare module "../../appContext" {
   }
 }
 
-export const azureLoginCardId = "azure_login_v2" satisfies CardId;
-export const repoCardId = "repo_v2" satisfies CardId;
-export const githubLoginCardId = "github_login_v2" satisfies CardId;
+export const azureLoginCardId = "azure_login_v2" satisfies BaseCardContext["cardId"];
+export const repoCardId = "repo_v2" satisfies BaseCardContext["cardId"];
+export const githubLoginCardId = "github_login_v2" satisfies BaseCardContext["cardId"];
 
 export const initialCardContext = {
   cardId: "azure_subscription_v2",

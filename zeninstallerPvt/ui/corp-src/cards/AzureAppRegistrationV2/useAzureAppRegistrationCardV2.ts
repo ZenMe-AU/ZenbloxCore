@@ -15,7 +15,7 @@ import {
   getExistingSP,
 } from "../../api/azureGraph";
 import { createGithubApi } from "../../api/github";
-import type { AppContext, SharedCard } from "../../appContext";
+import type { AppContext, AppContextCardId, SharedCard } from "../../appContext";
 import { ensureScopeConsent, getMsal } from "../../auth/msal";
 import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
 import { APP_SCOPES } from "../../config/azureConfig";
@@ -25,7 +25,7 @@ import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { isConsentError } from "../../logic/consent";
 import { getEnvSettingsUrl } from "../../logic/github";
 import { getFederatedCredential, getImmutableRepoSegment } from "../../logic/naming";
-import type { CardHook, CardId, CardStatus, SetupStep } from "../../types";
+import type { CardHook, CardStatus, SetupStep } from "../../types";
 import { azureAppRegistrationAccess } from "../AzureAppRegistration/config";
 import { useRbacCheck, type RbacCheckStatus } from "../AzureAppRegistration/useRbacCheck";
 import {
@@ -44,7 +44,7 @@ import {
 
 // What only this card knows: the app it makes, the run that makes it, and where its client id is saved.
 export type PrivateContext = {
-  blockedBy: { cardId: CardId; label: string }[]; // The prerequisites still to finish, while blocked, labelled "Title (card_id)" from AppContext.
+  blockedBy: { cardId: AppContextCardId; label: string }[]; // The prerequisites still to finish, while blocked, labelled "Title (card_id)" from AppContext.
   appName: string;
   setAppName: (name: string) => void;
   steps: SetupStep[];
@@ -85,8 +85,8 @@ export default function useCard(appStore: AppContext): UseCard {
   const missing = checkPrerequisites(appContext, prerequisiteContext);
   // A prerequisite can be complete before what it shares reaches AppContext; Azure login 2 is still the way on.
   const blockedBy = (missing.length > 0 ? missing : initialCardContext.prerequisiteIds.slice(0, 1)).map((id) => {
-    const prerequisite = appContext.cards[id as CardId];
-    return { cardId: id as CardId, label: prerequisite?.initialised ? `${prerequisite.title} (${id})` : id };
+    const prerequisite = appContext.cards[id];
+    return { cardId: id, label: prerequisite?.initialised ? `${prerequisite.title} (${id})` : id };
   });
   const account = prerequisites?.account ?? null;
   const tenantId = prerequisites?.tenantId;

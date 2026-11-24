@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { CardId } from "../types";
+import type { AppContextCardId } from "../appContext";
 
 /** The set of states that are understood by BaseCard. */
 export type Lifecycle = "blocked" | "loading" | "ready" | "action" | "commit" | "complete" | "error" | "forceUnlocked";
@@ -16,10 +16,10 @@ export type BaseCardEvent<lifecycle extends string = Lifecycle> = { type: "trans
 
 /** The BaseCard context object that is passed to other components and hooks. */
 export type BaseCardContext<lifecycle extends string = Lifecycle> = BaseCardState & {
-  cardId: CardId;
+  cardId: AppContextCardId;
   title: string;
-  prerequisiteIds: readonly string[];
-  unmetCardPrerequisites?: readonly string[];
+  prerequisiteIds: readonly (AppContextCardId | "")[];
+  unmetCardPrerequisites?: readonly AppContextCardId[];
   summary?: string;
   stateMachine?: BaseCardStateMachineSnapshot<lifecycle>;
 };

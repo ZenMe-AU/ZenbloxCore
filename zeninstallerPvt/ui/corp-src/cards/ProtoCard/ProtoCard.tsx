@@ -154,7 +154,11 @@ function PrerequisitesPanel({ baseCardContext, privateContext }: UseProtoCard) {
             slotProps={{ inputLabel: { shrink: true } }}
             label={`Prerequisite card ${index + 1}`}
             value={baseCardContext.prerequisiteIds[index]}
-            onChange={(event) => dispatch({ type: "card-prerequisite", index, cardId: event.target.value })}
+            onChange={(event) => dispatch({
+              type: "card-prerequisite",
+              index,
+              cardId: event.target.value as BaseCardContext["prerequisiteIds"][number],
+            })}
             size="small"
           >
             <option value="">No prerequisite</option>

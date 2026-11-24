@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { AppContext } from "../appContext";
+import type { AppContext, AppContextCardId } from "../appContext";
 import type { BaseCardContext } from "./basecardlifecycle";
 
 export type { BaseCardContext, Lifecycle } from "./basecardlifecycle";
@@ -11,12 +11,13 @@ export type { BaseCardContext, Lifecycle } from "./basecardlifecycle";
 export function checkPrerequisites(
   appContext: ReturnType<AppContext["getSnapshot"]>,
   baseCardContext: BaseCardContext<string>,
-): string[] {
-  return baseCardContext.prerequisiteIds
+): AppContextCardId[] {
+  const missing = baseCardContext.prerequisiteIds
     .map((id) => id.trim())
     .filter((id) => {
       if (!id) return false;
-      const entry = Object.entries(appContext.cards).find(([key]) => key === id)?.[1];
+      const entry = appContext.cards[id as AppContextCardId];
       return id === baseCardContext.cardId || !entry?.initialised || entry.currentBaseCardStatus !== "complete";
     });
+  return missing as AppContextCardId[];
 }

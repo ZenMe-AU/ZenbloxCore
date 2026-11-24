@@ -10,6 +10,7 @@ import type {
   BaseCardStateMachine,
   Lifecycle,
 } from "../../components/basecardlifecycle";
+import type { AppContextCardId } from "../../appContext";
 
 declare module "../../appContext" {
   interface SharedCardDataById {
@@ -19,7 +20,7 @@ declare module "../../appContext" {
 
 export type State = BaseCardState<Lifecycle> & {
   baseCardContext: Omit<BaseCardContext<Lifecycle>, "lifecycle"> & {
-    unmetCardPrerequisites: string[];
+    unmetCardPrerequisites: AppContextCardId[];
   };
   privateContext: PrivateContext;
 };
@@ -29,7 +30,7 @@ type PrivateContext = Record<never, never>;
 const title = "ProtoCard prototype card";
 const defaultSummary = "Ready to proceed";
 
-function summaryFor(lifecycle: Lifecycle, unmetCardPrerequisites: readonly string[]): string {
+function summaryFor(lifecycle: Lifecycle, unmetCardPrerequisites: readonly AppContextCardId[]): string {
   return lifecycle === "loading"
     ? "Checking prerequisites..."
     : lifecycle === "blocked"
@@ -38,8 +39,8 @@ function summaryFor(lifecycle: Lifecycle, unmetCardPrerequisites: readonly strin
 }
 
 export type Event =
-  | { type: "card-prerequisite"; index: 0 | 1; cardId: string }
-  | { type: "sync-card-prerequisites"; unmet: string[] }
+  | { type: "card-prerequisite"; index: 0 | 1; cardId: AppContextCardId | "" }
+  | { type: "sync-card-prerequisites"; unmet: AppContextCardId[] }
   | { type: "check-prerequisites" }
   | { type: "transition"; lifecycle: Lifecycle };
 
