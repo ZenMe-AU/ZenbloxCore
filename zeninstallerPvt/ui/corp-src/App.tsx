@@ -50,7 +50,7 @@ import GithubSignupCard from "./cards/GithubSignup/GithubSignupCard";
 import RepoCard from "./cards/Repo/RepoCard";
 import RepoCardV2 from "./cards/RepoV2/RepoCardV2";
 import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
-import AzureLoginCardV2 from "./cards/AzureLoginV2/AzureLoginCardV2";
+import AzureLoginCardV2 from "./cards/AzureLoginV2/Card";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCard";
 import AzureSubscriptionCardV2 from "./cards/AzureSubscriptionV2/AzureSubscriptionCardV2";

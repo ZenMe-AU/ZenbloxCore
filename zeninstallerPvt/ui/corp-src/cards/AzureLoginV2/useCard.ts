@@ -3,14 +3,14 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useReducer, useState } from "react";
+import { useCallback, useEffect, useReducer, useState, useSyncExternalStore } from "react";
 import { cleanTenantId, getMsal, getToken, LOGIN_AUTHORITY, MSA_TENANT, PINNED_TENANT_ID } from "../../auth/msal";
 import { listTenants } from "../../api/azureGraph";
 import { ARM_SCOPES, AZURE_CLIENT_ID, LOGIN_SCOPES } from "../../config/azureConfig";
 import { tenantDisplayName } from "../../logic/tenant";
 import type { AppContext, SharedCard } from "../../appContext";
 import type { BaseCardContext } from "../../components/basecardlifecycle";
-import type { AzureAccount, AzureTenant, CardHook, CardStatus, LoginHook } from "../../types";
+import type { AzureAccount, AzureTenant } from "../../types";
 import {
   deriveLifecycle,
   initialState,
@@ -27,27 +27,27 @@ const SESSION_KEY = "zeninstaller_arm_tenant_v2";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseAzureLoginCardV2 extends CardHook, LoginHook<AzureAccount> {
-  readonly cardId: typeof cardId;
-  summary: string;
-  cardDependencyLabel: string;
-  baseCardContext: BaseCardContext<AzureLoginV2Lifecycle>;
-  machineLifecycle: AzureLoginV2Lifecycle;
-
-  login: () => Promise<void>;
-  logout: () => Promise<void>;
-  loginError: string | null;
-  redirecting: boolean;
-  tenants: AzureTenant[];
-  tenantsLoaded: boolean;
-  tenantPinned: boolean; // VITE_AZURE_TENANT_ID is set, so the tenant is not the user's to choose.
-  manualTenantId: string;
-  setManualTenantId: (id: string) => void;
-  // The tenant ARM access was confirmed for; manualTenantId is the raw field and changes on every keystroke.
-  confirmedTenantId: string | null;
-  confirming: boolean;
-  tenantIdError: string | null;
-  selectTenant: (tenantId: string) => void;
+export interface UseCard {
+  baseCardContext: BaseCardContext<AzureLoginV2Lifecycle> & { done: boolean };
+  privateContext: {
+    appContext: ReturnType<AppContext["getSnapshot"]>;
+    account: AzureAccount | null;
+    loggingIn: boolean;
+    login: () => Promise<void>;
+    logout: () => Promise<void>;
+    refresh: () => void;
+    loginError: string | null;
+    redirecting: boolean;
+    tenants: AzureTenant[];
+    tenantsLoaded: boolean;
+    tenantPinned: boolean;
+    manualTenantId: string;
+    setManualTenantId: (id: string) => void;
+    confirmedTenantId: string | null;
+    confirming: boolean;
+    tenantIdError: string | null;
+    selectTenant: (tenantId: string) => void;
+  };
 }
 
 // Maps a raw MSAL/AADSTS failure to user-facing text — never surface the raw trace/correlation-id blob.
@@ -65,7 +65,8 @@ function friendlyTenantError(err: unknown): string {
  * It leaves out the parts that belong to the original card's neighbours: the saved-tenant auto-apply from
  * the GitHub variables, the URL restore, the app-registration result's MSA tenant, and setActiveAzureIdentity.
  */
-export function useAzureLoginCardV2(appStore: AppContext): UseAzureLoginCardV2 {
+export function useCard(appStore: AppContext): UseCard {
+  const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [account, setAccount] = useState<AzureAccount | null>(null);
   const [tenants, setTenants] = useState<AzureTenant[]>([]);
   const [loggingIn, setLoggingIn] = useState(true);
@@ -293,7 +294,6 @@ export function useAzureLoginCardV2(appStore: AppContext): UseAzureLoginCardV2 {
     dispatchLifecycle({ type: "transition", lifecycle });
   }
   const done = lifecycle === "tenant-confirmed";
-  const status: CardStatus = lifecycle === "unconfigured" ? "unavailable" : done ? "complete" : account ? "warning" : "idle";
   const summary = ({
     loading: "Checking session...",
     unconfigured: "Unavailable",
@@ -312,7 +312,8 @@ export function useAzureLoginCardV2(appStore: AppContext): UseAzureLoginCardV2 {
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),
     stateMachine: { graph: stateGraph, currentState: lifecycle },
-  } satisfies BaseCardContext<AzureLoginV2Lifecycle>;
+    done,
+  } satisfies BaseCardContext<AzureLoginV2Lifecycle> & { done: boolean };
   useEffect(() => {
     appStore.update(cardId, {
       title: baseCardContext.title,
@@ -330,32 +331,25 @@ export function useAzureLoginCardV2(appStore: AppContext): UseAzureLoginCardV2 {
   }, [appStore, baseCardContext.title, baseCardContext.lifecycle, lifecycle, account, done, tenantId]);
 
   return {
-    // cardHook
-    cardId,
-    status,
-    summary,
-    cardRequirements: [],
-    cardDependencyLabel: account ? "Select a tenant" : "Sign in to Azure",
-    done,
-    // loginHook
-    account,
-    loggingIn,
-    login,
-    logout,
-    refresh: () => {},
-    // extra
     baseCardContext,
-    machineLifecycle: lifecycle,
-    loginError,
-    redirecting,
-    tenants,
-    tenantsLoaded,
-    tenantPinned: !!PINNED_TENANT_ID,
-    manualTenantId: PINNED_TENANT_ID ?? manualTenantId,
-    setManualTenantId,
-    confirmedTenantId: tenantId,
-    confirming,
-    tenantIdError,
-    selectTenant,
+    privateContext: {
+      appContext,
+      account,
+      loggingIn,
+      login,
+      logout,
+      refresh: () => {},
+      loginError,
+      redirecting,
+      tenants,
+      tenantsLoaded,
+      tenantPinned: !!PINNED_TENANT_ID,
+      manualTenantId: PINNED_TENANT_ID ?? manualTenantId,
+      setManualTenantId,
+      confirmedTenantId: tenantId,
+      confirming,
+      tenantIdError,
+      selectTenant,
+    },
   };
 }

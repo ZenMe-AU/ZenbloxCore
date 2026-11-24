@@ -14,8 +14,8 @@ import ErrorText from "../../components/ErrorText";
 import ExternalLink from "../../components/ExternalLink";
 import FieldLabel from "../../components/FieldLabel";
 import StatusText from "../../components/StatusText";
-import type { UseAzureLoginCardV2 } from "./useAzureLoginCardV2";
-import { useAzureLoginCardV2 } from "./useAzureLoginCardV2";
+import type { UseCard } from "./useCard";
+import { useCard } from "./useCard";
 import { tenantDisplayName } from "../../logic/tenant";
 
 // The same links as AzureLogin's config, kept here so this card does not depend on that folder.
@@ -40,7 +40,7 @@ function Action() {
   return <ViewLink href={getEntraOverviewUrl()} label="Open Entra tenant overview" />;
 }
 
-function AzureLoginContent({ azureLogin }: { azureLogin: UseAzureLoginCardV2 }) {
+export function CardContentMain({ privateContext }: UseCard) {
   const {
     account: azureAccount,
     loggingIn,
@@ -56,7 +56,7 @@ function AzureLoginContent({ azureLogin }: { azureLogin: UseAzureLoginCardV2 }) 
     tenantIdError,
     tenantsLoaded,
     tenantPinned,
-  } = azureLogin;
+  } = privateContext;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -200,12 +200,15 @@ function AzureLoginContent({ azureLogin }: { azureLogin: UseAzureLoginCardV2 }) 
   );
 }
 
-export default function AzureLoginCardV2({ appCtxStore }: Props) {
-  const azureLogin = useAzureLoginCardV2(appCtxStore);
-  const unconfigured = azureLogin.machineLifecycle === "unconfigured";
+function CardEntrypoint({ appCtxStore }: Props) {
+  const card = useCard(appCtxStore);
+  const { baseCardContext, privateContext } = card;
+  const unconfigured = baseCardContext.stateMachine?.currentState === "unconfigured";
   return (
     <BaseCard
-      baseCardContext={azureLogin.baseCardContext}
+      baseCardContext={baseCardContext}
+      appContext={privateContext.appContext}
+      blockedIntro={<Intro />}
       descriptionId={unconfigured ? "azure-login-v2-config-error" : undefined}
       action={unconfigured ? undefined : <Action />}
     >
@@ -215,8 +218,10 @@ export default function AzureLoginCardV2({ appCtxStore }: Props) {
           <ConfigErrorNotice id="azure-login-v2-config-error" />
         </>
       ) : (
-        <AzureLoginContent azureLogin={azureLogin} />
+        <CardContentMain baseCardContext={baseCardContext} privateContext={privateContext} />
       )}
     </BaseCard>
   );
 }
+
+export default CardEntrypoint;

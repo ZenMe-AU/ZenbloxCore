@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppContext, type AppContext } from "../appContext";
 import { checkPrerequisites } from "../components/useBaseCard";
 import type { Lifecycle } from "../cards/AzureLoginV2/stateMachine";
-import { useAzureLoginCardV2, type UseAzureLoginCardV2 } from "../cards/AzureLoginV2/useAzureLoginCardV2";
+import { useCard, type UseCard } from "../cards/AzureLoginV2/useCard";
 import type { AzureAccount } from "../types";
 
 const { msalMocks } = vi.hoisted(() => ({
@@ -66,22 +66,23 @@ function deferred() {
 
 // Render the hook with its AppContext store so publication uses the production path.
 async function renderCard(store: AppContext) {
-  const card: { latest?: UseAzureLoginCardV2; history: Lifecycle[]; root?: Root } = { history: [] };
+  const card: { latest?: UseCard; history: Lifecycle[]; root?: Root } = { history: [] };
   function Harness() {
-    const value = useAzureLoginCardV2(store);
+    const value = useCard(store);
     card.latest = value;
-    if (card.history.at(-1) !== value.machineLifecycle) card.history.push(value.machineLifecycle);
+    const lifecycle = value.baseCardContext.stateMachine!.currentState;
+    if (card.history.at(-1) !== lifecycle) card.history.push(lifecycle);
     return null;
   }
   card.root = createRoot(document.createElement("div"));
   await act(async () => card.root!.render(<Harness />));
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
-  return card as typeof card & { latest: UseAzureLoginCardV2; root: Root };
+  return card as typeof card & { latest: UseCard; root: Root };
 }
 
 const downstream = { cardId: "proto_card", title: "Downstream", lifecycle: "loading", prerequisiteIds: ["azure_login_v2"] } as const;
 
-describe("useAzureLoginCardV2", () => {
+describe("AzureLoginV2 useCard", () => {
   let root: Root | undefined;
 
   beforeEach(() => {
@@ -106,7 +107,9 @@ describe("useAzureLoginCardV2", () => {
     const card = await renderCard(store);
     root = card.root;
 
-    expect(card.latest.machineLifecycle).toBe("selecting-tenant");
+    expect(Object.keys(card.latest)).toEqual(["baseCardContext", "privateContext"]);
+    expect(card.latest.privateContext.appContext.cards.azure_login_v2).toMatchObject({ initialised: true });
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("selecting-tenant");
     expect(card.latest.baseCardContext).toMatchObject({ cardId: "azure_login_v2", lifecycle: "action", summary: "Select a tenant" });
     expect(store.getSnapshot().cards.azure_login_v2).toEqual({
       initialised: true, title: "Azure login 2", currentBaseCardStatus: "action", currentStatus: "selecting-tenant", azureTenantId: null,
@@ -116,22 +119,22 @@ describe("useAzureLoginCardV2", () => {
 
     const silent = deferred();
     msal.acquireTokenSilent.mockReturnValueOnce(silent.promise);
-    await act(async () => card.latest.selectTenant("tenant-1"));
-    expect(card.latest.machineLifecycle).toBe("confirming-tenant");
+    await act(async () => card.latest.privateContext.selectTenant("tenant-1"));
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("confirming-tenant");
     expect(card.latest.baseCardContext.lifecycle).toBe("commit");
     await act(async () => silent.resolve());
 
-    expect(card.latest.machineLifecycle).toBe("tenant-confirmed");
-    expect(card.latest.done).toBe(true);
-    expect(card.latest.summary).toBe("org@example.com · Tenant One");
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("tenant-confirmed");
+    expect(card.latest.baseCardContext.done).toBe(true);
+    expect(card.latest.baseCardContext.summary).toBe("org@example.com · Tenant One");
     expect(msal.acquireTokenSilent).toHaveBeenCalledWith(expect.objectContaining({ authority: "https://login.microsoftonline.com/tenant-1" }));
     expect(store.getSnapshot().cards.azure_login_v2).toMatchObject({ currentBaseCardStatus: "complete", currentStatus: "tenant-confirmed", azureTenantId: "tenant-1" });
     expect(checkPrerequisites(store.getSnapshot(), downstream)).toEqual([]);
     expect(JSON.stringify(store.getSnapshot())).not.toContain("secret-id-token");
 
-    await act(async () => card.latest.logout());
+    await act(async () => card.latest.privateContext.logout());
     expect(msal.clearCache).toHaveBeenCalled();
-    expect(card.latest.machineLifecycle).toBe("signed-out");
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("signed-out");
     expect(store.getSnapshot().cards.azure_login_v2).toMatchObject({ currentBaseCardStatus: "ready", currentStatus: "signed-out", azureAccount: null, azureTenantId: null });
     expect(card.history).toEqual(["loading", "selecting-tenant", "confirming-tenant", "tenant-confirmed", "signed-out"]);
   });
@@ -141,15 +144,15 @@ describe("useAzureLoginCardV2", () => {
     msalMocks.getMsal.mockResolvedValue(msal);
     const card = await renderCard(createAppContext());
     root = card.root;
-    expect(card.latest.machineLifecycle).toBe("signed-out");
-    expect(card.latest.summary).toBe("Sign in to Azure");
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("signed-out");
+    expect(card.latest.baseCardContext.summary).toBe("Sign in to Azure");
 
     const redirect = deferred();
     msal.loginRedirect.mockReturnValueOnce(redirect.promise);
     let login: Promise<void> | undefined;
-    await act(async () => { login = card.latest.login(); });
-    expect(card.latest.machineLifecycle).toBe("signing-in");
-    expect(card.latest.redirecting).toBe(true);
+    await act(async () => { login = card.latest.privateContext.login(); });
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("signing-in");
+    expect(card.latest.privateContext.redirecting).toBe(true);
     expect(msal.loginRedirect).toHaveBeenCalledWith({ scopes: ["login.scope"], authority: "https://login.microsoftonline.com/common", prompt: "select_account" });
 
     vi.spyOn(console, "error").mockImplementation(() => { });
@@ -157,12 +160,12 @@ describe("useAzureLoginCardV2", () => {
       redirect.reject(new Error("popup_window_error"));
       await login;
     });
-    expect(card.latest.machineLifecycle).toBe("error");
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("error");
     expect(card.latest.baseCardContext).toMatchObject({ lifecycle: "error", summary: "popup_window_error" });
 
-    await act(async () => card.latest.login());
-    expect(card.latest.machineLifecycle).toBe("signing-in");
-    expect(card.latest.loginError).toBeNull();
+    await act(async () => card.latest.privateContext.login());
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("signing-in");
+    expect(card.latest.privateContext.loginError).toBeNull();
   });
 
   it("shows a tenant failure, then keeps its consent redirect apart from the original card", async () => {
@@ -172,17 +175,17 @@ describe("useAzureLoginCardV2", () => {
     root = card.root;
 
     msal.acquireTokenSilent.mockRejectedValueOnce(new Error("AADSTS90072: not a member"));
-    await act(async () => card.latest.selectTenant("tenant-2"));
-    expect(card.latest.machineLifecycle).toBe("error");
-    expect(card.latest.tenantIdError).toMatch(/isn't a member of that tenant/);
+    await act(async () => card.latest.privateContext.selectTenant("tenant-2"));
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("error");
+    expect(card.latest.privateContext.tenantIdError).toMatch(/isn't a member of that tenant/);
 
     msal.acquireTokenSilent.mockRejectedValueOnce(new Error("interaction_required"));
-    await act(async () => card.latest.selectTenant("tenant-2"));
+    await act(async () => card.latest.privateContext.selectTenant("tenant-2"));
     expect(msal.loginRedirect).toHaveBeenCalledWith({ scopes: ["arm.scope"], authority: "https://login.microsoftonline.com/tenant-2", prompt: "consent" });
     expect(sessionStorage.getItem(V2_TENANT_KEY)).toBe("tenant-2");
     expect(sessionStorage.getItem(V1_TENANT_KEY)).toBeNull();
     // Back to choosing while the page leaves for the consent prompt.
-    expect(card.latest.machineLifecycle).toBe("selecting-tenant");
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("selecting-tenant");
   });
 
   it("pre-fills a personal account's first real tenant without confirming it", async () => {
@@ -190,9 +193,9 @@ describe("useAzureLoginCardV2", () => {
     msalMocks.getMsal.mockResolvedValue(createMsal([msaAccount]));
     const card = await renderCard(createAppContext());
     root = card.root;
-    expect(card.latest.manualTenantId).toBe("tenant-9");
-    expect(card.latest.machineLifecycle).toBe("selecting-tenant");
-    expect(card.latest.tenantsLoaded).toBe(true);
+    expect(card.latest.privateContext.manualTenantId).toBe("tenant-9");
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("selecting-tenant");
+    expect(card.latest.privateContext.tenantsLoaded).toBe(true);
   });
 
   it("confirms the tenant it redirected for when the page comes back", async () => {
@@ -204,7 +207,7 @@ describe("useAzureLoginCardV2", () => {
     root = card.root;
 
     expect(msalMocks.getToken).toHaveBeenCalledWith(tenantAccount, ["arm.scope"], "tenant-2");
-    expect(card.latest.machineLifecycle).toBe("tenant-confirmed");
+    expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("tenant-confirmed");
     expect(sessionStorage.getItem(V2_TENANT_KEY)).toBeNull();
     expect(store.getSnapshot().cards.azure_login_v2).toMatchObject({
       currentBaseCardStatus: "complete", currentStatus: "tenant-confirmed", azureTenantId: "tenant-2", azureAccount: { tenantId: "tenant-2", localAccountId: "local-2" },
