@@ -47,7 +47,7 @@ export function CardContentMain({ baseCardContext, privateContext }: UseAzureLog
     tenants,
     manualTenantId,
     tenantIdError,
-    tenantsLoaded,
+    tenantsLoading,
     tenantPinned,
   } = baseCardContext;
   const { login, logout, setManualTenantId, selectTenant } = privateContext;
@@ -118,7 +118,7 @@ export function CardContentMain({ baseCardContext, privateContext }: UseAzureLog
               )}
             </Box>
 
-            {!tenantsLoaded ? (
+            {tenantsLoading ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 1 }}>
                 <CircularProgress size={16} color="inherit" aria-hidden="true" />
                 <StatusText>Loading tenants...</StatusText>

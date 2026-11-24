@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import type { AuthenticationResult } from "@azure/msal-browser";
+import { useQuery } from "@tanstack/react-query";
 import { cleanTenantId, getMsal, getToken, LOGIN_AUTHORITY, MSA_TENANT, PINNED_TENANT_ID } from "../../auth/msal";
 import { listTenants } from "../../api/azureGraph";
 import { ARM_SCOPES, AZURE_CLIENT_ID, LOGIN_SCOPES } from "../../config/azureConfig";
@@ -71,28 +72,22 @@ export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
   const initialTenantApplied = useRef(false);
   const hasActiveUrlSession = useRef(false);
 
-  // Fetch the tenant list via ARM (display names); fall back to the account's known tenant IDs for MSA.
-  const loadTenants = useCallback(
-    async (acc: AzureAccount) => {
+  const tenantsQuery = useQuery({
+    queryKey: [cardId, "tenants", account?.homeAccountId, account?.tenantId],
+    enabled: !!account,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const acc = account!;
       try {
         const list = await listTenants(acc);
-        if (list.length > 0) {
-          dispatch({ type: "tenants-loaded", accountId: acc.homeAccountId, tenants: list });
-          return;
-        }
+        if (list.length > 0) return list;
       } catch {
         /* MSA / consent — fall through to the tenantProfiles fallback */
       }
       const ids = Array.from(acc.tenantProfiles?.keys() ?? []).filter((id) => id !== MSA_TENANT);
-      dispatch({ type: "tenants-loaded", accountId: acc.homeAccountId, tenants: ids.map((id) => ({ tenantId: id, displayName: id })) });
+      return ids.map((id) => ({ tenantId: id, displayName: id }));
     },
-    []
-  );
-
-  // Load the tenant list once signed in; it counts as loaded only for the account it was loaded for.
-  useEffect(() => {
-    if (account) void loadTenants(account);
-  }, [account, loadTenants]);
+  });
 
   // On mount: handle the redirect callback OR restore an existing session.
   useEffect(() => {
@@ -277,7 +272,12 @@ export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
 
   // ── Projection ────────────────────────────────────────────────────────────
   const tenantId = PINNED_TENANT_ID ?? confirmedTenantId;
-  const baseCardContext = getBaseCardContext(state, PINNED_TENANT_ID);
+  const baseCardContext = getBaseCardContext(state, PINNED_TENANT_ID, {
+    tenants: tenantsQuery.data ?? [],
+    tenantsLoading: !!account && tenantsQuery.isPending,
+    tenantsRefreshing: tenantsQuery.isFetching && !tenantsQuery.isPending,
+    tenantsError: tenantsQuery.error instanceof Error ? tenantsQuery.error.message : null,
+  });
   const done = baseCardContext.done;
   const initialTenantMatch = initialTenantId
     ? state.tenants.find((tenant) => tenant.tenantId.toLowerCase() === initialTenantId.toLowerCase())

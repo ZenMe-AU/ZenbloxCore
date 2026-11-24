@@ -5,6 +5,7 @@
 
 import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppContext, type AppContext } from "../appContext";
 import { checkPrerequisites } from "../components/useBaseCard";
@@ -74,8 +75,9 @@ async function renderCard(store: AppContext) {
     if (card.history.at(-1) !== lifecycle) card.history.push(lifecycle);
     return null;
   }
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   card.root = createRoot(document.createElement("div"));
-  await act(async () => card.root!.render(<Harness />));
+  await act(async () => card.root!.render(<QueryClientProvider client={queryClient}><Harness /></QueryClientProvider>));
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
   return card as typeof card & { latest: UseAzureLoginV2; root: Root };
 }
@@ -112,6 +114,8 @@ describe("useAzureLoginV2", () => {
     expect(card.latest.privateContext.appContext.cards.azure_login_v2).toMatchObject({ initialised: true });
     expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("selecting-tenant");
     expect(card.latest.baseCardContext).toMatchObject({ cardId: "azure_login_v2", lifecycle: "action", summary: "Select a tenant" });
+    expect(card.latest.baseCardContext).toMatchObject({ tenantsLoading: false, tenantsRefreshing: false, tenantsError: null });
+    expect(msalMocks.listTenants).toHaveBeenCalledTimes(1);
     expect(store.getSnapshot().cards.azure_login_v2).toEqual({
       initialised: true, title: "Azure login 2", currentBaseCardStatus: "action", currentStatus: "selecting-tenant", azureTenantId: null,
       azureAccount: { homeAccountId: "home", environment: "login.microsoftonline.com", tenantId: "tenant-home", localAccountId: "local", username: "org@example.com" },
@@ -212,11 +216,13 @@ describe("useAzureLoginV2", () => {
   it("pre-fills a personal account's first real tenant without confirming it", async () => {
     const msaAccount = { ...homeAccount, tenantId: "msa-tenant", tenantProfiles: new Map([["msa-tenant", {}], ["tenant-9", {}]]) } as AzureAccount;
     msalMocks.getMsal.mockResolvedValue(createMsal([msaAccount]));
+    msalMocks.listTenants.mockRejectedValueOnce(new Error("MSA_NEEDS_TENANT"));
     const card = await renderCard(createAppContext());
     root = card.root;
     expect(card.latest.baseCardContext.manualTenantId).toBe("tenant-9");
     expect(card.latest.baseCardContext.stateMachine?.currentState).toBe("selecting-tenant");
-    expect(card.latest.baseCardContext.tenantsLoaded).toBe(true);
+    expect(card.latest.baseCardContext.tenantsLoading).toBe(false);
+    expect(card.latest.baseCardContext.tenants).toEqual([{ tenantId: "tenant-9", displayName: "tenant-9" }]);
   });
 
   it("confirms the tenant it redirected for when the page comes back", async () => {
@@ -242,14 +248,18 @@ describe("useAzureLoginV2", () => {
     const store = createAppContext();
     let latest: UseAzureLoginV2 | undefined;
     function Harness() { latest = useAzureLoginV2(store); return null; }
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     root = createRoot(document.createElement("div"));
 
-    await act(async () => root!.render(<StrictMode><Harness /></StrictMode>));
+    await act(async () => root!.render(
+      <QueryClientProvider client={queryClient}><StrictMode><Harness /></StrictMode></QueryClientProvider>
+    ));
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
 
     expect(latest?.baseCardContext.signedInUsername).toBe(homeAccount.username);
     expect(latest?.baseCardContext.stateMachine?.currentState).toBe("selecting-tenant");
     expect(msal.handleRedirectPromise).toHaveBeenCalledTimes(1);
+    expect(msalMocks.listTenants).toHaveBeenCalledTimes(1);
   });
 });
 
