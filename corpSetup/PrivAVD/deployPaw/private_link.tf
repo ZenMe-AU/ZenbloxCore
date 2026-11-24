@@ -95,6 +95,31 @@ resource "azurerm_private_dns_zone_virtual_network_link" "blob" {
   tags                  = var.TAGS
 }
 
+# File private DNS for the Artifact Keeper read-only share (optional
+# integration). ZbArtifactKeeper places a file READ endpoint for its private
+# storage in the private-endpoints subnet and registers it in this zone, so
+# session hosts resolve <account>.file.core.windows.net to a private IP and
+# map the share over SMB. Same one-zone-per-VNet rule as blob: leave
+# FILE_PRIVATE_DNS_ZONE_ID empty to create the zone here, or set it to a zone
+# that is already linked to this VNet.
+resource "azurerm_private_dns_zone" "file" {
+  count               = var.FILE_PRIVATE_DNS_ZONE_ID == "" ? 1 : 0
+  name                = "privatelink.file.core.windows.net"
+  resource_group_name = azurerm_resource_group.avd.name
+  tags                = var.TAGS
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "file" {
+  count                 = var.FILE_PRIVATE_DNS_ZONE_ID == "" ? 1 : 0
+  name                  = "${var.HOST_POOL_NAME}-file-link"
+  resource_group_name   = azurerm_resource_group.avd.name
+  private_dns_zone_name = azurerm_private_dns_zone.file[0].name
+  virtual_network_id    = azurerm_virtual_network.avd.id
+  registration_enabled  = false
+  tags                  = var.TAGS
+}
+
 locals {
   blob_private_dns_zone_id = var.BLOB_PRIVATE_DNS_ZONE_ID != "" ? var.BLOB_PRIVATE_DNS_ZONE_ID : azurerm_private_dns_zone.blob[0].id
+  file_private_dns_zone_id = var.FILE_PRIVATE_DNS_ZONE_ID != "" ? var.FILE_PRIVATE_DNS_ZONE_ID : azurerm_private_dns_zone.file[0].id
 }

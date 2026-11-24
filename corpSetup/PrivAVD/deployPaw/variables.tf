@@ -133,3 +133,20 @@ variable "ARTIFACT_KEEPER_BLOB_HOST" {
     error_message = "ARTIFACT_KEEPER_BLOB_HOST must be empty or <storage-account>.blob.core.windows.net (lowercase)."
   }
 }
+
+variable "FILE_PRIVATE_DNS_ZONE_ID" {
+  description = "Existing privatelink.file.core.windows.net zone already linked to this VNet. Empty = create one here (fresh deployments)."
+  type        = string
+  default     = ""
+}
+
+variable "ARTIFACT_KEEPER_FILE_SHARE" {
+  description = "true = the Artifact Keeper private storage also serves a read-only SMB share (ZbArtifactKeeper TF_VAR_PRIVATE_FILE_SHARE_NAME). Session hosts then get cloud Kerberos tickets at sign-in, so users map the share with their Entra account, and trust its file host as a Local Intranet site. Takes effect at each session host's next restart."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.ARTIFACT_KEEPER_FILE_SHARE || var.ARTIFACT_KEEPER_BLOB_HOST != ""
+    error_message = "ARTIFACT_KEEPER_FILE_SHARE=true needs ARTIFACT_KEEPER_BLOB_HOST: the share lives on the same Artifact Keeper private storage account."
+  }
+}

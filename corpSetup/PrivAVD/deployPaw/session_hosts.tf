@@ -114,3 +114,28 @@ resource "azurerm_virtual_machine_run_command" "artifact_keeper_trust" {
 
   depends_on = [azurerm_virtual_machine_extension.avd_register]
 }
+
+# Artifact Keeper read-only file share (optional): cloud Kerberos ticket
+# retrieval, so users map the share with their Entra account (no password
+# prompt), plus Local Intranet trust for the share's file host. Separate from
+# the blob trust above so stacks without the share see no change. See
+# scripts/Enable-ArtifactKeeperFileShare.ps1 and ZbArtifactKeeper
+# docs/PAW-INTEGRATION.md. The Kerberos setting applies after a restart.
+resource "azurerm_virtual_machine_run_command" "artifact_keeper_file_share" {
+  count              = var.ARTIFACT_KEEPER_BLOB_HOST != "" && var.ARTIFACT_KEEPER_FILE_SHARE ? var.SESSION_HOST_COUNT : 0
+  name               = "artifact-keeper-file-share"
+  location           = azurerm_resource_group.avd.location
+  virtual_machine_id = azurerm_windows_virtual_machine.session_host[count.index].id
+
+  source {
+    script = file("${path.module}/scripts/Enable-ArtifactKeeperFileShare.ps1")
+  }
+
+  parameter {
+    name  = "FileHost"
+    value = replace(var.ARTIFACT_KEEPER_BLOB_HOST, ".blob.core.windows.net", ".file.core.windows.net")
+  }
+
+  # One run command at a time per VM.
+  depends_on = [azurerm_virtual_machine_run_command.artifact_keeper_trust]
+}
