@@ -36,6 +36,8 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
+    "@cspell/dict-en-au": "^1.1.31",
+    "@cspell/eslint-plugin": "^10.5.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@eslint/js": "^9.39.5",

@@ -5,7 +5,7 @@
 
 import { useRef, useState, type ReactElement } from "react";
 import { stringify } from "yaml";
-import { Box, Button, CircularProgress, TextField, Typography } from "@mui/material";
+import { Box, Button, TextField, Typography } from "@mui/material";
 import type { AppContext } from "../../appContext";
 import BaseCard from "../../components/BaseCard";
 import type { BaseCardContext, Lifecycle } from "../../components/useBaseCard";

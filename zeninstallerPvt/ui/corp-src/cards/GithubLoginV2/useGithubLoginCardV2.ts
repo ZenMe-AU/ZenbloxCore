@@ -136,7 +136,7 @@ function writeGithubAuthRecord(record: GithubAuthRecord | null): void {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useGithubLoginCardV2(appStore: AppContext) {
+export function useGithubLoginV2(appStore: AppContext) {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [loggingIn, setLoggingIn] = useState(true);
   const [account, setAccount] = useState<GithubAccount | null>(null);
@@ -386,4 +386,4 @@ export function useGithubLoginCardV2(appStore: AppContext) {
   };
 }
 
-export type UseGithubLoginCardV2 = ReturnType<typeof useGithubLoginCardV2>;
+export type UseGithubLoginV2 = ReturnType<typeof useGithubLoginV2>;

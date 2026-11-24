@@ -45,7 +45,7 @@ import RestoreToast from "./components/RestoreToast";
 import CardIntro from "./components/CardIntro";
 import ExternalLink from "./components/ExternalLink";
 import GithubLoginCard from "./cards/GithubLogin/GithubLoginCard";
-import GithubLoginCardV2 from "./cards/GithubLoginV2/GithubLoginCardV2";
+import GithubLoginV2 from "./cards/GithubLoginV2/GithubLoginV2";
 import GithubSignupCard from "./cards/GithubSignup/GithubSignupCard";
 import RepoCard from "./cards/Repo/RepoCard";
 import RepoCardV2 from "./cards/RepoV2/RepoCardV2";
@@ -496,7 +496,7 @@ function AppDashboard() {
               <ProtoCard {...appCtxStore} />
 
               <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
-              <GithubLoginCardV2 appCtxStore={appCtxStore} />
+              <GithubLoginV2 {...appCtxStore} />
 
               <GithubSignupCard card={cardProps("github_signup")} signup={githubSignup} onOpenLogin={() => openCard("github_login")} />
 

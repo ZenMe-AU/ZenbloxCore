@@ -11,8 +11,8 @@ import { clearGithubToken } from "../cards/GithubLogin/useGithubLoginCard";
 import { readGithubAuthRecord, useGithubLoginCard, type UseGithubLoginCard } from "../cards/GithubLogin/useGithubLoginCard";
 import * as legacyHook from "../cards/GithubLogin/useGithubLoginCard";
 import * as legacyCard from "../cards/GithubLogin/GithubLoginCard";
-import { clearGithubToken as clearGithubTokenV2, useGithubLoginCardV2, type UseGithubLoginCardV2 } from "../cards/GithubLoginV2/useGithubLoginCardV2";
-import { CardContentMain } from "../cards/GithubLoginV2/GithubLoginCardV2";
+import { clearGithubToken as clearGithubTokenV2, useGithubLoginV2, type UseGithubLoginV2 } from "../cards/GithubLoginV2/useGithubLoginV2";
+import GithubLoginV2, { CardContentMain } from "../cards/GithubLoginV2/GithubLoginV2";
 import { createAppContext } from "../appContext";
 import { getStoredToken, setStoredToken } from "../logic/tokenStore";
 import theme from "../theme";
@@ -79,8 +79,8 @@ function HookHarness(props: { onUpdate: (value: UseGithubLoginCard) => void }) {
   return null;
 }
 
-function V2Harness({ onUpdate }: { onUpdate: (value: UseGithubLoginCardV2) => void }) {
-  const auth = useGithubLoginCardV2(v2Store);
+function V2Harness({ onUpdate }: { onUpdate: (value: UseGithubLoginV2) => void }) {
+  const auth = useGithubLoginV2(v2Store);
   useEffect(() => onUpdate(auth), [auth, onUpdate]);
   return (
     <ThemeProvider theme={theme}>
@@ -118,6 +118,32 @@ describe("useGithubLoginCard", () => {
     clearGithubToken();
     clearGithubTokenV2();
     apiMocks.verifyAuth.mockResolvedValue({ login: "octocat" });
+  });
+
+  it("renders the V2 entrypoint through BaseCard and publishes its ready status", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    try {
+      await act(async () => root.render(
+        <ThemeProvider theme={theme}>
+          <GithubLoginV2 {...v2Store} />
+        </ThemeProvider>
+      ));
+      await waitFor(() => {
+        expect(container.querySelector("#card-github_login_v2")).not.toBeNull();
+        expect(container.textContent).toContain("Connect your GitHub account");
+      });
+      expect(container.textContent).toContain("Need help? Click here");
+      expect(getV2Shared()).toMatchObject({
+        currentBaseCardStatus: "ready",
+        currentStatus: "ready",
+      });
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
   });
 
   it("starts idle when no auth record is saved", async () => {
@@ -554,7 +580,7 @@ describe("useGithubLoginCard", () => {
   });
 
   it("uses the new lifecycle for sign-in, failure, retry and sign-out", async () => {
-    let latest: UseGithubLoginCardV2 | undefined;
+    let latest: UseGithubLoginV2 | undefined;
     const oldHook = vi.spyOn(legacyHook, "useGithubLoginCard");
     const oldContent = vi.spyOn(legacyCard, "GithubLoginContent");
     let resolveVerification!: (value: { login: string }) => void;
@@ -611,7 +637,7 @@ describe("useGithubLoginCard", () => {
 
   it("keeps both signed-in cards, their credentials and expiry events independent", async () => {
     let legacy: UseGithubLoginCard | undefined;
-    let v2: UseGithubLoginCardV2 | undefined;
+    let v2: UseGithubLoginV2 | undefined;
     const root = createRoot(document.createElement("div"));
     try {
       await act(async () => root.render(<>
@@ -667,7 +693,7 @@ describe("useGithubLoginCard", () => {
 
   it("uses action while restoring and verifying a saved session", async () => {
     sessionStorage.setItem("github_login_v2_auth", JSON.stringify({ mode: "direct", token: "ghp_saved" }));
-    let latest: UseGithubLoginCardV2 | undefined;
+    let latest: UseGithubLoginV2 | undefined;
     let resolveVerification!: (value: { login: string }) => void;
     apiMocks.verifyAuth.mockReturnValueOnce(new Promise((resolve) => { resolveVerification = resolve; }));
     const root = createRoot(document.createElement("div"));
@@ -682,7 +708,7 @@ describe("useGithubLoginCard", () => {
   });
 
   it("does not restore a shared token when verification finishes after logout", async () => {
-    let latest: UseGithubLoginCardV2 | undefined;
+    let latest: UseGithubLoginV2 | undefined;
     let resolveVerification!: (value: { login: string }) => void;
     apiMocks.verifyAuth.mockReturnValueOnce(new Promise((resolve) => { resolveVerification = resolve; }));
     const root = createRoot(document.createElement("div"));
@@ -708,7 +734,7 @@ describe("useGithubLoginCard", () => {
     });
     vi.stubGlobal("fetch", exchange);
     apiMocks.fetchGithubUser.mockResolvedValueOnce({ login: "octocat" });
-    let latest: UseGithubLoginCardV2 | undefined;
+    let latest: UseGithubLoginV2 | undefined;
     let legacy: UseGithubLoginCard | undefined;
     const root = createRoot(document.createElement("div"));
     try {

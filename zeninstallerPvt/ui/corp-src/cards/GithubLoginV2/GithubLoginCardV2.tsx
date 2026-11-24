@@ -14,8 +14,8 @@ import { getGithubUserUrl, GITHUB_LOGIN_URL } from "../../logic/github";
 import RefreshButton from "../../components/RefreshButton";
 import { useRefreshIndicator } from "../../hooks/util/useRefreshIndicator";
 import type { AppContext } from "../../appContext";
-import type { UseGithubLoginCardV2 } from "./useGithubLoginCardV2";
-import { useGithubLoginCardV2 } from "./useGithubLoginCardV2";
+import type { UseGithubLoginV2 } from "./useGithubLoginCardV2";
+import { useGithubLoginV2 } from "./useGithubLoginCardV2";
 
 type Props = {
   appCtxStore: AppContext;
@@ -36,7 +36,7 @@ function GithubLoginAction({ login }: { login?: string }) {
   return <ViewLink href={login ? getGithubUserUrl(login) : GITHUB_LOGIN_URL} label={login ? "Open GitHub profile" : "Open GitHub sign-in"} />;
 }
 
-export function CardContentMain({ privateContext }: UseGithubLoginCardV2) {
+export function CardContentMain({ privateContext }: UseGithubLoginV2) {
   const {
     loggingIn: authLoading,
     account: user,
@@ -235,7 +235,7 @@ export function CardContentMain({ privateContext }: UseGithubLoginCardV2) {
 }
 
 function CardEntrypoint({ appCtxStore }: Props) {
-  const card = useGithubLoginCardV2(appCtxStore);
+  const card = useGithubLoginV2(appCtxStore);
   const { baseCardContext, privateContext } = card;
   return (
     <BaseCard
