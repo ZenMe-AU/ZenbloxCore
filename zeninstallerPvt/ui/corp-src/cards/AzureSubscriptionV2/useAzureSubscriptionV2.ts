@@ -24,8 +24,8 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface PrivateContext {
-  currentState: Lifecycle;
+interface PrivateContext {
+  appContext: ReturnType<AppContext["getSnapshot"]>;
   blockedBy: readonly { cardId: AppContextCardId; label: string }[];
   tenantId: string | null;
   subscriptions: Subscription[];
@@ -42,6 +42,11 @@ export interface PrivateContext {
   differsFromGithub: boolean; // The pick or tenant isn't what GitHub holds, whatever the draft says.
 }
 
+export interface UseAzureSubscriptionV2 {
+  baseCardContext: BaseCardContext<Lifecycle> & { done: boolean };
+  privateContext: PrivateContext;
+}
+
 // Maps a raw MSAL/AADSTS failure to user-facing text — never surface the raw trace/correlation-id blob.
 function friendlySubsError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
@@ -53,7 +58,7 @@ function friendlySubsError(err: unknown): string {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useAzureSubscriptionCardV2(appStore: AppContext) {
+export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscriptionV2 {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatchLifecycle] = useReducer(reducer, initialState);
   const prerequisiteContext = { ...initialCardContext, lifecycle: toBaseCardLifecycle(state.lifecycle) };
@@ -141,7 +146,8 @@ export function useAzureSubscriptionCardV2(appStore: AppContext) {
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),
     stateMachine: { graph: stateGraph, currentState: lifecycle },
-  } satisfies BaseCardContext<Lifecycle>;
+    done,
+  } satisfies BaseCardContext<Lifecycle> & { done: boolean };
   useEffect(() => {
     appStore.update("azure_subscription_v2", {
       title: baseCardContext.title,
@@ -156,7 +162,7 @@ export function useAzureSubscriptionCardV2(appStore: AppContext) {
   return {
     baseCardContext,
     privateContext: {
-      currentState: lifecycle,
+      appContext,
       blockedBy,
       tenantId,
       subscriptions,

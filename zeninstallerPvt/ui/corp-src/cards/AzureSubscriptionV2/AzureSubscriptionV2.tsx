@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Box, CircularProgress, Link, MenuItem, Select, Typography } from "@mui/material";
+import { Box, Link, MenuItem, Select, Typography } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import type { AppContext } from "../../appContext";
 import { warningMessageIconSx } from "../../config/styles";
@@ -14,7 +14,7 @@ import { AZURE_SUBSCRIPTIONS_URL, getAzureSubscriptionUrl } from "../../logic/co
 import { AZURE_TARGET_KEYS } from "../../logic/variables";
 import CloudVariableDetailV2 from "../CloudVariableDetailV2";
 import { azureLoginCardId } from "./stateMachine";
-import { useAzureSubscriptionCardV2, type PrivateContext } from "./useAzureSubscriptionCardV2";
+import { useAzureSubscriptionV2, type UseAzureSubscriptionV2 } from "./useAzureSubscriptionV2";
 
 type Props = {
   appCtxStore: AppContext;
@@ -47,19 +47,7 @@ function Action({ subscriptionId, tenantId }: { subscriptionId: string; tenantId
   );
 }
 
-function BlockedContent({ blockedBy }: Pick<PrivateContext, "blockedBy">) {
-  return (
-    <Box role="status" sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 0.5 }}>
-      {blockedBy.map((link) => (
-        <Link key={link.cardId} component="a" href={`#card-${link.cardId}`}>
-          {link.label}
-        </Link>
-      ))}
-    </Box>
-  );
-}
-
-function TenantSection({ tenantId }: Pick<PrivateContext, "tenantId">) {
+function TenantSection({ tenantId }: Pick<UseAzureSubscriptionV2["privateContext"], "tenantId">) {
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
       <Typography color="text.muted">
@@ -72,17 +60,13 @@ function TenantSection({ tenantId }: Pick<PrivateContext, "tenantId">) {
   );
 }
 
-function SubscriptionSection({ privateContext }: { privateContext: PrivateContext }) {
-  const { currentState, subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError } = privateContext;
+function SubscriptionSection({ baseCardContext, privateContext }: UseAzureSubscriptionV2) {
+  const { subscriptions, selectedSubscriptionId, setSelectedSubscriptionId, subsError } = privateContext;
+  const currentState = baseCardContext.stateMachine?.currentState;
   return (
     <Box>
       <FieldLabel id="azure-subscription-v2-label" htmlFor="azure-subscription-v2-select">Subscription</FieldLabel>
-      {currentState === "loading" ? (
-        <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <CircularProgress aria-label="Loading Azure subscriptions" size={12} sx={{ color: "text.disabled" }} />
-          <Typography color="text.muted">Loading subscriptions...</Typography>
-        </Box>
-      ) : currentState === "error" ? (
+      {currentState === "error" ? (
         <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
           <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
           <Typography color="warning.main">{subsError}</Typography>
@@ -116,7 +100,7 @@ function SubscriptionSection({ privateContext }: { privateContext: PrivateContex
   );
 }
 
-function SavedGitHubSection({ privateContext }: { privateContext: PrivateContext }) {
+function SavedGitHubSection({ privateContext }: Pick<UseAzureSubscriptionV2, "privateContext">) {
   const { github, variables, populate, populateCount, differsFromGithub } = privateContext;
   if (!github) return null;
 
@@ -139,32 +123,30 @@ function SavedGitHubSection({ privateContext }: { privateContext: PrivateContext
   );
 }
 
-function Content({ privateContext }: { privateContext: PrivateContext }) {
+export function CardContentMain({ baseCardContext, privateContext }: UseAzureSubscriptionV2) {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Intro />
-      {privateContext.currentState === "blocked" ? (
-        <BlockedContent blockedBy={privateContext.blockedBy} />
-      ) : (
-        <>
-          <TenantSection tenantId={privateContext.tenantId} />
-          <SubscriptionSection privateContext={privateContext} />
-          <SavedGitHubSection privateContext={privateContext} />
-        </>
-      )}
+      <TenantSection tenantId={privateContext.tenantId} />
+      <SubscriptionSection baseCardContext={baseCardContext} privateContext={privateContext} />
+      <SavedGitHubSection privateContext={privateContext} />
     </Box>
   );
 }
 
-export default function AzureSubscriptionCardV2({ appCtxStore }: Props) {
-  const subscription = useAzureSubscriptionCardV2(appCtxStore);
-  const { baseCardContext, privateContext } = subscription;
+function CardEntrypoint({ appCtxStore }: Props) {
+  const cardHook = useAzureSubscriptionV2(appCtxStore);
+  const { baseCardContext, privateContext } = cardHook;
   return (
     <BaseCard
       baseCardContext={baseCardContext}
+      appContext={privateContext.appContext}
+      blockedIntro={<Intro />}
       action={<Action subscriptionId={privateContext.selectedSubscriptionId} tenantId={privateContext.tenantId} />}
     >
-      <Content privateContext={privateContext} />
+      <CardContentMain baseCardContext={baseCardContext} privateContext={privateContext} />
     </BaseCard>
   );
 }
+
+export default CardEntrypoint;

@@ -53,7 +53,7 @@ import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
 import AzureLoginCardV2 from "./cards/AzureLoginV2/AzureLoginV2";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCard";
-import AzureSubscriptionCardV2 from "./cards/AzureSubscriptionV2/AzureSubscriptionCardV2";
+import AzureSubscriptionCardV2 from "./cards/AzureSubscriptionV2/AzureSubscriptionV2";
 import AzureAppRegistrationCardV2 from "./cards/AzureAppRegistrationV2/AzureAppRegistrationCardV2";
 import useAzureAppRegistrationCardV2 from "./cards/AzureAppRegistrationV2/useAzureAppRegistrationCardV2";
 import CoreInfraCard from "./cards/CoreInfra/CoreInfraCard";
