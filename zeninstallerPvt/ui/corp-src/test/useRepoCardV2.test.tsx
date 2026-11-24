@@ -61,8 +61,10 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
   const root = createRoot(document.createElement("div"));
   try {
     await act(async () => root.render(<Harness />));
+    expect(Object.keys(latest ?? {})).toEqual(["baseCardContext", "privateContext"]);
     expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("blocked");
     expect(latest?.baseCardContext.prerequisiteIds).toEqual(["github_login_v2"]);
+    expect(latest?.baseCardContext.unmetCardPrerequisites).toEqual(["github_login_v2"]);
     expect(latest?.baseCardContext.stateMachine?.currentState).toBe("blocked");
     const token = new SensitiveToken("v2-token");
     const login: SharedCard<"github_login_v2"> = {
@@ -79,6 +81,7 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
     ] satisfies SharedCard<"github_login_v2">[]) {
       await act(async () => store.update("github_login_v2", incomplete));
       expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("blocked");
+      expect(latest?.baseCardContext.unmetCardPrerequisites).toEqual(["github_login_v2"]);
       expect(createRepoApi).not.toHaveBeenCalled();
     }
     await act(async () => store.update("github_login_v2", {
@@ -86,14 +89,15 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
       githubAccount: { login: "v2-user" }, githubToken: token, githubMode: "backend",
     }));
     await waitFor(() => {
-      expect(latest?.repo.repoList).toEqual([{ id: 2, name: "test-repo" }]);
+      expect(latest?.privateContext.repo.repoList).toEqual([{ id: 2, name: "test-repo" }]);
       expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("ready");
     });
+    expect(latest?.baseCardContext.unmetCardPrerequisites).toEqual([]);
     expect(latest?.baseCardContext.stateMachine?.currentState).toBe("ready");
     expect(createRepoApi).toHaveBeenCalledWith(token, "backend");
-    await act(async () => latest?.repo.setSelectedRepo({ id: 2, name: "test-repo" }));
-    await waitFor(() => expect(latest?.env.envList).toHaveLength(1));
-    await act(async () => latest?.env.setSelectedEnv({ id: 3, name: "PROD", url: "https://example.test/env" }));
+    await act(async () => latest?.privateContext.repo.setSelectedRepo({ id: 2, name: "test-repo" }));
+    await waitFor(() => expect(latest?.privateContext.env.envList).toHaveLength(1));
+    await act(async () => latest?.privateContext.env.setSelectedEnv({ id: 3, name: "PROD", url: "https://example.test/env" }));
     await waitFor(() => {
       expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("complete");
       expect(latest?.baseCardContext.lifecycle).toBe("complete");
@@ -105,17 +109,17 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
     });
     let resolveCheck!: (value: { templateName: string }) => void;
     api.checkTemplate.mockReturnValueOnce(new Promise((resolve) => { resolveCheck = resolve; }));
-    await act(async () => latest?.repo.setSelectedRepo({ id: 9, name: "another-repo" }));
+    await act(async () => latest?.privateContext.repo.setSelectedRepo({ id: 9, name: "another-repo" }));
     expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("action");
     expect(getPublishedRepo(store)?.githubRepository).toBeNull();
-    expect(latest?.env.selectedEnv).toBeNull();
+    expect(latest?.privateContext.env.selectedEnv).toBeNull();
     await act(async () => store.update("github_login_v2", {
       title: "GitHub login 2", currentBaseCardStatus: "ready", currentStatus: "ready",
       githubAccount: null, githubToken: null, githubMode: null,
     }));
     expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("blocked");
-    expect(latest?.repo.selectedRepo).toBeNull();
-    expect(latest?.env.selectedEnv).toBeNull();
+    expect(latest?.privateContext.repo.selectedRepo).toBeNull();
+    expect(latest?.privateContext.env.selectedEnv).toBeNull();
     expect(latest?.baseCardContext.lifecycle).toBe("blocked");
     expect(getPublishedRepo(store)?.githubRepository).toBeNull();
     await act(async () => resolveCheck({ templateName: "ZenMe-AU/ZenbloxCore" }));
@@ -146,9 +150,9 @@ it("restores the V2 repository chain from the initial URL params", async () => {
     }));
 
     await waitFor(() => {
-      expect(latest?.repo.selectedAccount?.login).toBe("v2-user");
-      expect(latest?.repo.selectedRepo?.name).toBe("test-repo");
-      expect(latest?.env.selectedEnv?.name).toBe("PROD");
+      expect(latest?.privateContext.repo.selectedAccount?.login).toBe("v2-user");
+      expect(latest?.privateContext.repo.selectedRepo?.name).toBe("test-repo");
+      expect(latest?.privateContext.env.selectedEnv?.name).toBe("PROD");
       expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("complete");
     });
     expect(store.getSnapshot().urlParams).toMatchObject({
@@ -182,9 +186,9 @@ it("ignores an old account request after switching GitHub sessions", async () =>
     await act(async () => publish("old-user"));
     expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("action");
     await act(async () => publish("new-user"));
-    await waitFor(() => expect(latest?.repo.selectedAccount?.login).toBe("v2-user"));
+    await waitFor(() => expect(latest?.privateContext.repo.selectedAccount?.login).toBe("v2-user"));
     await act(async () => resolveOld([{ id: 5, login: "old-user", type: "User" }]));
-    expect(latest?.repo.selectedAccount?.login).toBe("v2-user");
+    expect(latest?.privateContext.repo.selectedAccount?.login).toBe("v2-user");
   } finally {
     await act(async () => root.unmount());
   }
@@ -211,10 +215,10 @@ it("reports an account loading failure and recovers on refresh", async () => {
       expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("error");
       expect(latest?.baseCardContext.summary).toBe("Could not load GitHub accounts");
     });
-    await act(async () => latest?.repo.onRefresh());
+    await act(async () => latest?.privateContext.repo.onRefresh());
     await waitFor(() => {
       expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("ready");
-      expect(latest?.repo.repoList).toHaveLength(1);
+      expect(latest?.privateContext.repo.repoList).toHaveLength(1);
     });
   } finally {
     await act(async () => root.unmount());

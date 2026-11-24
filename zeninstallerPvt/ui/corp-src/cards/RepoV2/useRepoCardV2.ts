@@ -5,11 +5,10 @@
 
 import { useEffect, useMemo, useReducer, useState, useSyncExternalStore } from "react";
 import type { SharedCard, AppContext } from "../../appContext";
-import type { BaseCardContext } from "../../components/useBaseCard";
+import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
 import { createRepoApi } from "./api";
 import { useGithubRepo, type UseGithubRepo } from "./useGithubRepo";
 import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
-import { getEnvSettingsUrl } from "../../logic/github";
 import {
   getRepoPrerequisites,
   initialRepoCardContext,
@@ -22,11 +21,15 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface UseRepoCardV2 {
-  baseCardContext: BaseCardContext<Lifecycle>;
-  githubEnvUrl: string | undefined;
+interface PrivateContext {
+  appContext: ReturnType<AppContext["getSnapshot"]>;
   repo: UseGithubRepo;
   env: UseGithubEnvironment;
+}
+
+export interface UseRepoCardV2 {
+  baseCardContext: BaseCardContext<Lifecycle>;
+  privateContext: PrivateContext;
 }
 
 export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
@@ -38,6 +41,10 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
     stateMachine: { graph: stateGraph, currentState: state.lifecycle },
   } satisfies BaseCardContext<Lifecycle>;
   const prerequisites = getRepoPrerequisites(appContext, initialBaseCardContext);
+  const missingPrerequisites = checkPrerequisites(appContext, initialBaseCardContext);
+  const unmetCardPrerequisites = prerequisites
+    ? missingPrerequisites
+    : [...new Set([...missingPrerequisites, ...initialRepoCardContext.prerequisiteIds])];
   const token = prerequisites?.token;
   const mode = prerequisites?.mode;
   const user = prerequisites?.user ?? null;
@@ -87,7 +94,6 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
     summary = `${githubRepo.repoFullName} · ${envName}`;
   }
 
-  const githubEnvUrl = githubRepo.repoFullName && env.selectedEnv ? getEnvSettingsUrl(githubRepo.repoFullName, env.selectedEnv.id) : undefined;
   const done = isRepoReady && isEnvReady && !errorSummary && !busySummary;
   const lifecycle: Lifecycle = !prerequisites ? "blocked" : errorSummary ? "error" : busySummary ? "action" : done ? "complete" : "ready";
   if (lifecycle !== state.lifecycle) dispatchLifecycle({ type: "transition", lifecycle });
@@ -95,6 +101,7 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
     ...initialRepoCardContext,
     lifecycle: toBaseCardLifecycle(lifecycle),
     stateMachine: { graph: stateGraph, currentState: lifecycle },
+    unmetCardPrerequisites,
     summary: lifecycle === "blocked" ? "Sign in to GitHub login 2" : summary,
   } satisfies BaseCardContext<Lifecycle>;
   useEffect(() => {
@@ -129,9 +136,11 @@ export function useRepoCardV2(appStore: AppContext): UseRepoCardV2 {
   }, [appStore, baseCardContext.title, baseCardContext.lifecycle, lifecycle, done, githubRepo.selectedAccount, githubRepo.selectedRepo, env.selectedEnv]);
 
   return {
-    repo: githubRepo,
-    env,
-    githubEnvUrl,
     baseCardContext,
+    privateContext: {
+      appContext,
+      repo: githubRepo,
+      env,
+    },
   };
 }

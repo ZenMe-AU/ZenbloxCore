@@ -27,7 +27,7 @@ declare module "../../appContext" {
   }
 }
 
-export const githubLoginCardId = "github_login_v2" satisfies BaseCardContext["cardId"];
+const githubLoginCardId = "github_login_v2" satisfies BaseCardContext["cardId"];
 
 export const initialRepoCardContext = {
   cardId: "repo_v2",
