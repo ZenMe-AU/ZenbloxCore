@@ -1,6 +1,6 @@
 # Card Prototype Design
 
-This document describes the card architecture demonstrated by ProtoCard and gives a migration guide for cards moving to the BaseCard model.
+This document describes the card architecture demonstrated by <CardName> and gives a migration guide for cards moving to the BaseCard model.
 
 ## Design Goals
 
@@ -40,9 +40,9 @@ export type State = BaseCardState<Lifecycle> & {
 
 The `lifecycle` omission is intentional: the reducer stores the workflow lifecycle once, then `getBaseCardContext` projects it into the public context. Prerequisite IDs remain the shared `BaseCardContext` field; do not omit and redeclare them with a card-specific copy.
 
-`privateContext` should contain only runtime dependencies. ProtoCard currently uses an empty reducer-owned private context; its hook adds `appContext` and `dispatch` for component use. Do not put serializable card state in that runtime channel.
+`privateContext` should contain only runtime dependencies. <CardName> currently uses an empty reducer-owned private context; its hook adds `appContext` and `dispatch` for component use. Do not put serializable card state in that runtime channel.
 
-The shared `Lifecycle` union includes `forceUnlocked`. A card's graph should cover the states required by its workflow and any BaseCard display-state behavior it chooses to demonstrate. ProtoCard includes `blocked -> forceUnlocked -> blocked` so its state diagram can describe the override. BaseCard owns the actual force-unlock UI state; it does not dispatch a force-unlock event into ProtoCard's reducer.
+The shared `Lifecycle` union includes `forceUnlocked`. A card's graph should cover the states required by its workflow and any BaseCard display-state behavior it chooses to demonstrate. <CardName> includes `blocked -> forceUnlocked -> blocked` so its state diagram can describe the override. BaseCard owns the actual force-unlock UI state; it does not dispatch a force-unlock event into <CardName>'s reducer.
 
 ## BaseCard Contract
 
@@ -82,7 +82,7 @@ Define the card's state, events, initial state, graph, transition guard, and red
 - Treat BaseCard's force-unlock display as separate from whether prerequisites are met; do not set `done` or publish `complete` because the user force-unlocked the card.
 - Derive summary and completion fields from the reducer state in `getBaseCardContext` rather than maintaining duplicate values.
 
-ProtoCard's core events illustrate the pattern:
+<CardName>'s core events illustrate the pattern:
 
 - `card-prerequisite`: update a selected prerequisite and return to loading.
 - `sync-card-prerequisites`: store the latest result from the shared prerequisite check and return to loading.
@@ -102,9 +102,21 @@ The card hook connects the pure state machine to React and AppContext:
 
 Do not put the shared prerequisite matching algorithm in BaseCard's render path. Hooks and state-machine helpers need the result before rendering in order to gate operations and lifecycle transitions. BaseCard consumes that result to present blocked UI.
 
+## Folder and File Names
+
+Choose one canonical PascalCase `<CardName>` and use it consistently for the card folder, component filename, hook filename, and hook result type:
+
+```text
+cards/<CardName>/
+  <CardName>.tsx
+  use<CardName>.ts
+```
+
+Use `.tsx` for the hook file only if it contains JSX; otherwise use `.ts`. For example, <CardName> is organized as `cards/<CardName>/<CardName>.tsx` and `cards/<CardName>/Use<CardName>.ts`, and its hook result type is `Use<CardName>`. Do not use a different shortened or legacy name for the folder or paired files.
+
 ## Component Pattern
 
-- Every card implementation file follows ProtoCard's explicit top-level component shape and order:
+- Every card implementation file follows <CardName>'s explicit top-level component shape and order:
   1. `Intro` for card-specific introduction content; every card must pass `<Intro />` to BaseCard as `blockedIntro`, so the intro remains visible when blocked.
   2. `PrerequisitesPanel` when the card needs an editable prerequisite/lifecycle panel.
   3. `ResultsPanel` when the card needs a diagnostic/results panel.
@@ -119,7 +131,7 @@ Do not put the shared prerequisite matching algorithm in BaseCard's render path.
 - Always provide `blockedIntro={<Intro />}`. Use BaseCard's `blockedContent` and `loadingContent` slots rather than copying shared blocked/loading controls into each card.
 - State diagrams should reflect the card's state graph. A custom diagram layout is optional; the default StateDiagram layout can be used when no card-specific arrangement is needed.
 
-Use the shared props consistently for the optional panels and main content. `UseCard` below means the result type exported by that card's hook; ProtoCard names this type `UseProtoCard`.
+Use the card hook's result type consistently for the optional panels and main content. In the example below, `UseCard` is a placeholder for that type; <CardName> names it `Use<CardName>`.
 
 ```tsx
 function PrerequisitesPanel({ baseCardContext, privateContext }: UseCard) {
@@ -176,13 +188,13 @@ From `zeninstallerPvt/ui`, run the shared focused suites and type/lint checks:
 pnpm exec tsc -b
 pnpm exec eslint corp-src/cards/<CardName> corp-src/components/BaseCard.tsx
 pnpm exec vitest run corp-src/test/basecardlifecycle.test.ts
-pnpm exec vitest run corp-src/test/protoCardPrerequisiteSelect.test.tsx
+pnpm exec vitest run corp-src/test/<CardName>PrerequisiteSelect.test.tsx
 ```
 
-ProtoCard also has colocated tests and a local Vitest config. Run those with:
+<CardName> also has colocated tests and a local Vitest config. Run those with:
 
 ```powershell
-pnpm exec vitest run --config corp-src/cards/ProtoCard/vitest.config.ts
+pnpm exec vitest run --config corp-src/cards/<CardName>/vitest.config.ts
 ```
 
 When migrating another card, add its tests to the normal discovered test suite where practical so CI runs them with the standard UI test command.
