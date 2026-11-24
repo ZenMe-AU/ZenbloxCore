@@ -36,7 +36,7 @@ function GithubLoginAction({ login }: { login?: string }) {
   return <ViewLink href={login ? getGithubUserUrl(login) : GITHUB_LOGIN_URL} label={login ? "Open GitHub profile" : "Open GitHub sign-in"} />;
 }
 
-function GithubLoginContent({ auth }: { auth: UseGithubLoginCardV2["privateContext"] }) {
+export function CardContentMain({ privateContext }: UseGithubLoginCardV2) {
   const {
     loggingIn: authLoading,
     account: user,
@@ -49,7 +49,7 @@ function GithubLoginContent({ auth }: { auth: UseGithubLoginCardV2["privateConte
     setToken: setPat,
     refresh: onRefresh,
     redirecting,
-  } = auth;
+  } = privateContext;
   const signingIn = redirecting === "login";
   const [patError, setPatError] = useState("");
   const [showPat, setShowPat] = useState(false);
@@ -234,19 +234,19 @@ function GithubLoginContent({ auth }: { auth: UseGithubLoginCardV2["privateConte
   );
 }
 
-export function GithubLoginCardV2View({ auth }: { auth: UseGithubLoginCardV2 }) {
-  const { baseCardContext, privateContext } = auth;
+function CardEntrypoint({ appCtxStore }: Props) {
+  const card = useGithubLoginCardV2(appCtxStore);
+  const { baseCardContext, privateContext } = card;
   return (
     <BaseCard
       baseCardContext={baseCardContext}
+      appContext={privateContext.appContext}
+      blockedIntro={<Intro />}
       action={<GithubLoginAction login={privateContext.account?.login} />}
     >
-      <GithubLoginContent auth={privateContext} />
+      <CardContentMain baseCardContext={baseCardContext} privateContext={privateContext} />
     </BaseCard>
   );
 }
 
-export default function GithubLoginCardV2({ appCtxStore }: Props) {
-  const auth = useGithubLoginCardV2(appCtxStore);
-  return <GithubLoginCardV2View auth={auth} />;
-}
+export default CardEntrypoint;

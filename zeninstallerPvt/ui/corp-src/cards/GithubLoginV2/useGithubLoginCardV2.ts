@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useReducer, useState, useRef } from "react";
+import { useCallback, useEffect, useReducer, useState, useRef, useSyncExternalStore } from "react";
 import { createGithubApi, fetchGithubUser } from "../../api/github";
 import { BACKEND_CONFIGURED, exchangeGithubCode, verifyAuthWithToken } from "../../api/backend";
 import { appUrl, requestAuthorizationCode, takePendingCode } from "../../logic/oauth";
@@ -137,6 +137,7 @@ function writeGithubAuthRecord(record: GithubAuthRecord | null): void {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useGithubLoginCardV2(appStore: AppContext) {
+  const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [loggingIn, setLoggingIn] = useState(true);
   const [account, setAccount] = useState<GithubAccount | null>(null);
   const [session, setSession] = useState<{ token: SensitiveToken; mode: GithubAuthRecord["mode"] } | null>(null);
@@ -381,7 +382,7 @@ export function useGithubLoginCardV2(appStore: AppContext) {
   } satisfies BaseCardContext<GithubLoginV2Lifecycle>;
   return {
     baseCardContext,
-    privateContext,
+    privateContext: { ...privateContext, appContext },
   };
 }
 

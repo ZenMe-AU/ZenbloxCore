@@ -12,7 +12,7 @@ import { readGithubAuthRecord, useGithubLoginCard, type UseGithubLoginCard } fro
 import * as legacyHook from "../cards/GithubLogin/useGithubLoginCard";
 import * as legacyCard from "../cards/GithubLogin/GithubLoginCard";
 import { clearGithubToken as clearGithubTokenV2, useGithubLoginCardV2, type UseGithubLoginCardV2 } from "../cards/GithubLoginV2/useGithubLoginCardV2";
-import { GithubLoginCardV2View } from "../cards/GithubLoginV2/GithubLoginCardV2";
+import { CardContentMain } from "../cards/GithubLoginV2/GithubLoginCardV2";
 import { createAppContext } from "../appContext";
 import { getStoredToken, setStoredToken } from "../logic/tokenStore";
 import theme from "../theme";
@@ -84,7 +84,7 @@ function V2Harness({ onUpdate }: { onUpdate: (value: UseGithubLoginCardV2) => vo
   useEffect(() => onUpdate(auth), [auth, onUpdate]);
   return (
     <ThemeProvider theme={theme}>
-      <GithubLoginCardV2View auth={auth} />
+      <CardContentMain baseCardContext={auth.baseCardContext} privateContext={auth.privateContext} />
     </ThemeProvider>
   );
 }
@@ -657,7 +657,7 @@ describe("useGithubLoginCard", () => {
       setStoredToken("github_login_v2_access_token", "v2-oauth-token");
       await act(async () => { await legacy?.logout(); });
       expect(v2?.privateContext.account).toEqual({ login: "octocat" });
-      expect(sessionStorage.getItem("zeninstaller_github_login_v2_auth")).not.toBeNull();
+      expect(sessionStorage.getItem("github_login_v2_auth")).not.toBeNull();
       expect(getStoredToken(["github_login_v2_access_token"])).toBe("v2-oauth-token");
       expect(sessionStorage.getItem("github_login_v2_login")).toBe("success");
     } finally {
@@ -666,7 +666,7 @@ describe("useGithubLoginCard", () => {
   });
 
   it("uses action while restoring and verifying a saved session", async () => {
-    sessionStorage.setItem("zeninstaller_github_login_v2_auth", JSON.stringify({ mode: "direct", token: "ghp_saved" }));
+    sessionStorage.setItem("github_login_v2_auth", JSON.stringify({ mode: "direct", token: "ghp_saved" }));
     let latest: UseGithubLoginCardV2 | undefined;
     let resolveVerification!: (value: { login: string }) => void;
     apiMocks.verifyAuth.mockReturnValueOnce(new Promise((resolve) => { resolveVerification = resolve; }));
