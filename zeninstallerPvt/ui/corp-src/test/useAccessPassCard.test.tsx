@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAccessPassCard, type UseAccessPassCard } from "../cards/AccessPass/useAccessPassCard";
 import type { AzureAccount } from "../types";
 
-const { apiMocks } = vi.hoisted(() => ({
+const { apiMocks, accessMock } = vi.hoisted(() => ({
   apiMocks: {
     getMsal: vi.fn(),
     listUsersManagedBySignedInUser: vi.fn(),
@@ -25,6 +25,25 @@ const { apiMocks } = vi.hoisted(() => ({
     generateRandomPassword: vi.fn(),
     logEvent: vi.fn(),
   },
+  accessMock: {
+    status: "ready" as const,
+    error: null,
+    failureKind: null,
+    retry: vi.fn(),
+    check: vi.fn(),
+    reportFailure: vi.fn(),
+    missingRoles: null,
+    missingEntra: null,
+    unregisteredProviders: [],
+    registeringProviders: false,
+    registerProviders: vi.fn(),
+    missingConsent: [],
+    grantConsent: vi.fn(),
+  },
+}));
+
+vi.mock("../hooks/util/useAzureCardAccess", () => ({
+  useCardResourceAccess: () => accessMock,
 }));
 
 vi.mock("../auth/msal", () => ({
@@ -92,6 +111,7 @@ function baseProps(overrides: Partial<Parameters<typeof useAccessPassCard>[0]> =
       name: "User",
     } as AzureAccount,
     confirmedTenantId: "tenant-a",
+    subscriptionId: "sub-a",
     ...overrides,
   };
 }
@@ -121,6 +141,7 @@ describe("useAccessPassCard", () => {
     apiMocks.isConsentError.mockReturnValue(false);
     apiMocks.generateRandomPassword.mockReturnValue("RANDOM-PASSWORD");
     apiMocks.logEvent.mockReturnValue(undefined);
+    accessMock.check.mockReset().mockResolvedValue(undefined);
   });
 
   it("requestAccessPassConsent returns early without account or msal, then redirects with tenant authority", async () => {
@@ -688,6 +709,38 @@ describe("useAccessPassCard", () => {
       expect(latest?.steps.find((s) => s.id === "rotatePassword")?.status).toBe("done");
       expect(latest?.steps.find((s) => s.id === "tap")?.status).toBe("done");
       expect(latest?.result?.tapMethodId).toBe("tap-1");
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("checks card resource access before changing the tenant or user", async () => {
+    accessMock.check.mockRejectedValueOnce(new Error("Missing Entra access"));
+    let latest: UseAccessPassCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />
+      );
+    });
+
+    await act(async () => {
+      await latest?.runForUser("u1");
+    });
+
+    expect(accessMock.check).toHaveBeenCalledOnce();
+    expect(apiMocks.ensureTemporaryAccessPassEnabled).not.toHaveBeenCalled();
+    expect(latest?.steps.find((step) => step.id === "access")).toMatchObject({
+      status: "error",
+      detail: "Missing Entra access",
     });
 
     await act(async () => {

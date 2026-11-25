@@ -123,19 +123,19 @@ function AppDashboard() {
   // AWS login is unused since the AWS console sign-in stack replaced AWS setup.
   // const awsLogin = addCard(useAwsLoginCard());
 
-  const azureAccessPass = addCard(
-    useAccessPassCard({
-      azureAccount: azureLogin.account,
-      confirmedTenantId: azureLogin.confirmedTenantId,
-    })
-  );
-
   const azureSubscription = addCard(
     useAzureSubscriptionCard({
       azureAccount: azureLogin.account,
       confirmedTenantId: azureLogin.confirmedTenantId,
       manualTenantId: azureLogin.manualTenantId,
       savedSubscriptionId: githubVariableValues.AZURE_SUBSCRIPTION_ID ?? "",
+    })
+  );
+  const azureAccessPass = addCard(
+    useAccessPassCard({
+      azureAccount: azureLogin.account,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
+      confirmedTenantId: azureLogin.confirmedTenantId,
     })
   );
   const azureAppSetup = addCard(
