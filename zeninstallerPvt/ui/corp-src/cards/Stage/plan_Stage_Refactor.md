@@ -116,10 +116,6 @@ After both concrete cards exist and the dynamic Stage path is removed, review th
 - remove the legacy StageCard implementation;
 - remove obsolete dynamic helpers and compatibility code.
 
-## Existing baseline concern
-
-`StageCard.tsx` currently creates one remote-terminal hook/session but renders `RemoteTerminal` in two locations. Capture this as known baseline behavior during parity testing, or fix it in a separate focused commit before comparing old and new cards. Do not mix that behavior change into a name-only or extraction commit.
-
 ## Commit gates
 
 ### Gate A
@@ -137,3 +133,9 @@ GaCloudFront is explicit and independently tested; dynamic Stage rendering is re
 ### Gate C
 
 The remaining architecture work has been reviewed and broken into separate, phase-sized changes.
+
+## Future required changes
+
+These are intentionally outside the structural refactor. Capture parity first, then address them in separately reviewed behavior changes.
+
+- `StageCard.tsx` currently creates one remote-terminal hook/session but renders `RemoteTerminal` in two locations. The new cards should initially preserve this behavior for parity, then consolidate it after the structural migration.
