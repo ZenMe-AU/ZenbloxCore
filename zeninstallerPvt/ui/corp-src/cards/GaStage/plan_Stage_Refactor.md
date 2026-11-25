@@ -92,7 +92,7 @@ Perform this step one stage at a time.
 
 ### B.1 Extract GaSubscriptionBudget
 
-1. Create an explicit `GaSubscriptionBudget` card.
+1. Create an explicit `GaSubscriptionBudget` card in its own folder.
 2. Supply its stage definition and dependencies explicitly rather than discovering it through the dynamic stage map.
 3. Compose the card from `GaStage` initially.
 4. Replace only the SubscriptionBudget dynamic rendering/model lookup in `App.tsx`.
@@ -105,7 +105,7 @@ Perform this step one stage at a time.
 
 After the SubscriptionBudget extraction is committed:
 
-1. Create an explicit `GaCloudFront` card.
+1. Create an explicit `GaCloudFront` card in its own folder.
 2. Supply its stage definition and dependencies explicitly.
 3. Compose it from `GaStage`.
 4. Replace the remaining CloudFront dynamic rendering/model lookup.

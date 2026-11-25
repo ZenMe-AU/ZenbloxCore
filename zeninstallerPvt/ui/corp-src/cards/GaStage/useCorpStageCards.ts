@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { Account, CardChrome, CardHook, CardId, CardStatus, GhEnv, PipelineConfig, PlanSummary, Stage, StageDefinition } from "../../types";
+import type { Account, CardChrome, CardHook, CardId, CardStatus, GhEnv, PlanSummary, Stage, StageDefinition } from "../../types";
 import type { UseDeploymentPlan } from "./useDeploymentPlan";
 import { assessPrerequisites, getEffectiveStatus, getStageCardId, getStageSummaryText, stageToCardStatus, type PrerequisiteAssessment } from "../../logic/stage";
 
@@ -31,7 +31,7 @@ export type CorpStageCardModel = {
 };
 
 export function useCorpStageCards({
-  pipeline,
+  stageDefinitions,
   plan,
   allCards,
   repoDone,
@@ -45,7 +45,7 @@ export function useCorpStageCards({
   onToggle,
   onRequirementClick,
 }: {
-  pipeline: PipelineConfig;
+  stageDefinitions: readonly StageDefinition[];
   plan: UseDeploymentPlan;
   allCards: Record<string, CardHook>;
   repoDone: boolean;
@@ -62,7 +62,7 @@ export function useCorpStageCards({
   const cardStatus = Object.fromEntries(Object.entries(allCards).map(([id, hook]) => [id, hook.status])) as Record<CardId, CardStatus>;
   const cardErrorMsg = null;
 
-  return pipeline.stages.map((stageDef: StageDefinition) => {
+  return stageDefinitions.map((stageDef: StageDefinition) => {
     const stage = plan.stages.find((s) => s.stage === stageDef.dir) ?? {
       stage: stageDef.dir,
       status: "pending" as const,

@@ -19,6 +19,8 @@ import { useDeploymentPlan } from "./cards/Stage/useDeploymentPlan";
 import { useCorpStageCards } from "./cards/Stage/useCorpStageCards";
 import { useDeploymentPlan as useGaDeploymentPlan } from "./cards/GaStage/useDeploymentPlan";
 import { useCorpStageCards as useGaCorpStageCards } from "./cards/GaStage/useCorpStageCards";
+import GaSubscriptionBudget from "./cards/GaSubscriptionBudget/GaSubscriptionBudget";
+import { GA_SUBSCRIPTION_BUDGET_CARD_ID, GA_SUBSCRIPTION_BUDGET_STAGE } from "./cards/GaSubscriptionBudget/config";
 import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
@@ -70,7 +72,6 @@ import AccessPassCard from "./cards/AccessPass/AccessPassCard";
 import AwsSsoCard from "./cards/AwsSso/AwsSsoCard";
 import AwsSsoStackCard from "./cards/AwsSsoStack/AwsSsoStackCard";
 import StageCard from "./cards/Stage/StageCard";
-import GaStage from "./cards/GaStage/GaStage";
 import AvdGalleryCard from "./cards/AvdGallery/AvdGalleryCard";
 import PawImageCard from "./cards/PawImage/PawImageCard";
 import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
@@ -371,7 +372,10 @@ function AppDashboard() {
   };
   const cardProps = (id: CardId): CardChrome => cardPropsFor(id, allCards[id]);
   const stageCards = useCorpStageCards({
-    pipeline: PIPELINE,
+    pipeline: {
+      ...PIPELINE,
+      stages: PIPELINE.stages.filter(({ dir }) => dir !== GA_SUBSCRIPTION_BUDGET_STAGE.dir),
+    },
     plan,
     allCards,
     repoDone: githubRepoEnv.done,
@@ -385,8 +389,8 @@ function AppDashboard() {
     onToggle: toggle,
     onRequirementClick: openCard,
   });
-  const gaStageCards = useGaCorpStageCards({
-    pipeline: PIPELINE,
+  const gaSubscriptionBudget = useGaCorpStageCards({
+    stageDefinitions: [GA_SUBSCRIPTION_BUDGET_STAGE],
     plan: gaPlan,
     allCards,
     repoDone: githubRepoEnv.done,
@@ -399,20 +403,21 @@ function AppDashboard() {
     onVariableConfirmed: githubVariables.onConfirmed,
     onToggle: toggle,
     onRequirementClick: openCard,
-  }).map((model) => {
-    const cardId = `stage_GA_${model.key}` as CardId;
-    return {
-      ...model,
-      key: `ga-${model.key}`,
-      stageDef: { ...model.stageDef, label: `GA ${model.stageDef.label}` },
-      card: {
-        ...model.card,
-        cardId,
-        expanded: expandedIds.has(cardId),
-        onToggle: () => toggle(cardId),
-      },
-    };
-  });
+  })[0]!;
+  const gaSubscriptionBudgetCard = {
+    ...gaSubscriptionBudget,
+    card: {
+      ...gaSubscriptionBudget.card,
+      cardId: GA_SUBSCRIPTION_BUDGET_CARD_ID,
+      expanded: expandedIds.has(GA_SUBSCRIPTION_BUDGET_CARD_ID),
+      onToggle: () => toggle(GA_SUBSCRIPTION_BUDGET_CARD_ID),
+    } satisfies CardChrome,
+  };
+  const {
+    key: gaSubscriptionBudgetKey,
+    stageDef: gaSubscriptionBudgetStageDef,
+    ...gaSubscriptionBudgetProps
+  } = gaSubscriptionBudgetCard;
 
   const progressCards = [
     ...([
@@ -443,12 +448,12 @@ function AppDashboard() {
       done: card.status === "complete",
       chrome: card,
     })),
-    ...gaStageCards.map(({ card, stageDef }) => ({
-      id: card.cardId,
-      title: stageDef.label,
-      done: card.status === "complete",
-      chrome: card,
-    })),
+    {
+      id: gaSubscriptionBudgetCard.card.cardId,
+      title: gaSubscriptionBudgetStageDef.label,
+      done: gaSubscriptionBudgetCard.card.status === "complete",
+      chrome: gaSubscriptionBudgetCard.card,
+    },
     ...[avdGallery, pawImage, pawDeploy].map(({ cardId, cardDependencyLabel, done }) => ({
       id: cardId,
       title: cardDependencyLabel,
@@ -707,9 +712,7 @@ function AppDashboard() {
               {stageCards.map(({ key, ...stageCard }) => (
                 <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
               ))}
-              {gaStageCards.map(({ key, ...stageCard }) => (
-                <GaStage key={key} {...stageCard} azureAccount={azureLogin.account} />
-              ))}
+              <GaSubscriptionBudget key={`ga-${gaSubscriptionBudgetKey}`} {...gaSubscriptionBudgetProps} azureAccount={azureLogin.account} />
             </Box>
           </Box>
         </Box >

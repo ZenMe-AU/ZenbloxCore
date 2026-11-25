@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
+import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@mui/material";
@@ -42,6 +43,26 @@ describe("App - Home Page", () => {
   it("should have a DOM container", () => {
     const container = document.createElement("div");
     expect(container).toBeTruthy();
+  });
+
+  it("renders SubscriptionBudget only as the explicit GA card", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    try {
+      await act(async () => {
+        root.render(
+          <QueryClientProvider client={new QueryClient()}>
+            <ThemeProvider theme={theme}><App /></ThemeProvider>
+          </QueryClientProvider>
+        );
+      });
+      await expect.poll(() => container.querySelectorAll("#card-stage_GA_SubscriptionBudget").length).toBe(1);
+      expect(container.querySelector("#card-stage_SubscriptionBudget")).toBeNull();
+    } finally {
+      root.unmount();
+      container.remove();
+    }
   });
 
   it("publishes opted-in cards and updates their status after render", async () => {
