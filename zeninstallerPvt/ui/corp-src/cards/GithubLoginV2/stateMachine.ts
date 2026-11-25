@@ -14,9 +14,11 @@ import type { SensitiveToken } from "../../appContext";
 
 export type GithubAccount = { login: string };
 
+export const cardId = "github_login_v2" as const;
+
 declare module "../../appContext" {
   interface SharedCardDataById {
-    github_login_v2: {
+    [cardId]: {
       githubAccount: Readonly<GithubAccount> | null;
       githubToken: SensitiveToken | null;
       githubMode: "direct" | "backend" | null;

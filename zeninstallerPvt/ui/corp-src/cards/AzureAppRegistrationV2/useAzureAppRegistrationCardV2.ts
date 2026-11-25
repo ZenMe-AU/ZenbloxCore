@@ -399,11 +399,12 @@ export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegi
   useEffect(() => {
     appStore.update("azure_app_registration_v2", {
       title: baseCardContext.title,
+      prerequisiteIds: baseCardContext.prerequisiteIds,
       currentBaseCardStatus: baseCardContext.lifecycle,
       currentStatus: lifecycle,
       azureClientId: done ? savedClientId : null,
     } satisfies SharedCard<"azure_app_registration_v2">);
-  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, lifecycle, done, savedClientId]);
+  }, [appStore, baseCardContext.title, baseCardContext.prerequisiteIds, baseCardContext.lifecycle, lifecycle, done, savedClientId]);
 
   return {
     baseCardContext,

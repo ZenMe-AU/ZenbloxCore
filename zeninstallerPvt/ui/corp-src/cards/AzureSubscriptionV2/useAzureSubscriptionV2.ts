@@ -164,6 +164,7 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
     ...initialCardContext,
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),
+    unmetCardPrerequisites: blockedBy.map((blocker) => blocker.cardId),
     stateMachine: { graph: stateGraph, currentState: lifecycle },
   } satisfies BaseCardContext<Lifecycle>;
   useEffect(() => {
@@ -173,13 +174,14 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
   useEffect(() => {
     appStore.update("azure_subscription_v2", {
       title: baseCardContext.title,
+      prerequisiteIds: baseCardContext.prerequisiteIds,
       currentBaseCardStatus: baseCardContext.lifecycle,
       currentStatus: lifecycle,
       azureSubscription: done && selectedSubscription
         ? { id: selectedSubscription.id, displayName: selectedSubscription.displayName, tenantId: selectedSubscription.tenantId }
         : null,
     } satisfies SharedCard<"azure_subscription_v2">);
-  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, lifecycle, done, selectedSubscription]);
+  }, [appStore, baseCardContext.title, baseCardContext.prerequisiteIds, baseCardContext.lifecycle, lifecycle, done, selectedSubscription]);
 
   return {
     baseCardContext,

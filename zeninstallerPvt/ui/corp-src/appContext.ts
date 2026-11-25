@@ -28,6 +28,7 @@ export type SharedCard<Card extends AppContextCardId> = Readonly<{
   title: string;
   currentBaseCardStatus: Lifecycle;
   currentStatus: string;
+  prerequisiteIds?: readonly (AppContextCardId | "")[]; // The card's own direct prerequisites, so checkPrerequisites can walk the whole tree; omitted means none.
 } & SharedData<Card>>;
 
 type CardEntry<Card extends AppContextCardId> = Readonly<{ initialised: false }> | (Readonly<{ initialised: true }> & SharedCard<Card>);

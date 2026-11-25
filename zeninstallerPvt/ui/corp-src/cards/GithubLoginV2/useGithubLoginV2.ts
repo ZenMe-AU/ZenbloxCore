@@ -19,6 +19,7 @@ import type { BaseCardContext } from "../../components/useBaseCard";
 import { SensitiveToken, type AppContext } from "../../appContext";
 import {
   deriveLifecycle,
+  cardId,
   initialState,
   reducer,
   stateGraph,
@@ -27,7 +28,6 @@ import {
   type Lifecycle as GithubLoginV2Lifecycle,
 } from "./stateMachine";
 
-const cardId = "github_login_v2" as const;
 const cardTitle: string = "GitHub Login 2";
 
 const AUTH_RECORD_KEY = cardId + "_auth";

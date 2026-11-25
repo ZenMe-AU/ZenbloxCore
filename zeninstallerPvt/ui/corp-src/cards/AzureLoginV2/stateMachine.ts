@@ -14,9 +14,11 @@ import type { AzureAccount, AzureTenant } from "../../types";
 
 type AzureLoginIdentity = Pick<AzureAccount, "homeAccountId" | "environment" | "tenantId" | "localAccountId" | "username">;
 
+export const cardId = "azure_login_v2" as const;
+
 declare module "../../appContext" {
   interface SharedCardDataById {
-    azure_login_v2: {
+    [cardId]: {
       azureAccount: Readonly<AzureLoginIdentity> | null;
       azureTenantId: string | null;
     };
@@ -104,7 +106,7 @@ export type Event =
 export const initialState: State = {
   lifecycle: "loading",
   baseCardContext: {
-    cardId: "azure_login_v2",
+    cardId,
     title: "Azure login 2",
     prerequisiteIds: [],
     unmetCardPrerequisites: [],

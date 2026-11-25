@@ -76,7 +76,7 @@ it("renders the registered prerequisite through BaseCard while blocked", async (
       </QueryClientProvider>
     ));
     await act(async () => container.querySelector<HTMLButtonElement>("#card-title-repo_v2 button")?.click());
-    expect(container.querySelector<HTMLAnchorElement>('a[href="#card-github_login_v2"]')?.textContent).toContain("GitHub login 2");
+    expect([...container.querySelectorAll("#card-content-repo_v2 button")].some((button) => button.textContent?.includes("GitHub login 2"))).toBe(true);
   } finally {
     await act(async () => root.unmount());
   }

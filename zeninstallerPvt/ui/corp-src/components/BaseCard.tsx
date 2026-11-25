@@ -17,7 +17,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { alpha, useTheme } from "@mui/material/styles";
 import type { AppContext } from "../appContext";
 import { borderHoverTint, borderTint } from "../config/styles";
-import type { BaseCardContext, Lifecycle } from "./basecardlifecycle";
+import type { BaseCardContext, Lifecycle, StateGraph } from "./basecardlifecycle";
 import StateDiagram, { type StateDiagramLayout } from "./StateDiagram";
 
 type Props<StateId extends string> = {
@@ -106,6 +106,14 @@ export default function BaseCard<StateId extends string = Lifecycle>({
   );
 
   const blockedPrerequisites = baseCardContext.unmetCardPrerequisites ?? [];
+  // opens the card (cards keep their own expanded state, so through its title button) and scrolls to it.
+  const openPrerequisite = (id: string) => {
+    const card = document.getElementById(`card-${id}`);
+    const titleButton = card?.querySelector<HTMLButtonElement>("h3 button");
+    if (titleButton?.getAttribute("aria-expanded") === "false") titleButton.click();
+    titleButton?.focus({ preventScroll: true });
+    card?.scrollIntoView({ behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "center" });
+  };
   const defaultBlockedContent = (
     <>
       {blockedIntro && <Box sx={{ mb: 2 }}>{blockedIntro}</Box>}
@@ -130,7 +138,7 @@ export default function BaseCard<StateId extends string = Lifecycle>({
         {blockedContent ?? blockedPrerequisites.map((id, index) => {
           const card = Object.entries(appContext?.cards ?? {}).find(([registeredId]) => registeredId === id)?.[1];
           return card?.initialised ? (
-            <Link key={`${index}-${id}`} component="a" href={`#card-${id}`} sx={{ alignSelf: "flex-start", fontWeight: 500 }}>
+            <Link key={`${index}-${id}`} component="button" type="button" onClick={() => openPrerequisite(id)} sx={{ alignSelf: "flex-start", fontWeight: 500 }}>
               {card.title} ({id})
             </Link>
           ) : (
@@ -150,6 +158,20 @@ export default function BaseCard<StateId extends string = Lifecycle>({
         ? "forceUnlocked" as StateId
         : stateMachine.currentState}
       layout={stateDiagramLayout}
+    />
+  ) : null;
+
+  const prerequisites = showStateDiagram && baseCardContext.prerequisiteIds.some((id) => id.trim())
+    ? prerequisiteTree(appContext, baseCardContext)
+    : null;
+  const prerequisitesDiagram = prerequisites ? (
+    <StateDiagram
+      graph={prerequisites.graph}
+      currentState={cardId}
+      layout={prerequisites.layout}
+      nodeTone={prerequisites.tones}
+      dashedNodes={prerequisites.dashedNodes}
+      ariaLabel={prerequisites.ariaLabel}
     />
   ) : null;
 
@@ -326,6 +348,7 @@ export default function BaseCard<StateId extends string = Lifecycle>({
       <Collapse in={isExpanded}>
         <Box id={contentId} role="region" aria-labelledby={titleId} sx={{ borderTop: `1px solid ${colors.contentDivider}`, px: 2.5, py: 2.5 }}>
           {stateDiagram}
+          {prerequisitesDiagram}
           {/* START CONTENT SECTION, render based on lifecycle state */}
           {lifecycle === "loading" ? loadingContent ?? defaultLoadingContent
             : lifecycle === "blocked" ? defaultBlockedContent
@@ -339,4 +362,91 @@ export default function BaseCard<StateId extends string = Lifecycle>({
       </Collapse>
     </Box>
   );
+}
+
+// The card and every card under it. Prerequisites sit left of the cards that need them, so arrows run left to right;
+// a card's column is its longest chain of prerequisites. A card's lifecycle shows on hover.
+function prerequisiteTree(
+  appContext: ReturnType<AppContext["getSnapshot"]> | undefined,
+  { cardId, title, lifecycle, prerequisiteIds }: BaseCardContext<string>,
+) {
+  const cards = new Map<string, { label: string; status: string; needs: string[] }>();
+  const visit = (id: string, label: string, status: string, prerequisites: readonly string[]) => {
+    if (cards.has(id)) return; // Already drawn, or a cycle back to it.
+    const needs = prerequisites.map((prerequisite) => prerequisite.trim()).filter(Boolean);
+    cards.set(id, { label, status, needs });
+    for (const prerequisite of needs) {
+      const entry = appContext?.cards[prerequisite as keyof typeof appContext.cards];
+      if (entry?.initialised) visit(prerequisite, entry.title, entry.currentBaseCardStatus, entry.prerequisiteIds ?? []);
+      else visit(prerequisite, prerequisite, "not registered", []);
+    }
+  };
+  visit(cardId, title, lifecycle, prerequisiteIds);
+
+  const columns = new Map<string, number>();
+  const column = (id: string, path: Set<string>): number => {
+    const known = columns.get(id);
+    if (known !== undefined) return known;
+    if (path.has(id)) return 0; // A cycle: its arrow is drawn, but it doesn't push the card further right.
+    path.add(id);
+    const value = Math.max(-1, ...cards.get(id)!.needs.map((need) => column(need, path))) + 1;
+    path.delete(id);
+    columns.set(id, value);
+    return value;
+  };
+  cards.forEach((_, id) => column(id, new Set()));
+
+  const dependents = new Map<string, string[]>([...cards.keys()].map((id) => [id, []]));
+  cards.forEach(({ needs }, id) => needs.forEach((need) => dependents.get(need)!.push(id)));
+  const graph: StateGraph<string, string> = Object.fromEntries([...cards].map(([id, { label, status }]) =>
+    [id, { label, baseCardLifecycle: status, transitions: dependents.get(id)! }]));
+
+  // Tighter than StateDiagram's own layout so four columns of card titles fit an expanded card without scrolling.
+  const nodeWidth = 176, nodeHeight = 40, gapX = 48, gapY = 24, padding = 24, fontSize = 12;
+  const byColumn: string[][] = [];
+  columns.forEach((index, id) => (byColumn[index] ??= []).push(id));
+  const tallest = Math.max(...byColumn.map((ids) => ids.length));
+  // An arrow that skips a column runs above every card in its own lane, so it never crosses a card or another arrow.
+  const edges = [...cards].flatMap(([id, { needs }]) => needs.map((need) => ({ from: need, to: id })));
+  const skipping = edges.filter(({ from, to }) => columns.get(to)! - columns.get(from)! > 1);
+  const laneGap = 14;
+  const top = padding + (skipping.length ? skipping.length * laneGap + 8 : 0);
+  const width = padding * 2 + byColumn.length * nodeWidth + (byColumn.length - 1) * gapX;
+  const height = top + padding + tallest * nodeHeight + (tallest - 1) * gapY;
+  const positions: Record<string, { x: number; y: number }> = {};
+  byColumn.forEach((ids, index) => {
+    const columnHeight = ids.length * nodeHeight + (ids.length - 1) * gapY;
+    ids.forEach((id, row) => {
+      positions[id] = {
+        x: padding + nodeWidth / 2 + index * (nodeWidth + gapX),
+        y: top + (height - top - padding - columnHeight) / 2 + nodeHeight / 2 + row * (nodeHeight + gapY),
+      };
+    });
+  });
+  // Out of a card's right side and into the next one's left, bending only in the gap between columns.
+  // A cycle's arrow points back left; StateDiagram draws that one itself.
+  const edgePaths = edges.filter(({ from, to }) => columns.get(to)! > columns.get(from)!).map(({ from, to }) => {
+    const start = { x: positions[from].x + nodeWidth / 2, y: positions[from].y };
+    const end = { x: positions[to].x - nodeWidth / 2, y: positions[to].y };
+    const lane = skipping.findIndex((edge) => edge.from === from && edge.to === to);
+    const path = lane < 0
+      ? `M ${start.x} ${start.y} C ${start.x + gapX / 2} ${start.y}, ${end.x - gapX / 2} ${end.y}, ${end.x} ${end.y}`
+      : (() => {
+        const laneY = padding + lane * laneGap;
+        return `M ${start.x} ${start.y} C ${start.x + gapX / 2} ${start.y}, ${start.x + gapX / 2} ${laneY}, ${start.x + gapX} ${laneY}`
+          + ` L ${end.x - gapX} ${laneY} C ${end.x - gapX / 2} ${laneY}, ${end.x - gapX / 2} ${end.y}, ${end.x} ${end.y}`;
+      })();
+    return { from, to, path };
+  });
+  const ariaLabel = `Prerequisite tree. ${[...cards.values()]
+    .map(({ label, status, needs }) => `${label} (${status}) needs ${needs.map((need) => cards.get(need)!.label).join(", ") || "nothing"}`)
+    .join(". ")}`;
+  // A prerequisite is green once complete; the card itself is green once every card above it is.
+  const met = (id: string) => cards.get(id)!.status === "complete";
+  const tones = Object.fromEntries([...cards.keys()].map((id) => [id,
+    (id === cardId ? [...cards.keys()].every((other) => other === cardId || met(other)) : met(id)) ? "success" as const : "warning" as const]));
+  // Cards the card doesn't list itself, found only through the tree.
+  const listed = new Set(prerequisiteIds.map((id) => id.trim()));
+  const dashedNodes = new Set([...cards.keys()].filter((id) => id !== cardId && !listed.has(id)));
+  return { graph, layout: { width, height, nodeWidth, nodeHeight, fontSize, positions, edgePaths }, ariaLabel, tones, dashedNodes };
 }

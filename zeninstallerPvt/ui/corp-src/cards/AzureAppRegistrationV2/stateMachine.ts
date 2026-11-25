@@ -12,9 +12,11 @@ import type {
 } from "../../components/basecardlifecycle";
 import type { SetupStep } from "../../types";
 
+export const cardId = "azure_app_registration_v2" as const;
+
 declare module "../../appContext" {
   interface SharedCardDataById {
-    azure_app_registration_v2: {
+    [cardId]: {
       azureClientId: string | null;
     };
   }
@@ -26,7 +28,7 @@ export const subscriptionCardId = "azure_subscription_v2" satisfies BaseCardCont
 export const githubLoginCardId = "github_login_v2" satisfies BaseCardContext["cardId"];
 
 export const initialCardContext = {
-  cardId: "azure_app_registration_v2",
+  cardId,
   title: "GitHub App Registration 2",
   prerequisiteIds: [azureLoginCardId, repoCardId, subscriptionCardId],
 } satisfies Omit<BaseCardContext, "lifecycle">;
@@ -111,8 +113,8 @@ export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
   return stateGraph[state].baseCardLifecycle;
 }
 
-// Everything the app registration is made for, once Azure login 2, Repository & environment 2 and
-// Azure subscription 2 are complete and GitHub login 2 has a token to save with.
+// Everything the app registration is made for, once its prerequisite tree is complete (GitHub login 2 comes in
+// through Repository & environment 2) and the cards have shared what it needs, GitHub login 2's token included.
 export function getPrerequisites(
   appContext: ReturnType<AppContext["getSnapshot"]>,
   baseCardContext: BaseCardContext,
@@ -123,7 +125,6 @@ export function getPrerequisites(
   const subscription = appContext.cards[subscriptionCardId];
   const githubLogin = appContext.cards[githubLoginCardId];
   if (!azureLogin?.initialised || !repo?.initialised || !subscription?.initialised || !githubLogin?.initialised) return null;
-  if (githubLogin.currentBaseCardStatus !== "complete") return null;
   if (!azureLogin.azureAccount || !azureLogin.azureTenantId || !subscription.azureSubscription) return null;
   if (!repo.githubRepository || !githubLogin.githubToken) return null;
   return {

@@ -12,9 +12,11 @@ import type {
   BaseCardStateMachine,
 } from "../../components/basecardlifecycle";
 
+export const cardId = "azure_subscription_v2" as const;
+
 declare module "../../appContext" {
   interface SharedCardDataById {
-    azure_subscription_v2: {
+    [cardId]: {
       azureSubscription: Readonly<{ id: string; displayName: string; tenantId: string }> | null;
     };
   }
@@ -25,7 +27,7 @@ export const repoCardId = "repo_v2" satisfies BaseCardContext["cardId"];
 export const githubLoginCardId = "github_login_v2" satisfies BaseCardContext["cardId"];
 
 export const initialCardContext = {
-  cardId: "azure_subscription_v2",
+  cardId,
   title: "Choose Azure subscription 2",
   prerequisiteIds: [azureLoginCardId, repoCardId],
 } satisfies Omit<BaseCardContext, "lifecycle">;

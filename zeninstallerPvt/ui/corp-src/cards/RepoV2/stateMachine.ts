@@ -15,9 +15,11 @@ import type {
 import { checkPrerequisites } from "../../components/useBaseCard";
 import type { GithubAccount, GithubEnvironment, GithubRepositoryOption } from "./types";
 
+export const cardId = "repo_v2" as const;
+
 declare module "../../appContext" {
   interface SharedCardDataById {
-    repo_v2: {
+    [cardId]: {
       githubRepository: Readonly<{
         account: Readonly<GithubAccount>;
         repository: Readonly<Pick<GithubRepositoryOption, "id" | "name" | "htmlUrl">>;
@@ -30,7 +32,7 @@ declare module "../../appContext" {
 const githubLoginCardId = "github_login_v2" satisfies BaseCardContext["cardId"];
 
 export const initialRepoCardContext = {
-  cardId: "repo_v2",
+  cardId,
   title: "Repository & environment 2",
   prerequisiteIds: [githubLoginCardId],
 } satisfies Omit<BaseCardContext<Lifecycle>, "lifecycle">;

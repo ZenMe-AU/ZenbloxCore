@@ -48,6 +48,55 @@ it("owns title expansion and the state-diagram context menu without App controls
   }
 });
 
+it("draws the prerequisite tree under the state diagram, through published prerequisites and back around cycles", async () => {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  const store = createAppContext();
+  store.update("repo_v2", { title: "Repository", currentBaseCardStatus: "blocked", currentStatus: "blocked", githubRepository: null, prerequisiteIds: ["github_login_v2"] });
+  store.update("github_login_v2", {
+    title: "GitHub", currentBaseCardStatus: "ready", currentStatus: "signed-out", githubAccount: null, githubToken: null, githubMode: null,
+    prerequisiteIds: ["proto_card"],
+  });
+  const baseCardContext = getBaseCardContext(protoReducer(initialProtoState, { type: "check-prerequisites" }));
+
+  try {
+    await act(async () => root.render(
+      createElement(ThemeProvider, { theme },
+        createElement(BaseCard, { baseCardContext: { ...baseCardContext, prerequisiteIds: ["repo_v2", "unknown"] as unknown as BaseCardContext["prerequisiteIds"] }, appContext: store.getSnapshot(), expanded: true, children: null })
+      )
+    ));
+    const title = container.querySelector<HTMLElement>("#card-title-proto_card button")!;
+    await act(async () => title.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 10, clientY: 20 })));
+    await act(async () => document.body.querySelector<HTMLElement>('[role="menuitemcheckbox"]')?.click());
+
+    const tree = container.querySelector('svg[aria-label^="Prerequisite tree"]');
+    const column = (id: string) => Number(tree!.querySelector(`[data-state="${id}"] rect`)!.getAttribute("x"));
+    expect([...tree!.querySelectorAll("[data-state]")].map((node) => node.getAttribute("data-state"))).toEqual(["proto_card", "repo_v2", "github_login_v2", "unknown"]);
+    // Prerequisites sit left of the cards that need them; arrows run from prerequisite to dependant.
+    expect(column("github_login_v2")).toBeLessThan(column("repo_v2"));
+    expect(column("repo_v2")).toBeLessThan(column("proto_card"));
+    expect(tree!.querySelector('[data-from="repo_v2"][data-to="proto_card"]')).not.toBeNull();
+    // "unknown" sits two columns left of the card, so its arrow runs above every card instead of through one.
+    const laneY = Number(/ L \S+ (\S+)/.exec(tree!.querySelector('[data-from="unknown"][data-to="proto_card"]')!.getAttribute("d")!)![1]);
+    const cardTops = [...tree!.querySelectorAll("[data-state] rect")].map((rect) => Number(rect.getAttribute("y")));
+    expect(laneY).toBeLessThan(Math.min(...cardTops));
+    // Neither prerequisite is complete, so both show as unmet.
+    expect(tree!.querySelector('[data-state="repo_v2"] rect')?.getAttribute("stroke")).toBe(theme.palette.warning.main);
+    // GitHub isn't in the card's own list; it comes in through Repository, so it and its arrow are dashed.
+    expect(tree!.querySelector('[data-state="github_login_v2"] rect')?.getAttribute("stroke-dasharray")).toBeTruthy();
+    expect(tree!.querySelector('[data-from="github_login_v2"][data-to="repo_v2"]')?.getAttribute("stroke-dasharray")).toBeTruthy();
+    expect(tree!.querySelector('[data-state="repo_v2"] rect')?.getAttribute("stroke-dasharray")).toBeNull();
+    // So is the card itself, while anything above it is unmet.
+    expect(tree!.querySelector('[data-state="proto_card"] rect')?.getAttribute("fill")).toBe(theme.palette.warning.main);
+    // The cycle (the card is GitHub's prerequisite) is one arrow back, not a second copy of the card.
+    expect(tree!.querySelector('[data-from="proto_card"][data-to="github_login_v2"]')).not.toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
 it("owns force-unlock and undo for blocked cards", async () => {
   const container = document.createElement("div");
   const root = createRoot(container);
@@ -125,6 +174,30 @@ it("checks registered, initialised and complete prerequisites and rejects self-d
   store.update("repo_v2", { title: "Repository", currentBaseCardStatus: "complete", currentStatus: "complete", githubRepository: null });
   expect(check()).toEqual(["proto_card", "unknown"]);
   unsubscribe();
+});
+
+it("walks the published prerequisite tree, deepest unmet card first, and stops at cycles", () => {
+  const store = createAppContext();
+  const appRegistration = {
+    cardId: "azure_app_registration_v2", title: "App registration", lifecycle: "loading",
+    prerequisiteIds: ["azure_login_v2", "repo_v2"],
+  } as unknown as BaseCardContext;
+  const check = () => checkPrerequisites(store.getSnapshot(), appRegistration);
+  store.update("azure_login_v2", { title: "Azure", currentBaseCardStatus: "complete", currentStatus: "signed-in", azureAccount: null, azureTenantId: null });
+  store.update("github_login_v2", { title: "GitHub", currentBaseCardStatus: "ready", currentStatus: "signed-out", githubAccount: null, githubToken: null, githubMode: null });
+  store.update("repo_v2", { title: "Repository", currentBaseCardStatus: "blocked", currentStatus: "blocked", githubRepository: null, prerequisiteIds: ["github_login_v2"] });
+  expect(check()).toEqual(["github_login_v2", "repo_v2"]);
+
+  // Repository still reports complete, but GitHub login under it isn't: the tree, not the card, finds it.
+  store.update("repo_v2", { title: "Repository", currentBaseCardStatus: "complete", currentStatus: "complete", githubRepository: null, prerequisiteIds: ["github_login_v2"] });
+  expect(check()).toEqual(["github_login_v2"]);
+
+  store.update("github_login_v2", { title: "GitHub", currentBaseCardStatus: "complete", currentStatus: "signed-in", githubAccount: null, githubToken: null, githubMode: null, prerequisiteIds: ["repo_v2"] });
+  expect(check()).toEqual([]);
+
+  // A cycle back to the checking card counts as unmet instead of looping.
+  store.update("github_login_v2", { title: "GitHub", currentBaseCardStatus: "complete", currentStatus: "signed-in", githubAccount: null, githubToken: null, githubMode: null, prerequisiteIds: ["azure_app_registration_v2"] });
+  expect(check()).toEqual(["azure_app_registration_v2"]);
 });
 
 it("stores card-contributed data generically and compares plain snapshots structurally", () => {

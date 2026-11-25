@@ -13,12 +13,11 @@ import type { AppContext, SharedCard } from "../../appContext";
 import type { AzureAccount, AzureTenant } from "../../types";
 import { findIgnoreCase } from "../../logic/search";
 import {
+  cardId,
   getBaseCardContext,
   initialState,
   reducer,
 } from "./stateMachine";
-
-const cardId = "azure_login_v2";
 
 // Its own key, so a tenant consent redirect started here is not confirmed by the original Azure login card on the way back.
 const SESSION_KEY = "zeninstaller_arm_tenant_v2";
