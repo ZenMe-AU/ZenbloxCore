@@ -92,6 +92,10 @@ vi.mock("../cards/GaStage/RemoteTerminal", () => ({
 }));
 
 import GaStage from "../cards/GaStage/GaStage";
+import GaCloudFront from "../cards/GaCloudFront/GaCloudFront";
+import { GA_CLOUDFRONT_CARD_ID } from "../cards/GaCloudFront/config";
+import GaSubscriptionBudget from "../cards/GaSubscriptionBudget/GaSubscriptionBudget";
+import { GA_SUBSCRIPTION_BUDGET_CARD_ID } from "../cards/GaSubscriptionBudget/config";
 import StageCard from "../cards/Stage/StageCard";
 
 const account = { id: 1, login: "owner", type: "Organization" } as Account;
@@ -243,6 +247,32 @@ describe("GaStage parity baseline", () => {
     expect(legacyToggle).toHaveBeenCalledOnce();
     expect(gaToggle).toHaveBeenCalledOnce();
     expect(mocks.remoteHook).toHaveBeenCalledOnce();
+  });
+
+  it("keeps concrete card anchors and remote-terminal dispatch identities distinct", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <ThemeProvider theme={theme}>
+          <GaSubscriptionBudget {...props({ card: cardChrome({ cardId: GA_SUBSCRIPTION_BUDGET_CARD_ID }) })} />
+          <GaCloudFront {...props({ card: cardChrome({ cardId: GA_CLOUDFRONT_CARD_ID }) })} />
+        </ThemeProvider>
+      );
+    });
+
+    expect(container.querySelector(`#card-${GA_SUBSCRIPTION_BUDGET_CARD_ID}`)).not.toBeNull();
+    expect(container.querySelector(`#card-${GA_CLOUDFRONT_CARD_ID}`)).not.toBeNull();
+    expect(mocks.remoteHook).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      dir: "SubscriptionBudget",
+      workflowId: "deploy.yml",
+    }));
+    expect(mocks.remoteHook).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      dir: "CloudFront",
+      workflowId: "deploy.yml",
+    }));
   });
 
   it("shows locked requirements and navigates independently of card expansion", async () => {

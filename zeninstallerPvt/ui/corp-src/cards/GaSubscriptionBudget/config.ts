@@ -8,7 +8,7 @@ import { AZURE_VARIABLE_KEYS, C01_KEYS } from "../../logic/variables";
 
 export const GA_SUBSCRIPTION_BUDGET_CARD_ID = "stage_GA_SubscriptionBudget" satisfies CardId;
 
-export const GA_SUBSCRIPTION_BUDGET_STAGE: StageDefinition = {
+export const GA_SUBSCRIPTION_BUDGET_STAGE = {
   dir: "SubscriptionBudget",
   label: "GA Azure subscription budget",
   description: "Sets a spending budget on the Azure subscription and emails the contacts you list when costs approach it.",
@@ -27,4 +27,4 @@ export const GA_SUBSCRIPTION_BUDGET_STAGE: StageDefinition = {
       },
     },
   ],
-};
+} satisfies StageDefinition;

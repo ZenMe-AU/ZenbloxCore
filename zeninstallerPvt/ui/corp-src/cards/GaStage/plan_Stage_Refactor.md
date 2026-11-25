@@ -1,4 +1,4 @@
-# Stage Card Refactor Plan
+# Remaining Stage Card Refactor Plan
 
 ## Goal
 
@@ -6,165 +6,41 @@ Refactor the stage cards incrementally while preserving a directly comparable le
 
 The new implementation will intentionally be independent from the old card. Compatibility links should be temporary and explicitly marked. The final target is explicit, statically typed stage cards rather than dynamically generated stage instances.
 
-## Step A: Create the independent GaStage implementation
 
-### A.0 Build the legacy StageCard test suite
+## Phase 1
 
-Build and run the test suite for the existing StageCard implementation before making refactoring changes. This establishes the known baseline for current behavior, including behavior that may later be classified as incorrect and fixed separately.
+### 1.1 Source-mapped investigation — complete
 
-Cover at least:
+`GaStage` is not one mutually exclusive lifecycle enum. It composes the server's `Stage` report, a local per-stage `StageRun`, derived guards/presentation, and child/local UI state. Keep this model internal; do not map it to the card shell or BaseCard lifecycle.
 
-- repository/prerequisite locked state;
-- ready state;
-- missing prerequisites;
-- changed prerequisites;
-- plan refresh available;
-- plan running;
-- plan failure and retry;
-- successful plan;
-- deploy ready;
-- deployment running;
-- deployment completed;
-- deployment failed or cancelled;
-- expansion and card navigation;
-- remote-terminal behavior.
+| Concern | Current source and transitions | Phase 1.2 treatment |
+|---|---|---|
+| Server report and card status | Reports are merged into `Stage` in [useDeploymentPlan.ts](./useDeploymentPlan.ts#L134-L199); the status fields are defined in [types.ts](../../types.ts#L303-L322). Effective status and the `CardStatus` projection are in [stage.ts](../../logic/stage.ts#L68-L77) and [stage.ts](../../logic/stage.ts#L125-L158). | Keep report state authoritative. Do not copy `pending/success/failed/skipped/deployed` into a second local lifecycle. A failed/cancelled apply can leave its successful plan available; `"cancelled"` is already in `DeployStatus`. |
+| Per-card operation | `StageRun` and the run map are in [useDeploymentPlan.ts](./useDeploymentPlan.ts#L18-L23) and [useDeploymentPlan.ts](./useDeploymentPlan.ts#L72-L93). It starts before plan dispatch in [useDeploymentPlan.ts](./useDeploymentPlan.ts#L233-L262); polling retries stale reports and clears the run on a newer report in [useDeploymentPlan.ts](./useDeploymentPlan.ts#L105-L162). Errors are set on trigger/report failure there and at [useDeploymentPlan.ts](./useDeploymentPlan.ts#L201-L207). Environment changes clear runs at [useDeploymentPlan.ts](./useDeploymentPlan.ts#L216-L225). | This is the state machine to make explicit: `idle` (no run entry), `active` (`run` exists with no error; `kind` is plan/deploy), and `error` (run entry has an error). Keep countdown/retry metadata in the active state. A newer report returns it to idle. |
+| Operation-to-view mapping | `isStale` actually means “run active” (`run != null && run.error == null`), and feeds status/controls in [createGaStageCardModel.ts](./createGaStageCardModel.ts#L66-L110) and [createGaStageCardModel.ts](./createGaStageCardModel.ts#L132-L138). | Treat `isStale` as a derived active-run selector, not another state. Preserve the existing per-kind action guards: plan run errors allow refresh again, while deploy run errors currently suppress `trackDeploy`. |
+| Prerequisite gate | Missing/incomplete/changed values are computed in [stage.ts](../../logic/stage.ts#L90-L117), passed into the card model in [createGaStageCardModel.ts](./createGaStageCardModel.ts#L71-L76), and hide the Plan region at [GaStage.tsx](./GaStage.tsx#L558-L562) and [GaStage.tsx](./GaStage.tsx#L652-L653). | Keep this as a live guard with its reason, not as a competing workflow state. Repository lock and permission/provider checks also remain guards. |
+| Plan details and local UI | The request-keyed plan result is in [GaStage.tsx](./GaStage.tsx#L470-L479), fetched into loading/data/error outcomes at [GaStage.tsx](./GaStage.tsx#L519-L537), and rendered at [GaStage.tsx](./GaStage.tsx#L562-L562) and [GaStage.tsx](./GaStage.tsx#L693-L708). Disclosure and variable-editor state are local at [GaStage.tsx](./GaStage.tsx#L122-L128) and [GaStage.tsx](./GaStage.tsx#L468-L479). | Leave request results, form editing, and disclosure state in their existing owners; they are not operation states. |
+| Deploy and terminal | The deploy button checks access, starts the remote terminal, then begins report polling in [GaStage.tsx](./GaStage.tsx#L499-L512); `deployStage` only watches the report in [useDeploymentPlan.ts](./useDeploymentPlan.ts#L264-L280). The terminal already has its own statuses in [remoteTerminal.ts](../../logic/remoteTerminal.ts#L41-L41) and transitions in [useRemoteTerminal.ts](./useRemoteTerminal.ts#L152-L193) and [useRemoteTerminal.ts](./useRemoteTerminal.ts#L198-L321). Deploy outcomes render from the report at [GaStage.tsx](./GaStage.tsx#L765-L790). | Do not model terminal startup as the deploy poll state or duplicate its FSM. Keep deploy-report outcome separate from the operation monitor. |
 
-Do not rely only on snapshots. Tests should assert observable state, actions, and side effects.
+### 1.2 Implement the internal operation state model
 
-You are allowed to make changes to StageCard to get the tests to pass.
-Record notes of any changes that were needed, and stop here.
-Wait for human to do code review and to commit the passing baseline test suite before continuing.
+Replace the nullable-error `StageRun` shape with a typed `idle | active | error` state, retaining `kind`, countdown, retry count, and message where applicable. Keep `Stage` reports, prerequisite guards, plan-detail fetches, and the terminal session as their existing sources of truth. Test plan trigger failure/retry, stale-report retry and timeout, newer-report completion, environment reset, and deploy polling after terminal start. Preserve the current plan-versus-deploy error action guards unless intentionally changed.
+
+### 1.3 Re-evaluate against BaseCard
+
+Only after the internal model is implemented, investigate how its states should map to the BaseCard lifecycle and whether any states should be merged.
 
 
+## Future work not in current scope
 
-### A.1 Create and render GaStage
+These are intentionally left on the roadmap.
 
-1. Clone `StageCard.tsx` as `GaStage.tsx` or a `GaStage` folder with the minimum name-only changes needed to compile.
-2. Keep the implementations independent so old and new behavior can be compared and changed separately.
-3. Add the GaStage instances to `App.tsx` alongside the existing StageCard instances.
-4. Give every old and new card independent:
-   - card ID;
-   - expanded-state identity;
-   - DOM anchors and test IDs;
-   - progress entry;
-   - permissions hooks;
-   - remote-terminal/session identity;
-   - plan/deploy run tracking identity.
-5. Do not let a new card depend on deleting or reconfiguring an old card.
-
-The old and new UI intentionally coexist during this step. This duplicates network and permission checks, which is accepted as a controlled migration cost.
-
-### A.2 Add independent parity tests
-
-Create an independent test suite for GaStage. Reuse the scenario definitions from the A.0 legacy suite where practical, but keep the old and new test files and assertions independent.
-
-Confirm the GaStage suite covers:
-
-- repository/prerequisite locked state;
-- ready state;
-- missing prerequisites;
-- changed prerequisites;
-- plan refresh available;
-- plan running;
-- plan failure and retry;
-- successful plan;
-- deploy ready;
-- deployment running;
-- deployment completed;
-- deployment failed or cancelled;
-- independent expansion and card navigation;
-- independent remote-terminal behavior.
-
-Compare failures and results across the two suites so that missing legacy functionality is identified before it is added to later GaStage iterations.
-
-### A.3 Human review and commit
-
-Commit only after:
-
-- old and new cards render independently;
-- the parity suites pass for both implementations;
-- known differences are documented;
-- the extra StageCard instances are intentional and reviewable.
-
-## Step B: Extract explicit stage cards
-
-Perform this step one stage at a time.
-
-### B.1 Extract GaSubscriptionBudget
-
-1. Create an explicit `GaSubscriptionBudget` card in its own folder.
-2. Supply its stage definition and dependencies explicitly rather than discovering it through the dynamic stage map.
-3. Compose the card from `GaStage` initially.
-4. Replace only the SubscriptionBudget dynamic rendering/model lookup in `App.tsx`.
-5. Keep `GaStage` as the shared component until there is a concrete reason to move behavior.
-6. Move stage-specific behavior into `GaSubscriptionBudget` as it diverges or becomes independently testable.
-7. Add an independent SubscriptionBudget test suite.
-8. Human review and commit.
-
-### B.2 Extract GaCloudFront
-
-After the SubscriptionBudget extraction is committed:
-
-1. Create an explicit `GaCloudFront` card in its own folder.
-2. Supply its stage definition and dependencies explicitly.
-3. Compose it from `GaStage`.
-4. Replace the remaining CloudFront dynamic rendering/model lookup.
-5. Add an independent CloudFront test suite.
-6. Remove dynamic Stage rendering when both concrete cards are migrated.
-7. Human review and commit.
-
-### B.3 Intentional identifier and integration breaks
-
-The new cards intentionally break links to the old implementation where retaining a link would hide a required design decision.
-
-Audit and explicitly replace:
-
-- dynamic card IDs;
-- `useCorpStageCards` model lookup;
-- dynamic rendering in `App.tsx`;
-- progress-card registration;
-- expanded-card persistence;
-- prerequisite targets;
-- remote-terminal identity;
-- plan/deploy polling and run keys;
-- card navigation anchors.
-
-Avoid compatibility layers. If one is necessary to keep the application running between commits, mark it as a temporary workaround and name the phase in which it will be removed.
-
-## Step C: Re-evaluate
-
-After both concrete cards exist and the dynamic Stage path is removed, review the next refactor boundaries:
-
+- `StageCard.tsx` currently creates one remote-terminal hook/session but renders `RemoteTerminal` in two locations, this should be investigated and fixed when ready.
 - split shared UI into explicit panels;
 - move server state to TanStack Query;
 - replace legacy `CardChrome` with `BaseCard`;
-- introduce explicit state machines;
 - register cards and typed outputs in AppContext;
 - move shared behavior into `GaStage`;
 - move stage-specific behavior into the concrete cards;
 - remove the legacy StageCard implementation;
 - remove obsolete dynamic helpers and compatibility code.
-
-## Commit gates
-
-### Gate A
-
-Old StageCard and GaStage coexist with independent IDs, tests, and behavior.
-
-### Gate B1
-
-GaSubscriptionBudget is explicit and independently tested; its legacy dynamic entry is removed.
-
-### Gate B2
-
-GaCloudFront is explicit and independently tested; dynamic Stage rendering is removed.
-
-### Gate C
-
-The remaining architecture work has been reviewed and broken into separate, phase-sized changes.
-
-## Future required changes
-
-These are intentionally outside the structural refactor. Capture parity first, then address them in separately reviewed behavior changes.
-
-- `StageCard.tsx` currently creates one remote-terminal hook/session but renders `RemoteTerminal` in two locations. The new cards should initially preserve this behavior for parity, then consolidate it after the structural migration.

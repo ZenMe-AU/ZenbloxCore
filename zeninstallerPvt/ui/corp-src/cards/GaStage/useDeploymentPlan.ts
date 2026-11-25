@@ -5,12 +5,13 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { fetchStageReport, getPlanEnv, triggerWorkflow } from "../../api/index.js";
-import type { Account, Branch, GhEnv, PipelineConfig, PlanSummary, Stage, StageReport } from "../../types.js";
+import type { Account, Branch, GhEnv, PlanSummary, Stage, StageReport } from "../../types.js";
+import type { GaStageDefinition, GaStageKey } from "./stageDefinitions";
 
 interface PollContext {
   attempt: number;
   triggerTime: number;
-  stageKey: string;
+  stageKey: GaStageKey;
   kind: "plan" | "deploy";
 }
 
@@ -27,13 +28,13 @@ export interface UseDeploymentPlan {
   stageSummaries: Record<string, PlanSummary>;
   hasPlan: boolean;
   stagesLoading: boolean;
-  runs: Record<string, StageRun>;
+  runs: Partial<Record<GaStageKey, StageRun>>;
   deployedEnv: Record<string, string> | null;
-  // Both take just the stage key: the hook already holds the pipeline, the stages, the selected
+  // Both take just the stage key: the hook already holds the definitions, selected
   // env and the branches, so handing them back in would be a second source for the same value.
-  onRun: (stageKey: string) => Promise<void>; // One card, one stage — never the whole pipeline.
-  deployStage: (stageKey: string) => Promise<void>;
-  setStageSummary: (key: string, summary: PlanSummary) => void;
+  onRun: (stageKey: GaStageKey) => Promise<void>; // One card, one stage — never the whole pipeline.
+  deployStage: (stageKey: GaStageKey) => Promise<void>;
+  setStageSummary: (key: GaStageKey, summary: PlanSummary) => void;
 }
 
 const POLL_DELAYS = [150, 180, 200, 300];
@@ -41,7 +42,7 @@ const POLL_DELAYS = [150, 180, 200, 300];
 export function useDeploymentPlan(opts: {
   account: Account | null;
   repoName: string | null;
-  pipeline: PipelineConfig;
+  stageDefinitions: readonly GaStageDefinition[];
   selectedEnv: GhEnv | null;
   branches: Branch[];
   branchMatchError: string | null;
@@ -49,14 +50,14 @@ export function useDeploymentPlan(opts: {
 }): UseDeploymentPlan {
   const accountRef = useRef(opts.account);
   const repoNameRef = useRef(opts.repoName);
-  const pipelineRef = useRef(opts.pipeline);
+  const stageDefinitionsRef = useRef(opts.stageDefinitions);
   const selectedEnvRef = useRef(opts.selectedEnv);
   const branchesRef = useRef(opts.branches);
   const envReadyRef = useRef(opts.envReady);
   useLayoutEffect(() => {
     accountRef.current = opts.account;
     repoNameRef.current = opts.repoName;
-    pipelineRef.current = opts.pipeline;
+    stageDefinitionsRef.current = opts.stageDefinitions;
     selectedEnvRef.current = opts.selectedEnv;
     branchesRef.current = opts.branches;
     envReadyRef.current = opts.envReady;
@@ -71,12 +72,12 @@ export function useDeploymentPlan(opts: {
   const [stageSummaries, setStageSummariesState] = useState<Record<string, PlanSummary>>({});
   const [hasPlan, setHasPlan] = useState(true);
   const [stagesLoading, setStagesLoading] = useState(false);
-  const [runs, setRuns] = useState<Record<string, StageRun>>({});
+  const [runs, setRuns] = useState<Partial<Record<GaStageKey, StageRun>>>({});
   const [deployedEnv, setDeployedEnv] = useState<Record<string, string> | null>(null);
   // One interval per stage, so a second card starting a run cannot cancel the first one's.
-  const tickers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+  const tickers = useRef<Partial<Record<GaStageKey, ReturnType<typeof setInterval>>>>({});
 
-  const patchRun = (stageKey: string, patch: Partial<StageRun> | null) =>
+  const patchRun = (stageKey: GaStageKey, patch: Partial<StageRun> | null) =>
     setRuns((prev) => {
       if (!patch) {
         const rest = { ...prev };
@@ -87,19 +88,21 @@ export function useDeploymentPlan(opts: {
       return { ...prev, [stageKey]: { ...base, ...patch } };
     });
 
-  const stopTicker = (stageKey: string) => {
+  const stopTicker = (stageKey: GaStageKey) => {
     clearInterval(tickers.current[stageKey]);
     delete tickers.current[stageKey];
   };
-  useEffect(() => () => Object.keys(tickers.current).forEach(stopTicker), []);
+  useEffect(() => () => {
+    stageDefinitionsRef.current.forEach(({ dir }) => stopTicker(dir));
+  }, []);
   const lastFetchedEnvId = useRef<number | null>(null);
 
   const implRef = useRef<{
     loadPlanImpl: (ref: string, poll?: PollContext) => void;
-    startPollingImpl: (ref: string, attempt: number, triggerTime: number, stageKey: string, kind: "plan" | "deploy") => void;
+    startPollingImpl: (ref: string, attempt: number, triggerTime: number, stageKey: GaStageKey, kind: "plan" | "deploy") => void;
   }>({ loadPlanImpl: () => {}, startPollingImpl: () => {} });
 
-  const startPollingImpl = (ref: string, attempt: number, triggerTime: number, stageKey: string, kind: "plan" | "deploy") => {
+  const startPollingImpl = (ref: string, attempt: number, triggerTime: number, stageKey: GaStageKey, kind: "plan" | "deploy") => {
     const delay = POLL_DELAYS[attempt] ?? POLL_DELAYS[POLL_DELAYS.length - 1];
     stopTicker(stageKey);
     patchRun(stageKey, { kind, countdown: delay });
@@ -117,19 +120,19 @@ export function useDeploymentPlan(opts: {
   const loadPlanImpl = (ref: string, poll?: PollContext) => {
     const acc = accountRef.current;
     const repo = repoNameRef.current;
-    const pipe = pipelineRef.current;
+    const definitions = stageDefinitionsRef.current;
     const envName = selectedEnvRef.current?.name;
     if (!acc || !repo || !envName) return;
 
     if (!poll) setStagesLoading(true);
-    const load = (dir: string, kind: "plan" | "deploy") =>
+    const load = (dir: GaStageKey, kind: "plan" | "deploy") =>
       fetchStageReport(acc, repo, envName, dir, kind).catch((e) => {
         console.error(`Failed to fetch the ${kind} report for "${dir}":`, e);
         return null;
       });
 
     Promise.all(
-      pipe.stages.map(async (stageDef) => {
+      definitions.map(async (stageDef) => {
         const [plan, deploy] = await Promise.all([load(stageDef.dir, "plan"), load(stageDef.dir, "deploy")]);
         return [stageDef.dir, { plan, deploy }] as const;
       })
@@ -162,12 +165,12 @@ export function useDeploymentPlan(opts: {
         if (nothingReported) {
           // Clear summaries tied to reports that are no longer available.
           setStageSummariesState({});
-          setStages(pipe.stages.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
+          setStages(definitions.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
           setHasPlan(false);
           return;
         }
 
-        // The env artifact belongs to whichever plan reported most recently across the pipeline.
+        // The env artifact belongs to whichever stage plan reported most recently.
         const newest = [...byKey.values()]
           .map((r) => r.plan)
           .filter((r): r is StageReport => !!r)
@@ -178,7 +181,7 @@ export function useDeploymentPlan(opts: {
           getPlanEnv(acc, repo, envId).then(setDeployedEnv).catch(console.error);
         }
 
-        const nextStages = pipe.stages.map(({ dir }) => {
+        const nextStages = definitions.map(({ dir }) => {
           const { plan, deploy } = byKey.get(dir) ?? { plan: null, deploy: null };
           if (!plan && !deploy) return { stage: dir, status: "pending" as const };
           // The plan deployment owns the plan fields, the deploy one owns the deploy fields.
@@ -200,7 +203,7 @@ export function useDeploymentPlan(opts: {
         if (!poll) setStagesLoading(false);
         if (poll) patchRun(poll.stageKey, { countdown: 0, error: "Could not read the stage reports" });
         setStageSummariesState({});
-        setStages(pipe.stages.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
+        setStages(definitions.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
         setHasPlan(false);
       });
   };
@@ -211,7 +214,7 @@ export function useDeploymentPlan(opts: {
   });
 
   useEffect(() => {
-    Object.keys(tickers.current).forEach(stopTicker);
+    stageDefinitionsRef.current.forEach(({ dir }) => stopTicker(dir));
     setRuns({});
     setStages([]);
     setStageSummariesState({});
@@ -227,11 +230,11 @@ export function useDeploymentPlan(opts: {
     if (branch) implRef.current.loadPlanImpl(branch.name);
   }, [opts.selectedEnv?.id, opts.branchMatchError]);
 
-  const onRun = useCallback(async (stageKey: string) => {
+  const onRun = useCallback(async (stageKey: GaStageKey) => {
     const acc = accountRef.current;
     const repo = repoNameRef.current;
     const env = selectedEnvRef.current;
-    const stage = pipelineRef.current.stages.find((s) => s.dir === stageKey);
+    const stage = stageDefinitionsRef.current.find((s) => s.dir === stageKey);
     if (!acc || !repo || !envReadyRef.current || !env || !stage) return;
     // Starting a new plan invalidates any local summary from the previous run.
     setStageSummariesState((previous) => {
@@ -259,11 +262,11 @@ export function useDeploymentPlan(opts: {
   }, []);
 
   // Watches for the deploy report. The remote terminal is what actually dispatches the run.
-  const deployStage = useCallback(async (stageKey: string) => {
+  const deployStage = useCallback(async (stageKey: GaStageKey) => {
     const acc = accountRef.current;
     const repo = repoNameRef.current;
     const env = selectedEnvRef.current;
-    const stageDef = pipelineRef.current.stages.find((s) => s.dir === stageKey);
+    const stageDef = stageDefinitionsRef.current.find((s) => s.dir === stageKey);
     const stage = stagesRef.current.find((s) => s.stage === stageKey);
     if (!acc || !repo || !env || !stageDef || !stage?.runId) return;
 
@@ -276,7 +279,7 @@ export function useDeploymentPlan(opts: {
     implRef.current.startPollingImpl(ref, 0, triggerTime, stageKey, "deploy");
   }, []);
 
-  const setStageSummary = useCallback((key: string, summary: PlanSummary) => {
+  const setStageSummary = useCallback((key: GaStageKey, summary: PlanSummary) => {
     setStageSummariesState((prev) => ({ ...prev, [key]: summary }));
   }, []);
 

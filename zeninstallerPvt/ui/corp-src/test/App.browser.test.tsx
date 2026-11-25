@@ -49,6 +49,9 @@ describe("App - Home Page", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
+    const expandedKey = "zeninstaller_corp_expanded_cards";
+    const previousExpanded = localStorage.getItem(expandedKey);
+    localStorage.removeItem(expandedKey);
     try {
       await act(async () => {
         root.render(
@@ -61,9 +64,13 @@ describe("App - Home Page", () => {
       expect(container.querySelectorAll("#card-stage_GA_CloudFront")).toHaveLength(1);
       expect(container.querySelector("#card-stage_SubscriptionBudget")).toBeNull();
       expect(container.querySelector("#card-stage_CloudFront")).toBeNull();
+      await act(async () => container.querySelector<HTMLButtonElement>("#card-title-stage_GA_SubscriptionBudget button")?.click());
+      await expect.poll(() => JSON.parse(localStorage.getItem(expandedKey) ?? "[]")).toContain("stage_GA_SubscriptionBudget");
     } finally {
       root.unmount();
       container.remove();
+      if (previousExpanded === null) localStorage.removeItem(expandedKey);
+      else localStorage.setItem(expandedKey, previousExpanded);
     }
   });
 

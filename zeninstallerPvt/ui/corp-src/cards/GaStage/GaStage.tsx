@@ -651,63 +651,63 @@ function GaStageContent({
 
         {prerequisitesMet && (
           <Box role="region" aria-label="Plan" sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-            <RunStatusUpdateButton
-              onRun={onRunStatusUpdate}
-              running={statusUpdateRunning}
-              countdown={statusUpdateCountdown}
-              disabled={statusUpdateDisabled || !!planPermissions.missing?.length || planAccess?.status === "error" || !!planAppError ||
-                (!!providers && providers.status !== "ready" && providers.status !== "idle")}
-            />
-            {runError && <ErrorText>{runError}</ErrorText>}
-          
-          {planAppError && <ErrorText>{planAppError}</ErrorText>}
-          {planAccess && <AzureAccessCheck access={planAccess} resourceAccess errorStyle />}
-          {/* The deploy access check already shows these providers with its own Register button. */}
-          {providers && (providers.status === "unregistered" || providers.status === "error") && !managementAccess?.unregisteredProviders.length && (
-            <WarningNotice message={providers.error ??
-              "These Azure resource providers aren't registered yet. Terraform registers them when every plan starts, and the plan app can't, so planning is blocked until they are registered."}>
-              {!!providers.unregistered.length && <Caption>{providers.unregistered.join(", ")}</Caption>}
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => void (providers.unregistered.length ? providers.register() : providers.retry())}
-                disabled={providers.registering}
-                aria-busy={providers.registering}
-                sx={{ alignSelf: "flex-start", minWidth: 0, px: 1 }}
-              >
-                {providers.registering ? "Registering..." : providers.unregistered.length ? "Register providers" : "Recheck providers"}
-              </Button>
-            </WarningNotice>
-          )}
-          {!planPermissions.ready && (
-            <PermissionNotice
-              missing={planPermissions.missing}
-              error={planPermissions.error}
-              granting={planPermissions.granting}
-              onGrant={planPermissions.grant}
-            />
-          )}
-        </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <RunStatusUpdateButton
+                onRun={onRunStatusUpdate}
+                running={statusUpdateRunning}
+                countdown={statusUpdateCountdown}
+                disabled={statusUpdateDisabled || !!planPermissions.missing?.length || planAccess?.status === "error" || !!planAppError ||
+                  (!!providers && providers.status !== "ready" && providers.status !== "idle")}
+              />
+              {runError && <ErrorText>{runError}</ErrorText>}
 
-        {(hasDetails || accessNotice) && (
-          <StagePlanDetail
-            items={currentPlan && "items" in currentPlan ? currentPlan.items : []}
-            summary={currentPlan && "summary" in currentPlan ? currentPlan.summary : { create: 0, update: 0, delete: 0, replace: 0 }}
-            loading={hasDetails && !currentPlan}
-            error={currentPlan && "error" in currentPlan ? currentPlan.error : null}
-            planAvailable={hasDetails}
-            accessNotice={accessNotice}
-            accessError={accessError}
-            onDeploy={onDeploy}
-            stagesStale={deployDisabled || (managementAccess != null && managementAccess.status !== "ready")}
-            behind={isPlanBehind(stage, latestSha)}
-            planSha={stage.planSha}
-            latestSha={latestSha}
-          />
-        )}
+              {planAppError && <ErrorText>{planAppError}</ErrorText>}
+              {planAccess && <AzureAccessCheck access={planAccess} resourceAccess errorStyle />}
+              {/* The deploy access check already shows these providers with its own Register button. */}
+              {providers && (providers.status === "unregistered" || providers.status === "error") && !managementAccess?.unregisteredProviders.length && (
+                <WarningNotice message={providers.error ??
+                  "These Azure resource providers aren't registered yet. Terraform registers them when every plan starts, and the plan app can't, so planning is blocked until they are registered."}>
+                  {!!providers.unregistered.length && <Caption>{providers.unregistered.join(", ")}</Caption>}
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => void (providers.unregistered.length ? providers.register() : providers.retry())}
+                    disabled={providers.registering}
+                    aria-busy={providers.registering}
+                    sx={{ alignSelf: "flex-start", minWidth: 0, px: 1 }}
+                  >
+                    {providers.registering ? "Registering..." : providers.unregistered.length ? "Register providers" : "Recheck providers"}
+                  </Button>
+                </WarningNotice>
+              )}
+              {!planPermissions.ready && (
+                <PermissionNotice
+                  missing={planPermissions.missing}
+                  error={planPermissions.error}
+                  granting={planPermissions.granting}
+                  onGrant={planPermissions.grant}
+                />
+              )}
+            </Box>
 
-        <RemoteTerminal session={remoteTerminal} />
+            {(hasDetails || accessNotice) && (
+              <StagePlanDetail
+                items={currentPlan && "items" in currentPlan ? currentPlan.items : []}
+                summary={currentPlan && "summary" in currentPlan ? currentPlan.summary : { create: 0, update: 0, delete: 0, replace: 0 }}
+                loading={hasDetails && !currentPlan}
+                error={currentPlan && "error" in currentPlan ? currentPlan.error : null}
+                planAvailable={hasDetails}
+                accessNotice={accessNotice}
+                accessError={accessError}
+                onDeploy={onDeploy}
+                stagesStale={deployDisabled || (managementAccess != null && managementAccess.status !== "ready")}
+                behind={isPlanBehind(stage, latestSha)}
+                planSha={stage.planSha}
+                latestSha={latestSha}
+              />
+            )}
+
+            <RemoteTerminal session={remoteTerminal} />
 
             {!hasDetails && stage.status !== "pending" && (
               <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
@@ -799,11 +799,7 @@ function GaStageContent({
 function ArmGaStage(props: Props) {
   const { variableValues } = props;
   const subscriptionId = variableValues.AZURE_SUBSCRIPTION_ID ?? "";
-  // // Named as the Remote terminal card names them.
-  // const terminal = { // Deprecated: the terminal backend now only needs a sign-in to its tenant; kept for reference.
-  //   storageAccount: variableValues.API_STORAGE_ACCOUNT || getApiStorageAccountName(subscriptionId),
-  //   webPubSub: variableValues.WEBPUBSUB_ENDPOINT?.replace(/\.webpubsub\.azure\.com\/?$/i, "") || getWebPubSubName(subscriptionId),
-  // };
+  // START LOADING PHASE - CHECK PREREQUISITES
   const managementAccess = useCardResourceAccess({
     azureAccount: props.azureAccount,
     subscriptionId,
@@ -822,6 +818,7 @@ function ArmGaStage(props: Props) {
     subscriptionId,
     tenantId: variableValues.AZURE_TENANT_ID || undefined,
   }, stageProviders(props.stageDef.dir));
+  // END LOADING PHASE - CHECK PREREQUISITES
   return <GaStageContent {...props} managementAccess={managementAccess} planAccess={planAccess} planAppError={planApp.error} providers={providers} />;
 }
 
