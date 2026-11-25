@@ -17,6 +17,7 @@ import ViewLink from "../../components/ViewLink";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
+import WarningNotice from "../../components/WarningNotice";
 import { getEntraUsersUrl } from "../../logic/consoleUrls";
 import { borderTint } from "../../config/styles";
 
@@ -82,6 +83,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
     selectedManagerUserId,
     managerUsersLoading,
     managerUsersError,
+    membershipError,
     consentRequired,
     requestAccessPassConsent,
     reset,
@@ -190,6 +192,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
     <Card title="Access pass" action={<Action />} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
         <Intro />
+        {membershipError && <WarningNotice message={membershipError} />}
 
         {/* Entra user selector */}
         <Box

@@ -407,6 +407,17 @@ export async function setPrimaryEntraDomain(account: AzureAccount, domainName: s
 // ── Access Pass ─────────────────────────────────────────────────────────────────
 
 export type EntraUser = { id: string; displayName: string; userPrincipalName: string };
+export type SignedInUserMembership = { userType?: string; userPrincipalName?: string };
+
+export function isInternalTenantMember(user: SignedInUserMembership): boolean {
+  return user.userType === "Member" && !user.userPrincipalName?.toUpperCase().includes("#EXT#");
+}
+
+export async function isSignedInUserInternalMember(account: AzureAccount, overrideTenantId?: string): Promise<boolean> {
+  const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
+  const user: SignedInUserMembership = await gFetch(token, GRAPH, "/me?$select=userType,userPrincipalName");
+  return isInternalTenantMember(user);
+}
 
 export type TemporaryAccessPass = {
   id: string;

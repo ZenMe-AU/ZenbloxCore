@@ -20,6 +20,7 @@ const { apiMocks } = vi.hoisted(() => ({
     deleteUserAuthenticationMethod: vi.fn(),
     createTemporaryAccessPassForUser: vi.fn(),
     temporaryAccessPassMethodExists: vi.fn(),
+    isSignedInUserInternalMember: vi.fn(),
     isConsentError: vi.fn(),
     generateRandomPassword: vi.fn(),
     logEvent: vi.fn(),
@@ -38,6 +39,7 @@ vi.mock("../api/azureGraph", () => ({
   deleteUserAuthenticationMethod: apiMocks.deleteUserAuthenticationMethod,
   createTemporaryAccessPassForUser: apiMocks.createTemporaryAccessPassForUser,
   temporaryAccessPassMethodExists: apiMocks.temporaryAccessPassMethodExists,
+  isSignedInUserInternalMember: apiMocks.isSignedInUserInternalMember,
 }));
 
 vi.mock("../logic/consent", () => ({
@@ -115,6 +117,7 @@ describe("useAccessPassCard", () => {
       temporaryAccessPass: "TAP-SECRET",
     });
     apiMocks.temporaryAccessPassMethodExists.mockResolvedValue(true);
+    apiMocks.isSignedInUserInternalMember.mockResolvedValue(true);
     apiMocks.isConsentError.mockReturnValue(false);
     apiMocks.generateRandomPassword.mockReturnValue("RANDOM-PASSWORD");
     apiMocks.logEvent.mockReturnValue(undefined);
@@ -966,6 +969,40 @@ describe("useAccessPassCard", () => {
       expect(latest?.result).toBeNull();
       expect(localStorage.getItem("zeninstaller_corp_access_pass_result")).toBeNull();
     });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("does not complete for a guest or external signed-in account", async () => {
+    apiMocks.isSignedInUserInternalMember.mockResolvedValue(false);
+    let latest: UseAccessPassCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />
+      );
+    });
+
+    await waitFor(() => {
+      expect(latest?.membershipError).toContain("internal Member account");
+    });
+
+    await act(async () => {
+      await latest?.runForUser("u1");
+    });
+
+    expect(latest?.result).not.toBeNull();
+    expect(latest?.status).toBe("warning");
+    expect(latest?.done).toBe(false);
+    expect(latest?.summary).toBe("Access pass created; internal membership required");
 
     await act(async () => {
       root.unmount();

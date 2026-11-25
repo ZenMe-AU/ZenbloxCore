@@ -14,6 +14,7 @@ import {
   deleteUserAuthenticationMethod,
   createTemporaryAccessPassForUser,
   temporaryAccessPassMethodExists,
+  isSignedInUserInternalMember,
   type EntraUser,
 } from "../../api/azureGraph";
 import { isConsentError } from "../../logic/consent";
@@ -47,6 +48,7 @@ export interface UseAccessPassCard extends CardHook {
   setSelectedManagerUserId: (id: string) => void;
   managerUsersLoading: boolean;
   managerUsersError: string | null;
+  membershipError: string | null;
   consentRequired: boolean;
   requestAccessPassConsent: () => Promise<void>;
   steps: SetupStep[];
@@ -76,6 +78,8 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
   const [selectedManagerUserId, setSelectedManagerUserId] = useState("");
   const [managerUsersLoading, setManagerUsersLoading] = useState(false);
   const [managerUsersError, setManagerUsersError] = useState<string | null>(null);
+  const [isInternalMember, setIsInternalMember] = useState<boolean | null>(null);
+  const [membershipError, setMembershipError] = useState<string | null>(null);
   const [consentRequired, setConsentRequired] = useState(false);
 
   const tenantId = confirmedTenantId || undefined;
@@ -120,6 +124,31 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
       })
       .finally(() => {
         if (!cancelled) setManagerUsersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [azureAccount, confirmedTenantId, tenantId]);
+
+  useEffect(() => {
+    if (!azureAccount || confirmedTenantId === null) {
+      setIsInternalMember(null);
+      setMembershipError(null);
+      return;
+    }
+    let cancelled = false;
+    setIsInternalMember(null);
+    setMembershipError(null);
+    isSignedInUserInternalMember(azureAccount, tenantId)
+      .then((eligible) => {
+        if (cancelled) return;
+        setIsInternalMember(eligible);
+        if (!eligible) setMembershipError("Access Pass completion requires an internal Member account from the selected tenant.");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setIsInternalMember(false);
+        setMembershipError("Unable to verify that the signed-in account is an internal Member of the selected tenant.");
       });
     return () => {
       cancelled = true;
@@ -232,9 +261,11 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
   }, [resetSteps]);
 
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not.
-  const status: CardStatus = managerUsersError || managerUsers.length === 0 ? "warning" : result ? "complete" : "idle";
+  const status: CardStatus = managerUsersError || membershipError || managerUsers.length === 0 ? "warning" : result && isInternalMember ? "complete" : "idle";
   const summary = result
-    ? "Access pass created"
+    ? isInternalMember
+      ? "Access pass created"
+      : "Access pass created; internal membership required"
     : managerUsersLoading
       ? "Loading users..."
       : managerUsers.length > 0
@@ -248,6 +279,7 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
     setSelectedManagerUserId,
     managerUsersLoading,
     managerUsersError,
+    membershipError,
     consentRequired,
     requestAccessPassConsent,
     steps,
@@ -259,6 +291,6 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
     summary,
     cardRequirements: ["azure_login"],
     cardDependencyLabel: "Sign in to Azure",
-    done: !!result,
+    done: !!result && isInternalMember === true,
   };
 }
