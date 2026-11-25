@@ -3,12 +3,12 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useMemo, useReducer, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listSubscriptions, type Subscription } from "../../api/azureGraph";
 import { createGithubApi } from "../../api/github";
-import type { AppContext, AppContextCardId, SharedCard } from "../../appContext";
-import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
+import type { AppContext, SharedCard } from "../../appContext";
+import { useCardAppContext, type BaseCardContext } from "../../components/useBaseCard";
 import { useGithubVariablesV2, type GithubTarget, type UseGithubVariablesV2 } from "../../hooks/useGithubVariablesV2";
 import { findIgnoreCase } from "../../logic/search";
 import {
@@ -28,7 +28,6 @@ import {
 
 interface PrivateContext {
   appContext: ReturnType<AppContext["getSnapshot"]>;
-  blockedBy: readonly { cardId: AppContextCardId; label: string }[];
   tenantId: string | null;
   subscriptions: Subscription[];
   subscriptionsLoaded: boolean;
@@ -65,17 +64,8 @@ function friendlySubsError(err: unknown): string {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscriptionV2 {
-  const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatchLifecycle] = useReducer(reducer, initialState);
-  const prerequisiteContext = { ...initialCardContext, lifecycle: toBaseCardLifecycle(state.lifecycle) };
-  const prerequisites = getPrerequisites(appContext, prerequisiteContext);
-  const missing = checkPrerequisites(appContext, prerequisiteContext);
-  // Azure login 2 can be complete without an account in AppContext yet; it is still the way on.
-  const blockedBy = (missing.length > 0 ? missing : initialCardContext.prerequisiteIds.slice(0, 1)).map((id) => {
-    const cardId = id as AppContextCardId;
-    const prerequisite = appContext.cards[cardId];
-    return { cardId, label: prerequisite?.initialised ? `${prerequisite.title} (${id})` : id };
-  });
+  const { appContext, prerequisites, unmet, blockedSummary } = useCardAppContext(appStore, initialCardContext, getPrerequisites);
   const account = prerequisites?.account ?? null;
   const tenantId = prerequisites?.tenantId ?? null;
   const key = account && tenantId ? `${account.homeAccountId}|${tenantId}` : null;
@@ -152,7 +142,7 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
     : undefined;
   const differsFromGithub = lifecycle === "unsaved" && !variables.loading;
   const summary = ({
-    blocked: blockedBy[0].label,
+    blocked: blockedSummary,
     loading: "Loading subscriptions...",
     selecting: "Select a subscription",
     unsaved: "Doesn't match what's saved to GitHub", // The header can't see the draft, so it states only what is true either way.
@@ -164,7 +154,7 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
     ...initialCardContext,
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),
-    unmetCardPrerequisites: blockedBy.map((blocker) => blocker.cardId),
+    unmetCardPrerequisites: unmet,
     stateMachine: { graph: stateGraph, currentState: lifecycle },
   } satisfies BaseCardContext<Lifecycle>;
   useEffect(() => {
@@ -187,7 +177,6 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
     baseCardContext,
     privateContext: {
       appContext,
-      blockedBy,
       tenantId,
       subscriptions,
       subscriptionsLoaded,

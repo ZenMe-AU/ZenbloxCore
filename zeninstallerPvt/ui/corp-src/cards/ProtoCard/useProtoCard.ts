@@ -3,9 +3,9 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useReducer, useSyncExternalStore, type Dispatch } from "react";
+import { useEffect, useReducer, type Dispatch } from "react";
 import type { AppContext } from "../../appContext";
-import { checkPrerequisites } from "../../components/useBaseCard";
+import { useCardAppContext } from "../../components/useBaseCard";
 import { getBaseCardContext, initialState, reducer, type Event } from "./stateMachine";
 
 export interface UseProtoCard {
@@ -17,9 +17,8 @@ export interface UseProtoCard {
 }
 
 export function useProtoCard(appCtx: AppContext): UseProtoCard {
-  const appContext = useSyncExternalStore(appCtx.subscribe, appCtx.getSnapshot, appCtx.getSnapshot);
   const [state, dispatch] = useReducer(reducer, initialState);
-  const unmet = checkPrerequisites(appContext, getBaseCardContext(state));
+  const { appContext, unmet } = useCardAppContext(appCtx, getBaseCardContext(state));
   if (unmet.length !== state.baseCardContext.unmetCardPrerequisites.length
     || unmet.some((id, index) => id !== state.baseCardContext.unmetCardPrerequisites[index])) {
     dispatch({ type: "sync-card-prerequisites", unmet });

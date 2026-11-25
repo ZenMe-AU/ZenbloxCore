@@ -4,7 +4,6 @@
  */
 
 import type { AppContext } from "../../appContext";
-import { checkPrerequisites } from "../../components/useBaseCard";
 import type {
   Lifecycle as BaseCardLifecycle,
   BaseCardContext,
@@ -96,11 +95,7 @@ export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
 }
 
 // The signed-in account and confirmed tenant, once Azure login 2 and Repository & environment 2 are complete.
-export function getPrerequisites(
-  appContext: ReturnType<AppContext["getSnapshot"]>,
-  baseCardContext: BaseCardContext,
-) {
-  if (checkPrerequisites(appContext, baseCardContext).length > 0) return null;
+export function getPrerequisites(appContext: ReturnType<AppContext["getSnapshot"]>) {
   const login = appContext.cards[azureLoginCardId];
   if (!login?.initialised || !login.azureAccount || !login.azureTenantId) return null;
   return { account: login.azureAccount, tenantId: login.azureTenantId };

@@ -12,7 +12,6 @@ import type {
   BaseCardStateMachine,
   Lifecycle as BaseCardLifecycle,
 } from "../../components/basecardlifecycle";
-import { checkPrerequisites } from "../../components/useBaseCard";
 import type { GithubAccount, GithubEnvironment, GithubRepositoryOption } from "./types";
 
 export const cardId = "repo_v2" as const;
@@ -75,11 +74,7 @@ export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
   return stateGraph[state].baseCardLifecycle;
 }
 
-export function getRepoPrerequisites(
-  appContext: ReturnType<AppContext["getSnapshot"]>,
-  baseCardContext: BaseCardContext<Lifecycle>,
-) {
-  if (checkPrerequisites(appContext, baseCardContext).length > 0) return null;
+export function getRepoPrerequisites(appContext: ReturnType<AppContext["getSnapshot"]>) {
   const login = appContext.cards[githubLoginCardId];
   if (!login?.initialised || !login.githubAccount || !login.githubToken || !login.githubMode) return null;
   return { user: login.githubAccount, token: login.githubToken, mode: login.githubMode };

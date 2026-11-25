@@ -4,7 +4,6 @@
  */
 
 import type { AppContext, AppContextCardId } from "../../appContext";
-import { checkPrerequisites } from "../../components/useBaseCard";
 import type {
   Lifecycle as BaseCardLifecycle,
   BaseCardContext,
@@ -32,9 +31,6 @@ export const initialCardContext = {
   title: "GitHub App Registration 2",
   prerequisiteIds: [azureLoginCardId, repoCardId, subscriptionCardId],
 } satisfies Omit<BaseCardContext, "lifecycle">;
-
-// checkPrerequisites reads only the ids; the lifecycle is there to satisfy BaseCardContext.
-export const prerequisiteContext = { ...initialCardContext, lifecycle: "blocked" } satisfies BaseCardContext;
 
 export type Lifecycle = "blocked" | "loading" | "ready" | "running" | "unsaved" | "complete" | "error";
 
@@ -115,11 +111,7 @@ export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
 
 // Everything the app registration is made for, once its prerequisite tree is complete (GitHub login 2 comes in
 // through Repository & environment 2) and the cards have shared what it needs, GitHub login 2's token included.
-export function getPrerequisites(
-  appContext: ReturnType<AppContext["getSnapshot"]>,
-  baseCardContext: BaseCardContext,
-) {
-  if (checkPrerequisites(appContext, baseCardContext).length > 0) return null;
+export function getPrerequisites(appContext: ReturnType<AppContext["getSnapshot"]>) {
   const azureLogin = appContext.cards[azureLoginCardId];
   const repo = appContext.cards[repoCardId];
   const subscription = appContext.cards[subscriptionCardId];

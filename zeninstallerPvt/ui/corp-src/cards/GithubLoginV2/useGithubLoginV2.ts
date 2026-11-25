@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useReducer, useState, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useReducer, useState, useRef } from "react";
 import { createGithubApi, fetchGithubUser } from "../../api/github";
 import { BACKEND_CONFIGURED, exchangeGithubCode, verifyAuthWithToken } from "../../api/backend";
 import { appUrl, requestAuthorizationCode, takePendingCode } from "../../logic/oauth";
@@ -15,7 +15,7 @@ import {
   GITHUB_CLIENT_ID,
   GITHUB_SCOPES,
 } from "../../config/githubConfig";
-import type { BaseCardContext } from "../../components/useBaseCard";
+import { useCardAppContext, type BaseCardContext } from "../../components/useBaseCard";
 import { SensitiveToken, type AppContext } from "../../appContext";
 import {
   deriveLifecycle,
@@ -137,7 +137,7 @@ function writeGithubAuthRecord(record: GithubAuthRecord | null): void {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useGithubLoginV2(appStore: AppContext) {
-  const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
+  const { appContext } = useCardAppContext(appStore, { cardId, prerequisiteIds: [] });
   const [loggingIn, setLoggingIn] = useState(true);
   const [account, setAccount] = useState<GithubAccount | null>(null);
   const [session, setSession] = useState<{ token: SensitiveToken; mode: GithubAuthRecord["mode"] } | null>(null);

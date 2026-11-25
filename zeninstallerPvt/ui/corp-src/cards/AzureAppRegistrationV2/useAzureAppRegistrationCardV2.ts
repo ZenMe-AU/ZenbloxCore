@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   createAppRegistration,
@@ -18,7 +18,7 @@ import {
 import { createGithubApi } from "../../api/github";
 import type { AppContext, SharedCard } from "../../appContext";
 import { ensureScopeConsent, getMsal } from "../../auth/msal";
-import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
+import { useCardAppContext, type BaseCardContext } from "../../components/useBaseCard";
 import { APP_SCOPES } from "../../config/azureConfig";
 import { useGithubVariablesV2, type UseGithubVariablesV2 } from "../../hooks/useGithubVariablesV2";
 import { formatCardResourceAccessError, useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
@@ -32,7 +32,6 @@ import {
   getPrerequisites,
   githubLoginCardId,
   initialCardContext,
-  prerequisiteContext,
   initialState,
   reducer,
   canLifecycleTransition,
@@ -228,16 +227,8 @@ export async function runAppRegistration(input: RunAppRegistrationInput): Promis
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegistrationV2 {
-  const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
+  const { appContext, prerequisites, unmet, blockedSummary } = useCardAppContext(appStore, initialCardContext, getPrerequisites);
   const [state, dispatchLifecycle] = useReducer(reducer, initialState);
-  const prerequisites = getPrerequisites(appContext, prerequisiteContext);
-  const missing = checkPrerequisites(appContext, prerequisiteContext);
-  // A prerequisite can be complete before what it shares reaches AppContext; Azure login 2 is still the way on.
-  const blockedIds = missing.length > 0 ? missing : initialCardContext.prerequisiteIds.slice(0, 1);
-  const blockedBy = blockedIds.map((id) => {
-    const prerequisite = appContext.cards[id];
-    return { cardId: id, label: prerequisite?.initialised ? `${prerequisite.title} (${id})` : id };
-  });
   const account = prerequisites?.account ?? null;
   const tenantId = prerequisites?.tenantId;
   const subscription = prerequisites?.subscription ?? null;
@@ -370,8 +361,8 @@ export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegi
   const differsFromGithub = !!ran && (savedClientId !== ran.clientId || savedPlanClientId !== ran.clientId);
   const verified = !!savedClientId && savedPlanClientId === savedClientId && rbacStatus === "ready" && managementAccess.status === "ready";
   const baseCardContext = getBaseCardContext(state, {
-    unmetCardPrerequisites: blockedIds,
-    blockedSummary: blockedBy[0].label,
+    unmetCardPrerequisites: unmet,
+    blockedSummary,
     prerequisitesMet: !!prerequisites,
     checkingMessage: activity,
     managementAccessStatus: managementAccess.status,

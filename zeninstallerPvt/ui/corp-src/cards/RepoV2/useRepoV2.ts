@@ -3,9 +3,9 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useMemo, useReducer, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import type { SharedCard, AppContext } from "../../appContext";
-import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
+import { useCardAppContext, type BaseCardContext } from "../../components/useBaseCard";
 import { createRepoApi } from "./api";
 import { useGithubRepo, type UseGithubRepo } from "./useGithubRepo";
 import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
@@ -15,7 +15,6 @@ import {
   initialRepoCardContext,
   initialState,
   reducer,
-  toBaseCardLifecycle,
   type Lifecycle,
 } from "./stateMachine";
 
@@ -33,17 +32,8 @@ export interface UseRepoV2 {
 }
 
 export function useRepoV2(appStore: AppContext): UseRepoV2 {
-  const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatch] = useReducer(reducer, initialState);
-  const prerequisiteContext = {
-    ...initialRepoCardContext,
-    lifecycle: toBaseCardLifecycle(state.lifecycle),
-  } satisfies BaseCardContext<Lifecycle>;
-  const prerequisites = getRepoPrerequisites(appContext, prerequisiteContext);
-  const missingPrerequisites = checkPrerequisites(appContext, prerequisiteContext);
-  const unmetCardPrerequisites = prerequisites
-    ? missingPrerequisites
-    : [...new Set([...missingPrerequisites, ...initialRepoCardContext.prerequisiteIds])];
+  const { appContext, prerequisites, unmet: unmetCardPrerequisites } = useCardAppContext(appStore, initialRepoCardContext, getRepoPrerequisites);
   const token = prerequisites?.token;
   const mode = prerequisites?.mode;
   const user = prerequisites?.user ?? null;
