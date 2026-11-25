@@ -7,6 +7,7 @@ import type { ComponentProps } from "react";
 import { describe, expect, it } from "vitest";
 import GaSubscriptionBudget from "../cards/GaSubscriptionBudget/GaSubscriptionBudget";
 import { GA_SUBSCRIPTION_BUDGET_CARD_ID, GA_SUBSCRIPTION_BUDGET_STAGE } from "../cards/GaSubscriptionBudget/config";
+import type { CardId, CardStatus } from "../types";
 
 describe("GaSubscriptionBudget", () => {
   const props: ComponentProps<typeof GaSubscriptionBudget> = {
@@ -24,7 +25,7 @@ describe("GaSubscriptionBudget", () => {
     deployDisabled: true,
     deployedEnv: null,
     variableValues: {},
-    cardStatus: {},
+    cardStatus: {} as Record<CardId, CardStatus>,
     account: null,
     repoName: "",
     selectedEnv: null,

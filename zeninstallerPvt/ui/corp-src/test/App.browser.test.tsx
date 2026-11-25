@@ -45,7 +45,7 @@ describe("App - Home Page", () => {
     expect(container).toBeTruthy();
   });
 
-  it("renders SubscriptionBudget only as the explicit GA card", async () => {
+  it("renders both stages only as explicit GA cards", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -58,7 +58,9 @@ describe("App - Home Page", () => {
         );
       });
       await expect.poll(() => container.querySelectorAll("#card-stage_GA_SubscriptionBudget").length).toBe(1);
+      expect(container.querySelectorAll("#card-stage_GA_CloudFront")).toHaveLength(1);
       expect(container.querySelector("#card-stage_SubscriptionBudget")).toBeNull();
+      expect(container.querySelector("#card-stage_CloudFront")).toBeNull();
     } finally {
       root.unmount();
       container.remove();

@@ -15,10 +15,10 @@ import { useGithubSignupCard } from "./cards/GithubSignup/useGithubSignupCard";
 import { useRepoCard } from "./cards/Repo/useRepoCard";
 import { useGithubVariables } from "./hooks/useGithubVariables";
 import { INITIAL_URL_PARAMS, useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
-import { useDeploymentPlan } from "./cards/Stage/useDeploymentPlan";
-import { useCorpStageCards } from "./cards/Stage/useCorpStageCards";
 import { useDeploymentPlan as useGaDeploymentPlan } from "./cards/GaStage/useDeploymentPlan";
 import { useCorpStageCards as useGaCorpStageCards } from "./cards/GaStage/useCorpStageCards";
+import GaCloudFront from "./cards/GaCloudFront/GaCloudFront";
+import { GA_CLOUDFRONT_CARD_ID, GA_CLOUDFRONT_STAGE } from "./cards/GaCloudFront/config";
 import GaSubscriptionBudget from "./cards/GaSubscriptionBudget/GaSubscriptionBudget";
 import { GA_SUBSCRIPTION_BUDGET_CARD_ID, GA_SUBSCRIPTION_BUDGET_STAGE } from "./cards/GaSubscriptionBudget/config";
 import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
@@ -71,7 +71,6 @@ import AccessPassCard from "./cards/AccessPass/AccessPassCard";
 // import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
 import AwsSsoCard from "./cards/AwsSso/AwsSsoCard";
 import AwsSsoStackCard from "./cards/AwsSsoStack/AwsSsoStackCard";
-import StageCard from "./cards/Stage/StageCard";
 import AvdGalleryCard from "./cards/AvdGallery/AvdGalleryCard";
 import PawImageCard from "./cards/PawImage/PawImageCard";
 import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
@@ -257,15 +256,6 @@ function AppDashboard() {
   const pawImage = addCard(usePawImageCard(privAvdTarget));
   const pawDeploy = addCard(usePawDeployCard(privAvdTarget));
 
-  const plan = useDeploymentPlan({
-    account: githubRepoEnv.repo.selectedAccount,
-    repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
-    pipeline: PIPELINE,
-    selectedEnv: githubRepoEnv.env.selectedEnv,
-    branches: githubRepoEnv.repo.branchList,
-    branchMatchError: githubRepoEnv.env.branchMatchError,
-    envReady: githubRepoEnv.done,
-  });
   const gaPlan = useGaDeploymentPlan({
     account: githubRepoEnv.repo.selectedAccount,
     repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
@@ -371,26 +361,7 @@ function AppDashboard() {
     };
   };
   const cardProps = (id: CardId): CardChrome => cardPropsFor(id, allCards[id]);
-  const stageCards = useCorpStageCards({
-    pipeline: {
-      ...PIPELINE,
-      stages: PIPELINE.stages.filter(({ dir }) => dir !== GA_SUBSCRIPTION_BUDGET_STAGE.dir),
-    },
-    plan,
-    allCards,
-    repoDone: githubRepoEnv.done,
-    repoDependencyLabel: githubRepoEnv.cardDependencyLabel,
-    expandedIds,
-    account: githubRepoEnv.repo.selectedAccount,
-    repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
-    selectedEnv: githubRepoEnv.env.selectedEnv,
-    variableValues: githubVariableValues,
-    onVariableConfirmed: githubVariables.onConfirmed,
-    onToggle: toggle,
-    onRequirementClick: openCard,
-  });
-  const gaSubscriptionBudget = useGaCorpStageCards({
-    stageDefinitions: [GA_SUBSCRIPTION_BUDGET_STAGE],
+  const gaStageCardInputs = {
     plan: gaPlan,
     allCards,
     repoDone: githubRepoEnv.done,
@@ -403,6 +374,14 @@ function AppDashboard() {
     onVariableConfirmed: githubVariables.onConfirmed,
     onToggle: toggle,
     onRequirementClick: openCard,
+  };
+  const gaSubscriptionBudget = useGaCorpStageCards({
+    ...gaStageCardInputs,
+    stageDefinitions: [GA_SUBSCRIPTION_BUDGET_STAGE],
+  })[0]!;
+  const gaCloudFront = useGaCorpStageCards({
+    ...gaStageCardInputs,
+    stageDefinitions: [GA_CLOUDFRONT_STAGE],
   })[0]!;
   const gaSubscriptionBudgetCard = {
     ...gaSubscriptionBudget,
@@ -418,6 +397,20 @@ function AppDashboard() {
     stageDef: gaSubscriptionBudgetStageDef,
     ...gaSubscriptionBudgetProps
   } = gaSubscriptionBudgetCard;
+  const gaCloudFrontCard = {
+    ...gaCloudFront,
+    card: {
+      ...gaCloudFront.card,
+      cardId: GA_CLOUDFRONT_CARD_ID,
+      expanded: expandedIds.has(GA_CLOUDFRONT_CARD_ID),
+      onToggle: () => toggle(GA_CLOUDFRONT_CARD_ID),
+    } satisfies CardChrome,
+  };
+  const {
+    key: gaCloudFrontKey,
+    stageDef: gaCloudFrontStageDef,
+    ...gaCloudFrontProps
+  } = gaCloudFrontCard;
 
   const progressCards = [
     ...([
@@ -442,17 +435,17 @@ function AppDashboard() {
       done: allCards[id].done,
       chrome: cardProps(id),
     })),
-    ...stageCards.map(({ card, stageDef }) => ({
-      id: card.cardId,
-      title: stageDef.label,
-      done: card.status === "complete",
-      chrome: card,
-    })),
     {
       id: gaSubscriptionBudgetCard.card.cardId,
       title: gaSubscriptionBudgetStageDef.label,
       done: gaSubscriptionBudgetCard.card.status === "complete",
       chrome: gaSubscriptionBudgetCard.card,
+    },
+    {
+      id: gaCloudFrontCard.card.cardId,
+      title: gaCloudFrontStageDef.label,
+      done: gaCloudFrontCard.card.status === "complete",
+      chrome: gaCloudFrontCard.card,
     },
     ...[avdGallery, pawImage, pawDeploy].map(({ cardId, cardDependencyLabel, done }) => ({
       id: cardId,
@@ -709,10 +702,8 @@ function AppDashboard() {
                 githubUrl={githubRepoEnv.githubEnvUrl}
               />
 
-              {stageCards.map(({ key, ...stageCard }) => (
-                <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
-              ))}
               <GaSubscriptionBudget key={`ga-${gaSubscriptionBudgetKey}`} {...gaSubscriptionBudgetProps} azureAccount={azureLogin.account} />
+              <GaCloudFront key={`ga-${gaCloudFrontKey}`} {...gaCloudFrontProps} azureAccount={azureLogin.account} />
             </Box>
           </Box>
         </Box >
