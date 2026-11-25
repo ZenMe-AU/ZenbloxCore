@@ -3,7 +3,8 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useMemo, useReducer, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   createAppRegistration,
   createServicePrincipal,
@@ -15,28 +16,27 @@ import {
   getExistingSP,
 } from "../../api/azureGraph";
 import { createGithubApi } from "../../api/github";
-import type { AppContext, AppContextCardId, SharedCard } from "../../appContext";
+import type { AppContext, SharedCard } from "../../appContext";
 import { ensureScopeConsent, getMsal } from "../../auth/msal";
 import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
 import { APP_SCOPES } from "../../config/azureConfig";
-import { useGithubVariablesV2, type GithubTarget, type UseGithubVariablesV2 } from "../../hooks/useGithubVariablesV2";
+import { useGithubVariablesV2, type UseGithubVariablesV2 } from "../../hooks/useGithubVariablesV2";
 import { formatCardResourceAccessError, useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
-import { useStepRunner } from "../../hooks/util/useStepRunner";
 import { isConsentError } from "../../logic/consent";
-import { getEnvSettingsUrl } from "../../logic/github";
 import { getFederatedCredential, getImmutableRepoSegment } from "../../logic/naming";
-import type { CardHook, CardStatus, SetupStep } from "../../types";
-import { azureAppRegistrationAccess } from "../AzureAppRegistration/config";
-import { useRbacCheck, type RbacCheckStatus } from "../AzureAppRegistration/useRbacCheck";
+import type { SetupStep } from "../../types";
+import { azureAppRegistrationAccess } from "./config";
+import { useRbacCheck, type RbacCheckStatus } from "./useRbacCheck";
 import {
-  deriveLifecycle,
+  getBaseCardContext,
+  getGithubTarget,
   getPrerequisites,
   githubLoginCardId,
   initialCardContext,
+  prerequisiteContext,
   initialState,
   reducer,
-  stateGraph,
-  toBaseCardLifecycle,
+  canLifecycleTransition,
   type Lifecycle,
 } from "./stateMachine";
 
@@ -44,11 +44,12 @@ import {
 
 // What only this card knows: the app it makes, the run that makes it, and where its client id is saved.
 export type PrivateContext = {
-  blockedBy: { cardId: AppContextCardId; label: string }[]; // The prerequisites still to finish, while blocked, labelled "Title (card_id)" from AppContext.
+  appContext: ReturnType<AppContext["getSnapshot"]>;
   appName: string;
   setAppName: (name: string) => void;
   steps: SetupStep[];
   running: boolean;
+  runAllowed: boolean; // The lifecycle allows a run; run() checks the same.
   run: () => Promise<void>;
   reset: () => void;
   spClientId: string; // The app the card checks: the one GitHub holds, else the one the last run made.
@@ -58,33 +59,183 @@ export type PrivateContext = {
   planClientIdMismatch: boolean; // AZURE_PLAN_CLIENT_ID has drifted from AZURE_CLIENT_ID (a run always keeps them equal).
   managementAccess: CardResourceAccess;
 
-  // Where the client id is saved; null until the prerequisites are complete.
-  github: GithubTarget | null;
+  // This card's saved client ids in GitHub; where they live comes from AppContext (getGithubTarget).
   variables: UseGithubVariablesV2;
-  populate: Record<string, string> | undefined;
+  runClientId: string | null; // The app the last run made for this scope, to put in the Saved to GitHub draft.
   autoSaveCounter: number; // Goes up after each successful run, which saves the new client id to GitHub.
-  differsFromGithub: boolean; // The last run's app isn't what GitHub holds, whatever the draft says.
 };
 
-export interface UseCard extends CardHook {
-  readonly cardId: "azure_app_registration_v2";
-  shared: SharedCard<"azure_app_registration_v2">;
+export interface UseAzureAppRegistrationV2 {
   baseCardContext: BaseCardContext<Lifecycle>;
   privateContext: PrivateContext;
 }
 
 const DEFAULT_APP_NAME = "zeninstaller-github";
 
+export type AppRegistrationDiscovery = {
+  appName: string;
+  application: { appId: string; id: string } | null;
+  servicePrincipal: { id: string } | null;
+};
+
+// ─── Run ──────────────────────────────────────────────────────────────────────
+
+export const runSteps: readonly SetupStep[] = [
+  { id: "access", label: "Check subscription access to assign RBAC roles", status: "pending" },
+  { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
+  { id: "graph-access", label: "Check Microsoft Graph service-principal access", status: "pending" },
+  { id: "app", label: "Create app registration", status: "pending" },
+  { id: "sp", label: "Create service principal", status: "pending" },
+  { id: "oidc", label: "Link Azure sign-in to this GitHub repository", status: "pending" },
+  { id: "creds", label: "Add federated credentials", status: "pending" },
+  { id: "rbac", label: "Assign RBAC roles", status: "pending" },
+];
+
+export type RunAppRegistrationInput = NonNullable<ReturnType<typeof getPrerequisites>> & {
+  githubRepoId: number;
+  appName: string; // Trimmed.
+  githubApi: ReturnType<typeof createGithubApi>;
+  discovery: AppRegistrationDiscovery | undefined; // Lets the run skip lookups discovery already made for this name.
+  checkResourceAccess: CardResourceAccess["check"];
+  reportAccessFailure: CardResourceAccess["reportFailure"];
+  updateStep: (stepId: string, status: SetupStep["status"], detail?: string, progress?: number) => void;
+  signal: AbortSignal;
+};
+
+export function isAbort(signal: AbortSignal, error: unknown): boolean {
+  return signal.aborted || (error instanceof DOMException && error.name === "AbortError");
+}
+
+// Redirects for Application/AppRoleAssignment.ReadWrite.All incremental consent; the user re-runs after returning.
+async function requestAppConsent(account: RunAppRegistrationInput["account"], tenantId: string) {
+  const msal = await getMsal();
+  if (!msal) return;
+  await msal.acquireTokenRedirect({
+    scopes: APP_SCOPES,
+    account,
+    authority: `https://login.microsoftonline.com/${tenantId || account.tenantId}`,
+  });
+}
+
+// Makes (or reuses) the app, its service principal, the GitHub OIDC link, the federated credential and the Reader role.
+// Returns the app's client id. A failed step is marked on its row and rethrown with the message to show; an abort is rethrown as is.
+export async function runAppRegistration(input: RunAppRegistrationInput): Promise<string> {
+  const { account, tenantId, subscription, githubRepository, githubRepoId, appName, githubApi, discovery, signal, updateStep } = input;
+  const githubAccount = githubRepository.account;
+  const repoName = githubRepository.repository.name;
+  const environmentName = githubRepository.environment.name;
+  const org = githubAccount.login;
+
+  let appId = "";
+  let appObjectId = "";
+  let spObjectId = "";
+  let currentStep = "access";
+
+  try {
+    signal.throwIfAborted();
+    updateStep("access", "running");
+    await input.checkResourceAccess();
+    signal.throwIfAborted();
+    updateStep("access", "done");
+
+    currentStep = "consent";
+    updateStep("consent", "running");
+    const promptedGraph = await ensureScopeConsent(account, [...APP_SCOPES], tenantId);
+    signal.throwIfAborted();
+    updateStep("consent", promptedGraph ? "done" : "skipped", promptedGraph ? undefined : "Already granted");
+
+    currentStep = "graph-access";
+    updateStep("graph-access", "running");
+    try {
+      await ensureServicePrincipalAccess(account, tenantId);
+      signal.throwIfAborted();
+    } catch (error) {
+      input.reportAccessFailure(error);
+      throw new Error(formatCardResourceAccessError(error), { cause: error });
+    }
+    updateStep("graph-access", "done", "Read-only service-principal access verified; Graph enforces create permission during the operation.");
+
+    currentStep = "app";
+    updateStep("app", "running");
+    const existing = discovery?.appName === appName
+      ? discovery.application
+      : await getExistingApp(account, appName, tenantId, signal);
+    if (existing) {
+      appId = existing.appId;
+      appObjectId = existing.id;
+      updateStep("app", "skipped", `Existing: ${appId}`);
+    } else {
+      // No pipeline-wide app permissions requested up front — cards that need one (e.g. domain) grant it themselves.
+      const created = await createAppRegistration(account, appName, [], tenantId);
+      signal.throwIfAborted();
+      appId = created.appId;
+      appObjectId = created.id;
+      updateStep("app", "done", appId);
+    }
+
+    currentStep = "sp";
+    updateStep("sp", "running");
+    const existingSP = discovery?.application?.appId === appId
+      ? discovery.servicePrincipal
+      : await getExistingSP(account, appId, tenantId, signal);
+    if (existingSP) {
+      spObjectId = existingSP.id;
+      updateStep("sp", "skipped", "Already exists");
+    } else {
+      const servicePrincipal = await createServicePrincipal(account, appId, tenantId);
+      signal.throwIfAborted();
+      spObjectId = servicePrincipal.id;
+      updateStep("sp", "done", spObjectId);
+    }
+
+    currentStep = "oidc";
+    updateStep("oidc", "running");
+    await githubApi.setOidcImmutableSubject(githubAccount, repoName);
+    signal.throwIfAborted();
+    updateStep("oidc", "done", getImmutableRepoSegment(org, githubAccount.id, repoName, githubRepoId));
+
+    currentStep = "creds";
+    updateStep("creds", "running");
+    const credential = getFederatedCredential(org, githubAccount.id, repoName, githubRepoId, environmentName);
+    const added = await ensureFederatedCredential(account, appObjectId, credential.name, credential.subject, tenantId);
+    signal.throwIfAborted();
+    updateStep("creds", added ? "done" : "skipped", added ? `${environmentName} added` : `${environmentName} already exists`);
+
+    currentStep = "rbac";
+    updateStep("rbac", "running");
+    await ensureRbacRole(account, subscription.id, spObjectId, "Reader", tenantId);
+    signal.throwIfAborted();
+    updateStep("rbac", "done", subscription.displayName || subscription.id);
+
+    return appId;
+  } catch (err) {
+    if (isAbort(signal, err)) throw err;
+    const message = err instanceof Error ? err.message : "Failed";
+    const stepMessage = (currentStep === "sp" || currentStep === "graph-access") && (/\b403\b|Authorization_RequestDenied|Insufficient privileges/i.test(message))
+      ? formatCardResourceAccessError(err)
+      : message;
+    if (currentStep === "sp" && stepMessage !== message) input.reportAccessFailure(err);
+    if (currentStep === "rbac" && /^403\b/.test(message)) input.reportAccessFailure(err);
+    if (isConsentError(message)) {
+      updateStep(currentStep, "error", "Additional consent required — redirecting to Microsoft...");
+      await requestAppConsent(account, tenantId).catch(() => updateStep(currentStep, "error", "Consent redirect failed — try again"));
+    } else {
+      updateStep(currentStep, "error", stepMessage);
+    }
+    throw new Error(stepMessage, { cause: err });
+  }
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export default function useCard(appStore: AppContext): UseCard {
+export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegistrationV2 {
   const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatchLifecycle] = useReducer(reducer, initialState);
-  const prerequisiteContext = { ...initialCardContext, lifecycle: toBaseCardLifecycle(state.lifecycle) };
   const prerequisites = getPrerequisites(appContext, prerequisiteContext);
   const missing = checkPrerequisites(appContext, prerequisiteContext);
   // A prerequisite can be complete before what it shares reaches AppContext; Azure login 2 is still the way on.
-  const blockedBy = (missing.length > 0 ? missing : initialCardContext.prerequisiteIds.slice(0, 1)).map((id) => {
+  const blockedIds = missing.length > 0 ? missing : initialCardContext.prerequisiteIds.slice(0, 1);
+  const blockedBy = blockedIds.map((id) => {
     const prerequisite = appContext.cards[id];
     return { cardId: id, label: prerequisite?.initialised ? `${prerequisite.title} (${id})` : id };
   });
@@ -95,13 +246,9 @@ export default function useCard(appStore: AppContext): UseCard {
   const githubRepository = prerequisites?.githubRepository ?? null;
   const environmentName = githubRepository?.environment.name ?? "";
   const githubRepoId = typeof githubRepository?.repository.id === "number" ? githubRepository.repository.id : null;
+  const [appName, setAppName] = useState(DEFAULT_APP_NAME);
 
-  const github: GithubTarget | null = githubRepository && {
-    account: githubRepository.account,
-    repoName: githubRepository.repository.name,
-    envName: environmentName,
-    envUrl: getEnvSettingsUrl(`${githubRepository.account.login}/${githubRepository.repository.name}`, githubRepository.environment.id),
-  };
+  const github = getGithubTarget(appContext);
   // GitHub is called from the browser whichever way GitHub login 2 got its token; the backend only exchanges it.
   // From AppContext rather than prerequisites: React Compiler won't keep a memo keyed on a field of prerequisites (react-hooks/preserve-manual-memoization).
   const githubLogin = appContext.cards[githubLoginCardId];
@@ -110,16 +257,52 @@ export default function useCard(appStore: AppContext): UseCard {
   const variables = useGithubVariablesV2({ target: github, api: githubApi });
   const savedClientId = variables.values.AZURE_CLIENT_ID ?? "";
   const savedPlanClientId = variables.values.AZURE_PLAN_CLIENT_ID ?? "";
-
-  const [appName, setAppName] = useState(DEFAULT_APP_NAME);
-  const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
-  const [result, setResult] = useState<{ key: string; clientId: string } | null>(null);
-  const [autoSaveCounter, setAutoSaveCounter] = useState(0);
   const [namedFor, setNamedFor] = useState<string | null>(null);
+  // The name isn't part of the scope: typing it must not reset a run or put the card back to loading.
+  const scopeKey = prerequisites && githubRepoId !== null
+    ? JSON.stringify([account?.homeAccountId, tenantId, subscriptionId, githubRepository?.account.id, githubRepository?.repository.id, environmentName])
+    : null;
+  const trimmedAppName = appName.trim();
+  // Look the typed name up once typing pauses, not on every keystroke.
+  const [lookupName, setLookupName] = useState(trimmedAppName);
+  useEffect(() => {
+    const timer = setTimeout(() => setLookupName(trimmedAppName), 500);
+    return () => clearTimeout(timer);
+  }, [trimmedAppName]);
+  const runControllerRef = useRef<AbortController | null>(null);
+  const runSequenceRef = useRef(0);
+  useEffect(() => {
+    runControllerRef.current?.abort();
+    runControllerRef.current = null;
+    dispatchLifecycle({ type: "scope-changed", scopeKey });
+    return () => runControllerRef.current?.abort();
+  }, [scopeKey]);
 
-  // A run's result counts only for what it was made for: a federated credential is per environment, the role per subscription.
-  const runKey = JSON.stringify([tenantId, subscriptionId, githubRepository?.account.id, githubRepository?.repository.id, environmentName]);
-  const ran = result?.key === runKey ? result : null;
+  const discoveryQuery = useQuery({
+    queryKey: ["azure_app_registration_v2", "discovery", scopeKey, savedClientId, lookupName],
+    enabled: !!scopeKey && !!account && !!lookupName,
+    staleTime: Infinity,
+    retry: false,
+    refetchOnWindowFocus: "always",
+    // A new name keeps showing the last lookup for this scope, so the card doesn't drop to loading (and unmount the
+    // name field) while it refetches. The run only reuses a lookup made for its own name.
+    placeholderData: (previous: AppRegistrationDiscovery | undefined, previousQuery) =>
+      previousQuery?.queryKey[2] === scopeKey && previousQuery?.queryKey[3] === savedClientId ? previous : undefined,
+    queryFn: async ({ signal }): Promise<AppRegistrationDiscovery> => {
+      const savedAppName = savedClientId
+        ? await getAppNameByAppId(account!, savedClientId, tenantId, signal)
+        : null;
+      const effectiveAppName = savedAppName ?? lookupName;
+      const application = await getExistingApp(account!, effectiveAppName, tenantId, signal);
+      const servicePrincipal = application
+        ? await getExistingSP(account!, application.appId, tenantId, signal)
+        : null;
+      return { appName: effectiveAppName, application, servicePrincipal };
+    },
+  });
+
+  // A run's result counts only for the complete scope it was made for.
+  const ran = state.result?.scopeKey === scopeKey ? state.result : null;
   const spClientId = savedClientId || ran?.clientId || "";
   const planClientIdMismatch = !!savedClientId && !!savedPlanClientId && savedClientId !== savedPlanClientId;
 
@@ -136,216 +319,103 @@ export default function useCard(appStore: AppContext): UseCard {
 
   // Name the field after the app GitHub holds, once per saved client id, so a re-run finds that app.
   const nameKey = account && savedClientId ? `${tenantId ?? ""}|${savedClientId}` : null;
-  useEffect(() => {
-    if (!account || !nameKey || namedFor === nameKey) return;
-    let cancelled = false;
-    getAppNameByAppId(account, savedClientId, tenantId)
-      .then((name) => {
-        if (!cancelled && name) setAppName(name);
-      })
-      .catch(() => {
-        /* keep the name as it is */
-      })
-      .finally(() => {
-        if (!cancelled) setNamedFor(nameKey);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [account, nameKey, namedFor, savedClientId, tenantId]);
-  const prefillingAppName = !!nameKey && namedFor !== nameKey;
+  if (nameKey && namedFor !== nameKey && discoveryQuery.data) {
+    setNamedFor(nameKey);
+    if (discoveryQuery.data.appName) setAppName(discoveryQuery.data.appName);
+  }
+  const prefillingAppName = !!nameKey && namedFor !== nameKey && discoveryQuery.isPending;
 
   const reset = () => {
-    resetSteps();
-    setResult(null);
-  };
-
-  // Redirects for Application/AppRoleAssignment.ReadWrite.All incremental consent; the user re-runs after returning.
-  const requestAppConsent = async () => {
-    if (!account) return;
-    const msal = await getMsal();
-    if (!msal) return;
-    await msal.acquireTokenRedirect({
-      scopes: APP_SCOPES,
-      account,
-      authority: `https://login.microsoftonline.com/${tenantId || account.tenantId}`,
-    });
+    runControllerRef.current?.abort();
+    runControllerRef.current = null;
+    dispatchLifecycle({ type: "reset" });
   };
 
   const run = async () => {
-    if (!account || !subscription || !githubRepository || !githubApi) return;
-    setRunning(true);
-
-    const key = runKey;
-    const githubAccount = githubRepository.account;
-    const repoName = githubRepository.repository.name;
-    const org = githubAccount.login;
-
-    const initialSteps: SetupStep[] = [
-      { id: "access", label: "Check subscription access to assign RBAC roles", status: "pending" },
-      { id: "consent", label: "Confirm Microsoft permissions", status: "pending" },
-      { id: "graph-access", label: "Check Microsoft Graph service-principal access", status: "pending" },
-      { id: "app", label: "Create app registration", status: "pending" },
-      { id: "sp", label: "Create service principal", status: "pending" },
-      { id: "oidc", label: "Link Azure sign-in to this GitHub repository", status: "pending" },
-      { id: "creds", label: "Add federated credentials", status: "pending" },
-      { id: "rbac", label: "Assign RBAC roles", status: "pending" },
-    ];
-    setSteps(initialSteps);
-
-    let appId = "";
-    let appObjectId = "";
-    let spObjectId = "";
-    let currentStep = "access";
-
+    if (!runAllowed || !scopeKey || !prerequisites || !githubApi || githubRepoId === null || !trimmedAppName) return;
+    runControllerRef.current?.abort();
+    const controller = new AbortController();
+    runControllerRef.current = controller;
+    const runId = ++runSequenceRef.current;
+    dispatchLifecycle({ type: "run-started", scopeKey, runId, steps: [...runSteps] });
     try {
-      updateStep("access", "running");
-      await checkResourceAccess();
-      updateStep("access", "done");
-
-      currentStep = "consent";
-      updateStep("consent", "running");
-      const promptedGraph = await ensureScopeConsent(account, [...APP_SCOPES], tenantId);
-      updateStep("consent", promptedGraph ? "done" : "skipped", promptedGraph ? undefined : "Already granted");
-
-      currentStep = "graph-access";
-      updateStep("graph-access", "running");
-      try {
-        await ensureServicePrincipalAccess(account, tenantId);
-      } catch (error) {
-        reportAccessFailure(error);
-        throw new Error(formatCardResourceAccessError(error), { cause: error });
-      }
-      updateStep("graph-access", "done", "Read-only service-principal access verified; Graph enforces create permission during the operation.");
-
-      currentStep = "app";
-      updateStep("app", "running");
-      const existing = await getExistingApp(account, appName, tenantId);
-      if (existing) {
-        appId = existing.appId;
-        appObjectId = existing.id;
-        updateStep("app", "skipped", `Existing: ${appId}`);
-      } else {
-        // No pipeline-wide app permissions requested up front — cards that need one (e.g. domain) grant it themselves.
-        const created = await createAppRegistration(account, appName, [], tenantId);
-        appId = created.appId;
-        appObjectId = created.id;
-        updateStep("app", "done", appId);
-      }
-
-      currentStep = "sp";
-      updateStep("sp", "running");
-      const existingSP = await getExistingSP(account, appId, tenantId);
-      if (existingSP) {
-        spObjectId = existingSP.id;
-        updateStep("sp", "skipped", "Already exists");
-      } else {
-        const servicePrincipal = await createServicePrincipal(account, appId, tenantId);
-        spObjectId = servicePrincipal.id;
-        updateStep("sp", "done", spObjectId);
-      }
-
-      currentStep = "oidc";
-      updateStep("oidc", "running");
-      if (githubRepoId === null) throw new Error(`Create the repository ${repoName} on GitHub before running this`);
-      await githubApi.setOidcImmutableSubject(githubAccount, repoName);
-      updateStep("oidc", "done", getImmutableRepoSegment(org, githubAccount.id, repoName, githubRepoId));
-
-      currentStep = "creds";
-      updateStep("creds", "running");
-      const credential = getFederatedCredential(org, githubAccount.id, repoName, githubRepoId, environmentName);
-      const added = await ensureFederatedCredential(account, appObjectId, credential.name, credential.subject, tenantId);
-      updateStep("creds", added ? "done" : "skipped", added ? `${environmentName} added` : `${environmentName} already exists`);
-
-      currentStep = "rbac";
-      updateStep("rbac", "running");
-      await ensureRbacRole(account, subscription.id, spObjectId, "Reader", tenantId);
-      updateStep("rbac", "done", subscription.displayName || subscription.id);
-
-      setResult({ key, clientId: appId });
-      setAutoSaveCounter((count) => count + 1);
+      const clientId = await runAppRegistration({
+        ...prerequisites,
+        githubRepoId,
+        appName: trimmedAppName,
+        githubApi,
+        discovery: discoveryQuery.data,
+        checkResourceAccess,
+        reportAccessFailure,
+        updateStep: (stepId, status, detail, progress) => {
+          dispatchLifecycle({ type: "step-updated", scopeKey, runId, stepId, status, detail, progress });
+        },
+        signal: controller.signal,
+      });
+      dispatchLifecycle({ type: "run-completed", scopeKey, runId, clientId });
+      void discoveryQuery.refetch();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed";
-      const stepMessage = (currentStep === "sp" || currentStep === "graph-access") && (/\b403\b|Authorization_RequestDenied|Insufficient privileges/i.test(message))
-        ? formatCardResourceAccessError(err)
-        : message;
-      if (currentStep === "sp" && stepMessage !== message) reportAccessFailure(err);
-      if (currentStep === "rbac" && /^403\b/.test(message)) reportAccessFailure(err);
-      if (isConsentError(message)) {
-        updateStep(currentStep, "error", "Additional consent required — redirecting to Microsoft...");
-        await requestAppConsent().catch(() => updateStep(currentStep, "error", "Consent redirect failed — try again"));
-      } else {
-        updateStep(currentStep, "error", stepMessage);
-      }
+      if (isAbort(controller.signal, err)) dispatchLifecycle({ type: "run-cancelled", scopeKey, runId });
+      else dispatchLifecycle({ type: "run-failed", scopeKey, runId });
     } finally {
-      setRunning(false);
+      if (runControllerRef.current === controller) runControllerRef.current = null;
     }
   };
 
-  const failedStep = steps.find((step) => step.status === "error");
+  const steps = state.steps;
+  const running = state.activeRunId !== null;
   const activity = managementAccess.status === "checking" ? "Checking Azure resource access"
     : liveRbac.checking && !rbacTrusted ? "Checking app registration access"
     : prefillingAppName ? "Fetching app registration name"
+    : discoveryQuery.isPending && !!scopeKey && !!lookupName ? "Checking app registration"
     : variables.loading ? "Loading GitHub variables" : null;
   const differsFromGithub = !!ran && (savedClientId !== ran.clientId || savedPlanClientId !== ran.clientId);
   const verified = !!savedClientId && savedPlanClientId === savedClientId && rbacStatus === "ready" && managementAccess.status === "ready";
-  const lifecycle = deriveLifecycle({
+  const baseCardContext = getBaseCardContext(state, {
+    unmetCardPrerequisites: blockedIds,
+    blockedSummary: blockedBy[0].label,
     prerequisitesMet: !!prerequisites,
-    running,
-    checking: !!activity,
-    failed: !!failedStep || managementAccess.status === "error" || !!rbacError,
-    unsaved: differsFromGithub,
+    checkingMessage: activity,
+    managementAccessStatus: managementAccess.status,
+    discoveryError: discoveryQuery.error instanceof Error ? discoveryQuery.error.message : null,
+    rbacStatus,
+    rbacError,
+    differsFromGithub,
     verified,
+    planClientIdMismatch,
+    hasSavedClientId: !!savedClientId,
   });
-  if (lifecycle !== state.lifecycle) {
-    dispatchLifecycle({ type: "transition", lifecycle });
-  }
+  const lifecycle = baseCardContext.stateMachine!.currentState;
+  // The graph documents the derived moves; flag one it doesn't list so the diagram gets fixed, not the card blocked.
+  const previousLifecycleRef = useRef(lifecycle);
+  useEffect(() => {
+    const previous = previousLifecycleRef.current;
+    previousLifecycleRef.current = lifecycle;
+    if (import.meta.env.DEV && previous !== lifecycle && !canLifecycleTransition(previous, lifecycle)) {
+      console.warn(`azure_app_registration_v2: ${previous} → ${lifecycle} is not in stateGraph`);
+    }
+  }, [lifecycle]);
+  const runAllowed = canLifecycleTransition(lifecycle, "running");
   const done = lifecycle === "complete";
-  const populate = ran ? { AZURE_CLIENT_ID: ran.clientId, AZURE_PLAN_CLIENT_ID: ran.clientId } : undefined;
-  const status: CardStatus = done ? "complete"
-    : lifecycle === "error" ? "error"
-    : lifecycle === "loading" || lifecycle === "running" ? "loading"
-    : lifecycle === "blocked" ? "idle" : "warning";
-  const summary = ({
-    blocked: blockedBy[0].label,
-    loading: activity ?? "Checking app registration",
-    running: steps.find((step) => step.status === "running")?.label ?? "Creating app registration",
-    error: failedStep ? `Failed: ${failedStep.label}`
-      : managementAccess.status === "error" ? "Insufficient permissions to continue"
-      : "Could not verify app registration access",
-    unsaved: "Save app registration connection details",
-    ready: rbacStatus === "sp-not-found" ? "Not found in the selected tenant — recreate it"
-      : rbacStatus === "missing-role" ? "Missing access on the selected subscription"
-      : planClientIdMismatch ? "AZURE_PLAN_CLIENT_ID doesn't match AZURE_CLIENT_ID"
-      : managementAccess.status === "warning" ? "Missing Azure permissions to continue"
-      : savedClientId ? "Re-run app registration" : "Create app registration",
-    complete: "App registration ready",
-  } satisfies Record<Lifecycle, string>)[lifecycle];
 
-  const baseCardContext = {
-    ...initialCardContext,
-    summary,
-    lifecycle: toBaseCardLifecycle(lifecycle),
-    stateMachine: { graph: stateGraph, currentState: lifecycle },
-  } satisfies BaseCardContext<Lifecycle>;
-
-  return {
-    cardId: "azure_app_registration_v2" as const,
-    shared: {
+  useEffect(() => {
+    appStore.update("azure_app_registration_v2", {
       title: baseCardContext.title,
       currentBaseCardStatus: baseCardContext.lifecycle,
       currentStatus: lifecycle,
       azureClientId: done ? savedClientId : null,
-    } satisfies SharedCard<"azure_app_registration_v2">,
-    status,
-    done,
+    } satisfies SharedCard<"azure_app_registration_v2">);
+  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, lifecycle, done, savedClientId]);
+
+  return {
     baseCardContext,
     privateContext: {
-      blockedBy,
+      appContext,
       appName,
       setAppName,
       steps,
       running,
+      runAllowed,
       run,
       reset,
       spClientId,
@@ -361,11 +431,9 @@ export default function useCard(appStore: AppContext): UseCard {
           if (account && subscriptionId) void ensureServicePrincipalAccess(account, tenantId).catch(reportAccessFailure);
         },
       },
-      github,
       variables,
-      populate,
-      autoSaveCounter,
-      differsFromGithub,
+      runClientId: ran?.clientId ?? null,
+      autoSaveCounter: state.autoSaveCounter,
     },
   };
 }

@@ -3,16 +3,16 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { AppContext } from "../../appContext";
+import type { AppContext, AppContextCardId } from "../../appContext";
 import { checkPrerequisites } from "../../components/useBaseCard";
 import type {
   Lifecycle as BaseCardLifecycle,
   BaseCardContext,
-  BaseCardEvent,
-  BaseCardState,
   BaseCardStateGraph,
-  BaseCardStateMachine,
 } from "../../components/basecardlifecycle";
+import type { GithubTarget } from "../../hooks/useGithubVariablesV2";
+import { getEnvSettingsUrl } from "../../logic/github";
+import type { SetupStep } from "../../types";
 
 declare module "../../appContext" {
   interface SharedCardDataById {
@@ -33,40 +33,42 @@ export const initialCardContext = {
   prerequisiteIds: [azureLoginCardId, repoCardId, subscriptionCardId],
 } satisfies Omit<BaseCardContext, "lifecycle">;
 
+// checkPrerequisites reads only the ids; the lifecycle is there to satisfy BaseCardContext.
+export const prerequisiteContext = { ...initialCardContext, lifecycle: "blocked" } satisfies BaseCardContext;
+
 export type Lifecycle = "blocked" | "loading" | "ready" | "running" | "unsaved" | "complete" | "error";
 
-// The lifecycle is derived after React batches updates, and the cards it waits for, the live checks and the
-// GitHub variables can all change under it, so every state can reach every other: even ready → unsaved, when
-// switching back to the environment a run was made for finds GitHub holding something else.
 export const stateGraph = {
   blocked: {
     label: "Waiting for Azure login 2, Repository & environment 2 and Azure subscription 2",
     baseCardLifecycle: "blocked",
-    transitions: ["loading", "ready", "running", "unsaved", "complete", "error"],
+    transitions: ["loading", "ready", "complete", "error"],
   },
   // Checking Azure access, the app's service principal and its role, or loading the GitHub variables.
   loading: {
     label: "Checking app registration",
     baseCardLifecycle: "loading",
-    transitions: ["blocked", "ready", "running", "unsaved", "complete", "error"],
+    transitions: ["blocked", "ready", "unsaved", "complete", "error"],
   },
   // Nothing saved yet, or what's saved no longer works here: not in this tenant, missing its role, or drifted.
   ready: {
     label: "Create app registration",
     baseCardLifecycle: "ready",
-    transitions: ["blocked", "loading", "running", "unsaved", "complete", "error"],
+    transitions: ["blocked", "loading", "running", "complete", "error"],
   },
+  // Cancelling goes back to ready; a finished run is unsaved until GitHub holds its client id.
   running: {
     label: "Creating app registration",
     baseCardLifecycle: "action",
-    transitions: ["blocked", "loading", "ready", "unsaved", "complete", "error"],
+    transitions: ["blocked", "loading", "ready", "unsaved", "error"],
   },
   // The run made the app, but GitHub doesn't hold its client id yet.
   unsaved: {
     label: "Unsaved change",
     baseCardLifecycle: "commit",
-    transitions: ["blocked", "loading", "ready", "running", "complete", "error"],
+    transitions: ["blocked", "loading", "ready", "complete", "error"],
   },
+  // Re-running is allowed; a GitHub edit can make it unsaved again or leave nothing that works (ready).
   complete: {
     label: "App registration ready",
     baseCardLifecycle: "complete",
@@ -76,15 +78,36 @@ export const stateGraph = {
   error: {
     label: "Error",
     baseCardLifecycle: "error",
-    transitions: ["blocked", "loading", "ready", "running", "unsaved", "complete"],
+    transitions: ["blocked", "loading", "ready", "running", "complete"],
   },
 } as const satisfies BaseCardStateGraph<Lifecycle>;
 
-export type State = BaseCardState<Lifecycle>;
+export type State = {
+  scopeKey: string | null;
+  activeRunId: number | null;
+  steps: SetupStep[];
+  result: { scopeKey: string; clientId: string } | null;
+  autoSaveCounter: number;
+};
 
-export type Event = BaseCardEvent<Lifecycle>;
+type ScopedRunEvent = { scopeKey: string; runId: number };
 
-export const initialState: State = { lifecycle: "blocked" };
+export type Event =
+  | { type: "scope-changed"; scopeKey: string | null }
+  | ({ type: "run-started"; steps: SetupStep[] } & ScopedRunEvent)
+  | ({ type: "step-updated"; stepId: string; status: SetupStep["status"]; detail?: string; progress?: number } & ScopedRunEvent)
+  | ({ type: "run-completed"; clientId: string } & ScopedRunEvent)
+  | ({ type: "run-failed" } & ScopedRunEvent) // The failed step holds the message.
+  | ({ type: "run-cancelled" } & ScopedRunEvent)
+  | { type: "reset" };
+
+export const initialState: State = {
+  scopeKey: null,
+  activeRunId: null,
+  steps: [],
+  result: null,
+  autoSaveCounter: 0,
+};
 
 export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
   return stateGraph[state].baseCardLifecycle;
@@ -113,6 +136,20 @@ export function getPrerequisites(
   };
 }
 
+// The GitHub environment the client id is saved to, once the prerequisites are met: the hook loads its variables,
+// and the card reads it back through privateContext.variables.target.
+export function getGithubTarget(appContext: ReturnType<AppContext["getSnapshot"]>): GithubTarget | null {
+  const githubRepository = getPrerequisites(appContext, prerequisiteContext)?.githubRepository;
+  if (!githubRepository) return null;
+  const { account, repository, environment } = githubRepository;
+  return {
+    account,
+    repoName: repository.name,
+    envName: environment.name,
+    envUrl: getEnvSettingsUrl(`${account.login}/${repository.name}`, environment.id),
+  };
+}
+
 export function deriveLifecycle({
   prerequisitesMet,
   running,
@@ -136,23 +173,94 @@ export function deriveLifecycle({
   return verified ? "complete" : "ready";
 }
 
-export function canTransition(currentState: State, nextState: Lifecycle): boolean {
-  return currentState.lifecycle === nextState
-    || stateGraph[currentState.lifecycle].transitions.some((lifecycle) => lifecycle === nextState);
+export function getBaseCardContext(state: State, status: {
+  unmetCardPrerequisites: readonly AppContextCardId[];
+  blockedSummary: string;
+  prerequisitesMet: boolean;
+  checkingMessage: string | null;
+  managementAccessStatus: string;
+  discoveryError: string | null;
+  rbacStatus: string;
+  rbacError: string | null;
+  differsFromGithub: boolean;
+  verified: boolean;
+  planClientIdMismatch: boolean;
+  hasSavedClientId: boolean;
+}): BaseCardContext<Lifecycle> {
+  const failedStep = state.steps.find((step) => step.status === "error");
+  const lifecycle = deriveLifecycle({
+    prerequisitesMet: status.prerequisitesMet,
+    running: state.activeRunId !== null,
+    checking: !!status.checkingMessage,
+    failed: !!failedStep || status.managementAccessStatus === "error" || !!status.rbacError || !!status.discoveryError,
+    unsaved: status.differsFromGithub,
+    verified: status.verified,
+  });
+  const summary = ({
+    blocked: status.blockedSummary,
+    loading: status.checkingMessage ?? "Checking app registration",
+    running: state.steps.find((step) => step.status === "running")?.label ?? "Creating app registration",
+    error: failedStep ? `Failed: ${failedStep.label}`
+      : status.managementAccessStatus === "error" ? "Insufficient permissions to continue"
+      : status.discoveryError ?? "Could not verify app registration access",
+    unsaved: "Save app registration connection details",
+    ready: status.rbacStatus === "sp-not-found" ? "Not found in the selected tenant — recreate it"
+      : status.rbacStatus === "missing-role" ? "Missing access on the selected subscription"
+      : status.planClientIdMismatch ? "AZURE_PLAN_CLIENT_ID doesn't match AZURE_CLIENT_ID"
+      : status.managementAccessStatus === "warning" ? "Missing Azure permissions to continue"
+      : status.hasSavedClientId ? "Re-run app registration" : "Create app registration",
+    complete: "App registration ready",
+  } satisfies Record<Lifecycle, string>)[lifecycle];
+  return {
+    ...initialCardContext,
+    unmetCardPrerequisites: status.unmetCardPrerequisites,
+    summary,
+    lifecycle: toBaseCardLifecycle(lifecycle),
+    stateMachine: { graph: stateGraph, currentState: lifecycle },
+  };
+}
+
+// Also the guard for the run command: the button and the hook's run both ask it for → "running".
+export function canLifecycleTransition(from: Lifecycle, to: Lifecycle): boolean {
+  return stateGraph[from].transitions.some((lifecycle) => lifecycle === to);
 }
 
 export function reducer(state: State, event: Event): State {
-  if (!canTransition(state, event.lifecycle)) {
-    throw new Error(`Cannot transition from ${state.lifecycle} to ${event.lifecycle}`);
+  if (event.type === "scope-changed") {
+    if (event.scopeKey === state.scopeKey) return state;
+    return {
+      scopeKey: event.scopeKey,
+      activeRunId: null,
+      steps: [],
+      result: null,
+      autoSaveCounter: state.autoSaveCounter,
+    };
   }
-  if (event.lifecycle === state.lifecycle) return state;
-  return { lifecycle: event.lifecycle };
-}
+  if (event.type === "run-started") {
+    if (event.scopeKey !== state.scopeKey) return state;
+    return { ...state, activeRunId: event.runId, steps: event.steps, result: null };
+  }
+  if (event.type === "reset") {
+    return { ...state, activeRunId: null, steps: [], result: null };
+  }
+  if (event.scopeKey !== state.scopeKey || event.runId !== state.activeRunId) return state;
 
-export const stateMachine: BaseCardStateMachine<Lifecycle> = {
-  graph: stateGraph,
-  initialState,
-  canTransition,
-  reducer,
-  toBaseCardLifecycle,
-};
+  if (event.type === "step-updated") {
+    return {
+      ...state,
+      steps: state.steps.map((step) => step.id === event.stepId
+        ? { ...step, status: event.status, detail: event.detail, progress: event.progress }
+        : step),
+    };
+  }
+  if (event.type === "run-completed") {
+    return {
+      ...state,
+      activeRunId: null,
+      result: { scopeKey: event.scopeKey, clientId: event.clientId },
+      autoSaveCounter: state.autoSaveCounter + 1,
+    };
+  }
+  // run-failed and run-cancelled: the run is over; a failed step keeps its message.
+  return { ...state, activeRunId: null };
+}

@@ -67,16 +67,18 @@ export async function listTenants(account: AzureAccount, overrideTenantId?: stri
 
 // ── App registration ───────────────────────────────────────────────────────────
 
-export async function getExistingApp(account: AzureAccount, displayName: string, overrideTenantId?: string): Promise<{ appId: string; id: string } | null> {
+export async function getExistingApp(account: AzureAccount, displayName: string, overrideTenantId?: string, signal?: AbortSignal): Promise<{ appId: string; id: string } | null> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
-  const data = await gFetch(token, GRAPH, `/applications?$filter=displayName eq '${displayName}'&$select=appId,id`);
+  signal?.throwIfAborted();
+  const data = await gFetch(token, GRAPH, `/applications?$filter=displayName eq '${displayName}'&$select=appId,id`, { signal });
   return data.value?.[0] ? { appId: data.value[0].appId, id: data.value[0].id } : null;
 }
 
 // Reverse lookup: resolve an app registration's display name from its client (app) id.
-export async function getAppNameByAppId(account: AzureAccount, appId: string, overrideTenantId?: string): Promise<string | null> {
+export async function getAppNameByAppId(account: AzureAccount, appId: string, overrideTenantId?: string, signal?: AbortSignal): Promise<string | null> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
-  const data = await gFetch(token, GRAPH, `/applications?$filter=appId eq '${appId}'&$select=displayName`);
+  signal?.throwIfAborted();
+  const data = await gFetch(token, GRAPH, `/applications?$filter=appId eq '${appId}'&$select=displayName`, { signal });
   return data.value?.[0]?.displayName ?? null;
 }
 
@@ -183,9 +185,10 @@ export async function ensureSpaRedirectUri(account: AzureAccount, appObjectId: s
   return true;
 }
 
-export async function getExistingSP(account: AzureAccount, appId: string, overrideTenantId?: string): Promise<{ id: string } | null> {
+export async function getExistingSP(account: AzureAccount, appId: string, overrideTenantId?: string, signal?: AbortSignal): Promise<{ id: string } | null> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
-  const data = await gFetch(token, GRAPH, `/servicePrincipals?$filter=appId eq '${appId}'&$select=id`);
+  signal?.throwIfAborted();
+  const data = await gFetch(token, GRAPH, `/servicePrincipals?$filter=appId eq '${appId}'&$select=id`, { signal });
   return data.value?.[0] ? { id: data.value[0].id } : null;
 }
 

@@ -60,7 +60,6 @@ import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegis
 import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCard";
 import AzureSubscriptionCardV2 from "./cards/AzureSubscriptionV2/AzureSubscriptionV2";
 import AzureAppRegistrationCardV2 from "./cards/AzureAppRegistrationV2/AzureAppRegistrationCardV2";
-import useAzureAppRegistrationCardV2 from "./cards/AzureAppRegistrationV2/useAzureAppRegistrationCardV2";
 import CoreInfraCard from "./cards/CoreInfra/CoreInfraCard";
 import PrivateFrontendInfraCard from "./cards/PrivateFrontendInfra/PrivateFrontendInfraCard";
 import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
@@ -151,7 +150,6 @@ function AppDashboard() {
       manualTenantId: azureLogin.manualTenantId,
     })
   );
-  const azureAppRegistrationV2 = addCard(useAzureAppRegistrationCardV2(appCtxStore));
 
   // AWS console sign-in: the Entra SAML app, then the CloudFormation stack that trusts it.
   const azureTenantId = azureLogin.confirmedTenantId || azureLogin.account?.tenantId || null;
@@ -557,7 +555,7 @@ function AppDashboard() {
                 variables={githubVariables}
                 githubUrl={githubRepoEnv.githubEnvUrl}
               />
-              <AzureAppRegistrationCardV2 cardChrome={cardProps("azure_app_registration_v2")} card={azureAppRegistrationV2} />
+              <AzureAppRegistrationCardV2 appCtxStore={appCtxStore} />
 
               <CoreInfraCard
                 card={cardProps("core_infra")}
