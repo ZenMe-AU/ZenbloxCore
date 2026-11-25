@@ -61,9 +61,9 @@ export default function CloudVariableDetailV2({
 }: Props) {
   const { refreshResult, markClicked } = useRefreshIndicator(variables.refreshing, variables.error);
   const account = variables.target?.account ?? null;
-  const repo = variables.target?.repoName ?? "";
-  const envName = variables.target?.envName ?? null;
-  const githubUrl = variables.target?.envUrl;
+  const repo = variables.target?.repository.name ?? "";
+  const envName = variables.target?.environment.name ?? null;
+  const githubUrl = variables.target?.environment.settingsUrl;
 
   const {
     localValues,

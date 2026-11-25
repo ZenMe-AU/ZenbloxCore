@@ -29,7 +29,6 @@ import { azureAppRegistrationAccess } from "./config";
 import { useRbacCheck, type RbacCheckStatus } from "./useRbacCheck";
 import {
   getBaseCardContext,
-  getGithubTarget,
   getPrerequisites,
   githubLoginCardId,
   initialCardContext,
@@ -59,7 +58,7 @@ export type PrivateContext = {
   planClientIdMismatch: boolean; // AZURE_PLAN_CLIENT_ID has drifted from AZURE_CLIENT_ID (a run always keeps them equal).
   managementAccess: CardResourceAccess;
 
-  // This card's saved client ids in GitHub; where they live comes from AppContext (getGithubTarget).
+  // This card's saved client ids in GitHub; where they live is Repository & environment 2's githubRepository.
   variables: UseGithubVariablesV2;
   runClientId: string | null; // The app the last run made for this scope, to put in the Saved to GitHub draft.
   autoSaveCounter: number; // Goes up after each successful run, which saves the new client id to GitHub.
@@ -248,13 +247,12 @@ export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegi
   const githubRepoId = typeof githubRepository?.repository.id === "number" ? githubRepository.repository.id : null;
   const [appName, setAppName] = useState(DEFAULT_APP_NAME);
 
-  const github = getGithubTarget(appContext);
   // GitHub is called from the browser whichever way GitHub login 2 got its token; the backend only exchanges it.
   // From AppContext rather than prerequisites: React Compiler won't keep a memo keyed on a field of prerequisites (react-hooks/preserve-manual-memoization).
   const githubLogin = appContext.cards[githubLoginCardId];
   const githubToken = prerequisites && githubLogin?.initialised ? githubLogin.githubToken : null;
   const githubApi = useMemo(() => githubToken ? createGithubApi(githubToken.reveal()) : null, [githubToken]);
-  const variables = useGithubVariablesV2({ target: github, api: githubApi });
+  const variables = useGithubVariablesV2({ target: githubRepository, api: githubApi });
   const savedClientId = variables.values.AZURE_CLIENT_ID ?? "";
   const savedPlanClientId = variables.values.AZURE_PLAN_CLIENT_ID ?? "";
   const [namedFor, setNamedFor] = useState<string | null>(null);

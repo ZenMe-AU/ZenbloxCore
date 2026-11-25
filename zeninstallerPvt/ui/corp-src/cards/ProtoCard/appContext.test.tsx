@@ -182,9 +182,9 @@ it("publishes typed GitHub snapshots and detects structural changes", async () =
 it("publishes changed repository results and clears them", () => {
   const store = createAppContext();
   const githubRepository = {
-    account: { id: 1, login: "owner", type: "User" as const },
-    repository: { id: 2, name: "repo" },
-    environment: { id: 3, name: "PROD", url: "https://example.test/env" },
+    account: { id: 1, login: "owner", type: "User" as const, htmlUrl: "https://github.com/owner" },
+    repository: { id: 2, name: "repo", htmlUrl: "https://github.com/owner/repo" },
+    environment: { id: 3, name: "PROD", settingsUrl: "https://github.com/owner/repo/settings/environments/3/edit" },
   };
   store.update("repo_v2", { title: "Repo 2", currentBaseCardStatus: "complete", currentStatus: "complete", githubRepository });
   const snapshot = store.getSnapshot();

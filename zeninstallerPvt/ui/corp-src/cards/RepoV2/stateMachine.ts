@@ -20,7 +20,7 @@ declare module "../../appContext" {
     repo_v2: {
       githubRepository: Readonly<{
         account: Readonly<GithubAccount>;
-        repository: Readonly<Pick<GithubRepositoryOption, "id" | "name">>;
+        repository: Readonly<Pick<GithubRepositoryOption, "id" | "name" | "htmlUrl">>;
         environment: Readonly<GithubEnvironment>;
       }> | null;
     };

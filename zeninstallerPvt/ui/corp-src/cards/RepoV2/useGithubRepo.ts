@@ -7,16 +7,17 @@ import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { RepoApi } from "./api";
 import { TEMPLATE_REPO, VALID_ENVS } from "../../config/githubConfig";
+import { getGithubUserUrl, getRepoUrl } from "./githubUrls";
 import { findIgnoreCase } from "../../logic/search";
 import type { GithubAccount, GithubBranch, GithubRepository, GithubRepositoryOption, GithubUser, RepoStatus } from "./types";
 
 export interface UseGithubRepo {
   accountList: GithubAccount[];
   selectedAccount: GithubAccount | null;
-  setSelectedAccount: (account: GithubAccount | null) => void;
+  setSelectedAccount: (account: Omit<GithubAccount, "htmlUrl"> | null) => void; // Picked by id from accountList.
   repoList: GithubRepository[];
   selectedRepo: GithubRepositoryOption | null;
-  setSelectedRepo: (repo: GithubRepositoryOption | null) => void;
+  setSelectedRepo: (repo: Omit<GithubRepositoryOption, "htmlUrl"> | null) => void;
   templateStatus: "checking" | "ready" | "not_clone" | "error";
   templateName: string | null;
   repoFullName: string | null;
@@ -58,10 +59,10 @@ export function useGithubRepo(
     queryKey: ["repo_v2", "accounts", userLogin],
     enabled: !!userLogin && !!api,
     staleTime: 5 * 60 * 1000,
-    queryFn: () => api!.fetchOrgList(),
+    queryFn: async () => (await api!.fetchOrgList()).map((account) => ({ ...account, htmlUrl: getGithubUserUrl(account.login) })),
   });
   const accountList: GithubAccount[] = accountsQuery.data ?? [];
-  const [accountPick, setAccountPick] = useState<{ userLogin: string | null; account: GithubAccount } | null>(null);
+  const [accountPick, setAccountPick] = useState<{ userLogin: string | null; account: Omit<GithubAccount, "htmlUrl"> } | null>(null);
   const selectedAccount = accountPick && accountPick.userLogin === userLogin && accountList.some((account) => account.id === accountPick.account.id)
     ? accountList.find((account) => account.id === accountPick.account.id)!
     : (initialAccountLogin ? findIgnoreCase(accountList, (account) => account.login, initialAccountLogin) : undefined)
@@ -80,7 +81,7 @@ export function useGithubRepo(
     : initialRepoName
       ? (() => {
         const match = findIgnoreCase(repoList, (repo) => repo.name, initialRepoName);
-        return match ? { id: match.id, name: match.name } : null;
+        return match && selectedAccount ? { id: match.id, name: match.name, htmlUrl: getRepoUrl(`${selectedAccount.login}/${match.name}`) } : null;
       })()
       : null;
 
@@ -142,7 +143,7 @@ export function useGithubRepo(
         ["repo_v2", "repositories", userLogin, selectedAccount.id],
         (current = []) => [...current, result.repo]
       );
-      setRepoPick({ userLogin, accountId: selectedAccount.id, repo: { id: result.repo.id, name: result.repo.name } });
+      setRepoPick({ userLogin, accountId: selectedAccount.id, repo: { id: result.repo.id, name: result.repo.name, htmlUrl: getRepoUrl(`${selectedAccount.login}/${result.repo.name}`) } });
       if (!result.envSuccess) {
         setCloneEnvWarning(`Repo created but failed to create environments: ${result.results.envs.filter((env) => !env.success).map((env) => env.name).join(", ")}`);
       }
@@ -201,7 +202,7 @@ export function useGithubRepo(
     repoList,
     selectedRepo,
     setSelectedRepo: (repo) => {
-      if (selectedAccount && repo) setRepoPick({ userLogin, accountId: selectedAccount.id, repo });
+      if (selectedAccount && repo) setRepoPick({ userLogin, accountId: selectedAccount.id, repo: { ...repo, htmlUrl: getRepoUrl(`${selectedAccount.login}/${repo.name}`) } });
       else setRepoPick(null);
       setCloneError(null);
       setCloneValidationWarning(null);

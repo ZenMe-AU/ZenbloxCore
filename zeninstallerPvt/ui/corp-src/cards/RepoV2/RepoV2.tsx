@@ -9,7 +9,7 @@ import BaseCard from "../../components/BaseCard";
 import ViewLink from "../../components/ViewLink";
 import RepoDetail, { Intro as RepoDetailIntro } from "./RepoDetail";
 import EnvDetail from "./EnvDetail";
-import { getRepoUrl } from "../../logic/github";
+import { getRepoUrl } from "./githubUrls";
 import { TEMPLATE_REPO, VALID_ENVS } from "../../config/githubConfig";
 import { useRepoV2, type UseRepoV2 } from "./useRepoV2";
 

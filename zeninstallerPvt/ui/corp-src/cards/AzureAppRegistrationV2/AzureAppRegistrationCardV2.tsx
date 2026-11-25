@@ -87,8 +87,8 @@ function CardContentMain({ baseCardContext, privateContext }: UseAzureAppRegistr
     autoSaveCounter,
   } = privateContext;
   const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
-  // Where the hook loads the variables from, so the card shows the same environment.
-  const github = variables.target;
+  // Repository & environment 2's githubRepository, gated the same way the hook loads the variables.
+  const githubRepository = variables.target;
   const populate = runClientId ? { AZURE_CLIENT_ID: runClientId, AZURE_PLAN_CLIENT_ID: runClientId } : undefined;
   // Unsaved is derived from the run and what GitHub holds, so the lifecycle already says it.
   const differsFromGithub = baseCardContext.stateMachine?.currentState === "unsaved";
@@ -165,9 +165,9 @@ function CardContentMain({ baseCardContext, privateContext }: UseAzureAppRegistr
         </CollapsiblePanel>
       )}
 
-      {github && (
+      {githubRepository && (
         <CloudVariableDetailV2
-          key={JSON.stringify([github.account.id, github.repoName, github.envName])}
+          key={JSON.stringify([githubRepository.account.id, githubRepository.repository.name, githubRepository.environment.name])}
           keys={AZURE_APP_KEYS}
           variables={variables}
           populate={populate}

@@ -104,15 +104,6 @@ export function getPrerequisites(
   return { account: login.azureAccount, tenantId: login.azureTenantId };
 }
 
-// Where the pick is saved and GitHub login 2's token to save it with, once it and Repository & environment 2 are complete.
-export function getGithubTarget(appContext: ReturnType<AppContext["getSnapshot"]>) {
-  const login = appContext.cards[githubLoginCardId];
-  const repo = appContext.cards[repoCardId];
-  if (!login?.initialised || !repo?.initialised || login.currentBaseCardStatus !== "complete" || repo.currentBaseCardStatus !== "complete") return null;
-  if (!login.githubToken || !repo.githubRepository) return null;
-  return { token: login.githubToken, ...repo.githubRepository };
-}
-
 export function deriveLifecycle({
   prerequisitesMet,
   loaded,

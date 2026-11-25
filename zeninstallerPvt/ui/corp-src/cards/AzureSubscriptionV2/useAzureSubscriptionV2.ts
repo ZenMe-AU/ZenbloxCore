@@ -10,15 +10,15 @@ import { createGithubApi } from "../../api/github";
 import type { AppContext, AppContextCardId, SharedCard } from "../../appContext";
 import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
 import { useGithubVariablesV2, type GithubTarget, type UseGithubVariablesV2 } from "../../hooks/useGithubVariablesV2";
-import { getEnvSettingsUrl } from "../../logic/github";
 import { findIgnoreCase } from "../../logic/search";
 import {
   deriveLifecycle,
-  getGithubTarget,
   getPrerequisites,
+  githubLoginCardId,
   initialCardContext,
   initialState,
   reducer,
+  repoCardId,
   stateGraph,
   toBaseCardLifecycle,
   type Lifecycle,
@@ -91,15 +91,13 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
   const subscriptions = useMemo(() => subscriptionsQuery.data ?? [], [subscriptionsQuery.data]);
   const subscriptionsLoaded = !!key && !subscriptionsQuery.isPending;
 
-  const githubTarget = getGithubTarget(appContext);
-  const github = githubTarget && {
-    account: githubTarget.account,
-    repoName: githubTarget.repository.name,
-    envName: githubTarget.environment.name,
-    envUrl: getEnvSettingsUrl(`${githubTarget.account.login}/${githubTarget.repository.name}`, githubTarget.environment.id),
-  };
+  // Where the pick is saved; Repository & environment 2 publishes it only once it's complete.
+  const repo = appContext.cards[repoCardId];
+  const github = repo?.initialised && repo.currentBaseCardStatus === "complete" ? repo.githubRepository : null;
   // GitHub is called from the browser whichever way GitHub login 2 got its token; the backend only exchanges it.
-  const githubToken = githubTarget?.token;
+  // Nothing loads before github is set, so the token needs no gate of its own.
+  const githubLogin = appContext.cards[githubLoginCardId];
+  const githubToken = githubLogin?.initialised ? githubLogin.githubToken : null;
   const variableApi = useMemo(() => githubToken ? createGithubApi(githubToken.reveal()) : null, [githubToken]);
   const variables = useGithubVariablesV2({ target: github, api: variableApi });
   const subsError = subscriptionsQuery.error && subscriptions.length === 0

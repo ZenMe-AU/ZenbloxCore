@@ -15,7 +15,12 @@ import type { UseGithubVariables } from "./useGithubVariables";
 
 export type VariableApi = Pick<ApiProvider, "fetchVariables" | "createVariable" | "updateVariable" | "deleteVariable">;
 
-export type GithubTarget = { account: Account; repoName: string; envName: string; envUrl: string };
+// Shaped like Repository & environment 2's published githubRepository, so a card passes that as is.
+export type GithubTarget = Readonly<{
+  account: Account;
+  repository: Readonly<{ name: string }>;
+  environment: Readonly<{ name: string; settingsUrl: string }>;
+}>;
 
 export type UseGithubVariablesV2Params = {
   target: GithubTarget | null; // Which environment's variables; nothing loads while null.
@@ -56,16 +61,16 @@ export function useGithubVariablesV2({ target, api }: UseGithubVariablesV2Params
   const queryKey = useMemo(() => [
     ...githubVariablesQueryRoot,
     target?.account.id,
-    target?.repoName,
-    target?.envName,
-  ] as const, [target?.account.id, target?.repoName, target?.envName]);
+    target?.repository.name,
+    target?.environment.name,
+  ] as const, [target?.account.id, target?.repository.name, target?.environment.name]);
   const query = useQuery({
     queryKey,
     enabled: !!target && !!api,
     staleTime: Infinity,
     retry: false,
     refetchOnWindowFocus: "always",
-    queryFn: () => api!.fetchVariables(target!.account, target!.repoName, target!.envName),
+    queryFn: () => api!.fetchVariables(target!.account, target!.repository.name, target!.environment.name),
   });
 
   const onRefresh = useCallback(async () => {

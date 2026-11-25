@@ -128,7 +128,7 @@ function SavedGitHubSection({ privateContext }: Pick<UseAzureSubscriptionV2, "pr
 
   return (
     <CloudVariableDetailV2
-      key={JSON.stringify([github.account.id, github.repoName, github.envName])}
+      key={JSON.stringify([github.account.id, github.repository.name, github.environment.name])}
       keys={AZURE_TARGET_KEYS}
       variables={variables}
       populate={populate}

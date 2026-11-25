@@ -119,9 +119,18 @@ export function useRepoV2(appStore: AppContext): UseRepoV2 {
           id: githubRepo.selectedAccount.id,
           login: githubRepo.selectedAccount.login,
           type: githubRepo.selectedAccount.type,
+          htmlUrl: githubRepo.selectedAccount.htmlUrl,
         },
-        repository: { id: githubRepo.selectedRepo.id, name: githubRepo.selectedRepo.name },
-        environment: { id: env.selectedEnv.id, name: env.selectedEnv.name, url: env.selectedEnv.url },
+        repository: {
+          id: githubRepo.selectedRepo.id,
+          name: githubRepo.selectedRepo.name,
+          htmlUrl: githubRepo.selectedRepo.htmlUrl,
+        },
+        environment: {
+          id: env.selectedEnv.id,
+          name: env.selectedEnv.name,
+          settingsUrl: env.selectedEnv.settingsUrl,
+        },
       }
       : null;
     appStore.update("repo_v2", {

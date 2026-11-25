@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { RepoApi } from "./api";
 import type { GithubAccount, GithubBranch, GithubEnvironment, GithubRepositoryOption, RepoStatus } from "./types";
 import { matchBranch } from "./env";
+import { getEnvSettingsUrl } from "./githubUrls";
 import { findIgnoreCase } from "../../logic/search";
 
 export interface UseGithubEnvironment {
@@ -38,7 +39,11 @@ export function useGithubEnvironment(opts: UseGithubEnvironmentParams): UseGithu
     queryKey,
     enabled: !!opts.api && !!opts.account && !!opts.repo && opts.isRepoReady,
     staleTime: 5 * 60 * 1000,
-    queryFn: () => opts.api!.fetchEnvs(opts.account!, opts.repo!.name),
+    queryFn: async () => (await opts.api!.fetchEnvs(opts.account!, opts.repo!.name)).map((env): GithubEnvironment => ({
+      name: env.name,
+      id: env.id,
+      settingsUrl: getEnvSettingsUrl(`${opts.account!.login}/${opts.repo!.name}`, env.id),
+    })),
   });
   const envList = environmentsQuery.data ?? [];
   const key = `${opts.account?.id ?? ""}|${opts.repo?.id ?? ""}`;

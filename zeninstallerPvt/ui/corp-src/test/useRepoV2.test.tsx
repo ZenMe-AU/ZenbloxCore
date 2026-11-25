@@ -130,14 +130,14 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
     expect(createRepoApi).toHaveBeenCalledWith(token, "backend");
     await act(async () => latest?.privateContext.repo.setSelectedRepo({ id: 2, name: "test-repo" }));
     await waitFor(() => expect(latest?.privateContext.env.envList).toHaveLength(1));
-    await act(async () => latest?.privateContext.env.setSelectedEnv({ id: 3, name: "PROD", url: "https://example.test/env" }));
+    await act(async () => latest?.privateContext.env.setSelectedEnv({ id: 3, name: "PROD", settingsUrl: "https://github.com/v2-user/test-repo/settings/environments/3/edit" }));
     await waitFor(() => {
       expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("complete");
       expect(latest?.baseCardContext.lifecycle).toBe("complete");
       expect(getPublishedRepo(store)?.githubRepository).toEqual({
-        account: { id: 1, login: "v2-user", type: "User" },
-        repository: { id: 2, name: "test-repo" },
-        environment: { id: 3, name: "PROD", url: "https://example.test/env" },
+        account: { id: 1, login: "v2-user", type: "User", htmlUrl: "https://github.com/v2-user" },
+        repository: { id: 2, name: "test-repo", htmlUrl: "https://github.com/v2-user/test-repo" },
+        environment: { id: 3, name: "PROD", settingsUrl: "https://github.com/v2-user/test-repo/settings/environments/3/edit" },
       });
     });
     let resolveCheck!: (value: { templateName: string }) => void;

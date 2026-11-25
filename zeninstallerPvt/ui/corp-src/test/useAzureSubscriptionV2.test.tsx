@@ -62,9 +62,9 @@ it("uses the canonical two-context contract and publishes the saved subscription
     currentBaseCardStatus: "complete",
     currentStatus: "complete",
     githubRepository: {
-      account: { id: 1, login: "owner", type: "User" },
-      repository: { id: 2, name: "repo" },
-      environment: { id: 3, name: "PROD", url: "https://example.test/env" },
+      account: { id: 1, login: "owner", type: "User", htmlUrl: "https://github.com/owner" },
+      repository: { id: 2, name: "repo", htmlUrl: "https://github.com/owner/repo" },
+      environment: { id: 3, name: "PROD", settingsUrl: "https://github.com/owner/repo/settings/environments/3/edit" },
     },
   });
 
@@ -142,9 +142,9 @@ it("restores the V2 subscription from the initial URL params", async () => {
     currentBaseCardStatus: "complete",
     currentStatus: "complete",
     githubRepository: {
-      account: { id: 1, login: "owner", type: "User" },
-      repository: { id: 2, name: "repo" },
-      environment: { id: 3, name: "PROD", url: "https://example.test/env" },
+      account: { id: 1, login: "owner", type: "User", htmlUrl: "https://github.com/owner" },
+      repository: { id: 2, name: "repo", htmlUrl: "https://github.com/owner/repo" },
+      environment: { id: 3, name: "PROD", settingsUrl: "https://github.com/owner/repo/settings/environments/3/edit" },
     },
   });
 

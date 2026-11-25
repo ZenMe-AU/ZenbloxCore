@@ -10,8 +10,6 @@ import type {
   BaseCardContext,
   BaseCardStateGraph,
 } from "../../components/basecardlifecycle";
-import type { GithubTarget } from "../../hooks/useGithubVariablesV2";
-import { getEnvSettingsUrl } from "../../logic/github";
 import type { SetupStep } from "../../types";
 
 declare module "../../appContext" {
@@ -133,20 +131,6 @@ export function getPrerequisites(
     tenantId: azureLogin.azureTenantId,
     subscription: subscription.azureSubscription,
     githubRepository: repo.githubRepository,
-  };
-}
-
-// The GitHub environment the client id is saved to, once the prerequisites are met: the hook loads its variables,
-// and the card reads it back through privateContext.variables.target.
-export function getGithubTarget(appContext: ReturnType<AppContext["getSnapshot"]>): GithubTarget | null {
-  const githubRepository = getPrerequisites(appContext, prerequisiteContext)?.githubRepository;
-  if (!githubRepository) return null;
-  const { account, repository, environment } = githubRepository;
-  return {
-    account,
-    repoName: repository.name,
-    envName: environment.name,
-    envUrl: getEnvSettingsUrl(`${account.login}/${repository.name}`, environment.id),
   };
 }
 
