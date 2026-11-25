@@ -17,6 +17,8 @@ import { useGithubVariables } from "./hooks/useGithubVariables";
 import { INITIAL_URL_PARAMS, useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
 import { useDeploymentPlan } from "./cards/Stage/useDeploymentPlan";
 import { useCorpStageCards } from "./cards/Stage/useCorpStageCards";
+import { useDeploymentPlan as useGaDeploymentPlan } from "./cards/GaStage/useDeploymentPlan";
+import { useCorpStageCards as useGaCorpStageCards } from "./cards/GaStage/useCorpStageCards";
 import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
@@ -68,6 +70,7 @@ import AccessPassCard from "./cards/AccessPass/AccessPassCard";
 import AwsSsoCard from "./cards/AwsSso/AwsSsoCard";
 import AwsSsoStackCard from "./cards/AwsSsoStack/AwsSsoStackCard";
 import StageCard from "./cards/Stage/StageCard";
+import GaStage from "./cards/GaStage/GaStage";
 import AvdGalleryCard from "./cards/AvdGallery/AvdGalleryCard";
 import PawImageCard from "./cards/PawImage/PawImageCard";
 import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
@@ -262,6 +265,15 @@ function AppDashboard() {
     branchMatchError: githubRepoEnv.env.branchMatchError,
     envReady: githubRepoEnv.done,
   });
+  const gaPlan = useGaDeploymentPlan({
+    account: githubRepoEnv.repo.selectedAccount,
+    repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
+    pipeline: PIPELINE,
+    selectedEnv: githubRepoEnv.env.selectedEnv,
+    branches: githubRepoEnv.repo.branchList,
+    branchMatchError: githubRepoEnv.env.branchMatchError,
+    envReady: githubRepoEnv.done,
+  });
 
   // ── URL restore + sync ───────────────────────────────────────────────────────
   const urlRestore = useUrlRestore([
@@ -373,6 +385,34 @@ function AppDashboard() {
     onToggle: toggle,
     onRequirementClick: openCard,
   });
+  const gaStageCards = useGaCorpStageCards({
+    pipeline: PIPELINE,
+    plan: gaPlan,
+    allCards,
+    repoDone: githubRepoEnv.done,
+    repoDependencyLabel: githubRepoEnv.cardDependencyLabel,
+    expandedIds,
+    account: githubRepoEnv.repo.selectedAccount,
+    repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
+    selectedEnv: githubRepoEnv.env.selectedEnv,
+    variableValues: githubVariableValues,
+    onVariableConfirmed: githubVariables.onConfirmed,
+    onToggle: toggle,
+    onRequirementClick: openCard,
+  }).map((model) => {
+    const cardId = `stage_GA_${model.key}` as CardId;
+    return {
+      ...model,
+      key: `ga-${model.key}`,
+      stageDef: { ...model.stageDef, label: `GA ${model.stageDef.label}` },
+      card: {
+        ...model.card,
+        cardId,
+        expanded: expandedIds.has(cardId),
+        onToggle: () => toggle(cardId),
+      },
+    };
+  });
 
   const progressCards = [
     ...([
@@ -398,6 +438,12 @@ function AppDashboard() {
       chrome: cardProps(id),
     })),
     ...stageCards.map(({ card, stageDef }) => ({
+      id: card.cardId,
+      title: stageDef.label,
+      done: card.status === "complete",
+      chrome: card,
+    })),
+    ...gaStageCards.map(({ card, stageDef }) => ({
       id: card.cardId,
       title: stageDef.label,
       done: card.status === "complete",
@@ -660,6 +706,9 @@ function AppDashboard() {
 
               {stageCards.map(({ key, ...stageCard }) => (
                 <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
+              ))}
+              {gaStageCards.map(({ key, ...stageCard }) => (
+                <GaStage key={key} {...stageCard} azureAccount={azureLogin.account} />
               ))}
             </Box>
           </Box>
