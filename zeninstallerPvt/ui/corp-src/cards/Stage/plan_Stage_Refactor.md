@@ -8,6 +8,35 @@ The new implementation will intentionally be independent from the old card. Comp
 
 ## Step A: Create the independent GaStage implementation
 
+### A.0 Build the legacy StageCard test suite
+
+Build and run the test suite for the existing StageCard implementation before making refactoring changes. This establishes the known baseline for current behavior, including behavior that may later be classified as incorrect and fixed separately.
+
+Cover at least:
+
+- repository/prerequisite locked state;
+- ready state;
+- missing prerequisites;
+- changed prerequisites;
+- plan refresh available;
+- plan running;
+- plan failure and retry;
+- successful plan;
+- deploy ready;
+- deployment running;
+- deployment completed;
+- deployment failed or cancelled;
+- expansion and card navigation;
+- remote-terminal behavior.
+
+Do not rely only on snapshots. Tests should assert observable state, actions, and side effects.
+
+You are allowed to make changes to StageCard to get the tests to pass.
+Record notes of any changes that were needed, and stop here.
+Wait for human to do code review and to commit the passing baseline test suite before continuing.
+
+
+
 ### A.1 Create and render GaStage
 
 1. Clone `StageCard.tsx` as `GaStage.tsx` or a `GaStage` folder with the minimum name-only changes needed to compile.
@@ -27,9 +56,9 @@ The old and new UI intentionally coexist during this step. This duplicates netwo
 
 ### A.2 Add independent parity tests
 
-Create separate test suites for the old and new implementations. Where practical, run the same scenario definition against each suite and assert each independently.
+Create an independent test suite for GaStage. Reuse the scenario definitions from the A.0 legacy suite where practical, but keep the old and new test files and assertions independent.
 
-Cover at least:
+Confirm the GaStage suite covers:
 
 - repository/prerequisite locked state;
 - ready state;
@@ -46,7 +75,7 @@ Cover at least:
 - independent expansion and card navigation;
 - independent remote-terminal behavior.
 
-Do not rely only on snapshots. Tests should assert observable state, actions, and side effects.
+Compare failures and results across the two suites so that missing legacy functionality is identified before it is added to later GaStage iterations.
 
 ### A.3 Human review and commit
 
