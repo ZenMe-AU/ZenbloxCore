@@ -5,7 +5,7 @@
 
 import { GA_CLOUDFRONT_STAGE } from "../GaCloudFront/config";
 import { GA_SUBSCRIPTION_BUDGET_STAGE } from "../GaSubscriptionBudget/config";
-import type { StageDefinition } from "../../types";
+import type { StageDefinition } from "./types";
 
 export const GA_STAGE_DEFINITIONS = [GA_SUBSCRIPTION_BUDGET_STAGE, GA_CLOUDFRONT_STAGE] as const;
 

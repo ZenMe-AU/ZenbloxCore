@@ -16,7 +16,7 @@ const apiMocks = vi.hoisted(() => ({
   fetchStageReport: vi.fn(),
   getPlanEnv: vi.fn(),
 }));
-vi.mock("../api", () => apiMocks);
+vi.mock("../cards/GaStage/api", () => apiMocks);
 
 const { useDeploymentPlan } = await import("../cards/GaStage/useDeploymentPlan");
 
@@ -45,7 +45,7 @@ describe("GA stage deployment plan", () => {
     vi.useRealTimers();
   });
 
-  it("loads plan and deploy reports for the explicit stage definitions", async () => {
+  it("loads plan and deploy results for the explicit stage definitions", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -112,7 +112,7 @@ describe("GA stage deployment plan", () => {
     info.mockRestore();
   });
 
-  it("starts deployment, polls its report, and rejects missing inputs explicitly", async () => {
+  it("starts deployment, polls its result, and rejects missing inputs explicitly", async () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => { });
     vi.useFakeTimers();
     const now = Date.now();
@@ -191,7 +191,7 @@ describe("GA stage deployment plan", () => {
     expect(plan.runs.SubscriptionBudget).toBeUndefined();
   });
 
-  it("retries stale reports, times out, and resets when the environment changes", async () => {
+  it("retries stale results, times out, and resets when the environment changes", async () => {
     vi.useFakeTimers();
     const error = vi.spyOn(console, "error").mockImplementation(() => { });
     let plan!: UseDeploymentPlan;
@@ -218,7 +218,7 @@ describe("GA stage deployment plan", () => {
     error.mockRestore();
   });
 
-  it("ignores an in-flight report after forcing a different state", async () => {
+  it("ignores an in-flight result after forcing a different state", async () => {
     vi.useFakeTimers();
     const info = vi.spyOn(console, "info");
     let resolveReport!: (value: null) => void;
@@ -243,7 +243,7 @@ describe("GA stage deployment plan", () => {
       await Promise.resolve();
     });
     expect(plan.runs.SubscriptionBudget).toMatchObject({ state: "error", kind: "deploy" });
-    expect(info).toHaveBeenCalledWith(expect.stringContaining("ignored stale report response"));
+    expect(info).toHaveBeenCalledWith(expect.stringContaining("ignored stale result response"));
     await act(async () => { await vi.advanceTimersByTimeAsync(200_000); });
     expect(plan.runs.SubscriptionBudget).toMatchObject({ state: "error", kind: "deploy" });
     info.mockRestore();

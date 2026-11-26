@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { CardId, StageDefinition } from "../../types";
+import type { CardId, StageDefinition } from "../GaStage/types";
 import { GRAPH_PERMISSIONS } from "../../config/azureConfig";
 import { AZURE_VARIABLE_KEYS, AWS_VARIABLE_KEYS } from "../../logic/variables";
 

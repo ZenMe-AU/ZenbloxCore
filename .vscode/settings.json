@@ -56,5 +56,6 @@
     "javascript",
     "typescript",
     "typescriptreact"
-  ]
+  ],
+  "azureFunctions.projectSubpath": "zeninstallerPvt\\func"
 }

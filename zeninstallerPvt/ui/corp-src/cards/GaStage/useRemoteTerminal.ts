@@ -6,12 +6,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useColorScheme } from "@mui/material/styles";
 import { Terminal } from "@xterm/xterm";
-import { triggerRemoteLogin } from "../../api";
-import { deleteSession, negotiateSession, registerSession } from "../../api/backend";
+import { deleteSession, negotiateSession, registerSession, triggerRemoteLogin } from "./api";
 import { TERMINAL_COLS, TERMINAL_ROWS, TERMINAL_THEME, type TerminalMode } from "../../config/remoteTerminal";
 import { createSessionCredentials, parseSocketEvent, parseWebPubSubUrl } from "../../logic/remoteTerminal";
 import type { Cloud, RunnerMessage, SessionCredentials, TerminalStatus } from "../../logic/remoteTerminal";
-import type { Account, GhEnv } from "../../types";
+import type { Account, GhEnv } from "./types";
 
 const MAX_RECONNECT_ATTEMPTS = 10;
 const RECONNECT_BASE_MS = 1000;

@@ -4,8 +4,8 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchLogArtifact, fetchPlan } from "../../api";
-import type { Account, PlanItem, PlanSummary, Stage } from "../../types";
+import { fetchLogArtifact, fetchPlan } from "./api";
+import type { Account, PlanItem, PlanSummary, Stage } from "./types";
 import { computePlanSummary } from "../../logic/stage";
 
 type StageArtifactsOptions = {

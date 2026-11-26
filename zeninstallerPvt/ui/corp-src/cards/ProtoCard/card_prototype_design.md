@@ -168,6 +168,7 @@ Use `.tsx` for the hook file only if it contains JSX; otherwise use `.ts`. For e
   4. `CardContentMain` to compose the intro, any panels, and the card's action content.
   5. `CardEntrypoint` to call the card hook and wrap `CardContentMain` in BaseCard.
   6. A default export of `CardEntrypoint`.
+- The card implementation module exposes only that default export. Keep `Intro`, panels, `CardContentMain`, and other implementation details private; do not add named exports for test access.
 - `PrerequisitesPanel` and `ResultsPanel` are optional. If implemented, both use the same destructured `UseCard` prop shape; neither creates another context contract or accepts pieces of the context as separate props.
 - Keep `CardEntrypoint` small: call the card hook, render BaseCard, and pass normal content as children. Do not put reducer logic or whole panel implementations in the entrypoint.
 - Pass `baseCardContext` to panels that need the standard BaseCard lifecycle or metadata.

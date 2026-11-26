@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { ActionType, ArmRole, CardResourceAccessRequest } from "../../types";
+import type { ActionType, ArmRole, CardResourceAccessRequest } from "./types";
 import { readWrite } from "../../config/azureConfig";
 // import { PRIVATE_RESOURCE_GROUP } from "../../logic/naming"; // Deprecated: the terminal backend now only needs a sign-in to its tenant; kept for reference.
 

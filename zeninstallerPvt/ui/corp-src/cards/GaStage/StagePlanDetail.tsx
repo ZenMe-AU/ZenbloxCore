@@ -9,7 +9,7 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import { alpha } from "@mui/material/styles";
 import { ACTION_CONFIG } from "./stageConfig";
 import { getActionType } from "../../logic/stage";
-import type { PlanItem, PlanSummary } from "../../types";
+import type { PlanItem, PlanSummary } from "./types";
 import { MONO_FONT, warningMessageIconSx } from "../../config/styles";
 import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";

@@ -15,8 +15,8 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn().mockResolvedValue(undefined),
   dispatch: vi.fn(),
 }));
-vi.mock("../api", () => ({ triggerRemoteLogin: mocks.dispatch }));
-vi.mock("../api/backend", () => ({
+vi.mock("../cards/GaStage/api", () => ({
+  triggerRemoteLogin: mocks.dispatch,
   registerSession: mocks.register,
   deleteSession: mocks.remove,
   negotiateSession: vi.fn(),

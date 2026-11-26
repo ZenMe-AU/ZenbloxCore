@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { CardId, StageDefinition } from "../../types";
+import type { CardId, StageDefinition } from "../GaStage/types";
 import { AZURE_VARIABLE_KEYS, C01_KEYS } from "../../logic/variables";
 
 export const GA_SUBSCRIPTION_BUDGET_CARD_ID = "stage_GA_SubscriptionBudget" satisfies CardId;

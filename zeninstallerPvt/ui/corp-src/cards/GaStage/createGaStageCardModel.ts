@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { Account, CardChrome, CardHook, CardId, CardStatus, GhEnv, PlanSummary, Stage } from "../../types";
+import type { Account, CardChrome, CardHook, CardId, CardStatus, GhEnv, PlanSummary, Stage } from "./types";
 import type { StageOperation, UseDeploymentPlan } from "./useDeploymentPlan";
 import type { GaStageDefinition } from "./stageDefinitions";
 import { assessPrerequisites, getEffectiveStatus, getStageSummaryText, stageToCardStatus, type PrerequisiteAssessment } from "../../logic/stage";

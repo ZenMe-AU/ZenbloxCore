@@ -27,8 +27,8 @@ import type {
   PrerequisiteStageVar,
   Stage,
   StageDefinition,
-} from "../../types";
-import { createVariable, updateVariable } from "../../api";
+} from "./types";
+import { createVariable, updateVariable } from "./api";
 import { useAzurePermissions, useServicePrincipalId } from "../../hooks/util/useAzurePermissions";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
 import { planAppAccess, stageAccess, stageProviders } from "./stageConfig";

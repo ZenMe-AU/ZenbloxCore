@@ -8,10 +8,8 @@ import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { expect, it, vi } from "vitest";
 import { createAppContext } from "../appContext";
-import BaseCard from "../components/BaseCard";
-import { CardContentMain } from "../cards/ProtoCard/ProtoCard";
-import { getBaseCardContext, initialState, reducer, stateGraph } from "../cards/ProtoCard/stateMachine";
-import type { UseProtoCard } from "../cards/ProtoCard/useProtoCard";
+import ProtoCard from "../cards/ProtoCard/ProtoCard";
+import { initialState, reducer, stateGraph } from "../cards/ProtoCard/stateMachine";
 import theme from "../theme";
 
 function publishGithubLogin(store: ReturnType<typeof createAppContext>) {
@@ -34,36 +32,36 @@ function publishRepo(store: ReturnType<typeof createAppContext>, currentBaseCard
     });
 }
 
-function publishProto(store: ReturnType<typeof createAppContext>) {
-    store.update("proto_card", {
-        title: "ProtoCard prototype card",
-        currentBaseCardStatus: "ready",
-        currentStatus: "ready",
+function ProtoCardHarness({ store }: { store: ReturnType<typeof createAppContext> }) {
+    return <ThemeProvider theme={theme}><ProtoCard {...store} /></ThemeProvider>;
+}
+
+async function expandCard(container: HTMLElement) {
+    await act(async () => container.querySelector<HTMLButtonElement>("#card-title-proto_card button")?.click());
+}
+
+async function setPrerequisite(container: HTMLElement, value: string) {
+    const select = container.querySelector<HTMLSelectElement>("#proto-card-prerequisites select");
+    expect(select).toBeDefined();
+    await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(select, value);
+        select!.dispatchEvent(new Event("change", { bubbles: true }));
     });
 }
 
-it("offers only registered prerequisite IDs and dispatches the selected ID", async () => {
+it("offers only registered prerequisite IDs and applies the selection", async () => {
+    vi.useFakeTimers();
     const store = createAppContext();
     publishGithubLogin(store);
     publishRepo(store, "ready");
-    publishProto(store);
-    const state = reducer(initialState, { type: "check-prerequisites" });
-    const dispatch = vi.fn();
-    const protoCard: UseProtoCard = {
-        baseCardContext: getBaseCardContext(state),
-        privateContext: { ...state.privateContext, appContext: store.getSnapshot(), dispatch },
-    };
     const container = document.createElement("div");
+    document.body.appendChild(container);
     const root = createRoot(container);
 
     try {
-        await act(async () => root.render(
-            <ThemeProvider theme={theme}>
-                <BaseCard baseCardContext={protoCard.baseCardContext} appContext={protoCard.privateContext.appContext} expanded onToggle={() => { }}>
-                    <CardContentMain {...protoCard} />
-                </BaseCard>
-            </ThemeProvider>
-        ));
+        await act(async () => root.render(<ProtoCardHarness store={store} />));
+        await expandCard(container);
+        await act(async () => vi.advanceTimersByTime(2000));
 
         const selects = container.querySelectorAll<HTMLSelectElement>("select");
         expect(selects).toHaveLength(2);
@@ -73,14 +71,16 @@ it("offers only registered prerequisite IDs and dispatches the selected ID", asy
         ]);
         expect([...selects[0].options].map(({ textContent }) => textContent)).toContain("Repository V2 (repo_v2)");
 
-        await act(async () => {
-            Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(selects[0], "repo_v2");
-            selects[0].dispatchEvent(new Event("change", { bubbles: true }));
-        });
-        expect(dispatch).toHaveBeenCalledWith({ type: "card-prerequisite", index: 0, cardId: "repo_v2" });
+        await setPrerequisite(container, "repo_v2");
+        expect(store.getSnapshot().cards.proto_card).toMatchObject({ currentBaseCardStatus: "loading" });
+        expect(container.querySelectorAll("select")).toHaveLength(0);
+        await act(async () => vi.advanceTimersByTime(2000));
+        expect(store.getSnapshot().cards.proto_card).toMatchObject({ currentBaseCardStatus: "blocked" });
+        expect(container.textContent).toContain("repo_v2");
     } finally {
         await act(async () => root.unmount());
         container.remove();
+        vi.useRealTimers();
     }
 });
 
@@ -98,27 +98,20 @@ it("models forceUnlocked as a first-class lifecycle state", () => {
 });
 
 it("links a failed registered prerequisite to its card", async () => {
+    vi.useFakeTimers();
     const store = createAppContext();
     publishGithubLogin(store);
     publishRepo(store, "ready");
-    publishProto(store);
-    const loading = reducer(initialState, { type: "sync-card-prerequisites", unmet: ["repo_v2"] });
-    const state = reducer(loading, { type: "check-prerequisites" });
-    const protoCard: UseProtoCard = {
-        baseCardContext: getBaseCardContext(state),
-        privateContext: { ...state.privateContext, appContext: store.getSnapshot(), dispatch: vi.fn() },
-    };
     const container = document.createElement("div");
+    document.body.appendChild(container);
     const root = createRoot(container);
 
     try {
-        await act(async () => root.render(
-            <ThemeProvider theme={theme}>
-                <BaseCard baseCardContext={protoCard.baseCardContext} appContext={protoCard.privateContext.appContext} expanded onToggle={() => { }}>
-                    <CardContentMain {...protoCard} />
-                </BaseCard>
-            </ThemeProvider>
-        ));
+        await act(async () => root.render(<ProtoCardHarness store={store} />));
+        await expandCard(container);
+        await act(async () => vi.advanceTimersByTime(2000));
+        await setPrerequisite(container, "repo_v2");
+        await act(async () => vi.advanceTimersByTime(2000));
 
         const repoLink = [...container.querySelectorAll<HTMLAnchorElement>("a.MuiLink-root")]
             .find((button) => button.textContent?.includes("Repository V2 (repo_v2)"));
@@ -127,6 +120,7 @@ it("links a failed registered prerequisite to its card", async () => {
     } finally {
         await act(async () => root.unmount());
         container.remove();
+        vi.useRealTimers();
     }
 });
 

@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => ({
   remoteHook: vi.fn(),
 }));
 
-vi.mock("../api", () => ({
+vi.mock("../cards/GaStage/api", () => ({
   createVariable: mocks.createVariable,
   fetchLogArtifact: mocks.fetchLogArtifact,
   fetchPlan: mocks.fetchPlan,
