@@ -3,8 +3,9 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { act } from "react";
+import { act, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Account, Branch, GhEnv } from "../types";
 import type { UseDeploymentPlan } from "../cards/GaStage/useDeploymentPlan";
@@ -21,12 +22,18 @@ const { useDeploymentPlan } = await import("../cards/GaStage/useDeploymentPlan")
 
 const ACCOUNT = { login: "org-one", type: "Organization", id: 1 } as Account;
 const ENV = { id: 1, name: "PROD" } as GhEnv;
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+function TestProviders({ children }: { children: React.ReactNode }) {
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+}
 
 describe("GA stage deployment plan", () => {
   let root: Root | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
     apiMocks.fetchStageReport.mockResolvedValue(null);
     apiMocks.triggerWorkflow.mockResolvedValue(undefined);
   });
@@ -56,7 +63,7 @@ describe("GA stage deployment plan", () => {
       return null;
     }
 
-    await act(async () => root!.render(<Harness />));
+    await act(async () => root!.render(<TestProviders><Harness /></TestProviders>));
     await expect.poll(() => apiMocks.fetchStageReport).toHaveBeenCalledTimes(4);
     const queriedStages = apiMocks.fetchStageReport.mock.calls.map(([, , , dir, kind]) => `${dir}:${kind}`).sort();
     expect(queriedStages).toEqual([
@@ -68,20 +75,21 @@ describe("GA stage deployment plan", () => {
   });
 
   it("forces real plan transitions independently and ignores late dispatches", async () => {
-    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const info = vi.spyOn(console, "info").mockImplementation(() => { });
     let resolveDispatch!: () => void;
     apiMocks.triggerWorkflow.mockImplementationOnce(() => new Promise<void>((resolve) => { resolveDispatch = resolve; }));
     let plan!: UseDeploymentPlan;
     const container = document.createElement("div");
     root = createRoot(container);
     function Harness() {
-      plan = useDeploymentPlan({
+      const currentPlan = useDeploymentPlan({
         account: ACCOUNT, repoName: "repo-one", stageDefinitions: GA_STAGE_DEFINITIONS,
         selectedEnv: ENV, branches: [{ name: "PROD" }] as Branch[], branchMatchError: null, envReady: false,
       });
+      useLayoutEffect(() => { plan = currentPlan; }, [currentPlan]);
       return null;
     }
-    await act(async () => root!.render(<Harness />));
+    await act(async () => root!.render(<TestProviders><Harness /></TestProviders>));
     let dispatch!: Promise<void>;
     await act(async () => { dispatch = plan.forcePlan("SubscriptionBudget"); });
     expect(apiMocks.triggerWorkflow).toHaveBeenCalledWith(ACCOUNT, "repo-one", expect.any(String), "PROD", "PROD", "SubscriptionBudget");
@@ -105,7 +113,7 @@ describe("GA stage deployment plan", () => {
   });
 
   it("starts deployment, polls its report, and rejects missing inputs explicitly", async () => {
-    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const info = vi.spyOn(console, "info").mockImplementation(() => { });
     vi.useFakeTimers();
     const now = Date.now();
     apiMocks.fetchStageReport.mockImplementation(async (_account, _repo, _env, dir, kind) => {
@@ -117,13 +125,15 @@ describe("GA stage deployment plan", () => {
     const container = document.createElement("div");
     root = createRoot(container);
     function Harness() {
-      plan = useDeploymentPlan({
+      const currentPlan = useDeploymentPlan({
         account: ACCOUNT, repoName: "repo-one", stageDefinitions: GA_STAGE_DEFINITIONS,
         selectedEnv: ENV, branches: [{ name: "PROD" }] as Branch[], branchMatchError: null, envReady: false,
       });
+      useLayoutEffect(() => { plan = currentPlan; }, [currentPlan]);
       return null;
     }
-    await act(async () => root!.render(<Harness />));
+    await act(async () => root!.render(<TestProviders><Harness /></TestProviders>));
+    await expect.poll(() => plan.stages.find((stage) => stage.stage === "SubscriptionBudget")?.runId).toBe("plan-1");
     const start = vi.fn().mockResolvedValue(true);
     await act(async () => plan.forceDeploy("SubscriptionBudget", start));
     expect(start).toHaveBeenCalledOnce();
@@ -132,12 +142,12 @@ describe("GA stage deployment plan", () => {
     apiMocks.fetchStageReport.mockImplementation(async (_account, _repo, _env, dir, kind) => {
       if (dir !== "SubscriptionBudget") return null;
       if (kind === "plan") return { createdAt: now - 1, stage: { stage: dir, status: "success", runId: "plan-1" } };
-      return { createdAt: now + 1, stage: { stage: dir, deployStatus: "success", deployPlanRunId: "plan-1" } };
+      return { createdAt: Date.now() + 1, stage: { stage: dir, deployStatus: "success", deployPlanRunId: "plan-1" } };
     });
     await act(async () => { await vi.advanceTimersByTimeAsync(150_000); });
     expect(plan.runs.SubscriptionBudget).toBeUndefined();
     expect(plan.stages.find((stage) => stage.stage === "SubscriptionBudget")?.deployStatus).toBe("success");
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => { });
     info.mockClear();
     await act(async () => plan.forceDeploy("SubscriptionBudget", async () => false));
     expect(plan.runs.SubscriptionBudget).toMatchObject({ state: "error", kind: "deploy" });
@@ -159,13 +169,15 @@ describe("GA stage deployment plan", () => {
     let plan!: UseDeploymentPlan;
     root = createRoot(document.createElement("div"));
     function Harness() {
-      plan = useDeploymentPlan({
+      const currentPlan = useDeploymentPlan({
         account: ACCOUNT, repoName: "repo-one", stageDefinitions: GA_STAGE_DEFINITIONS,
         selectedEnv: ENV, branches: [{ name: "PROD" }] as Branch[], branchMatchError: null, envReady: true,
       });
+      useLayoutEffect(() => { plan = currentPlan; }, [currentPlan]);
       return null;
     }
-    await act(async () => root!.render(<Harness />));
+    await act(async () => root!.render(<TestProviders><Harness /></TestProviders>));
+    await expect.poll(() => plan.stages.find((stage) => stage.stage === "SubscriptionBudget")?.runId).toBe("plan-1");
     let finish!: (value: boolean) => void;
     let pending!: Promise<void>;
     await act(async () => {
@@ -181,26 +193,27 @@ describe("GA stage deployment plan", () => {
 
   it("retries stale reports, times out, and resets when the environment changes", async () => {
     vi.useFakeTimers();
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => { });
     let plan!: UseDeploymentPlan;
     let selectedEnv = ENV;
     const container = document.createElement("div");
     root = createRoot(container);
     function Harness() {
-      plan = useDeploymentPlan({
+      const currentPlan = useDeploymentPlan({
         account: ACCOUNT, repoName: "repo-one", stageDefinitions: GA_STAGE_DEFINITIONS,
         selectedEnv, branches: [{ name: "PROD" }, { name: "DEV" }] as Branch[], branchMatchError: null, envReady: true,
       });
+      useLayoutEffect(() => { plan = currentPlan; }, [currentPlan]);
       return null;
     }
-    await act(async () => root!.render(<Harness />));
+    await act(async () => root!.render(<TestProviders><Harness /></TestProviders>));
     await act(async () => plan.forcePlan("SubscriptionBudget"));
     await act(async () => { await vi.advanceTimersByTimeAsync(150_000); });
     expect(plan.runs.SubscriptionBudget).toMatchObject({ state: "active", retryCount: 1, countdown: 180 });
     await act(async () => { await vi.advanceTimersByTimeAsync(680_000); });
     expect(plan.runs.SubscriptionBudget).toMatchObject({ state: "error", kind: "plan", error: expect.stringContaining("too long") });
     selectedEnv = { ...ENV, id: 2, name: "DEV" };
-    await act(async () => root!.render(<Harness />));
+    await act(async () => root!.render(<TestProviders><Harness /></TestProviders>));
     expect(plan.runs.SubscriptionBudget).toBeUndefined();
     error.mockRestore();
   });
@@ -213,13 +226,14 @@ describe("GA stage deployment plan", () => {
     const container = document.createElement("div");
     root = createRoot(container);
     function Harness() {
-      plan = useDeploymentPlan({
+      const currentPlan = useDeploymentPlan({
         account: ACCOUNT, repoName: "repo-one", stageDefinitions: GA_STAGE_DEFINITIONS,
         selectedEnv: ENV, branches: [{ name: "PROD" }] as Branch[], branchMatchError: null, envReady: true,
       });
+      useLayoutEffect(() => { plan = currentPlan; }, [currentPlan]);
       return null;
     }
-    await act(async () => root!.render(<Harness />));
+    await act(async () => root!.render(<TestProviders><Harness /></TestProviders>));
     await act(async () => plan.forcePlan("SubscriptionBudget"));
     apiMocks.fetchStageReport.mockImplementationOnce(() => new Promise<null>((resolve) => { resolveReport = resolve; }));
     await act(async () => { await vi.advanceTimersByTimeAsync(150_000); });
@@ -244,13 +258,14 @@ describe("GA stage deployment plan", () => {
     let plan!: UseDeploymentPlan;
     root = createRoot(document.createElement("div"));
     function Harness() {
-      plan = useDeploymentPlan({
+      const currentPlan = useDeploymentPlan({
         account: ACCOUNT, repoName: "repo-one", stageDefinitions: GA_STAGE_DEFINITIONS,
         selectedEnv: ENV, branches: [{ name: "PROD" }] as Branch[], branchMatchError: null, envReady: false,
       });
+      useLayoutEffect(() => { plan = currentPlan; }, [currentPlan]);
       return null;
     }
-    await act(async () => root!.render(<Harness />));
+    await act(async () => root!.render(<TestProviders><Harness /></TestProviders>));
     const start = vi.fn().mockResolvedValue(true);
     const choices = [
       { expected: undefined, transition: () => plan.forceIdle("SubscriptionBudget") },

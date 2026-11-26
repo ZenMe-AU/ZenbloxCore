@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Box, Button, ButtonBase, CircularProgress, Collapse, IconButton, InputAdornment, TextField, Tooltip, Typography } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -22,14 +22,13 @@ import type {
   CardId,
   CardStatus,
   GhEnv,
-  PlanItem,
   PlanSummary,
   Prerequisite,
   PrerequisiteStageVar,
   Stage,
   StageDefinition,
 } from "../../types";
-import { createVariable, fetchLogArtifact, fetchPlan, updateVariable } from "../../api";
+import { createVariable, updateVariable } from "../../api";
 import { useAzurePermissions, useServicePrincipalId } from "../../hooks/util/useAzurePermissions";
 import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
 import { planAppAccess, stageAccess, stageProviders } from "./stageConfig";
@@ -38,7 +37,8 @@ import WarningNotice from "../../components/WarningNotice";
 import Caption from "../../components/Caption";
 // import { getApiStorageAccountName, getWebPubSubName } from "../../logic/naming"; // Deprecated: the terminal backend now only needs a sign-in to its tenant; kept for reference.
 import { useRemoteTerminal } from "./useRemoteTerminal";
-import { assessPrerequisites, computePlanSummary, isPlanBehind, type PrerequisiteAssessment } from "../../logic/stage";
+import { useStageArtifacts } from "./useStageArtifacts";
+import { assessPrerequisites, isPlanBehind, type PrerequisiteAssessment } from "../../logic/stage";
 import { getVariableDisplayName } from "../../logic/variables";
 import ViewLink from "../../components/ViewLink";
 import { getWorkflowRunUrl } from "../../logic/github";
@@ -131,15 +131,15 @@ function StageVarEditor({
   }
 
   const dirtyKeys = prereq.keys.filter((k) => (localValues[k] ?? "") !== (savedValues[k] ?? ""));
-  const handleChange = (key: string, value: string) => {
+  const setDraftValue = (key: string, value: string) => {
     setLocalValues((prev) => ({ ...prev, [key]: value }));
     setUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
   };
-  const handleRevert = (key: string) => {
+  const restoreSavedValue = (key: string) => {
     setLocalValues((prev) => ({ ...prev, [key]: savedValues[key] ?? "" }));
     setUpsertStatuses((prev) => prev.filter((s) => s.key !== key));
   };
-  const handleUpdate = async () => {
+  const saveDirtyVariables = async () => {
     if (!account || !repo || !selectedEnv || dirtyKeys.length === 0) return;
     setUpdating(true);
     const statuses: { key: string; status: "success" | "error"; error?: string }[] = [];
@@ -184,19 +184,19 @@ function StageVarEditor({
               inputProps={{ "aria-describedby": description ? `${descriptionPrefix}-${key}` : undefined }}
               placeholder="not set"
               value={localValue}
-              onChange={(event) => handleChange(key, event.target.value)}
+              onChange={(event) => setDraftValue(key, event.target.value)}
               sx={{ flex: 1, minWidth: 0 }}
               InputProps={{
                 endAdornment: (localValue || isDirty) ? (
                   <InputAdornment position="end" sx={{ gap: 0 }}>
                     {localValue && (
-                      <IconButton aria-label={`Clear ${key}`} size="small" onClick={() => handleChange(key, "")} sx={{ p: 0.25, minWidth: 24, minHeight: 24 }}>
+                      <IconButton aria-label={`Clear ${key}`} size="small" onClick={() => setDraftValue(key, "")} sx={{ p: 0.25, minWidth: 24, minHeight: 24 }}>
                         <ClearIcon sx={{ typography: "caption" }} />
                       </IconButton>
                     )}
                     {isDirty && (
                       <Tooltip title="Revert to saved value">
-                        <IconButton aria-label={`Revert ${key} to saved value`} size="small" onClick={() => handleRevert(key)} sx={{ p: 0.25, minWidth: 24, minHeight: 24 }}>
+                        <IconButton aria-label={`Revert ${key} to saved value`} size="small" onClick={() => restoreSavedValue(key)} sx={{ p: 0.25, minWidth: 24, minHeight: 24 }}>
                           <UndoIcon sx={{ typography: "caption" }} />
                         </IconButton>
                       </Tooltip>
@@ -225,7 +225,7 @@ function StageVarEditor({
       })}
       <Box sx={{ mt: 1 }}>
         <Button
-          onClick={handleUpdate}
+          onClick={saveDirtyVariables}
           disabled={updating || dirtyKeys.length === 0 || !selectedEnv}
           variant="contained"
           size="small"
@@ -478,16 +478,18 @@ function GaStageContent({
 }: Props & { managementAccess?: CardResourceAccess; planAccess?: CardResourceAccess; planAppError?: string; providers?: UnregisteredProviders }) {
   const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [planOutputOpen, setPlanOutputOpen] = useState(false);
-  const planRequest = useMemo(() => {
-    if (!stage.planJsonId || stage.status !== "success" || !account) return null;
-    return { id: stage.planJsonId, account, repoName, runId: stage.runId, envId: selectedEnv?.id };
-  }, [stage.planJsonId, stage.status, account, repoName, stage.runId, selectedEnv?.id]);
-  const [planResult, setPlanResult] = useState<{
-    request: NonNullable<typeof planRequest>;
-  } & ({ items: PlanItem[]; summary: PlanSummary } | { error: string }) | null>(null);
-  const currentPlan = planRequest && planResult?.request === planRequest ? planResult : null;
-  const [deployLog, setDeployLog] = useState<{ id: number; text: string | null } | null>(null);
-  const [planLog, setPlanLog] = useState<{ id: number; text: string | null } | null>(null);
+  const {
+    readPlan,
+    readPlanPending,
+    readPlanError,
+    readPlanLog,
+    readPlanLogPending,
+    readDeployLog,
+    readDeployLogPending,
+  } = useStageArtifacts({ account, repoName, stage, readingDuringStatusUpdate: statusUpdateRunning });
+  useEffect(() => {
+    if (readPlan) onPlanSummary(readPlan.summary);
+  }, [onPlanSummary, readPlan]);
 
   // One instance per card. The permissions come straight from this stage's definition, so there
   // is no shared pending flag to leak and no union of every stage's permissions to over-grant.
@@ -523,49 +525,6 @@ function GaStageContent({
       return remoteTerminal.start(isCurrent);
     }));
 
-  const onPlanSummaryRef = useRef(onPlanSummary);
-  useLayoutEffect(() => {
-    onPlanSummaryRef.current = onPlanSummary;
-  });
-
-  // Scope async results to the current report so a late fetch cannot restore an older plan.
-  useEffect(() => {
-    if (!planRequest || statusUpdateRunning) return;
-    let active = true;
-    fetchPlan(planRequest.id, planRequest.account, planRequest.repoName)
-      .then((data) => {
-        if (!active) return;
-        const items: PlanItem[] = data.resource_changes || [];
-        const summary = computePlanSummary(items);
-        setPlanResult({ request: planRequest, items, summary });
-        onPlanSummaryRef.current?.(summary);
-      })
-      .catch((err: Error) => {
-        if (active) setPlanResult({ request: planRequest, error: err.message });
-      });
-    return () => {
-      active = false;
-    };
-  }, [planRequest, statusUpdateRunning]);
-
-  useEffect(() => {
-    const id = stage.deployLogId;
-    if (stage.deployStatus !== "failed" || !id || !account) return;
-    fetchLogArtifact(account, repoName, id)
-      .then((text) => setDeployLog({ id, text }))
-      .catch(console.error);
-  }, [stage.deployLogId, stage.deployStatus, account, repoName]);
-
-  useEffect(() => {
-    const id = stage.planLogId;
-    if (stage.status !== "failed" || !id || !account) return;
-    fetchLogArtifact(account, repoName, id)
-      .then((text) => setPlanLog({ id, text }))
-      .catch(console.error);
-  }, [stage.planLogId, stage.status, account, repoName]);
-
-  const deployLogFetched = !!stage.deployLogId && deployLog?.id === stage.deployLogId;
-  const planLogFetched = !!stage.planLogId && planLog?.id === stage.planLogId;
 
   // Keep plan and deployment controls gated by the same live prerequisite state as the summary.
   const prerequisites = prerequisiteAssessment ?? assessPrerequisites(stageDef.prerequisites, variableValues, cardStatus, deployedEnv);
@@ -574,7 +533,7 @@ function GaStageContent({
   const hasDetails = stage.status === "success" && !!stage.planJsonId && stage.planJsonUrl !== "";
   const repoFullName = account && repoName ? `${account.login}/${repoName}` : null;
 
-  const intro = (
+  const renderOperationIntro = () => (
     <Box>
       <Typography variant="body1" color="text.secondary">
         {stageDef.description ?? "This card allows you to manage the deployment of this stage: " + stageDef.label}
@@ -601,221 +560,225 @@ function GaStageContent({
     ? <AzureAccessCheck access={managementAccess} resourceAccess errorStyle />
     : undefined;
 
+  const renderPrerequisitesSection = () => (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+      {stageDef.prerequisites.length > 0 && (
+        <CollapsiblePanel label="Prerequisites" id={`${card.cardId}-prerequisites`} open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)} stage>
+          <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Prerequisites</Typography>
+          {stageDef.prerequisites.map((prerequisite, index) => {
+            if (prerequisite.type === "varGroup") {
+              return prerequisite.keys.map((key) => {
+                const value = variableValues[key]?.trim() ?? "";
+                const changed = deployedEnv != null && (variableValues[key] ?? "") !== (deployedEnv[key] ?? "");
+                return (
+                  <Box key={`${stageDef.dir}-${key}`} sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
+                    <PrerequisiteStatusIcon met={!!value} changed={changed} />
+                    <Typography data-sensitive="true" color={value ? "text.secondary" : "text.muted"} sx={{ wordBreak: "break-all" }}>
+                      {key}: {value || "not set"}
+                    </Typography>
+                  </Box>
+                );
+              });
+            }
+            if (prerequisite.type === "stageVar") {
+              return (
+                <StageVarEditor
+                  key={`${stageDef.dir}-${index}`}
+                  prereq={prerequisite}
+                  savedValues={variableValues}
+                  deployedValues={deployedEnv ?? undefined}
+                  account={account}
+                  repo={repoName}
+                  selectedEnv={selectedEnv}
+                  onVariableConfirmed={onVariableConfirmed}
+                  idPrefix={card.cardId}
+                />
+              );
+            }
+            const met = checkPrerequisite(prerequisite, cardStatus, variableValues);
+            const changed = prerequisite.type === "var" && deployedEnv != null && (variableValues[prerequisite.key] ?? "") !== (deployedEnv[prerequisite.key] ?? "");
+            return (
+              <Box key={`${stageDef.dir}-${index}`} sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
+                <PrerequisiteStatusIcon met={met} changed={changed} />
+                <Typography color={met ? "text.secondary" : "text.muted"} sx={{ flex: 1 }}>
+                  {prereqLabel(prerequisite, variableValues)}
+                </Typography>
+              </Box>
+            );
+          })}
+        </CollapsiblePanel>
+      )}
+      {canRefreshPrerequisites && (
+        <Box role="group" aria-label="Refresh changed prerequisites" sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+          <RunStatusUpdateButton
+            onRun={onRunStatusUpdate}
+            running={statusUpdateRunning}
+            countdown={statusUpdateCountdown}
+            disabled={statusUpdateDisabled}
+            label="Refresh plan"
+          />
+          {runError && <ErrorText>{runError}</ErrorText>}
+        </Box>
+      )}
+    </Box>
+  );
+
+  const planRefreshBlocked = statusUpdateDisabled
+    || !!planPermissions.missing?.length
+    || planAccess?.status === "error"
+    || !!planAppError
+    || (!!providers && providers.status !== "ready" && providers.status !== "idle");
+
+  const renderPlanControls = () => (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+      <RunStatusUpdateButton
+        onRun={onRunStatusUpdate}
+        running={statusUpdateRunning}
+        countdown={statusUpdateCountdown}
+        disabled={planRefreshBlocked}
+      />
+      {runError && <ErrorText>{runError}</ErrorText>}
+      {planAppError && <ErrorText>{planAppError}</ErrorText>}
+      {planAccess && <AzureAccessCheck access={planAccess} resourceAccess errorStyle />}
+      {providers && (providers.status === "unregistered" || providers.status === "error") && !managementAccess?.unregisteredProviders.length && (
+        <WarningNotice message={providers.error ?? "These Azure resource providers aren't registered yet. Terraform registers them when every plan starts, and the plan app can't, so planning is blocked until they are registered."}>
+          {!!providers.unregistered.length && <Caption>{providers.unregistered.join(", ")}</Caption>}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => void (providers.unregistered.length ? providers.register() : providers.retry())}
+            disabled={providers.registering}
+            aria-busy={providers.registering}
+            sx={{ alignSelf: "flex-start", minWidth: 0, px: 1 }}
+          >
+            {providers.registering ? "Registering..." : providers.unregistered.length ? "Register providers" : "Recheck providers"}
+          </Button>
+        </WarningNotice>
+      )}
+      {!planPermissions.ready && (
+        <PermissionNotice
+          missing={planPermissions.missing}
+          error={planPermissions.error}
+          granting={planPermissions.granting}
+          onGrant={planPermissions.grant}
+        />
+      )}
+    </Box>
+  );
+
+  const renderPlanOutput = () => {
+    if (stage.status !== "failed" || !stage.planLogId) return null;
+    return (
+      <Box>
+        <ButtonBase
+          disableRipple
+          onClick={() => setPlanOutputOpen((open) => !open)}
+          aria-expanded={planOutputOpen}
+          aria-controls={`${card.cardId}-plan-output`}
+          sx={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            userSelect: "none",
+            py: 0.25,
+            "&:hover .plan-output-toggle-label, &:focus-visible .plan-output-toggle-label": { color: "primary.main" },
+            "&:hover .plan-output-toggle-line, &:focus-visible .plan-output-toggle-line": { backgroundColor: "primary.main" },
+            "&:hover .plan-output-toggle-icon, &:focus-visible .plan-output-toggle-icon": { color: "primary.main" },
+          }}
+        >
+          <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+          <Typography className="plan-output-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
+            {planOutputOpen ? "hide result" : "view result"}
+          </Typography>
+          <KeyboardArrowDownIcon
+            className="plan-output-toggle-icon"
+            sx={{ typography: "body2", color: "text.muted", transform: planOutputOpen ? "rotate(180deg)" : "none", transition: "color 0.2s, transform 0.2s" }}
+            aria-hidden="true"
+          />
+          <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
+        </ButtonBase>
+        <Collapse in={planOutputOpen} timeout={300}>
+          <Box id={`${card.cardId}-plan-output`} role="region" aria-label="Plan output">
+            <FailureLog fetched={!readPlanLogPending} text={readPlanLog} />
+          </Box>
+        </Collapse>
+      </Box>
+    );
+  };
+
+  const renderPlanSection = () => {
+    if (!prerequisitesMet) return null;
+    return (
+      <Box role="region" aria-label="Plan" sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {renderPlanControls()}
+        {(hasDetails || accessNotice) && (
+          <StagePlanDetail
+            items={readPlan?.items ?? []}
+            summary={readPlan?.summary ?? { create: 0, update: 0, delete: 0, replace: 0 }}
+            loading={hasDetails && readPlanPending}
+            error={readPlanError}
+            planAvailable={hasDetails}
+            accessNotice={accessNotice}
+            accessError={accessError}
+            onDeploy={onDeploy}
+            stagesStale={deployDisabled || (managementAccess != null && managementAccess.status !== "ready")}
+            behind={isPlanBehind(stage, latestSha)}
+            planSha={stage.planSha}
+            latestSha={latestSha}
+          />
+        )}
+        {!hasDetails && stage.status !== "pending" && (
+          <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
+            No plan is available for this stage. Check the GitHub Actions run for errors, then create a new plan.
+          </Typography>
+        )}
+        {renderPlanOutput()}
+      </Box>
+    );
+  };
+
+  const renderLastDeployment = () => {
+    if (!stage.deployedAt && !stage.deployStatus) return null;
+    const statusIcon = stage.deployStatus === "success"
+      ? <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main", flexShrink: 0 }} />
+      : stage.deployStatus === "cancelled"
+        ? <BlockIcon aria-hidden="true" sx={{ typography: "caption", color: "text.muted", flexShrink: 0 }} />
+        : stage.deployStatus === "failed"
+          ? <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "error.main", flexShrink: 0 }} />
+          : null;
+    return (
+      <Box>
+        <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Last Deploy</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          {statusIcon}
+          {stage.deployedAt && <Typography color="text.secondary">{relativeTime(stage.deployedAt)}</Typography>}
+          {repoFullName && stage.deployRunId && (
+            <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} label="Open deployment run in GitHub" />
+          )}
+        </Box>
+        <Box sx={{ pl: "21px" }}>
+          {stage.deployStatus === "cancelled" && <Typography color="text.muted">Cancelled</Typography>}
+          {stage.deployStatus === "failed" && <FailureLog fetched={!readDeployLogPending} text={readDeployLog} />}
+        </Box>
+      </Box>
+    );
+  };
+
   return (
     <Card
       title={stageDef.label}
       action={<Action repoFullName={repoFullName} runId={stage.runId} />}
-      lockedIntro={intro}
+      lockedIntro={renderOperationIntro()}
       {...card}
       status={!card.locked && !card.unavailable && accessError ? "error" : card.status}
       summary={!card.locked && !card.unavailable && accessError ? "Insufficient permissions to deploy" : card.summary}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {intro}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          {stageDef.prerequisites.length > 0 && (
-            <CollapsiblePanel label="Prerequisites" id={`${card.cardId}-prerequisites`} open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)} stage>
-              <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>
-                Prerequisites
-              </Typography>
-              {stageDef.prerequisites.map((prereq, i) => {
-                if (prereq.type === "varGroup") {
-                  return prereq.keys.map((key) => {
-                    const value = variableValues[key]?.trim() ?? "";
-                    const changed = deployedEnv != null && (variableValues[key] ?? "") !== (deployedEnv[key] ?? "");
-                    return (
-                      <Box key={`${stageDef.dir}-${key}`} sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
-                        <PrerequisiteStatusIcon met={!!value} changed={changed} />
-                        <Typography data-sensitive="true" color={value ? "text.secondary" : "text.muted"} sx={{ wordBreak: "break-all" }}>
-                          {key}: {value || "not set"}
-                        </Typography>
-                      </Box>
-                    );
-                  });
-                }
-
-                if (prereq.type === "stageVar") {
-                  return (
-                    <StageVarEditor
-                      key={`${stageDef.dir}-${i}`}
-                      prereq={prereq}
-                      savedValues={variableValues}
-                      deployedValues={deployedEnv ?? undefined}
-                      account={account}
-                      repo={repoName}
-                      selectedEnv={selectedEnv}
-                      onVariableConfirmed={onVariableConfirmed}
-                      idPrefix={card.cardId}
-                    />
-                  );
-                }
-
-                const met = checkPrerequisite(prereq, cardStatus, variableValues);
-                const label = prereqLabel(prereq, variableValues);
-                const changed = prereq.type === "var" && deployedEnv != null && (variableValues[prereq.key] ?? "") !== (deployedEnv[prereq.key] ?? "");
-                return (
-                  <Box key={`${stageDef.dir}-${i}`}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
-                      <PrerequisiteStatusIcon met={met} changed={changed} />
-                      <Typography color={met ? "text.secondary" : "text.muted"} sx={{ flex: 1 }}>{label}</Typography>
-                    </Box>
-                  </Box>
-                );
-              })}
-            </CollapsiblePanel>
-          )}
-          {canRefreshPrerequisites && (
-            <Box role="group" aria-label="Refresh changed prerequisites" sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-              <RunStatusUpdateButton
-                onRun={onRunStatusUpdate}
-                running={statusUpdateRunning}
-                countdown={statusUpdateCountdown}
-                disabled={statusUpdateDisabled}
-                label="Refresh plan"
-              />
-              {runError && <ErrorText>{runError}</ErrorText>}
-            </Box>
-          )}
-        </Box>
-
-        {prerequisitesMet && (
-          <Box role="region" aria-label="Plan" sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-              <RunStatusUpdateButton
-                onRun={onRunStatusUpdate}
-                running={statusUpdateRunning}
-                countdown={statusUpdateCountdown}
-                disabled={statusUpdateDisabled || !!planPermissions.missing?.length || planAccess?.status === "error" || !!planAppError ||
-                  (!!providers && providers.status !== "ready" && providers.status !== "idle")}
-              />
-              {runError && <ErrorText>{runError}</ErrorText>}
-
-              {planAppError && <ErrorText>{planAppError}</ErrorText>}
-              {planAccess && <AzureAccessCheck access={planAccess} resourceAccess errorStyle />}
-              {/* The deploy access check already shows these providers with its own Register button. */}
-              {providers && (providers.status === "unregistered" || providers.status === "error") && !managementAccess?.unregisteredProviders.length && (
-                <WarningNotice message={providers.error ??
-                  "These Azure resource providers aren't registered yet. Terraform registers them when every plan starts, and the plan app can't, so planning is blocked until they are registered."}>
-                  {!!providers.unregistered.length && <Caption>{providers.unregistered.join(", ")}</Caption>}
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => void (providers.unregistered.length ? providers.register() : providers.retry())}
-                    disabled={providers.registering}
-                    aria-busy={providers.registering}
-                    sx={{ alignSelf: "flex-start", minWidth: 0, px: 1 }}
-                  >
-                    {providers.registering ? "Registering..." : providers.unregistered.length ? "Register providers" : "Recheck providers"}
-                  </Button>
-                </WarningNotice>
-              )}
-              {!planPermissions.ready && (
-                <PermissionNotice
-                  missing={planPermissions.missing}
-                  error={planPermissions.error}
-                  granting={planPermissions.granting}
-                  onGrant={planPermissions.grant}
-                />
-              )}
-            </Box>
-
-            {(hasDetails || accessNotice) && (
-              <StagePlanDetail
-                items={currentPlan && "items" in currentPlan ? currentPlan.items : []}
-                summary={currentPlan && "summary" in currentPlan ? currentPlan.summary : { create: 0, update: 0, delete: 0, replace: 0 }}
-                loading={hasDetails && !currentPlan}
-                error={currentPlan && "error" in currentPlan ? currentPlan.error : null}
-                planAvailable={hasDetails}
-                accessNotice={accessNotice}
-                accessError={accessError}
-                onDeploy={onDeploy}
-                stagesStale={deployDisabled || (managementAccess != null && managementAccess.status !== "ready")}
-                behind={isPlanBehind(stage, latestSha)}
-                planSha={stage.planSha}
-                latestSha={latestSha}
-              />
-            )}
-
-            {!hasDetails && stage.status !== "pending" && (
-              <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
-                No plan is available for this stage. Check the GitHub Actions run for errors, then create a new plan.
-              </Typography>
-            )}
-
-            {stage.status === "failed" && stage.planLogId && (
-              <Box>
-                <ButtonBase
-                  disableRipple
-                  onClick={() => setPlanOutputOpen((open) => !open)}
-                  aria-expanded={planOutputOpen}
-                  aria-controls={`${card.cardId}-plan-output`}
-                  sx={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    userSelect: "none",
-                    py: 0.25,
-                    "&:hover .plan-output-toggle-label, &:focus-visible .plan-output-toggle-label": { color: "primary.main" },
-                    "&:hover .plan-output-toggle-line, &:focus-visible .plan-output-toggle-line": { backgroundColor: "primary.main" },
-                    "&:hover .plan-output-toggle-icon, &:focus-visible .plan-output-toggle-icon": { color: "primary.main" },
-                  }}
-                >
-                  <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-                  <Typography className="plan-output-toggle-label" sx={{ typography: "body1", color: "text.muted", whiteSpace: "nowrap", transition: "color 0.2s" }}>
-                    {planOutputOpen ? "hide result" : "view result"}
-                  </Typography>
-                  <KeyboardArrowDownIcon
-                    className="plan-output-toggle-icon"
-                    sx={{
-                      typography: "body2",
-                      color: "text.muted",
-                      transform: planOutputOpen ? "rotate(180deg)" : "none",
-                      transition: "color 0.2s, transform 0.2s",
-                    }}
-                    aria-hidden="true"
-                  />
-                  <Box className="plan-output-toggle-line" sx={{ flex: 1, height: "1px", backgroundColor: "divider", transition: "background-color 0.2s" }} />
-                </ButtonBase>
-                <Collapse in={planOutputOpen} timeout={300}>
-                  <Box id={`${card.cardId}-plan-output`} role="region" aria-label="Plan output">
-                    <FailureLog fetched={planLogFetched} text={planLog?.text ?? null} />
-                  </Box>
-                </Collapse>
-              </Box>
-            )}
-          </Box>
-        )}
-
-        {(stage.deployedAt || stage.deployStatus) && (
-          <Box>
-            <Typography
-              variant="sectionLabel"
-              sx={{ mb: 0.75 }}
-            >
-              Last Deploy
-            </Typography>
-            {/* The ViewLink button is far taller than the timestamp, so the icon centres on this
-                row and everything below indents past it rather than sharing a column with it. */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              {stage.deployStatus === "success" ? (
-                <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main", flexShrink: 0 }} />
-              ) : stage.deployStatus === "cancelled" ? (
-                <BlockIcon aria-hidden="true" sx={{ typography: "caption", color: "text.muted", flexShrink: 0 }} />
-              ) : stage.deployStatus === "failed" ? (
-                <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "error.main", flexShrink: 0 }} />
-              ) : null}
-              {stage.deployedAt && <Typography color="text.secondary">{relativeTime(stage.deployedAt)}</Typography>}
-              {/* The apply's own run, not the plan's — the header link points at the plan. */}
-              {repoFullName && stage.deployRunId && <ViewLink href={getWorkflowRunUrl(repoFullName, stage.deployRunId)} label="Open deployment run in GitHub" />}
-            </Box>
-            {/* 13px icon + the 8px gap above. */}
-            <Box sx={{ pl: "21px" }}>
-              {stage.deployStatus === "cancelled" && <Typography color="text.muted">Cancelled</Typography>}
-              {stage.deployStatus === "failed" && <FailureLog fetched={deployLogFetched} text={deployLog?.text ?? null} />}
-            </Box>
-          </Box>
-        )}
+        {renderOperationIntro()}
+        {renderPrerequisitesSection()}
+        {renderPlanSection()}
+        {renderLastDeployment()}
       </Box>
     </Card>
   );

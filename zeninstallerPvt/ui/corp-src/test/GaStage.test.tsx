@@ -6,6 +6,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   Account,
@@ -72,17 +73,17 @@ vi.mock("../cards/GaStage/useRemoteTerminal", () => ({
   useRemoteTerminal: (options: unknown) => {
     mocks.remoteHook(options);
     return {
-    start: mocks.remoteStart,
-    stop: vi.fn(),
-    terminal: null,
-    resize: vi.fn(),
-    status: "idle",
-    runnerJoined: false,
-    stage: null,
-    sessionId: null,
-    deviceCode: null,
-    loggedIn: [],
-    error: null,
+      start: mocks.remoteStart,
+      stop: vi.fn(),
+      terminal: null,
+      resize: vi.fn(),
+      status: "idle",
+      runnerJoined: false,
+      stage: null,
+      sessionId: null,
+      deviceCode: null,
+      loggedIn: [],
+      error: null,
     };
   },
 }));
@@ -118,6 +119,15 @@ const stageDef: StageDefinition = {
 };
 
 type StageCardProps = React.ComponentProps<typeof GaStage>;
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+function TestProviders({ children }: { children: React.ReactNode }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>{children}</ThemeProvider>
+    </QueryClientProvider>
+  );
+}
 
 function cardChrome(overrides: Partial<CardChrome> = {}): CardChrome {
   return {
@@ -186,9 +196,9 @@ async function renderStage(initialProps: StageCardProps) {
     current = next;
     await act(async () => {
       root.render(
-        <ThemeProvider theme={theme}>
+        <TestProviders>
           <GaStage {...next} />
-        </ThemeProvider>
+        </TestProviders>
       );
       await Promise.resolve();
     });
@@ -206,6 +216,7 @@ describe("GaStage parity baseline", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
     mocks.fetchPlan.mockResolvedValue({ resource_changes: [] });
     mocks.fetchLogArtifact.mockResolvedValue("failure output");
     mocks.remoteStart.mockResolvedValue(true);
@@ -230,10 +241,10 @@ describe("GaStage parity baseline", () => {
 
     await act(async () => {
       root!.render(
-        <ThemeProvider theme={theme}>
+        <TestProviders>
           <StageCard {...legacyProps} trackDeploy={undefined} />
           <GaStage {...gaProps} />
-        </ThemeProvider>
+        </TestProviders>
       );
     });
 
@@ -261,10 +272,10 @@ describe("GaStage parity baseline", () => {
 
     await act(async () => {
       root!.render(
-        <ThemeProvider theme={theme}>
+        <TestProviders>
           <GaSubscriptionBudget {...props({ card: cardChrome({ cardId: GA_SUBSCRIPTION_BUDGET_CARD_ID }) })} />
           <GaCloudFront {...props({ card: cardChrome({ cardId: GA_CLOUDFRONT_CARD_ID }) })} />
-        </ThemeProvider>
+        </TestProviders>
       );
     });
 
@@ -397,8 +408,8 @@ describe("GaStage parity baseline", () => {
     root = rendered.root;
 
     expect(mocks.fetchPlan).toHaveBeenCalledWith("artifact-1", account, "repo");
-    expect(onPlanSummary).toHaveBeenCalledWith({ create: 0, update: 0, delete: 0, replace: 0 });
-    expect(rendered.container.textContent).toContain("No changes detected.");
+    await expect.poll(() => onPlanSummary).toHaveBeenCalledWith({ create: 0, update: 0, delete: 0, replace: 0 });
+    await expect.poll(() => rendered.container.textContent).toContain("No changes detected.");
 
     await act(async () => [...rendered.container.querySelectorAll("button")].find((button) => button.textContent === "Deploy")?.click());
     expect(mocks.remoteStart).toHaveBeenCalledOnce();
@@ -476,7 +487,7 @@ describe("GaStage parity baseline", () => {
     root = deployFailure.root;
     expect(mocks.fetchLogArtifact).toHaveBeenCalledWith(account, "repo", 43);
     expect(deployFailure.container.textContent).toContain("Last Deploy");
-    expect(deployFailure.container.textContent).toContain("failure output");
+    await expect.poll(() => deployFailure.container.textContent).toContain("failure output");
   });
 
   it("shows completed and cancelled deployment outcomes", async () => {

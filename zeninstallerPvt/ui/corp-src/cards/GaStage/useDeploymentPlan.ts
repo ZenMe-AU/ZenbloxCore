@@ -3,7 +3,8 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchStageReport, getPlanEnv, triggerWorkflow } from "../../api/index.js";
 import type { Account, Branch, GhEnv, PlanSummary, Stage, StageReport } from "../../types.js";
 import type { GaStageDefinition, GaStageKey } from "./stageDefinitions";
@@ -44,6 +45,46 @@ export interface UseDeploymentPlan {
 
 const POLL_DELAYS = [150, 180, 200, 300];
 
+type StageReports = Map<GaStageKey, { plan: StageReport | null; deploy: StageReport | null }>;
+
+async function readStageReports(
+  account: Account,
+  repoName: string,
+  envName: string,
+  stageDefinitions: readonly GaStageDefinition[],
+): Promise<StageReports> {
+  const readReport = (stageKey: GaStageKey, kind: "plan" | "deploy") =>
+    fetchStageReport(account, repoName, envName, stageKey, kind).catch((error) => {
+      console.error(`Failed to fetch the ${kind} report for "${stageKey}":`, error);
+      return null;
+    });
+  const entries = await Promise.all(stageDefinitions.map(async ({ dir }) => {
+    const [plan, deploy] = await Promise.all([readReport(dir, "plan"), readReport(dir, "deploy")]);
+    return [dir, { plan, deploy }] as const;
+  }));
+  return new Map(entries);
+}
+
+function mergeStageReports(stageDefinitions: readonly GaStageDefinition[], reports: StageReports): Stage[] {
+  return stageDefinitions.map(({ dir }) => {
+    const { plan, deploy } = reports.get(dir) ?? { plan: null, deploy: null };
+    if (!plan && !deploy) return { stage: dir, status: "pending" as const };
+    return { ...plan?.stage, ...deploy?.stage, stage: dir, planSha: plan?.sha } as Stage;
+  });
+}
+
+function reportedEnvironmentId(reports: StageReports): number | null {
+  const newestPlan = [...reports.values()]
+    .map(({ plan }) => plan)
+    .filter((report): report is StageReport => !!report)
+    .sort((left, right) => right.createdAt - left.createdAt)[0];
+  return typeof newestPlan?.stage.envId === "number" ? newestPlan.stage.envId : null;
+}
+
+function stageReportKey(stage: Stage): string {
+  return `${stage.runId ?? ""}|${stage.planJsonId ?? ""}|${stage.planSha ?? ""}`;
+}
+
 export function useDeploymentPlan(opts: {
   account: Account | null;
   repoName: string | null;
@@ -68,17 +109,56 @@ export function useDeploymentPlan(opts: {
     envReadyRef.current = opts.envReady;
   });
 
-  const [stages, setStages] = useState<Stage[]>([]);
-  const stagesRef = useRef<Stage[]>([]);
+  const queryClient = useQueryClient();
+  const matchedBranchName = opts.branches.find(
+    (branch) => branch.name.toLowerCase() === opts.selectedEnv?.name.toLowerCase(),
+  )?.name;
+  const canReadReports = !!opts.account && !!opts.repoName && !!opts.selectedEnv && !!matchedBranchName && !opts.branchMatchError;
+  const stageReportQueryKey = [
+    "ga-stage", "reports", opts.account?.login, opts.repoName, opts.selectedEnv?.name,
+    opts.stageDefinitions.map(({ dir }) => dir),
+  ];
+  const reportsQuery = useQuery({
+    queryKey: stageReportQueryKey,
+    enabled: canReadReports,
+    queryFn: () => readStageReports(opts.account!, opts.repoName!, opts.selectedEnv!.name, opts.stageDefinitions),
+  });
+  const reports = useMemo(() => reportsQuery.data ?? new Map<GaStageKey, { plan: StageReport | null; deploy: StageReport | null }>(), [reportsQuery.data]);
+  const stages = useMemo(() => mergeStageReports(opts.stageDefinitions, reports), [opts.stageDefinitions, reports]);
+  const stagesRef = useRef<Stage[]>(stages);
   useLayoutEffect(() => {
     stagesRef.current = stages;
   });
+  const hasPlan = reportsQuery.isPending ? true : [...reports.values()].some(({ plan, deploy }) => !!plan || !!deploy);
+  const stagesLoading = canReadReports && reportsQuery.isPending;
 
-  const [stageSummaries, setStageSummariesState] = useState<Record<string, PlanSummary>>({});
-  const [hasPlan, setHasPlan] = useState(true);
-  const [stagesLoading, setStagesLoading] = useState(false);
-  const [runs, setRuns] = useState<Partial<Record<GaStageKey, StageRun>>>({});
-  const [deployedEnv, setDeployedEnv] = useState<Record<string, string> | null>(null);
+  const environmentId = reportedEnvironmentId(reports);
+  const deployedEnvironmentQuery = useQuery({
+    queryKey: ["ga-stage", "deployed-environment", opts.account?.login, opts.repoName, environmentId],
+    enabled: !!opts.account && !!opts.repoName && !!environmentId,
+    staleTime: Infinity,
+    retry: false,
+    queryFn: () => getPlanEnv(opts.account!, opts.repoName!, environmentId!),
+  });
+  const deployedEnv = deployedEnvironmentQuery.data ?? null;
+
+  const [summaryEntries, setSummaryEntries] = useState<Partial<Record<GaStageKey, { reportKey: string; summary: PlanSummary }>>>({});
+  const stageSummaries = useMemo(() => Object.fromEntries(stages.flatMap((stage) => {
+    const entry = summaryEntries[stage.stage as GaStageKey];
+    return entry && entry.reportKey === stageReportKey(stage) ? [[stage.stage, entry.summary]] : [];
+  })), [stages, summaryEntries]);
+  const environmentKey = opts.selectedEnv?.id ?? null;
+  const [runState, setRunState] = useState<{
+    environmentKey: number | null;
+    runs: Partial<Record<GaStageKey, StageRun>>;
+  }>({ environmentKey, runs: {} });
+  const runs = runState.environmentKey === environmentKey ? runState.runs : {};
+  const setRuns = (updateRuns: (previous: Partial<Record<GaStageKey, StageRun>>) => Partial<Record<GaStageKey, StageRun>>) => {
+    setRunState((previous) => ({
+      environmentKey,
+      runs: updateRuns(previous.environmentKey === environmentKey ? previous.runs : {}),
+    }));
+  };
   // One interval per stage, so a second card starting a run cannot cancel the first one's.
   const tickers = useRef<Partial<Record<GaStageKey, ReturnType<typeof setInterval>>>>({});
   const generations = useRef<Partial<Record<GaStageKey, number>>>({});
@@ -137,12 +217,10 @@ export function useDeploymentPlan(opts: {
       delete operationNames.current[dir];
     });
   }, []);
-  const lastFetchedEnvId = useRef<number | null>(null);
-
   const implRef = useRef<{
-    loadPlanImpl: (ref: string, poll?: PollContext) => void;
+    readReportsForPoll: (ref: string, poll: PollContext) => void;
     startPollingImpl: (ref: string, attempt: number, triggerTime: number, stageKey: GaStageKey, kind: OperationKind, generation: number) => void;
-  }>({ loadPlanImpl: () => {}, startPollingImpl: () => {} });
+  }>({ readReportsForPoll: () => {}, startPollingImpl: () => {} });
 
   const startPollingImpl = (ref: string, attempt: number, triggerTime: number, stageKey: GaStageKey, kind: OperationKind, generation: number) => {
     if (generations.current[stageKey] !== generation) return;
@@ -156,108 +234,48 @@ export function useDeploymentPlan(opts: {
       update(stageKey, generation, { state: "active", kind, countdown: remaining, retryCount: attempt });
       if (remaining <= 0) {
         stopTicker(stageKey);
-        implRef.current.loadPlanImpl(ref, { attempt, triggerTime, stageKey, kind, generation });
+        implRef.current.readReportsForPoll(ref, { attempt, triggerTime, stageKey, kind, generation });
       }
     }, 1000);
   };
 
-  const loadPlanImpl = (ref: string, poll?: PollContext) => {
-    const acc = accountRef.current;
-    const repo = repoNameRef.current;
-    const definitions = stageDefinitionsRef.current;
+  const readReportsForPoll = (ref: string, poll: PollContext) => {
+    const account = accountRef.current;
+    const repoName = repoNameRef.current;
     const envName = selectedEnvRef.current?.name;
-    if (!acc || !repo || !envName) return;
+    const definitions = stageDefinitionsRef.current;
+    if (!account || !repoName || !envName) return;
 
-    if (!poll) setStagesLoading(true);
-    const load = (dir: GaStageKey, kind: "plan" | "deploy") =>
-      fetchStageReport(acc, repo, envName, dir, kind).catch((e) => {
-        console.error(`Failed to fetch the ${kind} report for "${dir}":`, e);
-        return null;
-      });
-
-    Promise.all(
-      definitions.map(async (stageDef) => {
-        const [plan, deploy] = await Promise.all([load(stageDef.dir, "plan"), load(stageDef.dir, "deploy")]);
-        return [stageDef.dir, { plan, deploy }] as const;
-      })
-    )
-      .then((entries) => {
-        if (poll && generations.current[poll.stageKey] !== poll.generation) {
-          trace(poll.stageKey, "ignored stale report response", poll.generation);
-          return;
+    void readStageReports(account, repoName, envName, definitions).then((byKey) => {
+      if (generations.current[poll.stageKey] !== poll.generation) {
+        trace(poll.stageKey, "ignored stale report response", poll.generation);
+        return;
+      }
+      queryClient.setQueryData(stageReportQueryKey, byKey);
+      const reported = byKey.get(poll.stageKey)?.[poll.kind]?.createdAt ?? 0;
+      if (reported <= poll.triggerTime) {
+        const next = poll.attempt + 1;
+        if (next >= POLL_DELAYS.length) {
+          fail(poll.stageKey, poll.generation, poll.kind, "Workflow is taking too long. Please check GitHub Actions.");
+        } else {
+          implRef.current.startPollingImpl(ref, next, poll.triggerTime, poll.stageKey, poll.kind, poll.generation);
         }
-        const byKey = new Map(entries);
-        if (!poll) setStagesLoading(false);
-
-        const nothingReported = ![...byKey.values()].some((r) => r.plan || r.deploy);
-
-        if (poll) {
-          const reported = byKey.get(poll.stageKey)?.[poll.kind]?.createdAt ?? 0;
-          if (reported <= poll.triggerTime) {
-            const next = poll.attempt + 1;
-            if (next >= POLL_DELAYS.length) {
-              fail(poll.stageKey, poll.generation, poll.kind, "Workflow is taking too long. Please check GitHub Actions.");
-            } else {
-              implRef.current.startPollingImpl(ref, next, poll.triggerTime, poll.stageKey, poll.kind, poll.generation);
-            }
-          } else {
-            trace(poll.stageKey, `${poll.kind} report received; polling complete`, poll.generation);
-            update(poll.stageKey, poll.generation, { state: "idle" });
-          }
-        }
-
-        if (nothingReported) {
-          // Clear summaries tied to reports that are no longer available.
-          setStageSummariesState({});
-          setStages(definitions.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
-          setHasPlan(false);
-          return;
-        }
-
-        // The env artifact belongs to whichever stage plan reported most recently.
-        const newest = [...byKey.values()]
-          .map((r) => r.plan)
-          .filter((r): r is StageReport => !!r)
-          .sort((a, b) => b.createdAt - a.createdAt)[0];
-        const envId = typeof newest?.stage.envId === "number" ? newest.stage.envId : null;
-        if (envId && envId !== lastFetchedEnvId.current) {
-          lastFetchedEnvId.current = envId;
-          getPlanEnv(acc, repo, envId).then(setDeployedEnv).catch(console.error);
-        }
-
-        const nextStages = definitions.map(({ dir }) => {
-          const { plan, deploy } = byKey.get(dir) ?? { plan: null, deploy: null };
-          if (!plan && !deploy) return { stage: dir, status: "pending" as const };
-          // The plan deployment owns the plan fields, the deploy one owns the deploy fields.
-          // planSha is named explicitly so the deploy report's own sha cannot overwrite it.
-          return { ...plan?.stage, ...deploy?.stage, stage: dir, planSha: plan?.sha } as Stage;
-        });
-        const previousStages = stagesRef.current;
-        // Keep plan-derived summaries only for the same successful report; a newer report makes them stale.
-        setStageSummariesState((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => {
-          const before = previousStages.find((stage) => stage.stage === key);
-          const after = nextStages.find((stage) => stage.stage === key);
-          return after?.status === "success" && before?.runId === after.runId && before?.planJsonId === after.planJsonId && before?.planSha === after.planSha;
-        })));
-        setStages(nextStages);
-        setHasPlan(true);
-      })
-      .catch((e) => {
-        if (poll && generations.current[poll.stageKey] !== poll.generation) {
-          trace(poll.stageKey, "ignored stale report failure", poll.generation);
-          return;
-        }
-        console.error("Failed to load the stage reports:", e);
-        if (!poll) setStagesLoading(false);
-        if (poll) fail(poll.stageKey, poll.generation, poll.kind, "Could not read the stage reports");
-        setStageSummariesState({});
-        setStages(definitions.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
-        setHasPlan(false);
-      });
+        return;
+      }
+      trace(poll.stageKey, `${poll.kind} report received; polling complete`, poll.generation);
+      update(poll.stageKey, poll.generation, { state: "idle" });
+    }).catch((error) => {
+      if (generations.current[poll.stageKey] !== poll.generation) {
+        trace(poll.stageKey, "ignored stale report failure", poll.generation);
+        return;
+      }
+      console.error("Failed to load the stage reports:", error);
+      fail(poll.stageKey, poll.generation, poll.kind, "Could not read the stage reports");
+    });
   };
 
   useLayoutEffect(() => {
-    implRef.current.loadPlanImpl = loadPlanImpl;
+    implRef.current.readReportsForPoll = readReportsForPoll;
     implRef.current.startPollingImpl = startPollingImpl;
   });
 
@@ -270,20 +288,7 @@ export function useDeploymentPlan(opts: {
       }
       delete operationNames.current[dir];
     });
-    setRuns({});
-    setStages([]);
-    setStageSummariesState({});
-    setHasPlan(true);
-    setDeployedEnv(null);
-    setStagesLoading(false);
-    lastFetchedEnvId.current = null;
   }, [opts.selectedEnv?.id]);
-
-  useEffect(() => {
-    if (!opts.selectedEnv || opts.branchMatchError) return;
-    const branch = branchesRef.current.find((b) => b.name.toLowerCase() === opts.selectedEnv!.name.toLowerCase());
-    if (branch) implRef.current.loadPlanImpl(branch.name);
-  }, [opts.selectedEnv?.id, opts.branchMatchError]);
 
   const runPlan = async (stageKey: GaStageKey, forced: boolean) => {
     const acc = accountRef.current;
@@ -296,8 +301,8 @@ export function useDeploymentPlan(opts: {
       fail(stageKey, generation, "plan", "Cannot start plan: account, repository, environment, and workflow are required.");
       return;
     }
-    // Starting a new plan invalidates any local summary from the previous run.
-    setStageSummariesState((previous) => {
+    // Starting a new plan invalidates any summary computed from the previous report.
+    setSummaryEntries((previous) => {
       const next = { ...previous };
       delete next[stageKey];
       return next;
@@ -368,7 +373,12 @@ export function useDeploymentPlan(opts: {
   };
 
   const setStageSummary = useCallback((key: GaStageKey, summary: PlanSummary) => {
-    setStageSummariesState((prev) => ({ ...prev, [key]: summary }));
+    const stage = stagesRef.current.find((item) => item.stage === key);
+    if (!stage) return;
+    setSummaryEntries((previous) => ({
+      ...previous,
+      [key]: { reportKey: stageReportKey(stage), summary },
+    }));
   }, []);
 
   const latestSha = opts.branches.find((b) => b.name.toLowerCase() === opts.selectedEnv?.name.toLowerCase())?.commit;
