@@ -8,6 +8,8 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, it, vi } from "vitest";
 import { createAppContext } from "../appContext";
+import { azureAppRegistrationAccess } from "../cards/AzureAppRegistrationV2/config";
+import { useRbacCheck } from "../cards/AzureAppRegistrationV2/useRbacCheck";
 import {
   runAppRegistration,
   useAzureAppRegistrationV2,
@@ -19,16 +21,23 @@ const graph = vi.hoisted(() => ({
   createAppRegistration: vi.fn(),
   createServicePrincipal: vi.fn(),
   ensureFederatedCredential: vi.fn(),
+  ensureEntraActions: vi.fn(),
   ensureRbacRole: vi.fn(),
   ensureServicePrincipalAccess: vi.fn(),
   getExistingApp: vi.fn(),
   getExistingSP: vi.fn(),
+  hasRbacRole: vi.fn(),
 }));
 vi.mock("../api/azureGraph", async (importOriginal) => ({ ...await importOriginal<object>(), ...graph }));
-vi.mock("../auth/msal", async (importOriginal) => ({ ...await importOriginal<object>(), ensureScopeConsent: vi.fn(async () => false) }));
-vi.mock("../hooks/util/useAzureCardAccess", async (importOriginal) => ({
+const ensureCardResourceAccess = vi.hoisted(() => vi.fn());
+vi.mock("../hooks/util/useAzureAccessCheck", async (importOriginal) => ({
   ...await importOriginal<object>(),
-  useCardResourceAccess: () => ({ status: "ready", check: vi.fn(), reportFailure: vi.fn(), retry: vi.fn() }),
+  ensureCardResourceAccess,
+}));
+vi.mock("../auth/msal", async (importOriginal) => ({ ...await importOriginal<object>(), ensureScopeConsent: vi.fn(async () => false) }));
+vi.mock("../hooks/util/useAzureCardAccessV2", async (importOriginal) => ({
+  ...await importOriginal<object>(),
+  useCardResourceAccessV2: () => ({ status: "ready", check: vi.fn(), reportFailure: vi.fn(), retry: vi.fn() }),
 }));
 vi.mock("../hooks/useGithubVariablesV2", () => ({ useGithubVariablesV2: () => ({ values: {}, loading: false }) }));
 
@@ -95,6 +104,77 @@ function runInput(overrides: Partial<RunAppRegistrationInput> = {}): RunAppRegis
     ...overrides,
   };
 }
+
+it("reuses Reader access after switching back to a configured environment", async () => {
+  graph.getExistingSP.mockResolvedValue({ id: "sp-id" });
+  graph.hasRbacRole.mockResolvedValueOnce(true);
+  const account = runInput().account;
+  const client = new QueryClient();
+  const root = createRoot(document.createElement("div"));
+  let access: ReturnType<typeof useRbacCheck>;
+  function Harness({ clientId }: { clientId: string }) {
+    access = useRbacCheck({ azureAccount: account, tenantId: "tenant", subscriptionId: "sub", spClientId: clientId });
+    return null;
+  }
+  const selectEnvironment = (clientId: string) => act(async () => {
+    root.render(<QueryClientProvider client={client}><Harness clientId={clientId} /></QueryClientProvider>);
+  });
+  try {
+    await selectEnvironment("client-id");
+    await vi.waitFor(() => expect(access.status).toBe("ready"));
+    await selectEnvironment("");
+    expect(access!.status).toBe("unknown");
+    await selectEnvironment("client-id");
+    expect(access!.status).toBe("ready");
+    expect(graph.getExistingSP).toHaveBeenCalledTimes(1);
+    expect(graph.hasRbacRole).toHaveBeenCalledTimes(1);
+
+    graph.hasRbacRole.mockResolvedValueOnce(false);
+    await act(async () => access!.recheck());
+    await vi.waitFor(() => expect(access.status).toBe("missing-role"));
+  } finally {
+    await act(async () => root.unmount());
+    client.clear();
+    graph.getExistingSP.mockReset();
+    graph.hasRbacRole.mockReset();
+  }
+});
+
+it("queries Azure access for the selected subscription, rechecks on demand, and validates again before Run", async () => {
+  const { useCardResourceAccessV2 } = await vi.importActual<typeof import("../hooks/util/useAzureCardAccessV2")>("../hooks/util/useAzureCardAccessV2");
+  const account = runInput().account;
+  const request = azureAppRegistrationAccess();
+  ensureCardResourceAccess.mockResolvedValue(undefined);
+  graph.ensureEntraActions.mockResolvedValue(undefined);
+  let access: ReturnType<typeof useCardResourceAccessV2>;
+  function Harness() {
+    access = useCardResourceAccessV2({ azureAccount: account, tenantId: "tenant", subscriptionId: "sub" }, request);
+    return null;
+  }
+  const client = new QueryClient();
+  const root = createRoot(document.createElement("div"));
+  try {
+    await act(async () => root.render(<QueryClientProvider client={client}><Harness /></QueryClientProvider>));
+    await vi.waitFor(() => expect(access.status).toBe("ready"));
+    expect(ensureCardResourceAccess).toHaveBeenCalledExactlyOnceWith(account, "sub", request, "tenant");
+    expect(graph.ensureEntraActions).toHaveBeenCalledExactlyOnceWith(account, request.entraRoles, "tenant");
+
+    await act(async () => access.retry());
+    await vi.waitFor(() => expect(ensureCardResourceAccess).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(access.status).toBe("ready"));
+
+    ensureCardResourceAccess.mockResolvedValueOnce({ missingRoles: "Missing ARM permissions", unregisteredProviders: [], missingConsent: [] });
+    await act(async () => {
+      await expect(access.check()).rejects.toThrow("Missing ARM permissions");
+    });
+    expect(ensureCardResourceAccess).toHaveBeenCalledTimes(3);
+    expect(graph.ensureEntraActions).toHaveBeenCalledTimes(3);
+    await vi.waitFor(() => expect(access.status).toBe("warning"));
+  } finally {
+    await act(async () => root.unmount());
+    client.clear();
+  }
+});
 
 it("runs every step, reusing the app and service principal discovery found", async () => {
   graph.ensureFederatedCredential.mockResolvedValueOnce(true);

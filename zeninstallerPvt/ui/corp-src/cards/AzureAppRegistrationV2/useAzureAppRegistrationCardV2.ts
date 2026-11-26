@@ -21,7 +21,7 @@ import { ensureScopeConsent, getMsal } from "../../auth/msal";
 import { useCardAppContext, type BaseCardContext } from "../../components/useBaseCard";
 import { APP_SCOPES } from "../../config/azureConfig";
 import { useGithubVariablesV2, type UseGithubVariablesV2 } from "../../hooks/useGithubVariablesV2";
-import { formatCardResourceAccessError, useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
+import { formatCardResourceAccessError, useCardResourceAccessV2, type CardResourceAccessV2 } from "../../hooks/util/useAzureCardAccessV2";
 import { isConsentError } from "../../logic/consent";
 import { getFederatedCredential, getImmutableRepoSegment } from "../../logic/naming";
 import type { SetupStep } from "../../types";
@@ -58,7 +58,7 @@ export type PrivateContext = {
   rbacMissingRoles: string[];
   rbacError: string | null;
   planClientIdMismatch: boolean; // AZURE_PLAN_CLIENT_ID has drifted from AZURE_CLIENT_ID (a run always keeps them equal).
-  managementAccess: CardResourceAccess;
+  managementAccess: CardResourceAccessV2;
 
   // This card's saved client ids in GitHub; where they live is Repository & environment 2's githubRepository.
   variables: UseGithubVariablesV2;
@@ -101,8 +101,8 @@ export type RunAppRegistrationInput = {
   appName: string; // Trimmed.
   githubApi: ReturnType<typeof createGithubApi>;
   discovery: AppRegistrationDiscovery | undefined; // Lets the run skip lookups discovery already made for this name.
-  checkResourceAccess: CardResourceAccess["check"];
-  reportAccessFailure: CardResourceAccess["reportFailure"];
+  checkResourceAccess: CardResourceAccessV2["check"];
+  reportAccessFailure: CardResourceAccessV2["reportFailure"];
   updateStep: (stepId: string, status: SetupStep["status"], detail?: string, progress?: number) => void;
   signal: AbortSignal;
 };
@@ -306,16 +306,12 @@ export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegi
   const spClientId = savedClientId || ran?.clientId || "";
   const planClientIdMismatch = !!savedClientId && !!savedPlanClientId && savedClientId !== savedPlanClientId;
 
-  const managementAccess = useCardResourceAccess({ azureAccount: account, subscriptionId, tenantId }, azureAppRegistrationAccess());
+  const managementAccess = useCardResourceAccessV2({ azureAccount: account, subscriptionId, tenantId }, azureAppRegistrationAccess());
   const { check: checkResourceAccess, reportFailure: reportAccessFailure } = managementAccess;
 
   // Live check: is the app in this tenant, and does its service principal hold Reader on the subscription?
   const liveRbac = useRbacCheck({ azureAccount: account, spClientId, subscriptionId, tenantId });
-  // The run just granted the role; Azure can take a while to show it, so the run is trusted over the live check.
-  const rbacTrusted = !!ran && ran.clientId === spClientId;
-  const rbacStatus = rbacTrusted ? "ready" : liveRbac.status;
-  const rbacMissingRoles = rbacTrusted ? [] : liveRbac.missingRoles;
-  const rbacError = rbacTrusted ? null : liveRbac.error ?? null;
+  const { status: rbacStatus, missingRoles: rbacMissingRoles, error: rbacError } = liveRbac;
 
   // Name the field after the app GitHub holds, once per saved client id, so a re-run finds that app.
   const nameKey = account && savedClientId ? `${tenantId ?? ""}|${savedClientId}` : null;
@@ -352,6 +348,7 @@ export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegi
         },
         signal: controller.signal,
       });
+      await liveRbac.markReady(clientId);
       dispatchLifecycle({ type: "run-completed", scopeKey, runId, clientId });
       void discoveryQuery.refetch();
     } catch (err) {
@@ -365,7 +362,7 @@ export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegi
   const steps = state.steps;
   const running = state.activeRunId !== null;
   const activity = managementAccess.status === "checking" ? "Checking Azure resource access"
-    : liveRbac.checking && !rbacTrusted ? "Checking app registration access"
+    : liveRbac.checking ? "Checking app registration access"
     : prefillingAppName ? "Fetching app registration name"
     : discoveryQuery.isPending && !!scopeKey && !!lookupName ? "Checking app registration"
     : variables.loading ? "Loading GitHub variables" : null;
@@ -428,6 +425,7 @@ export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegi
         ...managementAccess,
         retry: () => {
           managementAccess.retry();
+          liveRbac.recheck();
           // Rechecks Graph reads only; Graph remains authoritative for app/service-principal writes.
           if (account && subscriptionId) void ensureServicePrincipalAccess(account, tenantId).catch(reportAccessFailure);
         },

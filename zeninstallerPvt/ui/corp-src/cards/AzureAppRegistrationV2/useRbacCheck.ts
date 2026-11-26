@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getExistingSP, hasRbacRole } from "../../api/azureGraph";
 import type { AzureSpTarget } from "../../types";
 
@@ -14,50 +14,38 @@ const IDLE: RbacCheckResult = { status: "unknown", missingRoles: [] };
 
 export type UseRbacCheckParams = AzureSpTarget;
 
-export function useRbacCheck({ azureAccount, spClientId, subscriptionId, tenantId }: UseRbacCheckParams): RbacCheckResult {
-  const [result, setResult] = useState<RbacCheckResult>(IDLE);
-  const [checking, setChecking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+function rbacKey({ azureAccount, spClientId, subscriptionId, tenantId }: UseRbacCheckParams) {
+  return ["azure_app_registration_v2", "rbac", azureAccount?.homeAccountId, azureAccount?.tenantId, tenantId, subscriptionId, spClientId] as const;
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!azureAccount || !spClientId || !subscriptionId) {
-        if (!cancelled) {
-          setResult(IDLE);
-          setChecking(false);
-          setError(null);
-        }
-        return;
-      }
-      if (!cancelled) {
-        setResult(IDLE);
-        setChecking(true);
-        setError(null);
-      }
-      try {
-        const sp = await getExistingSP(azureAccount, spClientId, tenantId);
-        if (cancelled) return;
-        if (!sp) {
-          setResult({ status: "sp-not-found", missingRoles: [] });
-          return;
-        }
-        const reader = await hasRbacRole(azureAccount, subscriptionId, sp.id, "Reader", tenantId);
-        const missingRoles = reader ? [] : ["Reader"];
-        if (!cancelled) setResult({ status: missingRoles.length === 0 ? "ready" : "missing-role", missingRoles });
-      } catch (failure) {
-        if (!cancelled) {
-          setResult(IDLE);
-          setError(failure instanceof Error ? failure.message : String(failure));
-        }
-      } finally {
-        if (!cancelled) setChecking(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [azureAccount, spClientId, subscriptionId, tenantId]);
+export function useRbacCheck(target: UseRbacCheckParams) {
+  const { azureAccount, spClientId, subscriptionId, tenantId } = target;
+  const enabled = !!azureAccount && !!spClientId && !!subscriptionId;
+  const client = useQueryClient();
+  const query = useQuery({
+    queryKey: rbacKey(target),
+    enabled,
+    staleTime: Infinity,
+    retry: false,
+    queryFn: async ({ signal }): Promise<RbacCheckResult> => {
+      const sp = await getExistingSP(azureAccount!, spClientId, tenantId, signal);
+      signal.throwIfAborted();
+      if (!sp) return { status: "sp-not-found", missingRoles: [] };
 
-  return { ...result, checking, error };
+      const reader = await hasRbacRole(azureAccount!, subscriptionId, sp.id, "Reader", tenantId);
+      return reader ? { status: "ready", missingRoles: [] } : { status: "missing-role", missingRoles: ["Reader"] };
+    },
+  });
+
+  return {
+    ...(query.isError ? IDLE : query.data ?? IDLE),
+    checking: query.isFetching,
+    recheck: () => { if (enabled) void query.refetch(); },
+    markReady: async (clientId: string) => {
+      const key = rbacKey({ ...target, spClientId: clientId });
+      await client.cancelQueries({ queryKey: key, exact: true });
+      client.setQueryData<RbacCheckResult>(key, { status: "ready", missingRoles: [] });
+    },
+    error: query.error ? query.error.message : null,
+  };
 }
