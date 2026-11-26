@@ -38,6 +38,11 @@ describe("GaCloudFront", () => {
     statusUpdateDisabled: true,
     runError: null,
     azureAccount: null,
+    operation: { state: "idle" },
+    forcePlan: async () => {},
+    forceDeploy: async () => {},
+    forceIdle: () => {},
+    forceError: () => {},
   };
 
   it("defines its own stage, permissions, and prerequisites", () => {

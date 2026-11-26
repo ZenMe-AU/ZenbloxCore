@@ -9,13 +9,13 @@ import { ClickAnalyticsPlugin } from "@microsoft/applicationinsights-clickanalyt
 
 export const reactPlugin = new ReactPlugin();
 let appInsights: ApplicationInsights | null = null;
-let debugEnabled = import.meta.env.DEV;
+let debugEnabled = false;
 
 export interface MonitorOptions {
   page: string; // Page identity attached to every telemetry item (ai.cloud.roleInstance + appPage property)
   connectionString?: string; // Overrides the env-derived connection string. Defaults to import.meta.env.VITE_APPINSIGHTS_CONNECTION_STRING
   role?: string; //  Application Map node name (ai.cloud.role). Defaults to "ZenInstallerFrontend"
-  debug?: boolean; // Defaults to import.meta.env.DEV
+  debug?: boolean; // Opt in to logging telemetry envelopes to the console.
 }
 
 export function initMonitor({ page, connectionString, role = "ZenInstallerFrontend", debug }: MonitorOptions): boolean {

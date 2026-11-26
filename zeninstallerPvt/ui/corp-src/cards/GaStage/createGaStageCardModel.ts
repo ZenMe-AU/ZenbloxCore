@@ -4,7 +4,7 @@
  */
 
 import type { Account, CardChrome, CardHook, CardId, CardStatus, GhEnv, PlanSummary, Stage } from "../../types";
-import type { UseDeploymentPlan } from "./useDeploymentPlan";
+import type { StageOperation, UseDeploymentPlan } from "./useDeploymentPlan";
 import type { GaStageDefinition } from "./stageDefinitions";
 import { assessPrerequisites, getEffectiveStatus, getStageSummaryText, stageToCardStatus, type PrerequisiteAssessment } from "../../logic/stage";
 
@@ -21,7 +21,7 @@ export type GaStageCardModel = {
   repoName: string;
   selectedEnv: GhEnv | null;
   onVariableConfirmed: (key: string, value: string) => void;
-  trackDeploy?: () => Promise<void>;
+  trackDeploy?: (start: (isCurrent: () => boolean) => Promise<boolean>) => Promise<void>;
   onPlanSummary: (s: PlanSummary) => void;
   onRunStatusUpdate: () => Promise<void>;
   statusUpdateRunning: boolean;
@@ -29,6 +29,11 @@ export type GaStageCardModel = {
   statusUpdateDisabled: boolean;
   runError: string | null;
   latestSha?: string;
+  operation: StageOperation;
+  forcePlan: () => Promise<void>;
+  forceDeploy: (start: (isCurrent: () => boolean) => Promise<boolean>) => Promise<void>;
+  forceIdle: () => void;
+  forceError: (kind: "plan" | "deploy") => void;
 };
 
 export function createGaStageCardModel({
@@ -71,9 +76,10 @@ export function createGaStageCardModel({
   const effectiveStatus = getEffectiveStatus(stage, summary, stageDef.optional);
   const prerequisiteAssessment = assessPrerequisites(stageDef.prerequisites, variableValues, cardStatus, plan.deployedEnv);
   const run = plan.runs[stageDef.dir];
-  const isStale = run != null && run.error == null;
+  const isStale = run?.state === "active";
+  const runError = run?.state === "error" ? run.error : null;
   const inputsMissing = prerequisiteAssessment.missing.length > 0 || prerequisiteAssessment.incomplete.length > 0;
-  const deployDisabled = !repoDone || isStale || prerequisiteAssessment.blocked || !!run?.error;
+  const deployDisabled = !repoDone || isStale || prerequisiteAssessment.blocked || !!runError;
   const requirements = repoDone
     ? []
     : [
@@ -88,7 +94,7 @@ export function createGaStageCardModel({
     try {
       cardSummary = prerequisiteAssessment.blocked
         ? prerequisiteAssessment.summary
-        : run?.error ?? (isStale
+        : runError ?? (isStale
           ? run.kind === "deploy" ? "Deployment running..." : "Plan running..."
           : getStageSummaryText(stage, summary, plan.stagesLoading, false, stageDef.optional));
     } catch (error) {
@@ -98,7 +104,7 @@ export function createGaStageCardModel({
   }
   const card: CardChrome = {
     cardId,
-    status: locked ? "idle" : run?.error ? "warning" : stageToCardStatus(effectiveStatus, isStale, plan.stagesLoading, prerequisiteAssessment.blocked),
+    status: locked ? "idle" : runError ? "warning" : stageToCardStatus(effectiveStatus, isStale, plan.stagesLoading, prerequisiteAssessment.blocked),
     summary: cardSummary,
     locked,
     requirements,
@@ -109,8 +115,8 @@ export function createGaStageCardModel({
   };
   const trackDeploy =
     !deployDisabled && effectiveStatus === "success" && stage.runId && selectedEnv
-      ? async () => {
-          await plan.deployStage(stageDef.dir);
+      ? async (start: (isCurrent: () => boolean) => Promise<boolean>) => {
+          await plan.deployStage(stageDef.dir, start);
         }
       : undefined;
 
@@ -133,9 +139,14 @@ export function createGaStageCardModel({
       if (repoDone && !inputsMissing && !isStale) await plan.onRun(stageDef.dir);
     },
     statusUpdateRunning: isStale,
-    statusUpdateCountdown: run?.countdown ?? 0,
+    statusUpdateCountdown: run?.state === "active" ? run.countdown : 0,
     statusUpdateDisabled: !repoDone || inputsMissing || isStale,
-    runError: run?.error ?? null,
+    runError,
     latestSha: plan.latestSha,
+    operation: run ?? { state: "idle" },
+    forcePlan: () => plan.forcePlan(stageDef.dir),
+    forceDeploy: (start) => plan.forceDeploy(stageDef.dir, start),
+    forceIdle: () => plan.forceIdle(stageDef.dir),
+    forceError: (kind) => plan.forceError(stageDef.dir, kind),
   };
 }

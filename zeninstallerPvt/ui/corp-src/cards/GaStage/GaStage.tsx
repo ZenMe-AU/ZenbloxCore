@@ -53,6 +53,7 @@ import StagePlanDetail from "./StagePlanDetail";
 import RemoteTerminal from "./RemoteTerminal";
 import AzureAccessCheck from "../../components/AzureAccessCheck";
 import CollapsiblePanel from "../../components/CollapsiblePanel";
+import type { StageOperation } from "./useDeploymentPlan";
 
 function checkPrerequisite(prereq: Prerequisite, cardStatus: Record<CardId, CardStatus>, variableValues: Record<string, string>): boolean {
   switch (prereq.type) {
@@ -423,7 +424,7 @@ type Props = {
   repoName: string;
   selectedEnv: GhEnv | null;
   onVariableConfirmed: (key: string, value: string) => void;
-  trackDeploy?: () => Promise<void>;
+  trackDeploy?: (start: (isCurrent: () => boolean) => Promise<boolean>) => Promise<void>;
   onPlanSummary: (s: PlanSummary) => void;
   onRunStatusUpdate: () => Promise<void>;
   statusUpdateRunning: boolean;
@@ -431,6 +432,11 @@ type Props = {
   statusUpdateDisabled: boolean;
   runError: string | null;
   azureAccount: AzureAccount | null;
+  operation: StageOperation;
+  forcePlan: () => Promise<void>;
+  forceDeploy: (start: (isCurrent: () => boolean) => Promise<boolean>) => Promise<void>;
+  forceIdle: () => void;
+  forceError: (kind: "plan" | "deploy") => void;
 };
 
 function Action({ repoFullName, runId }: { repoFullName: string | null; runId?: string }) {
@@ -460,6 +466,11 @@ function GaStageContent({
   statusUpdateDisabled,
   runError,
   azureAccount,
+  operation,
+  forcePlan,
+  forceDeploy,
+  forceIdle,
+  forceError,
   managementAccess,
   planAccess,
   planAppError,
@@ -498,18 +509,19 @@ function GaStageContent({
   // trackDeploy starts polling for the report it will eventually record.
   const onDeploy =
     trackDeploy &&
-    (async () => {
+    (() => trackDeploy(async (isCurrent) => {
       if (managementAccess) {
-        if (managementAccess.status !== "ready") return;
+        if (managementAccess.status !== "ready") return false;
         try {
           await managementAccess.check();
         } catch {
           // The access hook displays the verification failure and offers a recheck.
-          return;
+          return false;
         }
       }
-      if (await remoteTerminal.start()) await trackDeploy();
-    });
+      if (!isCurrent()) return false;
+      return remoteTerminal.start(isCurrent);
+    }));
 
   const onPlanSummaryRef = useRef(onPlanSummary);
   useLayoutEffect(() => {
@@ -562,11 +574,28 @@ function GaStageContent({
   const hasDetails = stage.status === "success" && !!stage.planJsonId && stage.planJsonUrl !== "";
   const repoFullName = account && repoName ? `${account.login}/${repoName}` : null;
 
-  const intro = stageDef.description ? (
-    <Typography variant="body1" color="text.secondary">
-      {stageDef.description}
-    </Typography>
-  ) : undefined;
+  const intro = (
+    <Box>
+      <Typography variant="body1" color="text.secondary">
+        {stageDef.description ?? "This card allows you to manage the deployment of this stage: " + stageDef.label}
+      </Typography>
+      <Box role="group" aria-label="Operation state controls" sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
+        <Button size="small" variant="outlined" onClick={forceIdle}>Idle</Button>
+        <Button size="small" variant="outlined" onClick={() => void forcePlan()}>Plan active</Button>
+        <Button size="small" variant="outlined" onClick={() => void forceDeploy(remoteTerminal.start)}>Deploy active</Button>
+        <Button size="small" variant="outlined" onClick={() => forceError("plan")}>Plan error</Button>
+        <Button size="small" variant="outlined" onClick={() => forceError("deploy")}>Deploy error</Button>
+      </Box>
+      <Typography role="status" variant="body2">
+        Operation: {operation.state === "idle" ? "idle" : `${operation.kind} ${operation.state}`}
+        {operation.state === "error" ? ` — ${operation.error}` : ""}
+      </Typography>
+      <Typography variant="body2" color="warning.main">
+        Plan and deploy start real workflows even with unmet prerequisites. Changing state stops local tracking, not a dispatched workflow.
+      </Typography>
+      <RemoteTerminal session={remoteTerminal} />
+    </Box>
+  );
   const accessError = managementAccess?.status === "error";
   const accessNotice = managementAccess && (managementAccess.status === "checking" || managementAccess.status === "warning" || accessError)
     ? <AzureAccessCheck access={managementAccess} resourceAccess errorStyle />
@@ -707,8 +736,6 @@ function GaStageContent({
               />
             )}
 
-            <RemoteTerminal session={remoteTerminal} />
-
             {!hasDetails && stage.status !== "pending" && (
               <Typography color={stage.status === "failed" ? "error.main" : "text.disabled"} role="status">
                 No plan is available for this stage. Check the GitHub Actions run for errors, then create a new plan.
@@ -759,8 +786,6 @@ function GaStageContent({
             )}
           </Box>
         )}
-
-        <RemoteTerminal session={remoteTerminal} />
 
         {(stage.deployedAt || stage.deployStatus) && (
           <Box>

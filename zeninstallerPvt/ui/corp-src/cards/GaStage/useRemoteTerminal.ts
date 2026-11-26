@@ -28,7 +28,7 @@ export interface UseRemoteTerminal {
   loggedIn: Cloud[];
   runnerJoined: boolean;
   error: string | null;
-  start: () => Promise<boolean>;
+  start: (isCurrent?: () => boolean) => Promise<boolean>;
   stop: () => void;
   resize: (cols: number, rows: number) => void;
 }
@@ -218,10 +218,10 @@ export function useRemoteTerminal(opts: {
       clientUrl = await negotiateSession(creds);
     } catch (e) {
       console.error("Failed to negotiate the terminal session:", e);
-      scheduleReconnect();
+      if (credsRef.current === creds) scheduleReconnect();
       return;
     }
-    if (stoppedRef.current) return;
+    if (stoppedRef.current || credsRef.current !== creds) return;
 
     const webPubSubUrl = parseWebPubSubUrl(clientUrl);
     if (!webPubSubUrl) {
@@ -271,7 +271,7 @@ export function useRemoteTerminal(opts: {
     connectRef.current = connect;
   });
 
-  const start = useCallback(async (): Promise<boolean> => {
+  const start = useCallback(async (isCurrent: () => boolean = () => true): Promise<boolean> => {
     const { account, repoName, workflowId, dir, planRunId, selectedEnv } = optsRef.current;
     if (!account || !repoName || !selectedEnv) return false;
 
@@ -298,6 +298,11 @@ export function useRemoteTerminal(opts: {
 
     try {
       await registerSession(creds);
+      if (credsRef.current !== creds || stoppedRef.current || !isCurrent()) {
+        if (credsRef.current === creds) stop();
+        else await deleteSession(creds.sessionId);
+        return false;
+      }
       setStatus("dispatching");
       await triggerRemoteLogin(account, repoName, {
         workflowId,
@@ -309,14 +314,16 @@ export function useRemoteTerminal(opts: {
       });
     } catch (e) {
       console.error("Failed to start the remote login session:", e);
+      if (credsRef.current !== creds || stoppedRef.current) return false;
       setStatus("error");
       setError(e instanceof Error ? e.message : "Failed to start the remote login session");
       return false;
     }
 
+    if (credsRef.current !== creds || stoppedRef.current) return false;
     await connectRef.current();
     return true;
-  }, [sendToGroup, teardown]);
+  }, [sendToGroup, stop, teardown]);
 
   useEffect(() => teardown, [teardown]);
 
