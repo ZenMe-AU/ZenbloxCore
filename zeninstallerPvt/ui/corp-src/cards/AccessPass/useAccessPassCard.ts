@@ -81,9 +81,18 @@ const RESULT_KEY = "zeninstaller_corp_access_pass_result";
 const { save: saveResult, load: loadResult } = createResultStorage<AccessPassResult>(RESULT_KEY);
 
 // Convert known error messages from the TAP creation API into user-friendly messages.
-function toTapErrorMessage(err: unknown): string {
+function toTapErrorMessage(err: unknown, stepId: SetupStep["id"]): string {
   const msg = err instanceof Error ? err.message : "Failed";
   const lower = msg.toLowerCase();
+
+  if (lower.includes("403") && (stepId === "rotatePassword" || lower.includes("passwordprofile"))) {
+    return (
+      "Not authorized to reset the user password. " +
+      "Ensure the UI app has delegated User-PasswordProfile.ReadWrite.All with tenant admin consent, then reconnect Azure. " +
+      "Your signed-in account must have an active Entra role in the selected tenant that can reset the target user's password. " +
+      "For all administrator accounts, use Privileged Authentication Administrator or Global Administrator."
+    );
+  }
 
   if (lower.includes("authenticationmethodspolicy") && lower.includes("403")) {
     return (
@@ -115,13 +124,6 @@ function toTapErrorMessage(err: unknown): string {
       "Not authorized to remove existing sign-in methods. " +
       "Ensure your account has Authentication Administrator or Privileged Authentication Administrator role, " +
       "and delegated UserAuthenticationMethod.ReadWrite.All has admin consent."
-    );
-  }
-
-  if (lower.includes("passwordprofile") && lower.includes("403")) {
-    return (
-      "Not authorized to reset the user password. " +
-      "Ensure your account has permissions to reset user passwords and delegated User.ReadWrite.All has admin consent."
     );
   }
 
@@ -280,7 +282,7 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
           setConsentRequired(true);
           updateStep(currentStepId, "error", 'Additional consent required — click "Grant consent" below, then try again.');
         } else {
-          updateStep(currentStepId, "error", toTapErrorMessage(err));
+          updateStep(currentStepId, "error", toTapErrorMessage(err, currentStepId));
         }
         return null;
       } finally {

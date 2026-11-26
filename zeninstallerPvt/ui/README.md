@@ -32,6 +32,16 @@ Current UI behaviour, styling and accessibility guidance, verification results a
 26. Backend and frontend build cards distinguish the latest successful artifact from a newer failed build, link to the failed workflow run, and prioritize active checks, builds, deployments, and errors over version-comparison status. The Core Infra card identifies a missing company short code, and pending pipeline stages use the actionable summary "Get updated plan".
 27. Deployment-card severity reflects the failure cause: known authentication or permission blockers are actionable warnings, inability to verify access is an error, and failed build/deploy attempts remain errors. A saved app-registration result is complete only when its variables and access checks are valid for the current target; activity takes precedence over saved completion.
 
+## Access Pass password-reset authorization
+
+The Access Pass card requests delegated Microsoft Graph `User-PasswordProfile.ReadWrite.All` to randomize the target user's password. Grant tenant admin consent to this permission on the UI app identified by `VITE_AZURE_CLIENT_ID`, not the GitHub deployment app identified by `AZURE_CLIENT_ID`. Reload the updated UI and reconnect Azure after changing consent.
+
+The signed-in account also needs an active Entra role in the selected tenant that can reset the target user's password. Privileged Authentication Administrator or Global Administrator can reset passwords for all administrators. The target user does not need either role to receive an access pass.
+
+The workflow removes existing authentication methods before resetting the password. A password-reset failure stops TAP creation but does not restore methods already removed.
+
+Successful Access Pass rows use a subtle green tint mixed with the active theme's paper surface; marked-complete rows use the same muted treatment in blue. Text retains readable theme colours in both light and dark modes.
+
 ## Test automation
 
 - Stable UI test hooks and the muted-title-only axe exception above remain part of the test contract; no axe rules are disabled.

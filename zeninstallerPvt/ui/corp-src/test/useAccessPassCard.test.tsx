@@ -48,12 +48,8 @@ vi.mock("../logic/password", () => ({
   generateRandomPassword: apiMocks.generateRandomPassword,
 }));
 
-vi.mock("../cards/AccessPass/telemetry", () => ({
+vi.mock("../monitor/telemetry", () => ({
   logEvent: apiMocks.logEvent,
-}));
-
-vi.mock("../config/azureConfig", () => ({
-  ACCESS_PASS_SCOPES: ["scope.a", "scope.b"],
 }));
 
 function HookHarness(
@@ -172,7 +168,7 @@ describe("useAccessPassCard", () => {
 
     expect(acquireTokenRedirect).toHaveBeenCalledWith(
       expect.objectContaining({
-        scopes: ["scope.a", "scope.b"],
+        scopes: expect.arrayContaining(["https://graph.microsoft.com/User-PasswordProfile.ReadWrite.All"]),
         authority: "https://login.microsoftonline.com/tenant-a",
       })
     );
@@ -800,6 +796,39 @@ describe("useAccessPassCard", () => {
         expect(latest?.steps.find((s) => s.id === "policy")?.detail).toContain(c.expected);
       });
     }
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it.each([
+    '403 /users/u1: {"error":{"code":"Authorization_RequestDenied","message":"Insufficient privileges to complete the operation."}}',
+    '403 /users/u1: {"error":{"code":"accessDenied"}}',
+  ])("reports password-reset authorization guidance and stops before creating a TAP: %s", async (message) => {
+    apiMocks.resetUserPassword.mockRejectedValueOnce(new Error(message));
+    let latest: UseAccessPassCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(<HookHarness {...baseProps()} onUpdate={(value) => { latest = value; }} />);
+    });
+
+    await act(async () => {
+      expect(await latest?.runForUser("u1")).toBeNull();
+    });
+
+    const step = latest?.steps.find((s) => s.id === "rotatePassword");
+    expect(step?.status).toBe("error");
+    expect(step?.detail).toContain("Not authorized to reset the user password.");
+    expect(step?.detail).toContain("User-PasswordProfile.ReadWrite.All");
+    expect(step?.detail).toContain("Global Administrator");
+    expect(latest?.running).toBe(false);
+    expect(apiMocks.createTemporaryAccessPassForUser).not.toHaveBeenCalled();
+    expect(apiMocks.logEvent).toHaveBeenCalledWith(
+      "accessPassWorkflowStepFailed",
+      expect.objectContaining({ stepId: "rotatePassword", message })
+    );
 
     await act(async () => {
       root.unmount();

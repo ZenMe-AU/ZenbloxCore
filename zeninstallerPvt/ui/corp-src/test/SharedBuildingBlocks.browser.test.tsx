@@ -8,6 +8,9 @@ import { flushSync } from "react-dom";
 import { describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { Box, TextField, ThemeProvider } from "@mui/material";
+import { getContrastRatio } from "@mui/material/styles";
+import AccessPassCard from "../cards/AccessPass/AccessPassCard";
+import type { UseAccessPassCard } from "../cards/AccessPass/useAccessPassCard";
 import BackendDeployCard from "../cards/BackendDeploy/BackendDeployCard";
 import WebDeployCard from "../cards/WebDeploy/WebDeployCard";
 import AzureAppRegistrationCard from "../cards/AzureAppRegistration/AzureAppRegistrationCard";
@@ -38,6 +41,75 @@ import { getVariableDisplayName } from "../logic/variables";
 import theme from "../theme";
 
 describe("shared UI building blocks", () => {
+  for (const mode of ["light", "dark"] as const) {
+    it(`keeps Access Pass success and completed rows subtle and readable in ${mode}`, async () => {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      const root = createRoot(container);
+      const storageKey = `access-pass-colours-${mode}`;
+      const completedKey = "zeninstaller_corp_access_pass_completed_users";
+      const deliveryKey = "zeninstaller_corp_access_pass_delivery_confirmed_users";
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(completedKey);
+      localStorage.setItem(deliveryKey, JSON.stringify({ "user-1": true }));
+      const accessPass: UseAccessPassCard = {
+        cardId: "access_pass", status: "complete", done: true, summary: "Access pass created", cardRequirements: [], cardDependencyLabel: "Sign in",
+        managerUsers: [{ id: "user-1", displayName: "Test User", userPrincipalName: "test@example.com" }],
+        selectedManagerUserId: "user-1", setSelectedManagerUserId: vi.fn(), managerUsersLoading: false, managerUsersError: null,
+        consentRequired: false, requestAccessPassConsent: async () => {}, running: false, reset: vi.fn(), runForUser: async () => null,
+        result: { accessPassValue: "test-pass", tenantId: "tenant", targetUserId: "user-1", tapMethodId: "tap-1" },
+        steps: [{ id: "tap", label: "Create Temporary Access Pass", status: "done", detail: "Temporary Access Pass created" }],
+      };
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 1;
+      const context = canvas.getContext("2d")!;
+      const rgb = (colour: string) => {
+        context.clearRect(0, 0, 1, 1);
+        context.fillStyle = colour;
+        context.fillRect(0, 0, 1, 1);
+        const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+        return `rgb(${r}, ${g}, ${b})`;
+      };
+      try {
+        flushSync(() => root.render(
+          <ThemeProvider theme={theme} defaultMode={mode} modeStorageKey={storageKey}>
+            <AccessPassCard
+              card={{ cardId: "access_pass", status: "complete", summary: "Access pass created", locked: false, requirements: [],
+                unavailable: false, expanded: true, onToggle: vi.fn(), onRequirementClick: vi.fn() }}
+              accessPass={accessPass}
+            />
+          </ThemeProvider>
+        ));
+        await expect.poll(() => document.documentElement.getAttribute("data-mui-color-scheme")).toBe(mode);
+        await expect.poll(() => container.textContent).toContain("New Temporary Access Pass:");
+        const table = container.querySelector("table")!;
+        const rows = () => Array.from(table.querySelectorAll("tbody tr"));
+        const checkContrast = () => {
+          const background = rgb(getComputedStyle(rows()[0]).backgroundColor);
+          const surface = rgb(getComputedStyle(table.parentElement!).backgroundColor);
+          expect(getContrastRatio(background, surface)).toBeLessThan(1.3);
+          for (const row of rows()) {
+            expect(rgb(getComputedStyle(row).backgroundColor)).toBe(background);
+          }
+          for (const element of table.querySelectorAll("tbody td, tbody .MuiTypography-root, tbody a")) {
+            expect(getContrastRatio(rgb(getComputedStyle(element).color), background), element.textContent ?? "").toBeGreaterThanOrEqual(4.5);
+          }
+          return background;
+        };
+        const successBackground = checkContrast();
+        await userEvent.click(page.getByRole("button", { name: "Mark Complete" }));
+        await expect.poll(() => table.textContent).toContain("Completed");
+        expect(checkContrast()).not.toBe(successBackground);
+      } finally {
+        flushSync(() => root.unmount());
+        container.remove();
+        localStorage.removeItem(completedKey);
+        localStorage.removeItem(deliveryKey);
+        localStorage.removeItem(storageKey);
+      }
+    });
+  }
+
   for (const mode of ["light", "dark"] as const) {
     for (const width of [1280, 390]) {
       it(`reflects registration and backend activity in ${mode} at ${width}px`, async () => {
