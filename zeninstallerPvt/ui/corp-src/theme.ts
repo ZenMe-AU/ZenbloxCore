@@ -117,6 +117,7 @@ const theme = createTheme({
         card: {
           border: {
             idle: "#fed7aa",
+            locked: "#fed7aa",
             loading: "#e2e8f0",
             complete: "#bbf7d0",
             warning: "#fed7aa",
@@ -126,6 +127,7 @@ const theme = createTheme({
           },
           icon: {
             idle: "#f97316",
+            locked: "#f97316",
             loading: "#60a5fa",
             complete: "#22c55e",
             warning: "#f97316",
@@ -135,6 +137,7 @@ const theme = createTheme({
           },
           summary: {
             idle: "#b45309",
+            locked: "#b45309",
             loading: "#64748b",
             complete: "#15803d",
             warning: "#b45309",
@@ -203,6 +206,7 @@ const theme = createTheme({
         card: {
           border: {
             idle: "#704b30",
+            locked: "#704b30",
             loading: "#354448",
             complete: "#315b42",
             warning: "#704b30",
@@ -212,6 +216,7 @@ const theme = createTheme({
           },
           icon: {
             idle: "#fb923c",
+            locked: "#fb923c",
             loading: "#93c5fd",
             complete: "#4ade80",
             warning: "#fb923c",
@@ -221,6 +226,7 @@ const theme = createTheme({
           },
           summary: {
             idle: "#fdba74",
+            locked: "#fdba74",
             loading: "#9aa9ac",
             complete: "#86efac",
             warning: "#fdba74",

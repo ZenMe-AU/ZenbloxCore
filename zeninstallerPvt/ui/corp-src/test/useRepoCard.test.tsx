@@ -34,9 +34,18 @@ type HookUser = Parameters<typeof useRepoCard>[0]["user"];
 type RepoMockState = {
   status: CardStatus | "warning";
   selectedAccount: { login: string } | null;
-  selectedRepo: { id: number; name: string } | null;
+  selectedRepo: { id: number; name: string; isNew?: boolean } | null;
   repoFullName: string | null;
-  templateStatus: "ready" | "not_clone";
+  templateStatus: "checking" | "ready" | "not_clone";
+  cloning?: boolean;
+  creatingBranch?: boolean;
+  cloneError?: string | null;
+  cloneValidationWarning?: string | null;
+  cloneEnvWarning?: string | null;
+  createBranchError?: string | null;
+  repoError?: string | null;
+  repoRefreshFailed?: boolean;
+  repoLoading?: boolean;
   branchList: Array<{ name: string }>;
 };
 
@@ -45,6 +54,8 @@ type EnvMockState = {
   selectedEnv: { id: string; name: string } | null;
   branchMatchError: string | null;
   branchMatchWarning: string | null;
+  envLoading?: boolean;
+  envRefreshFailed?: boolean;
 };
 
 function buildRepo(overrides: Partial<RepoMockState> = {}): RepoMockState {
@@ -82,6 +93,41 @@ describe("useRepoCard", () => {
     vi.clearAllMocks();
     mockHooks.useGithubRepo.mockReturnValue(buildRepo() as never);
     mockHooks.useGithubEnvironment.mockReturnValue(buildEnv() as never);
+  });
+
+  it.each<{
+    repo?: Partial<RepoMockState>;
+    env?: Partial<EnvMockState>;
+    status: CardStatus;
+    summary: string;
+  }>([
+    { repo: { cloning: true, status: "loading", templateStatus: "not_clone" }, status: "loading", summary: "Cloning repository" },
+    { repo: { status: "loading", templateStatus: "checking" }, status: "loading", summary: "Checking repository template" },
+    { repo: { status: "loading", templateStatus: "ready" }, status: "loading", summary: "Loading repository branches" },
+    { repo: { status: "warning", templateStatus: "not_clone" }, status: "warning", summary: "Select or clone a supported template repository" },
+    { env: { status: "warning", branchMatchError: 'No branch found matching environment "PROD".' }, status: "warning", summary: 'No branch found matching environment "PROD".' },
+    { repo: { creatingBranch: true }, env: { status: "warning", branchMatchError: 'No branch found matching environment "PROD".' }, status: "loading", summary: "Creating environment branch" },
+    { repo: { cloneError: "Clone failed", templateStatus: "not_clone" }, status: "error", summary: "Clone failed" },
+    { repo: { cloneEnvWarning: "Repo created but failed to create environments: PROD" }, status: "error", summary: "Repo created but failed to create environments: PROD" },
+    { repo: { status: "warning", templateStatus: "not_clone", cloneValidationWarning: 'Repository "repo-a" already exists' }, status: "warning", summary: 'Repository "repo-a" already exists' },
+    { repo: { createBranchError: "Failed to create branch" }, env: { status: "warning", branchMatchError: 'No branch found matching environment "PROD".' }, status: "error", summary: "Failed to create branch" },
+    { repo: { repoError: "Could not load repository branches" }, status: "error", summary: "Could not load repository branches" },
+    { repo: { repoRefreshFailed: true }, status: "error", summary: "Could not refresh repositories" },
+    { repo: { repoLoading: true }, status: "loading", summary: "Refreshing repositories" },
+    { env: { envLoading: true }, status: "loading", summary: "Loading environments" },
+    { env: { envRefreshFailed: true }, status: "error", summary: "Could not load environments" },
+  ])("uses $status and '$summary' for repository setup", async ({ repo, env, status, summary }) => {
+    mockHooks.useGithubRepo.mockReturnValue(buildRepo(repo) as never);
+    mockHooks.useGithubEnvironment.mockReturnValue(buildEnv(env) as never);
+    let latest: UseRepoCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<HookHarness user={{ login: "org-one" } as HookUser} onUpdate={(value) => { latest = value; }} />));
+      expect(latest).toMatchObject({ status, summary, done: false });
+      expect(latest).not.toHaveProperty("shared");
+    } finally {
+      await act(async () => root.unmount());
+    }
   });
 
   it("combines repo and environment state into a single card", async () => {
@@ -137,6 +183,17 @@ describe("useRepoCard", () => {
     });
   });
 
+  it("does not remain complete after signing out with cached repository state", async () => {
+    let latest: UseRepoCard | null = null;
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<HookHarness user={null} onUpdate={(value) => { latest = value; }} />));
+      expect(latest).toMatchObject({ status: "idle", done: false });
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
   it("returns error status when repo card is not complete", async () => {
     mockHooks.useGithubRepo.mockReturnValue(buildRepo({ status: "error" }) as never);
 
@@ -161,7 +218,7 @@ describe("useRepoCard", () => {
     });
   });
 
-  it("returns idle status and environment prompt when no environment is selected", async () => {
+  it("returns a warning and environment prompt when no environment is selected", async () => {
     mockHooks.useGithubEnvironment.mockReturnValue(buildEnv({ selectedEnv: null }) as never);
 
     let latest: UseRepoCard | null = null;
@@ -178,7 +235,7 @@ describe("useRepoCard", () => {
       );
     });
 
-    expect(latest?.status).toBe("idle");
+    expect(latest?.status).toBe("warning");
     expect(latest?.summary).toBe("Select an environment");
     expect(latest?.githubEnvUrl).toBeUndefined();
 
@@ -187,7 +244,7 @@ describe("useRepoCard", () => {
     });
   });
 
-  it("returns error status and error summary when environment branch match errors", async () => {
+  it("returns a blocking warning when the environment branch needs correction", async () => {
     mockHooks.useGithubEnvironment.mockReturnValue(buildEnv({ branchMatchError: "PR branch does not match environment" }) as never);
 
     let latest: UseRepoCard | null = null;
@@ -204,8 +261,9 @@ describe("useRepoCard", () => {
       );
     });
 
-    expect(latest?.status).toBe("error");
+    expect(latest?.status).toBe("warning");
     expect(latest?.summary).toBe("PR branch does not match environment");
+    expect(latest?.done).toBe(false);
 
     await act(async () => {
       root.unmount();
@@ -229,7 +287,7 @@ describe("useRepoCard", () => {
       );
     });
 
-    expect(latest?.status).toBe("complete");
+    expect(latest?.status).toBe("warning");
     expect(latest?.summary).toBe("Environment branch is behind");
 
     await act(async () => {
@@ -254,7 +312,8 @@ describe("useRepoCard", () => {
       );
     });
 
-    expect(latest?.summary).toBe("Not a clone repository");
+    expect(latest?.status).toBe("warning");
+    expect(latest?.summary).toBe("Select or clone a supported template repository");
 
     await act(async () => {
       root.unmount();

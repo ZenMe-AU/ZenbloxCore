@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-export const AWS_SSO_STACK_TITLE = "AWS console sign-in stack";
+export const AWS_SSO_STACK_TITLE = "AWS Single Sign-on Stack";
 
 export const samlStackName = (tenantId: string) => `zeninstaller-entra-sso-${tenantId}`;
 

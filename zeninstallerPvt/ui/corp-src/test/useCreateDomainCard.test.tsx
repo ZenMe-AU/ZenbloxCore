@@ -6,9 +6,12 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
+import { ThemeProvider } from "@mui/material";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import CreateDomainCard from "../cards/CreateDomain/CreateDomainCard";
 import { useCreateDomainCard, type UseCreateDomainCard } from "../cards/CreateDomain/useCreateDomainCard";
 import type { AzureAccount } from "../types";
+import theme from "../theme";
 
 async function waitFor(assertion: () => void, timeoutMs = 2000) {
   const deadline = Date.now() + timeoutMs;
@@ -62,9 +65,9 @@ vi.mock("../auth/msal", () => ({
   ensureScopeConsent: apiMocks.ensureScopeConsent,
 }));
 
+vi.mock("../hooks/util/useAzureAccessCheck", async (importOriginal) => ({ ...await importOriginal<object>(), ensureCardResourceAccess: apiMocks.ensureResourceGroupCreationAccess }));
 vi.mock("../api/azureArm", async (importOriginal) => ({
   ...await importOriginal<typeof import("../api/azureArm")>(),
-  ensureCardResourceAccess: apiMocks.ensureResourceGroupCreationAccess,
   ensureResourceGroupCreationAccess: apiMocks.ensureResourceGroupCreationAccess,
   getProviderRegistrationState: apiMocks.getProviderRegistrationState,
   registerProvider: apiMocks.registerProvider,
@@ -91,11 +94,11 @@ vi.mock("../logic/consent", () => ({
   isConsentError: apiMocks.isConsentError,
 }));
 
-vi.mock("../config/azureConfig", () => ({
+vi.mock("../config/azureConfig", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../config/azureConfig")>()),
   get AZURE_CLIENT_ID() {
     return configMocks.azureClientId;
   },
-  DNS_PROVIDERS: ["Microsoft.Network"],
   ARM_SCOPES: ["arm.scope"],
   APP_SCOPES: ["app.scope"],
   DOMAIN_SCOPES: ["domain.scope"],
@@ -155,6 +158,63 @@ describe("useCreateDomainCard", () => {
     apiMocks.grantAdminConsent.mockResolvedValue(undefined);
     apiMocks.listAppRoleAssignments.mockResolvedValue([]);
     apiMocks.isConsentError.mockReturnValue(false);
+  });
+
+  it("shows failed resource access beside Re-run and in collapsible prerequisites below it", async () => {
+    apiMocks.ensureResourceGroupCreationAccess.mockRejectedValue(new Error("Missing DNS access"));
+    apiMocks.getEntraDomain.mockResolvedValue({ isVerified: true, isDefault: true });
+    let latest: UseCreateDomainCard | null = null;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const props = baseProps();
+    function Harness() {
+      const domain = useCreateDomainCard(props);
+      useEffect(() => { latest = domain; }, [domain]);
+      return (
+        <ThemeProvider theme={theme}>
+          <CreateDomainCard
+            card={{ cardId: "create_domain", status: domain.status, summary: domain.summary, locked: false, requirements: [],
+              unavailable: false, expanded: true, onToggle: vi.fn(), onRequirementClick: vi.fn() }}
+            createDomain={domain} azureAccount={props.azureAccount} corpName={props.corpName} dnsName={props.dnsName}
+            subscriptionId={props.subscriptionId} githubAccount={null} repoName="repo" selectedEnv={null}
+            variables={{ values: {}, loading: false, refreshing: false, error: false, onRefresh: async () => {}, onConfirmed: vi.fn() }}
+          />
+        </ThemeProvider>
+      );
+    }
+    try {
+      await act(async () => root.render(<Harness />));
+      await waitFor(() => {
+        expect(latest?.creationAccess.status).toBe("error");
+        expect(latest?.done).toBe(true);
+      });
+      expect(latest?.status).toBe("error");
+      expect(latest?.summary).toBe("Insufficient permissions to continue");
+      const create = [...container.querySelectorAll("button")].find((button) => button.textContent === "Re-run")!;
+      const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="create-domain-prerequisites"]')!;
+      expect(create.disabled).toBe(true);
+      expect(create.parentElement?.textContent).toContain("Insufficient permissions to continue");
+      expect(create.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(toggle.getAttribute("aria-expanded")).toBe("false");
+      await act(async () => toggle.click());
+      expect(toggle.getAttribute("aria-expanded")).toBe("true");
+      const panel = container.querySelector('#create-domain-prerequisites[role="region"]')!;
+      expect(panel.textContent).toContain("Missing DNS access");
+      expect([...container.querySelectorAll("button")].filter((button) => button.textContent === "Recheck resource access")).toHaveLength(1);
+      apiMocks.ensureResourceGroupCreationAccess.mockResolvedValue(undefined);
+      const retry = [...panel.querySelectorAll("button")].find((button) => button.textContent === "Recheck resource access")!;
+      await act(async () => retry.click());
+      await waitFor(() => expect(latest?.creationAccess.status).toBe("ready"));
+      expect(latest?.status).toBe("complete");
+      expect(latest?.summary).toBe("Domain verified and primary");
+      expect(create.disabled).toBe(false);
+      expect(create.parentElement?.textContent).not.toContain("Insufficient permissions to continue");
+      expect(container.querySelector('[aria-controls="create-domain-prerequisites"]')).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
   });
 
   it("computes resourcesDone from resultMatches and drops stale persisted state", async () => {

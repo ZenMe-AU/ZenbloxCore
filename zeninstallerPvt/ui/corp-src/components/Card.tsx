@@ -3,7 +3,8 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Box, ButtonBase, Collapse, IconButton, Typography } from "@mui/material";
+import { useRef, useState } from "react";
+import { Box, ButtonBase, Collapse, IconButton, Link, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -13,8 +14,10 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { alpha, useTheme } from "@mui/material/styles";
-import type { CardStatus, CardChrome } from "../types";
+import type { CardStatus, CardChrome, CardId } from "../types";
 import { borderHoverTint, borderTint } from "../config/styles";
+
+const forceUnlockedCards = new Set<CardId>();
 
 const STATUS_LABEL: Record<CardStatus, string> = {
   idle: "Not started",
@@ -24,6 +27,7 @@ const STATUS_LABEL: Record<CardStatus, string> = {
   error: "Error",
   skipped: "Skipped",
   unavailable: "Unavailable",
+  locked: "Locked",
 };
 
 function StatusIcon({
@@ -81,7 +85,7 @@ export default function Card({
   title,
   summary,
   status,
-  locked,
+  locked: prerequisitesUnmet,
   requirements,
   expanded,
   onToggle,
@@ -93,6 +97,9 @@ export default function Card({
 }: Props) {
   const theme = useTheme();
   const colors = theme.vars.palette.card;
+  const [forceUnlockedId, setForceUnlockedId] = useState<CardId | null>(null);
+  const forceUnlocked = forceUnlockedId === cardId || forceUnlockedCards.has(cardId);
+  const locked = prerequisitesUnmet && !forceUnlocked;
   /*
    * locked and unavailable share the same muted chrome - the only visual
    * difference between them is the icon (padlock vs warning triangle).
@@ -108,6 +115,7 @@ export default function Card({
   const showSummary = !!headerSummary;
   const titleId = `card-title-${cardId}`;
   const contentId = `card-content-${cardId}`;
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
   return (
     <Box
@@ -132,7 +140,17 @@ export default function Card({
        * consistent base height so cards align whether or not they have a summary.
        */}
       <Box
-        onClick={onToggle}
+        onPointerDown={(event) => {
+          pointerStart.current = { x: event.clientX, y: event.clientY };
+        }}
+        onClick={(event) => {
+          const start = pointerStart.current;
+          pointerStart.current = null;
+          const dragged = event.detail > 0 && start && Math.hypot(event.clientX - start.x, event.clientY - start.y) >= 2;
+          const selection = dragged ? event.currentTarget.ownerDocument.getSelection() : null;
+          if (selection && !selection.isCollapsed && selection.containsNode(event.currentTarget, true)) return;
+          onToggle();
+        }}
         sx={{
           display: "flex",
           alignItems: "center",
@@ -184,6 +202,7 @@ export default function Card({
                 component="span"
                 sx={{
                   display: "block",
+                  userSelect: "text",
                   typography: "body1",
                   fontWeight: 600,
                   color: muted ? colors.mutedText : theme.vars.palette.text.primary,
@@ -267,7 +286,7 @@ export default function Card({
           aria-labelledby={titleId}
           sx={{ borderTop: `1px solid ${colors.contentDivider}`, px: 2.5, py: 2.5 }}
         >
-          {locked ? (
+          {locked ? (// TODO: Extract this section to detect and render locked state consistently across cards
             <>
               {lockedIntro && <Box sx={{ mb: 2 }}>{lockedIntro}</Box>}
               <Box
@@ -288,7 +307,17 @@ export default function Card({
                     color: theme.vars.palette.text.secondary,
                   }}
                 >
-                  Complete these setup steps first. Select a step to open its card.
+                  Complete these setup steps first. Select a step to open its card, or{" "}
+                  <Link
+                    component="button"
+                    type="button"
+                    onClick={() => {
+                      forceUnlockedCards.add(cardId);
+                      setForceUnlockedId(cardId);
+                    }}
+                  >
+                    click here to force unlock this card.
+                  </Link>
                 </Typography>
                 {requirements.map((r) => (
                   <ButtonBase
@@ -326,7 +355,14 @@ export default function Card({
               </Box>
             </>
           ) : (
-            children
+            <>
+              {prerequisitesUnmet && forceUnlocked && (
+                <Typography role="status" color="warning.main" sx={{ mb: 2 }}>
+                  This card is force-unlocked; its prerequisites are still incomplete.
+                </Typography>
+              )}
+              {children}
+            </>
           )}
         </Box>
       </Collapse>

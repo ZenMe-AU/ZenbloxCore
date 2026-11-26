@@ -25,6 +25,8 @@ type Params = {
   envName: string | null;
   onSavedKey?: (key: string, value: string) => void; // Called once per key that saves successfully, so the caller can record it.
   populate?: Record<string, string>; // External "suggested values" applied into the draft as they change (not auto-saved).
+  // When enabled, accept external updates for clean keys without discarding local edits on dirty keys.
+  preserveDirtyOnSync?: boolean;
   autoSaveCounter?: number; // Increment to apply `populate` and immediately save it.
   onAutoSaveResult?: (result: SaveResult["result"]) => void; // Called when auto-save (triggered by autoSaveCounter) completes.
 };
@@ -33,7 +35,7 @@ type Params = {
  * Local/saved variable-editing core shared by the GitHub- and Azure-variables editors: tracks
  * edits, dirty state, the save loop, resync against external saves, and optional auto-save.
  */
-export function useVariableEditor({ keys, savedValues, account, repo, envName, onSavedKey, populate, autoSaveCounter, onAutoSaveResult }: Params) {
+export function useVariableEditor({ keys, savedValues, account, repo, envName, onSavedKey, populate, preserveDirtyOnSync, autoSaveCounter, onAutoSaveResult }: Params) {
   const [localValues, setLocalValues] = useState<Record<string, string>>(savedValues);
   const [upsertStatuses, setUpsertStatuses] = useState<UpsertStatus[]>([]);
   const [updating, setUpdating] = useState(false);
@@ -53,7 +55,10 @@ export function useVariableEditor({ keys, savedValues, account, repo, envName, o
     setPrevScoped(nextScoped);
     setLocalValues((cur) => {
       const next = { ...cur };
-      for (const k of changedKeys) next[k] = savedValues[k] ?? "";
+      // Refresh clean keys but don't overwrite a locally edited draft when requested.
+      for (const k of changedKeys) {
+        if (!preserveDirtyOnSync || (cur[k] ?? "") === (prevScoped[k] ?? "")) next[k] = savedValues[k] ?? "";
+      }
       return next;
     });
   }

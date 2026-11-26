@@ -31,6 +31,7 @@ export interface UseGithubLoginCard extends CardHook, LoginHook<User> {
   readonly cardId: "github_login";
   sessionExpired: boolean;
   redirecting: "login" | "logout" | null;
+  verifying: boolean;
   status: CardStatus; // "loading" while the auth check is in-flight; "complete" once signed in; "idle" otherwise.
   cardDependencyLabel: string; // Label for the dependency that this card provides to others (e.g. "Sign in to GitHub")
 
@@ -121,6 +122,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
   const [account, setAccount] = useState<User | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false); // TODO: check if this is still needed
   const [redirecting, setRedirecting] = useState<"login" | "logout" | null>(null);
+  const [verifying, setVerifying] = useState(false);
   const [mode, setMode] = useState<GithubAuthRecord["mode"]>(BACKEND_CONFIGURED ? "backend" : "direct");
   const [token, setToken] = useState<string | null>(null);
   const loginConfigRef = useRef<GithubAuthRecord>(BACKEND_CONFIGURED ? { mode: "backend" } : { mode: "direct", token: "" });
@@ -164,6 +166,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
           setModeState("backend");
           switchToBackend();
           // Asked directly because the proxy's own identity check is what we are establishing here.
+          setVerifying(true);
           const data = await fetchGithubUser(token);
           setAccount({ login: data.login });
           setGithubLoginStatus("success");
@@ -171,6 +174,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
           console.error("GitHub token exchange failed:", e);
           setSessionExpired(true);
         } finally {
+          setVerifying(false);
           setRedirecting(null);
           setLoggingIn(false);
         }
@@ -200,6 +204,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
       } else {
         switchToBackend();
       }
+      setVerifying(true);
       try {
         const data = await verifyAuth();
         setAccount({ login: data.login });
@@ -209,6 +214,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
         setAccount(null);
         setSessionExpired(true);
       } finally {
+        setVerifying(false);
         setLoggingIn(false);
       }
     }
@@ -247,6 +253,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
     }
 
     setRedirecting("login");
+    setVerifying(true);
     try {
       writeGithubAuthRecord(config);
       setSessionExpired(false);
@@ -260,6 +267,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
       setSessionExpired(true);
       setRedirecting(null);
     } finally {
+      setVerifying(false);
       setLoggingIn(false);
     }
   }, []);
@@ -269,6 +277,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
     writeGithubAuthRecord(null);
     clearStoredCredentials();
     setAccount(null);
+    setSessionExpired(false);
     setTokenState(null);
   }, [setTokenState]);
 
@@ -293,6 +302,7 @@ export function useGithubLoginCard(): UseGithubLoginCard {
     // extra
     sessionExpired,
     redirecting,
+    verifying,
     mode,
     setMode: setModeState,
     backendAvailable: BACKEND_CONFIGURED,

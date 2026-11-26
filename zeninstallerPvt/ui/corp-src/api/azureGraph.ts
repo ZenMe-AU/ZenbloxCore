@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { getToken } from "../auth/msal";
+import { getToken, hasScopeConsent } from "../auth/msal";
 import { azFetch as gFetch, ARM, GRAPH } from "./azureFetch";
 import {
   APP_SCOPES,
@@ -12,12 +12,16 @@ import {
   ORGANIZATION_SCOPES,
   GRANT_CONSENT_SCOPES,
   ACCESS_PASS_SCOPES,
+  AUTH_METHODS_POLICY_SCOPES,
   GROUPS_SCOPES,
   ROLE_MANAGEMENT_SCOPES,
+  ROLE_READ_SCOPES,
+  USER_SCOPES,
   CLAIMS_POLICY_SCOPES,
 } from "../config/azureConfig";
-import { RBAC_ROLE_IDS } from "../config/azureConfig";
+import { DIRECTORY_ROLE_IDS, RBAC_ROLE_IDS } from "../config/azureConfig";
 import { deterministicUuid } from "../logic/crypto";
+import { MissingAccessError } from "../logic/azureAccess";
 import type { AzureAccount, AzureTenant } from "../types";
 
 // ── Subscriptions ──────────────────────────────────────────────────────────────
@@ -63,16 +67,18 @@ export async function listTenants(account: AzureAccount, overrideTenantId?: stri
 
 // ── App registration ───────────────────────────────────────────────────────────
 
-export async function getExistingApp(account: AzureAccount, displayName: string, overrideTenantId?: string): Promise<{ appId: string; id: string } | null> {
+export async function getExistingApp(account: AzureAccount, displayName: string, overrideTenantId?: string, signal?: AbortSignal): Promise<{ appId: string; id: string } | null> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
-  const data = await gFetch(token, GRAPH, `/applications?$filter=displayName eq '${displayName}'&$select=appId,id`);
+  signal?.throwIfAborted();
+  const data = await gFetch(token, GRAPH, `/applications?$filter=displayName eq '${displayName}'&$select=appId,id`, { signal });
   return data.value?.[0] ? { appId: data.value[0].appId, id: data.value[0].id } : null;
 }
 
 // Reverse lookup: resolve an app registration's display name from its client (app) id.
-export async function getAppNameByAppId(account: AzureAccount, appId: string, overrideTenantId?: string): Promise<string | null> {
+export async function getAppNameByAppId(account: AzureAccount, appId: string, overrideTenantId?: string, signal?: AbortSignal): Promise<string | null> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
-  const data = await gFetch(token, GRAPH, `/applications?$filter=appId eq '${appId}'&$select=displayName`);
+  signal?.throwIfAborted();
+  const data = await gFetch(token, GRAPH, `/applications?$filter=appId eq '${appId}'&$select=displayName`, { signal });
   return data.value?.[0]?.displayName ?? null;
 }
 
@@ -179,9 +185,10 @@ export async function ensureSpaRedirectUri(account: AzureAccount, appObjectId: s
   return true;
 }
 
-export async function getExistingSP(account: AzureAccount, appId: string, overrideTenantId?: string): Promise<{ id: string } | null> {
+export async function getExistingSP(account: AzureAccount, appId: string, overrideTenantId?: string, signal?: AbortSignal): Promise<{ id: string } | null> {
   const token = await getToken(account, APP_SCOPES, overrideTenantId);
-  const data = await gFetch(token, GRAPH, `/servicePrincipals?$filter=appId eq '${appId}'&$select=id`);
+  signal?.throwIfAborted();
+  const data = await gFetch(token, GRAPH, `/servicePrincipals?$filter=appId eq '${appId}'&$select=id`, { signal });
   return data.value?.[0] ? { id: data.value[0].id } : null;
 }
 
@@ -342,6 +349,20 @@ export async function listVerifiedDomainsViaOrganization(account: AzureAccount, 
   return data?.value?.[0]?.verifiedDomains ?? [];
 }
 
+// P1 allows role-assignable groups; P2 adds PIM. "Warning" is an expired licence still in its grace period.
+export type EntraLicence = "none" | "p1" | "p2";
+const ENTRA_ID_P1_PLAN = "41781fb2-bc02-4b7c-bd55-b576c07bb09d";
+const ENTRA_ID_P2_PLAN = "eec0eb4f-6444-4f95-aba0-50c24d67f998";
+export function entraLicenceFromPlans(plans: { servicePlanId: string; capabilityStatus: string }[]): EntraLicence {
+  const active = new Set(plans.filter((p) => p.capabilityStatus === "Enabled" || p.capabilityStatus === "Warning").map((p) => p.servicePlanId));
+  return active.has(ENTRA_ID_P2_PLAN) ? "p2" : active.has(ENTRA_ID_P1_PLAN) ? "p1" : "none";
+}
+export async function getEntraLicence(account: AzureAccount, overrideTenantId?: string): Promise<EntraLicence> {
+  const token = await getToken(account, ORGANIZATION_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, "/organization?$select=assignedPlans");
+  return entraLicenceFromPlans(data?.value?.[0]?.assignedPlans ?? []);
+}
+
 export async function getEntraDomain(account: AzureAccount, domainName: string, overrideTenantId?: string): Promise<EntraDomain | null> {
   const token = await getToken(account, DOMAIN_SCOPES, overrideTenantId);
   try {
@@ -429,6 +450,21 @@ export async function ensureTemporaryAccessPassEnabled(account: AzureAccount, ov
       "@odata.type": "#microsoft.graph.temporaryAccessPassAuthenticationMethodConfiguration",
       state: "enabled",
     }),
+  });
+  return true;
+}
+
+const FIDO2_POLICY_PATH = "/policies/authenticationMethodsPolicy/authenticationMethodConfigurations/Fido2";
+
+// Lets users register passkeys (FIDO2), enabling the method if it's off; who it targets and which keys it allows stay as they are.
+// Returns true if it needed to be enabled, false if it already was.
+export async function ensureFido2Enabled(account: AzureAccount, overrideTenantId?: string): Promise<boolean> {
+  const token = await getToken(account, AUTH_METHODS_POLICY_SCOPES, overrideTenantId);
+  const data = await gFetch(token, GRAPH, FIDO2_POLICY_PATH);
+  if (data.state === "enabled") return false;
+  await gFetch(token, GRAPH, FIDO2_POLICY_PATH, {
+    method: "PATCH",
+    body: JSON.stringify({ "@odata.type": "#microsoft.graph.fido2AuthenticationMethodConfiguration", state: "enabled" }),
   });
   return true;
 }
@@ -605,7 +641,7 @@ export async function createGroup(
   params: { displayName: string; description: string; mailNickname: string; isAssignableToRole?: boolean },
   overrideTenantId?: string
 ): Promise<EntraGroup> {
-  const token = await getToken(account, GROUPS_SCOPES, overrideTenantId);
+  const token = await getToken(account, params.isAssignableToRole ? [...GROUPS_SCOPES, ...ROLE_MANAGEMENT_SCOPES] : GROUPS_SCOPES, overrideTenantId);
   const data = await gFetch(token, GRAPH, "/groups", {
     method: "POST",
     body: JSON.stringify({
@@ -675,6 +711,203 @@ export async function ensureRoleEligibility(
     }),
   });
   return "created";
+}
+
+// Active, not eligible: members hold the role without activating it in PIM.
+export async function ensureDirectoryRoleAssignment(
+  account: AzureAccount,
+  principalId: string,
+  roleDefinitionId: string,
+  overrideTenantId?: string
+): Promise<"created" | "exists"> {
+  const token = await getToken(account, ROLE_MANAGEMENT_SCOPES, overrideTenantId);
+  const filter = `principalId eq '${principalId}' and roleDefinitionId eq '${roleDefinitionId}'`;
+  const data = await gFetch(token, GRAPH, `/roleManagement/directory/roleAssignments?$filter=${encodeURIComponent(filter)}`);
+  if ((data?.value ?? []).length > 0) return "exists";
+  await gFetch(token, GRAPH, "/roleManagement/directory/roleAssignments", {
+    method: "POST",
+    body: JSON.stringify({ principalId, roleDefinitionId, directoryScopeId: "/" }),
+  });
+  return "created";
+}
+
+// PIM: the principal is eligible and activates the role when needed. Needs Entra ID P2.
+export async function ensureDirectoryRoleEligibility(
+  account: AzureAccount,
+  principalId: string,
+  roleDefinitionId: string,
+  overrideTenantId?: string
+): Promise<"created" | "exists"> {
+  const token = await getToken(account, ROLE_MANAGEMENT_SCOPES, overrideTenantId);
+  const filter = `principalId eq '${principalId}' and roleDefinitionId eq '${roleDefinitionId}'`;
+  const data = await gFetch(token, GRAPH, `/roleManagement/directory/roleEligibilitySchedules?$filter=${encodeURIComponent(filter)}`);
+  if ((data?.value ?? []).length > 0) return "exists";
+  await gFetch(token, GRAPH, "/roleManagement/directory/roleEligibilityScheduleRequests", {
+    method: "POST",
+    body: JSON.stringify({
+      action: "adminAssign",
+      justification: "Set up by ZenInstaller",
+      principalId,
+      roleDefinitionId,
+      directoryScopeId: "/",
+      scheduleInfo: { startDateTime: new Date().toISOString(), expiration: { type: "noExpiration" } },
+    }),
+  });
+  return "created";
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+
+export type EntraUserRef = { id: string; userPrincipalName: string };
+
+// A filter rather than GET /users/{upn}, so a missing user is null instead of a 404. The name and employee ID tell who it is.
+export async function getUserByUpn(account: AzureAccount, upn: string, overrideTenantId?: string): Promise<(EntraUser & { employeeId: string | null }) | null> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  const filter = `userPrincipalName eq '${upn.replace(/'/g, "''")}'`;
+  const data = await gFetch(token, GRAPH, `/users?$filter=${encodeURIComponent(filter)}&$select=id,displayName,userPrincipalName,employeeId`);
+  const u = data?.value?.[0];
+  return u ? { id: u.id, displayName: u.displayName ?? u.userPrincipalName, userPrincipalName: u.userPrincipalName, employeeId: u.employeeId ?? null } : null;
+}
+
+// Graph requires a password; nobody is shown it, since the account's first sign-in uses a Temporary Access Pass.
+export async function createUser(
+  account: AzureAccount,
+  params: { userPrincipalName: string; displayName: string; givenName: string; surname: string; mobilePhone?: string; employeeId?: string; mailNickname: string; password: string },
+  overrideTenantId?: string
+): Promise<EntraUserRef> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  const { password, ...profile } = params;
+  const data = await gFetch(token, GRAPH, "/users", {
+    method: "POST",
+    body: JSON.stringify({ accountEnabled: true, ...profile, passwordProfile: { password, forceChangePasswordNextSignIn: true } }),
+  });
+  return { id: data.id, userPrincipalName: data.userPrincipalName };
+}
+
+// Users whose name or UPN starts with the query, for the manager picker.
+export async function searchUsers(account: AzureAccount, query: string, overrideTenantId?: string): Promise<EntraUser[]> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  const q = query.replace(/'/g, "''");
+  const filter = `startswith(displayName,'${q}') or startswith(userPrincipalName,'${q}')`;
+  const data = await gFetch(token, GRAPH, `/users?$filter=${encodeURIComponent(filter)}&$select=id,displayName,userPrincipalName&$top=10`);
+  return (data?.value ?? []).map((u: { id: string; displayName?: string; userPrincipalName: string }) => ({
+    id: u.id,
+    displayName: u.displayName ?? u.userPrincipalName,
+    userPrincipalName: u.userPrincipalName,
+  }));
+}
+
+// The signed-in user as that tenant sees them; a guest there has its own id.
+export async function getSignedInUser(account: AzureAccount, overrideTenantId?: string): Promise<EntraUser> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  const u: { id: string; displayName?: string; userPrincipalName: string } = await gFetch(token, GRAPH, "/me?$select=id,displayName,userPrincipalName");
+  return { id: u.id, displayName: u.displayName ?? u.userPrincipalName, userPrincipalName: u.userPrincipalName };
+}
+
+export type AdminAccount = EntraUser & { manager: string | null; managerId: string | null; employeeId: string | null }; // manager is the manager's display name.
+export type AdminPair = { user: AdminAccount; privileged: AdminAccount };
+
+// Every page of users matching the filter, with their manager's name.
+async function listUsersWithManager(token: string, filter: string): Promise<AdminAccount[]> {
+  const users: AdminAccount[] = [];
+  let path: string | null = `/users?$filter=${encodeURIComponent(filter)}&$select=id,displayName,userPrincipalName,employeeId&$expand=manager($select=id,displayName)&$top=100`;
+  while (path) {
+    const page: { value?: { id: string; displayName?: string; userPrincipalName: string; employeeId?: string | null; manager?: { id?: string; displayName?: string } }[]; "@odata.nextLink"?: string } =
+      await gFetch(token, GRAPH, path);
+    for (const u of page?.value ?? []) {
+      users.push({ id: u.id, displayName: u.displayName ?? u.userPrincipalName, userPrincipalName: u.userPrincipalName, manager: u.manager?.displayName ?? null, managerId: u.manager?.id ?? null, employeeId: u.employeeId ?? null });
+    }
+    const next = page?.["@odata.nextLink"];
+    if (next && !next.startsWith(`${GRAPH}/`)) throw new Error("Graph returned an unexpected users URL");
+    path = next ? next.slice(GRAPH.length) : null;
+  }
+  return users;
+}
+
+// // An adm_ account plus the account with the same UPN minus adm_ is an admin this card made. // Deprecated: admins pair by employee ID and groups now; kept for reference.
+// export async function listAdminPairs(account: AzureAccount, overrideTenantId?: string): Promise<AdminPair[]> {
+//   const token = await getToken(account, USER_SCOPES, overrideTenantId);
+//   const privileged = await listUsersWithManager(token, "startswith(userPrincipalName,'adm_')");
+//   const users = new Map<string, AdminAccount>();
+//   for (let i = 0; i < privileged.length; i += 15) {
+//     // Graph takes at most 15 values in one in().
+//     const upns = privileged.slice(i, i + 15).map((p) => `'${p.userPrincipalName.slice(4).replace(/'/g, "''")}'`);
+//     for (const u of await listUsersWithManager(token, `userPrincipalName in (${upns.join(",")})`)) users.set(u.userPrincipalName.toLowerCase(), u);
+//   }
+//   return privileged
+//     .flatMap((p) => {
+//       const user = users.get(p.userPrincipalName.slice(4).toLowerCase());
+//       return user ? [{ user, privileged: p }] : [];
+//     })
+//     .sort((a, b) => a.user.displayName.localeCompare(b.user.displayName));
+// }
+
+// An admin this card made: an adm_ account in every privileged group, managed by a user account in every user group, both with the same employee ID.
+export async function listAdminPairs(
+  account: AzureAccount,
+  groups: { user: readonly string[]; privileged: readonly string[] },
+  overrideTenantId?: string
+): Promise<AdminPair[]> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  const groupIds = new Map(await Promise.all([...groups.user, ...groups.privileged].map(async (name) => [name, (await getGroupByName(account, name, overrideTenantId))?.id] as const)));
+  // Nobody is in a group that doesn't exist yet.
+  const inGroups = async (u: AdminAccount, names: readonly string[]) =>
+    (await Promise.all(names.map((name) => groupIds.get(name)).map((id) => !!id && isGroupMember(account, id, u.id, overrideTenantId)))).every(Boolean);
+  const onlyIn = async (users: AdminAccount[], names: readonly string[]) => {
+    const keep = await Promise.all(users.map((u) => inGroups(u, names)));
+    return users.filter((_, i) => keep[i]);
+  };
+  const idOf = (u: AdminAccount) => u.employeeId?.trim().toLowerCase() ?? "";
+
+  const privileged = await onlyIn((await listUsersWithManager(token, "startswith(userPrincipalName,'adm_')")).filter(idOf), groups.privileged);
+  const privilegedIds = new Set(privileged.map((p) => p.id));
+  const found: AdminAccount[] = [];
+  for (let i = 0; i < privileged.length; i += 15) {
+    // Graph takes at most 15 values in one in().
+    const ids = privileged.slice(i, i + 15).map((p) => `'${(p.employeeId ?? "").trim().replace(/'/g, "''")}'`);
+    found.push(...(await listUsersWithManager(token, `employeeId in (${ids.join(",")})`)).filter((u) => !privilegedIds.has(u.id)));
+  }
+  const users = new Map((await onlyIn(found, groups.user)).map((u) => [u.id, u]));
+  return privileged
+    .flatMap((p) => {
+      const user = p.managerId ? users.get(p.managerId) : undefined;
+      return user && idOf(user) === idOf(p) ? [{ user, privileged: p }] : [];
+    })
+    .sort((a, b) => a.user.displayName.localeCompare(b.user.displayName));
+}
+
+// Null when the user has no manager.
+export async function getUserManagerId(account: AzureAccount, userId: string, overrideTenantId?: string): Promise<string | null> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  try {
+    const data = await gFetch(token, GRAPH, `/users/${userId}/manager?$select=id`);
+    return data.id;
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("404")) return null;
+    throw err;
+  }
+}
+
+export async function setUserManager(account: AzureAccount, userId: string, managerId: string, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  await gFetch(token, GRAPH, `/users/${userId}/manager/$ref`, {
+    method: "PUT",
+    body: JSON.stringify({ "@odata.id": `${GRAPH}/users/${managerId}` }),
+  });
+}
+
+// The users with this employee ID; one admin's user and adm_ accounts share it.
+export async function listUsersByEmployeeId(account: AzureAccount, employeeId: string, overrideTenantId?: string): Promise<(EntraUser & { employeeId: string | null })[]> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  const filter = `employeeId eq '${employeeId.replace(/'/g, "''")}'`;
+  const data: { value?: { id: string; displayName?: string; userPrincipalName: string; employeeId?: string | null }[] } =
+    await gFetch(token, GRAPH, `/users?$filter=${encodeURIComponent(filter)}&$select=id,displayName,userPrincipalName,employeeId`);
+  return (data?.value ?? []).map((user) => ({ id: user.id, displayName: user.displayName ?? user.userPrincipalName, userPrincipalName: user.userPrincipalName, employeeId: user.employeeId ?? null }));
+}
+
+export async function updateUser(account: AzureAccount, userId: string, patch: { employeeId?: string }, overrideTenantId?: string): Promise<void> {
+  const token = await getToken(account, USER_SCOPES, overrideTenantId);
+  await gFetch(token, GRAPH, `/users/${userId}`, { method: "PATCH", body: JSON.stringify(patch) });
 }
 
 // ── AWS console sign-in (SAML) ─────────────────────────────────────────────────
@@ -829,4 +1062,31 @@ export async function hasAwsSsoRoleClaim(account: AzureAccount, spId: string, ro
   const token = await getToken(account, [...APP_SCOPES, ...CLAIMS_POLICY_SCOPES], overrideTenantId);
   const policy = await gFetch(token, GRAPH_BETA, `/servicePrincipals/${spId}/claimsPolicy`).catch(() => null);
   return JSON.stringify(policy ?? {}).includes(roleClaim);
+}
+
+// ── Entra role actions ────────────────────────────────────────────────────────
+
+// A role action ending in allTasks covers everything under it, e.g. users/allProperties/allTasks covers users/create.
+const coversEntraAction = (granted: string, needed: string) =>
+  granted === needed || (granted.endsWith("/allTasks") && needed.startsWith(granted.replace(/(\/allProperties)?\/allTasks$/, "/")));
+
+// Global Administrator passes outright: its action list leaves out some it can do, such as userCredentialPolicies.
+// ponytail: only built-in roles held tenant-wide count (directly, through a group, or activated in PIM); custom and admin-unit roles need roleAssignments.
+export async function ensureEntraActions(account: AzureAccount, actions: readonly string[], overrideTenantId?: string): Promise<void> {
+  if (!actions.length) return;
+  if (!(await hasScopeConsent(account, ROLE_READ_SCOPES, overrideTenantId))) {
+    throw new MissingAccessError("ZenInstaller needs permission to read your Microsoft Entra roles (RoleManagement.Read.Directory, which needs admin consent). Recheck to grant it.");
+  }
+  const token = await getToken(account, ROLE_READ_SCOPES, overrideTenantId);
+  const roles: { value?: { roleTemplateId: string }[] } = await gFetch(token, GRAPH, "/me/transitiveMemberOf/microsoft.graph.directoryRole?$select=roleTemplateId");
+  const templateIds = (roles?.value ?? []).map((role) => role.roleTemplateId);
+  if (templateIds.includes(DIRECTORY_ROLE_IDS["Global Administrator"])) return;
+  const definitions: { rolePermissions: { allowedResourceActions: string[] }[] }[] = await Promise.all(
+    templateIds.map((id) => gFetch(token, GRAPH, `/roleManagement/directory/roleDefinitions/${id}?$select=rolePermissions`))
+  );
+  const granted = definitions.flatMap((definition) => definition.rolePermissions.flatMap((permission) => permission.allowedResourceActions));
+  const missing = actions.filter((needed) => !granted.some((action) => coversEntraAction(action, needed)));
+  if (missing.length) {
+    throw new MissingAccessError(`Your account is missing these Microsoft Entra permissions:\n${missing.join("\n")}\n\nAssign or activate a Microsoft Entra role that includes them, such as Global Administrator, then recheck.`);
+  }
 }

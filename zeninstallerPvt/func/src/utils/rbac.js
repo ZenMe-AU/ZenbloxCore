@@ -7,42 +7,54 @@ import { Forbidden, InternalError } from "../error/index.js";
 import { webPubSubResourceId } from "./webPubSub.js";
 import { sessionTableResourceId } from "./sessionTable.js";
 
+const TABLE_ENTITIES = "Microsoft.Storage/storageAccounts/tableServices/tables/entities";
+// The data actions each built-in role grants, the same ones the UI checks; a custom role with them passes too.
 const ROLES = {
-  "Web PubSub Service Owner": { id: "12cf5a90-567b-43ae-8102-96cf46c7d9b4", scope: webPubSubResourceId },
-  "Storage Table Data Contributor": { id: "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3", scope: sessionTableResourceId },
-  "Storage Table Data Reader": { id: "76199698-9eea-4c19-bc75-cec21354c6b6", scope: sessionTableResourceId },
+  "Web PubSub Service Owner": { dataActions: ["Microsoft.SignalRService/WebPubSub/*"], scope: webPubSubResourceId },
+  "Storage Table Data Contributor": {
+    dataActions: [`${TABLE_ENTITIES}/read`, `${TABLE_ENTITIES}/write`, `${TABLE_ENTITIES}/delete`, `${TABLE_ENTITIES}/add/action`, `${TABLE_ENTITIES}/update/action`],
+    scope: sessionTableResourceId,
+  },
+  "Storage Table Data Reader": { dataActions: [`${TABLE_ENTITIES}/read`], scope: sessionTableResourceId },
 };
+
+// const ROLES = { // Deprecated: roles are now checked by the data actions they grant, as the UI checks them; kept for reference.
+//   "Web PubSub Service Owner": { id: "12cf5a90-567b-43ae-8102-96cf46c7d9b4", scope: webPubSubResourceId },
+//   "Storage Table Data Contributor": { id: "0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3", scope: sessionTableResourceId },
+//   "Storage Table Data Reader": { id: "76199698-9eea-4c19-bc75-cec21354c6b6", scope: sessionTableResourceId },
+// };
 
 const ARM = "https://management.azure.com";
 
-// Safe unverified: ARM rejects the token below if it is not genuine, which is the real check.
-function callerObjectId(userToken) {
-  try {
-    const [, payload] = userToken.split(".");
-    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")).oid ?? null;
-  } catch {
-    return null;
-  }
-}
-
-// Every role definition the caller holds at this scope, inherited ones included.
-async function grantedRoleIds(userToken, scope) {
-  const oid = callerObjectId(userToken);
-  if (!oid) throw InternalError({ meta: { reason: "caller_object_id_missing" } });
-
-  const path = `${scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${oid}')`;
-  const res = await fetch(`${ARM}${path}`, { headers: { Authorization: `Bearer ${userToken}` } });
-  if (!res.ok) {
-    throw InternalError({ meta: { reason: "role_assignment_lookup_failed", status: res.status, scope } });
-  }
-
-  const data = await res.json();
-  return (data?.value ?? []).map((a) => a.properties?.roleDefinitionId ?? "");
-}
+// // Safe unverified: ARM rejects the token below if it is not genuine, which is the real check.
+// function callerObjectId(userToken) { // Deprecated: the permissions API reads the caller from the token itself; kept for reference.
+//   try {
+//     const [, payload] = userToken.split(".");
+//     return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")).oid ?? null;
+//   } catch {
+//     return null;
+//   }
+// }
+//
+// // Every role definition the caller holds at this scope, inherited ones included.
+// async function grantedRoleIds(userToken, scope) { // Deprecated: the permissions API reads the caller from the token itself; kept for reference.
+//   const oid = callerObjectId(userToken);
+//   if (!oid) throw InternalError({ meta: { reason: "caller_object_id_missing" } });
+//
+//   const path = `${scope}/providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&$filter=assignedTo('${oid}')`;
+//   const res = await fetch(`${ARM}${path}`, { headers: { Authorization: `Bearer ${userToken}` } });
+//   if (!res.ok) {
+//     throw InternalError({ meta: { reason: "role_assignment_lookup_failed", status: res.status, scope } });
+//   }
+//
+//   const data = await res.json();
+//   return (data?.value ?? []).map((a) => a.properties?.roleDefinitionId ?? "");
+// }
 
 /*
  * Requirements form a tree: lists mean "all", anyOf means "one of".
  * ["A", "B", anyOf("C", allOf("D", "E"), "F")] means A and B and (C or (D and E) or F)
+ * A leaf is a role name from ROLES, or the actions themselves, shaped like the UI's ArmRole: { scope, actions, dataActions }.
  */
 export const anyOf = (...options) => ({ any: options });
 export const allOf = (...options) => ({ all: options });
@@ -50,26 +62,29 @@ export const allOf = (...options) => ({ all: options });
 // Describes a requirement node as a human-readable string.
 function describe(node) {
   if (typeof node === "string") return node;
+  if (node.scope) return [...(node.actions ?? []), ...(node.dataActions ?? [])].join(", ");
   if (Array.isArray(node) || node.all) return `(${(node.all ?? node).map(describe).join(" and ")})`;
   return `(${node.any.map(describe).join(" or ")})`;
 }
 
+// Whether the caller has every action and data action the role asks for at its scope, whichever roles give them.
 async function holdsRole(userToken, name, seen) {
-  const role = ROLES[name];
+  const role = typeof name === "string" ? ROLES[name] : name;
   if (!role) throw InternalError({ meta: { reason: "unknown_role", role: name } });
 
-  const scope = role.scope();
+  const scope = typeof role.scope === "function" ? role.scope() : role.scope;
   if (!scope) throw InternalError({ meta: { reason: "resource_id_unresolved", role: name } });
 
   // One lookup per scope, however many places mention it.
-  if (!seen.has(scope)) seen.set(scope, grantedRoleIds(userToken, scope));
+  if (!seen.has(scope)) seen.set(scope, grantedPermissions(userToken, scope));
   const granted = await seen.get(scope);
-  return granted.some((id) => id.toLowerCase().endsWith(role.id.toLowerCase()));
+  return (role.actions ?? []).every((action) => grantsArmAction(granted, action)) &&
+    (role.dataActions ?? []).every((action) => grantsArmAction(granted, action, true));
 }
 
 // Returns missing requirements. A list returns only failed children, while an unsatisfied "any" returns itself.
 async function missing(userToken, node, seen) {
-  if (typeof node === "string") return (await holdsRole(userToken, node, seen)) ? null : node;
+  if (typeof node === "string" || node.scope) return (await holdsRole(userToken, node, seen)) ? null : node;
 
   const all = Array.isArray(node) ? node : node.all;
   if (all) {
@@ -92,6 +107,30 @@ export async function assertRoles(userToken, requirement) {
   if (!gap) return;
 
   // Names what was actually held, since the shortfall alone says nothing about why.
-  for (const [scope, granted] of seen) console.warn("Caller holds at", scope, "—", await granted);
+  for (const [scope, granted] of seen) console.warn("Caller holds at", scope, "—", JSON.stringify(await granted));
   throw Forbidden({ meta: { reason: "insufficient_permissions", needs: describe(gap) } });
+}
+
+// The caller's effective permissions at this scope, from every role it holds there or above.
+async function grantedPermissions(userToken, scope) {
+  const permissions = [];
+  let url = `${ARM}${scope}/providers/Microsoft.Authorization/permissions?api-version=2022-04-01`;
+  while (url) {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${userToken}` } });
+    if (!res.ok) throw InternalError({ meta: { reason: "permission_lookup_failed", status: res.status, scope } });
+    const data = await res.json();
+    permissions.push(...(data?.value ?? []));
+    // The caller's token only ever goes to ARM.
+    url = data?.nextLink && new URL(data.nextLink).origin === ARM ? data.nextLink : null;
+  }
+  return permissions;
+}
+
+// Same rule as the UI's grantsArmAction: a matching grant covers the action unless that grant's own notActions (or notDataActions) excludes it.
+function grantsArmAction(permissions, action, data = false) {
+  const matches = (pattern) =>
+    new RegExp(`^${pattern.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`, "i").test(action);
+  return permissions.some((p) => data
+    ? (p.dataActions ?? []).some(matches) && !(p.notDataActions ?? []).some(matches)
+    : (p.actions ?? []).some(matches) && !(p.notActions ?? []).some(matches));
 }

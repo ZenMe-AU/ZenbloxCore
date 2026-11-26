@@ -8,7 +8,7 @@ on:
         description: "GitHub Environment name"
         required: false
       dir:
-        description: "Stage directory under corpSetup, e.g. GlobalGroups"
+        description: "Stage directory under corpSetup, e.g. UserAccounts"
         required: true
 
 permissions:

@@ -5,7 +5,7 @@
 
 import { app } from "@azure/functions";
 import { requireAuth } from "../../utils/auth.js";
-import { anyOf } from "../../utils/rbac.js";
+// import { anyOf } from "../../utils/rbac.js"; // Deprecated: for now a sign-in to this tenant is enough; kept for reference.
 import { corsWrapper } from "../../utils/cors.js";
 import { Forbidden, HttpError, MissingParam, logError } from "../../error/index.js";
 import { deleteSessionEntity, getTableClient, readSession } from "../../utils/sessionTable.js";
@@ -18,7 +18,7 @@ app.http("negotiate", {
   handler: corsWrapper(
     requireAuth({
       ms: true,
-      msRbac: [anyOf("Storage Table Data Reader", "Storage Table Data Contributor"), "Web PubSub Service Owner"],
+      // msRbac: [anyOf("Storage Table Data Reader", "Storage Table Data Contributor"), "Web PubSub Service Owner"], // Deprecated: for now a sign-in to this tenant is enough; kept for reference.
     })(async (request) => {
       const sessionId = request.query.get("session");
       const token = request.query.get("token");

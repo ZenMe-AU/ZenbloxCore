@@ -3,11 +3,20 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { act, useEffect } from "react";
+import { act, StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
+import { ThemeProvider } from "@mui/material";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearGithubToken } from "../cards/GithubLogin/useGithubLoginCard";
 import { readGithubAuthRecord, useGithubLoginCard, type UseGithubLoginCard } from "../cards/GithubLogin/useGithubLoginCard";
+import * as legacyHook from "../cards/GithubLogin/useGithubLoginCard";
+import * as legacyCard from "../cards/GithubLogin/GithubLoginCard";
+import { clearGithubToken as clearGithubTokenV2, useGithubLoginV2, type UseGithubLoginV2 } from "../cards/GithubLoginV2/useGithubLoginV2";
+import GithubLoginV2, { CardContentMain } from "../cards/GithubLoginV2/GithubLoginV2";
+import { createAppContext } from "../appContext";
+import { getStoredToken, setStoredToken } from "../logic/tokenStore";
+import theme from "../theme";
 
 const { apiMocks } = vi.hoisted(() => ({
   apiMocks: {
@@ -33,10 +42,19 @@ vi.mock("../api", () => ({
   fetchGithubUser: apiMocks.fetchGithubUser,
 }));
 
+vi.mock("../api/github", () => ({
+  createGithubApi: vi.fn(() => ({ verifyAuth: apiMocks.verifyAuth })),
+  fetchGithubUser: apiMocks.fetchGithubUser,
+}));
+
 // jsdom refuses real navigation, so the redirect is captured instead of followed.
 const navigations: string[] = [];
+let v2Store = createAppContext();
+let v2QueryClient = new QueryClient();
 beforeEach(() => {
   navigations.length = 0;
+  v2Store = createAppContext();
+  v2QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   Object.defineProperty(window, "location", {
     configurable: true,
     value: {
@@ -64,6 +82,25 @@ function HookHarness(props: { onUpdate: (value: UseGithubLoginCard) => void }) {
   return null;
 }
 
+function V2HarnessContent({ onUpdate }: { onUpdate: (value: UseGithubLoginV2) => void }) {
+  const auth = useGithubLoginV2(v2Store);
+  useEffect(() => onUpdate(auth), [auth, onUpdate]);
+  return (
+    <ThemeProvider theme={theme}>
+      <CardContentMain baseCardContext={auth.baseCardContext} privateContext={auth.privateContext} />
+    </ThemeProvider>
+  );
+}
+
+function V2Harness(props: { onUpdate: (value: UseGithubLoginV2) => void }) {
+  return <QueryClientProvider client={v2QueryClient}><V2HarnessContent {...props} /></QueryClientProvider>;
+}
+
+function getV2Shared() {
+  const entry = v2Store.getSnapshot().cards.github_login_v2;
+  return entry?.initialised ? entry : undefined;
+}
+
 async function waitFor(assertion: () => void, timeoutMs = 1500) {
   const start = Date.now();
   while (true) {
@@ -86,7 +123,36 @@ describe("useGithubLoginCard", () => {
     sessionStorage.clear();
     // The live token is a module variable, so clearing storage alone leaks it between tests.
     clearGithubToken();
+    clearGithubTokenV2();
     apiMocks.verifyAuth.mockResolvedValue({ login: "octocat" });
+  });
+
+  it("renders the V2 entrypoint through BaseCard and publishes its ready status", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    try {
+      await act(async () => root.render(
+        <QueryClientProvider client={v2QueryClient}>
+          <ThemeProvider theme={theme}>
+            <GithubLoginV2 {...v2Store} />
+          </ThemeProvider>
+        </QueryClientProvider>
+      ));
+      await waitFor(() => {
+        expect(container.querySelector("#card-github_login_v2")).not.toBeNull();
+        expect(container.textContent).toContain("Connect your GitHub account");
+      });
+      expect(container.textContent).toContain("Need help? Click here");
+      expect(getV2Shared()).toMatchObject({
+        currentBaseCardStatus: "ready",
+        currentStatus: "ready",
+      });
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
   });
 
   it("starts idle when no auth record is saved", async () => {
@@ -319,7 +385,7 @@ describe("useGithubLoginCard", () => {
   });
 
   it("does not login in direct mode when token is missing", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => { });
     let latest: UseGithubLoginCard | null = null;
     const root = createRoot(document.createElement("div"));
 
@@ -520,5 +586,184 @@ describe("useGithubLoginCard", () => {
     await act(async () => {
       root.unmount();
     });
+  });
+
+  it("uses the new lifecycle for sign-in, failure, retry and sign-out", async () => {
+    let latest: UseGithubLoginV2 | undefined;
+    const oldHook = vi.spyOn(legacyHook, "useGithubLoginCard");
+    const oldContent = vi.spyOn(legacyCard, "GithubLoginContent");
+    let resolveVerification!: (value: { login: string }) => void;
+    apiMocks.verifyAuth.mockReturnValueOnce(new Promise((resolve) => { resolveVerification = resolve; }));
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(<V2Harness onUpdate={(value) => { latest = value; }} />));
+      expect(oldHook).not.toHaveBeenCalled();
+      expect(oldContent).not.toHaveBeenCalled();
+      expect(latest?.baseCardContext.lifecycle).toBe("ready");
+      expect(latest).not.toHaveProperty("shared");
+      expect(getV2Shared()).toMatchObject({ currentBaseCardStatus: "ready", currentStatus: "ready", githubAccount: null, githubToken: null });
+      await act(async () => {
+        latest?.privateContext.setMode("direct");
+        latest?.privateContext.setToken("ghp_test");
+      });
+      expect(latest?.privateContext.token).toBe("ghp_test");
+      expect(latest).not.toHaveProperty("login");
+      expect(typeof latest?.privateContext.login).toBe("function");
+      expect(getV2Shared()).not.toHaveProperty("token");
+      expect(JSON.stringify(getV2Shared())).not.toContain("ghp_test");
+      expect(container.textContent).toContain("Connect with PAT");
+      await act(async () => { void latest?.privateContext.login(); });
+      expect(latest?.baseCardContext.lifecycle).toBe("action");
+      expect(getV2Shared()).toEqual({ initialised: true, title: "GitHub Login 2", currentBaseCardStatus: "action", currentStatus: "signing-in", githubAccount: null, githubToken: null, githubMode: null });
+      await act(async () => resolveVerification({ login: "octocat" }));
+      expect(latest?.baseCardContext.lifecycle).toBe("complete");
+      expect(latest?.privateContext.account).toEqual({ login: "octocat" });
+      expect(JSON.stringify(getV2Shared())).not.toContain("ghp_test");
+      expect(container.textContent).toContain("Authenticated as");
+
+      await act(async () => window.dispatchEvent(new Event("auth:session-expired:github_login_v2")));
+      await act(async () => { await latest?.privateContext.logout(); });
+      expect(latest?.baseCardContext.lifecycle).toBe("ready");
+      expect(latest?.privateContext.sessionExpired).toBe(false);
+      await act(async () => latest?.privateContext.setToken("ghp_test"));
+      apiMocks.verifyAuth.mockRejectedValueOnce(new Error("invalid token"));
+      const errorLog = vi.spyOn(console, "error").mockImplementation(() => { });
+      try {
+        await act(async () => { await latest?.privateContext.login(); });
+        expect(latest?.baseCardContext.lifecycle).toBe("error");
+        await act(async () => { await latest?.privateContext.login(); });
+        expect(latest?.baseCardContext.lifecycle).toBe("complete");
+      } finally {
+        errorLog.mockRestore();
+      }
+    } finally {
+      await act(async () => root.unmount());
+      oldHook.mockRestore();
+      oldContent.mockRestore();
+    }
+  });
+
+  it("keeps both signed-in cards, their credentials and expiry events independent", async () => {
+    let legacy: UseGithubLoginCard | undefined;
+    let v2: UseGithubLoginV2 | undefined;
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<>
+        <HookHarness onUpdate={(value) => { legacy = value; }} />
+        <V2Harness onUpdate={(value) => { v2 = value; }} />
+      </>));
+      expect(legacy?.cardId).toBe("github_login");
+      expect(v2?.baseCardContext.cardId).toBe("github_login_v2");
+      await act(async () => {
+        legacy?.setMode("direct");
+        legacy?.setToken("legacy-token");
+        v2?.privateContext.setMode("direct");
+        v2?.privateContext.setToken("v2-token");
+      });
+      apiMocks.verifyAuth.mockResolvedValueOnce({ login: "legacy-user" }).mockResolvedValueOnce({ login: "v2-user" });
+      await act(async () => { await legacy?.login(); });
+      await act(async () => { await v2?.privateContext.login(); });
+      setStoredToken("github_access_token", "legacy-oauth-token");
+      setStoredToken("github_login_v2_access_token", "v2-oauth-token");
+      expect(legacy?.account).toEqual({ login: "legacy-user" });
+      expect(getV2Shared()).toMatchObject({ title: "GitHub Login 2", currentBaseCardStatus: "complete", currentStatus: "signed-in", githubAccount: { login: "v2-user" }, githubMode: "direct" });
+      expect(getV2Shared()?.githubToken?.reveal()).toBe("v2-token");
+      expect(apiMocks.switchToDirect).toHaveBeenCalledOnce();
+      expect(apiMocks.switchToDirect).toHaveBeenCalledWith("legacy-token");
+      expect(apiMocks.switchToBackend).not.toHaveBeenCalled();
+
+      await act(async () => window.dispatchEvent(new Event("auth:session-expired")));
+      expect(legacy?.sessionExpired).toBe(true);
+      expect(v2?.privateContext.sessionExpired).toBe(false);
+      await act(async () => window.dispatchEvent(new Event("auth:session-expired:github_login_v2")));
+      expect(v2?.privateContext.sessionExpired).toBe(true);
+
+      await act(async () => { await v2?.privateContext.logout(); });
+      expect(legacy?.account).toEqual({ login: "legacy-user" });
+      expect(sessionStorage.getItem("zeninstaller_github_auth")).not.toBeNull();
+      expect(getStoredToken(["github_access_token"])).toBe("legacy-oauth-token");
+      expect(sessionStorage.getItem("github_login")).toBe("success");
+      expect(getV2Shared()?.githubAccount).toBeNull();
+      expect(getV2Shared()?.githubToken).toBeNull();
+
+      await act(async () => v2?.privateContext.setToken("v2-token"));
+      await act(async () => { await v2?.privateContext.login(); });
+      setStoredToken("github_login_v2_access_token", "v2-oauth-token");
+      await act(async () => { await legacy?.logout(); });
+      expect(v2?.privateContext.account).toEqual({ login: "octocat" });
+      expect(sessionStorage.getItem("github_login_v2_auth")).not.toBeNull();
+      expect(getStoredToken(["github_login_v2_access_token"])).toBe("v2-oauth-token");
+      expect(sessionStorage.getItem("github_login_v2_login")).toBe("success");
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("uses action while restoring and verifying a saved session", async () => {
+    sessionStorage.setItem("github_login_v2_auth", JSON.stringify({ mode: "direct", token: "ghp_saved" }));
+    let latest: UseGithubLoginV2 | undefined;
+    let resolveVerification!: (value: { login: string }) => void;
+    apiMocks.verifyAuth.mockReturnValueOnce(new Promise((resolve) => { resolveVerification = resolve; }));
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<V2Harness onUpdate={(value) => { latest = value; }} />));
+      expect(latest?.baseCardContext.lifecycle).toBe("action");
+      await act(async () => resolveVerification({ login: "octocat" }));
+      expect(latest?.baseCardContext.lifecycle).toBe("complete");
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("does not restore a shared token when verification finishes after logout", async () => {
+    let latest: UseGithubLoginV2 | undefined;
+    let resolveVerification!: (value: { login: string }) => void;
+    apiMocks.verifyAuth.mockReturnValueOnce(new Promise((resolve) => { resolveVerification = resolve; }));
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<V2Harness onUpdate={(value) => { latest = value; }} />));
+      await act(async () => { latest?.privateContext.setMode("direct"); latest?.privateContext.setToken("v2-token"); });
+      await act(async () => { void latest?.privateContext.login(); });
+      await act(async () => { await latest?.privateContext.logout(); });
+      await act(async () => resolveVerification({ login: "late-user" }));
+      expect(getV2Shared()).toMatchObject({ githubAccount: null, githubToken: null, githubMode: null, currentBaseCardStatus: "ready", currentStatus: "ready" });
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
+  it("completes the OAuth callback with the independent V2 hook", async () => {
+    sessionStorage.setItem("github_login_v2_pkce_verifier", "the-verifier");
+    sessionStorage.setItem("oauth_pending_code:github_login_v2", "abc123");
+    sessionStorage.setItem("oauth_pending_provider:github_login_v2", "github_login_v2");
+    const exchange = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ access_token: "gho_exchanged" }),
+    });
+    vi.stubGlobal("fetch", exchange);
+    apiMocks.fetchGithubUser.mockResolvedValueOnce({ login: "octocat" });
+    let latest: UseGithubLoginV2 | undefined;
+    let legacy: UseGithubLoginCard | undefined;
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<StrictMode>
+        <HookHarness onUpdate={(value) => { legacy = value; }} />
+        <V2Harness onUpdate={(value) => { latest = value; }} />
+      </StrictMode>));
+      await waitFor(() => {
+        expect(latest?.baseCardContext.lifecycle).toBe("complete");
+        expect(latest?.privateContext.account?.login).toBe("octocat");
+      });
+      expect(JSON.parse(exchange.mock.calls[0][1].body)).toMatchObject({ code: "abc123", code_verifier: "the-verifier" });
+      expect(exchange).toHaveBeenCalledOnce();
+      expect(legacy?.account).toBeNull();
+      expect(apiMocks.switchToBackend).not.toHaveBeenCalled();
+      expect(sessionStorage.getItem("oauth_pending_code:github_login_v2")).toBeNull();
+      expect(sessionStorage.getItem("github_login_v2_pkce_verifier")).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      vi.unstubAllGlobals();
+    }
   });
 });

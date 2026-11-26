@@ -3,20 +3,22 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-// UI component: ../../../corp-src/cards/Stage/StageCard.tsx (all six mounted pipeline stages)
+// UI component: ../../../corp-src/cards/Stage/StageCard.tsx (all five mounted pipeline stages)
 import { expect, type BrowserContext, type Locator, type Page, type TestInfo } from "@playwright/test";
 import JSZip from "jszip";
 import { test, getViewportName } from "../../../../../.playwright/viewportFixture.mjs";
 import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
+import { PRIVAVD_GALLERY_DIR } from "../../../corp-src/cards/AvdGallery/config.ts";
+import { PRIVAVD_IMAGE_DIR } from "../../../corp-src/cards/PawImage/config.ts";
+import { PRIVAVD_PAW_DIR } from "../../../corp-src/cards/PawDeploy/config.ts";
 import { GITHUB_API_URL, MICROSOFT_GRAPH_URL } from "../../testInit.js";
 import { prepareCardMocks, replyJson } from "../util/mockCardSetup.mts";
 
 const stages = [
   { dir: "SubscriptionBudget", snapshotDir: "c01subscription", title: "Azure subscription budget" },
-  { dir: "GlobalGroups", snapshotDir: "c02globalGroups", title: "Organisation security groups" },
   { dir: "UserAccounts", snapshotDir: "c07userAccounts", title: "User accounts and sign-in" },
   { dir: "AwsEntraSso", snapshotDir: "c20awsentrasso", title: "AWS single sign-on with Entra ID" },
-  { dir: "AwsEntraSsoP2", snapshotDir: "c21awsentrassoP2", title: "AWS single sign-on with Microsoft Entra ID P2" },
+  { dir: "AwsEntraSsoP2", snapshotDir: "c21awsentrassoP2", title: "AWS single sign-on with Entra ID P2" },
   { dir: "CloudFront", snapshotDir: "c25cloudfront", title: "AWS CloudFront distribution" },
 ];
 
@@ -30,6 +32,7 @@ for (const stage of stages) {
     await expect(card.getByRole("button", { name: "Get Updated Plan", exact: true })).toBeEnabled();
     await card.getByRole("button", { name: "Get Updated Plan", exact: true }).click();
     await expect(card.getByRole("alert").filter({ hasText: /^Failed to trigger workflow$/ })).toBeVisible();
+    await expect(card.getByRole("button", { name: "Get Updated Plan", exact: true })).toBeEnabled();
     expect(state.dispatches).toBe(1);
     expect(state.downloads).toBe(0);
     expect(unexpectedRequests).toEqual([]);
@@ -68,7 +71,7 @@ for (const stage of stages) {
       await expect(prerequisites.getByText("AWS variables configured", { exact: true })).toHaveCount(0);
       await expect(prerequisites.getByText("AWS_ROLE_ARN: arn:aws:iam::123456789012:role/zeninstaller-github", { exact: true })).toBeVisible();
     }
-    if (!["SubscriptionBudget", "GlobalGroups"].includes(stage.dir)) {
+    if (stage.dir !== "SubscriptionBudget") {
       await expect(prerequisites.getByText("DNS Domain: pwtests.example.com", { exact: true })).toBeVisible();
     }
     await toggle.click();
@@ -76,6 +79,152 @@ for (const stage of stages) {
     await expect(prerequisites).toHaveCount(0);
   });
 }
+
+// A whitespace-only required value must hide plan controls until the user supplies a valid value.
+test("Hides plan controls until prerequisites are met", async ({ page, context }) => {
+  const setup = await prepareCardMocks(page, context, { CONTACT_EMAILS: "   " });
+  const zip = await new JSZip().file("plan.log", "Mock plan failure output").generateAsync({ type: "nodebuffer" });
+  await page.route(`${GITHUB_API_URL}/**/deployments?*`, (route) => {
+    const task = new URL(route.request().url()).searchParams.get("task");
+    return replyJson(route, task === "plan:SubscriptionBudget" ? [{
+      created_at: "2026-10-05T03:00:00Z",
+      sha: "prod-mock-sha",
+      payload: { stage: "SubscriptionBudget", status: "failed", runId: "mock-stage-run", planLogId: 1102 },
+    }] : task === "deploy:SubscriptionBudget" ? [{
+      created_at: "2026-10-04T03:00:00Z",
+      payload: { deployStatus: "success", deployedAt: 1791082800, deployRunId: "previous-deployment" },
+    }] : []);
+  });
+  await page.route(`${GITHUB_API_URL}/**/actions/artifacts/1102/zip`, (route) =>
+    route.fulfill({ status: 200, contentType: "application/zip", body: zip })
+  );
+
+  const card = await setup.open("stage_SubscriptionBudget");
+  const updatePlan = card.getByRole("button", { name: "Get Updated Plan", exact: true });
+  const noPlan = card.getByText("No plan is available for this stage. Check the GitHub Actions run for errors, then create a new plan.");
+  const result = card.locator('button[aria-controls="SubscriptionBudget-plan-output"]');
+  await expect(card.getByText("CONTACT_EMAILS not set", { exact: true })).toBeVisible(); // Show the actionable blocker without a failure prefix.
+  await expect(updatePlan).toHaveCount(0);
+  await expect(noPlan).toHaveCount(0);
+  await expect(result).toHaveCount(0);
+  await expect(card.getByRole("region", { name: "Plan output" })).toHaveCount(0);
+  await expect(card.getByRole("region", { name: "Plan", exact: true })).toHaveCount(0);
+  await expect(card.getByText("Last Deploy", { exact: true })).toBeVisible();
+  await expect(card.getByRole("link", { name: "Open deployment run in GitHub" })).toBeVisible();
+
+  await card.getByRole("button", { name: "open prerequisites" }).click();
+  const email = card.getByLabel("CONTACT_EMAILS:");
+  await email.fill("owner@example.com");
+  await card.getByRole("button", { name: "Update 1 variable" }).click();
+  await expect(updatePlan).toBeEnabled();
+  await expect(card.getByRole("region", { name: "Plan", exact: true })).toBeVisible();
+  await expect(noPlan).toBeVisible();
+  await expect(result).toBeVisible();
+  await result.click();
+  await expect(card.getByRole("region", { name: "Plan output" })).toContainText("Mock plan failure output");
+
+  await email.fill("   ");
+  await card.getByRole("button", { name: "Update 1 variable" }).click();
+  await expect(updatePlan).toHaveCount(0);
+  await expect(noPlan).toHaveCount(0);
+  await expect(result).toHaveCount(0);
+  await expect(card.getByRole("region", { name: "Plan output" })).toHaveCount(0);
+  await expect(card.getByRole("region", { name: "Plan", exact: true })).toHaveCount(0);
+  await expect(card.getByText("Last Deploy", { exact: true })).toBeVisible();
+  expect(setup.unexpectedRequests).toEqual([]);
+});
+
+test("Hides successful plan details and run errors when a prerequisite becomes missing", async ({ page, context }) => {
+  const { card, unexpectedRequests } = await prepareStage(page, context, stages[0]);
+  await card.getByRole("button", { name: "Get Updated Plan", exact: true }).click();
+  await advanceStagePoll(page, card);
+  await expect(card.getByText("terraform_data.SubscriptionBudget", { exact: true })).toBeVisible();
+  await page.route(`${GITHUB_API_URL}/**/dispatches`, (route) => replyJson(route, { message: "Denied" }, 403));
+  await card.getByRole("button", { name: "Get Updated Plan", exact: true }).click();
+  await expect(card.getByRole("alert").filter({ hasText: /^Failed to trigger workflow$/ })).toBeVisible();
+  await card.getByRole("button", { name: "open prerequisites" }).click();
+  const email = card.getByLabel("CONTACT_EMAILS:");
+  await email.fill("   ");
+  await card.getByRole("button", { name: "Update 1 variable" }).click();
+  await expect(card.getByText("CONTACT_EMAILS not set", { exact: true })).toBeVisible();
+  await expect(card.getByRole("region", { name: "Plan", exact: true })).toHaveCount(0);
+  await expect(card.getByText("terraform_data.SubscriptionBudget", { exact: true })).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Deploy", exact: true })).toHaveCount(0);
+  await expect(card.getByRole("alert").filter({ hasText: /^Failed to trigger workflow$/ })).toHaveCount(0);
+  await email.fill("owner@example.com");
+  await card.getByRole("button", { name: "Update 1 variable" }).click();
+  await expect(card.getByRole("region", { name: "Plan", exact: true })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Get Updated Plan", exact: true })).toBeEnabled();
+  expect(unexpectedRequests).toEqual([]);
+});
+
+test("Hides a changed plan and refreshes from prerequisites with retry available", async ({ page, context }, testInfo) => {
+  const setup = await prepareCardMocks(page, context);
+  const snapshot = { ...setup.github.variables };
+  let dispatches = 0;
+  const planZip = await new JSZip().file("plan.json", JSON.stringify({
+    resource_changes: [{ address: "terraform_data.SubscriptionBudget", change: { actions: ["create"] } }],
+  })).generateAsync({ type: "nodebuffer" });
+  let resolveInitialPlanDownload!: () => void;
+  const initialPlanDownload = new Promise<void>((resolve) => {
+    resolveInitialPlanDownload = resolve;
+  });
+  await page.route(`${GITHUB_API_URL}/**/deployments?*`, (route) => {
+    const task = new URL(route.request().url()).searchParams.get("task");
+    return replyJson(route, task === "plan:SubscriptionBudget" ? [{
+      created_at: dispatches > 1 ? "2026-10-05T03:00:00Z" : "2026-10-05T01:00:00Z",
+      sha: "prod-mock-sha",
+      payload: { stage: "SubscriptionBudget", status: "success", runId: dispatches > 1 ? "new" : "old", planJsonId: 1101, envId: dispatches > 1 ? 1104 : 1103 },
+    }] : []);
+  });
+  await page.route(`${GITHUB_API_URL}/**/actions/artifacts/*/zip`, async (route) => {
+    const id = Number(new URL(route.request().url()).pathname.split("/").at(-2));
+    if (id === 1101) {
+      await initialPlanDownload;
+      return route.fulfill({ contentType: "application/zip", body: planZip });
+    }
+    if (![1103, 1104].includes(id)) return route.fallback();
+    const values = id === 1103 ? snapshot : setup.github.variables;
+    const body = await new JSZip().file("corp.env", Object.entries(values).map(([key, value]) => `${key}=${value}`).join("\n"))
+      .generateAsync({ type: "nodebuffer" });
+    return route.fulfill({ contentType: "application/zip", body });
+  });
+  await page.route(`${GITHUB_API_URL}/**/dispatches`, (route) => {
+    dispatches++;
+    return dispatches === 1 ? replyJson(route, { message: "Denied" }, 403) : route.fulfill({ status: 204 });
+  });
+  const card = await setup.open("stage_SubscriptionBudget");
+  try {
+    await expect(card.getByText("Loading plan...", { exact: true })).toBeVisible();
+    await expect(card.getByText("No changes detected.", { exact: true })).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Deploy", exact: true })).toHaveCount(0);
+  } finally {
+    resolveInitialPlanDownload();
+  }
+  await expect(card.getByText("terraform_data.SubscriptionBudget", { exact: true })).toBeVisible();
+  await card.getByRole("button", { name: "open prerequisites" }).click();
+  await card.getByLabel("CONTACT_EMAILS:").fill("new-owner@example.com");
+  await card.getByRole("button", { name: "Update 1 variable" }).click();
+  await expect(card.getByText("CONTACT_EMAILS changed since last plan", { exact: true })).toBeVisible();
+  await expect(card.getByRole("region", { name: "Plan", exact: true })).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Get Updated Plan", exact: true })).toHaveCount(0);
+  await card.locator('button[aria-controls="SubscriptionBudget-prerequisites"]').click();
+  await expect(card.getByRole("region", { name: "Prerequisites", exact: true })).toHaveCount(0);
+  const refresh = card.getByRole("button", { name: "Refresh plan", exact: true });
+  await expect(refresh).toBeVisible();
+  await testInfo.attach("changed-prerequisite", { body: await card.screenshot({ animations: "disabled" }), contentType: "image/png" });
+  await refresh.click();
+  await expect(card.getByRole("group", { name: "Refresh changed prerequisites" })).toContainText("Failed to trigger workflow");
+  await expect(card.getByText("CONTACT_EMAILS changed since last plan", { exact: true })).toBeVisible();
+  await expect(refresh).toBeEnabled();
+  await refresh.click();
+  await advanceStagePoll(page, card);
+  await expect(card.getByRole("region", { name: "Plan", exact: true })).toBeVisible();
+  await expect(refresh).toHaveCount(0);
+  await expect(card.getByText("terraform_data.SubscriptionBudget", { exact: true })).toBeVisible();
+  expect(dispatches).toBe(2);
+  expect(setup.unexpectedRequests).toEqual([]);
+});
 
 test("Reports a missing plan artifact without claiming an empty plan", async ({ page, context }, testInfo) => {
   test.setTimeout(240_000);
@@ -98,10 +247,16 @@ async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestI
     await expect(card.locator("h3")).toContainText(stage.title);
     await expect(card.getByRole("button", { name: "Get Updated Plan", exact: true })).toBeEnabled();
     await expectSnapshot(page, card, testInfo, `${stage.snapshotDir}-start`, viewport);
-    await card.getByRole("button", { name: "Get Updated Plan", exact: true }).click();
-    await expect(card.getByRole("button", { name: /^Running/ })).toBeDisabled();
-    await expect.poll(() => state.dispatches).toBe(1);
-    await expectSnapshot(page, card, testInfo, `${stage.snapshotDir}-running`, viewport);
+    const snapshotTime = await page.evaluate(() => Date.now());
+    await page.clock.setFixedTime(snapshotTime);
+    try {
+      await card.getByRole("button", { name: "Get Updated Plan", exact: true }).click();
+      await expect(card.getByRole("button", { name: /^Running\.\.\. [1-9]\d*[sm]$/ })).toBeDisabled();
+      await expect.poll(() => state.dispatches).toBe(1);
+      await expectSnapshot(page, card, testInfo, `${stage.snapshotDir}-running`, viewport);
+    } finally {
+      await page.clock.setSystemTime(snapshotTime);
+    }
   });
   await test.step("Read the stage report and render the downloaded Terraform plan", async () => {
     await advanceStagePoll(page, card);
@@ -156,11 +311,13 @@ async function prepareStage(
       expect(url.searchParams.get("environment")).toBe("PROD");
       expect(url.searchParams.get("per_page")).toBe("1");
       const task = url.searchParams.get("task") ?? "";
-      const privAvdDirs = ["privavd-gallery", "privavd-image", "privavd-paw"];
+      const privAvdDirs = [PRIVAVD_GALLERY_DIR, PRIVAVD_IMAGE_DIR, PRIVAVD_PAW_DIR];
       expect([
         ...[...stages.map(({ dir }) => dir), ...privAvdDirs].flatMap((dir) => [`plan:${dir}`, `deploy:${dir}`]),
         "build:backend",
+        "build:backend-failure",
         "build:frontend",
+        "build:frontend-failure",
       ]).toContain(task);
       state.reportTasks.push(task);
       return replyJson(

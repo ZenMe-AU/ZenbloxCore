@@ -278,14 +278,14 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
   });
 
   await test.step("Verify the completed card state", async () => {
-    await card.getByRole("button", { name: "Start over" }).click();
     await page.reload();
     const reloadedCard = page.locator("#card-core_infra");
     await openCoreInfraCard(reloadedCard);
-    await expect(reloadedCard.getByText("Resources", { exact: true })).toBeVisible();
-    await expect(reloadedCard.getByText("Resource group: zbcore-pwtests-rg", { exact: true })).toBeVisible();
-    await expect(reloadedCard.getByText("zbcorepwtestsstor", { exact: true })).toBeVisible();
-    await expect(reloadedCard.getByText("State container: terraformstate", { exact: true })).toBeVisible();
+    const resources = reloadedCard.getByText("Resources to be created", { exact: true }).locator("..");
+    await expect(resources).toBeVisible();
+    await expect(resources.getByText("zbcore-pwtests-rg", { exact: true })).toBeVisible();
+    await expect(resources.getByText("zbcorepwtestsstor", { exact: true })).toBeVisible();
+    await expect(resources.getByText("terraformstate", { exact: true })).toBeVisible();
     await expect(reloadedCard.getByRole("button", { name: "Save variables", exact: true })).toBeDisabled();
     await expectHiddenBackendVariables(reloadedCard);
     await expectSnapshot(page, reloadedCard, testInfo, "end", viewportName);

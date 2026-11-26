@@ -5,9 +5,11 @@ import * as backend from "../api/backend";
 import type { Account } from "../types";
 
 const account: Account = { login: "example", type: "Organization", id: 1 };
+// Include multibyte text to catch Base64 decoders that treat UTF-8 bytes as Latin-1.
 const content = [
   "# configuration",
   "export NAME=company",
+  "UNICODE=crème 東京",
   "EMPTY=",
   'QUOTED="value # with = symbols"',
   "SINGLE=' literal value '",
@@ -17,7 +19,7 @@ const content = [
   'second"',
 ].join("\r\n");
 const expected = {
-  NAME: "company", EMPTY: "", QUOTED: "value # with = symbols", SINGLE: " literal value ",
+  NAME: "company", UNICODE: "crème 東京", EMPTY: "", QUOTED: "value # with = symbols", SINGLE: " literal value ",
   COMMENT: "plain", ESCAPED: "first\nsecond", MULTILINE: "first\nsecond",
 };
 
@@ -28,7 +30,9 @@ for (const provider of ["backend", "github"] as const) {
     const api = provider === "backend" ? backend : createGithubApi("test-token");
 
     it("parses fetched configuration without Node APIs", async () => {
-      vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ content: provider === "backend" ? content : btoa(content) }));
+      // Base64 must be built from encoded bytes so this browser test covers real UTF-8 payloads.
+      const encodedContent = btoa(Array.from(new TextEncoder().encode(content), (byte) => String.fromCharCode(byte)).join(""));
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ content: provider === "backend" ? content : encodedContent }));
       expect(await api.fetchEnv(account, "repo")).toEqual(expected);
     });
 

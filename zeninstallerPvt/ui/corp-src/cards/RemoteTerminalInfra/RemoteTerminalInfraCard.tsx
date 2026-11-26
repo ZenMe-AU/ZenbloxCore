@@ -5,10 +5,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, ButtonBase, Collapse, Typography } from "@mui/material";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import { warningMessageIconSx } from "../../config/styles";
 import type { UseRemoteTerminalInfraCard } from "./useRemoteTerminalInfraCard";
 import StepRow from "../StepRow";
-import ResourceGroupCreationAccess from "../../components/ResourceGroupCreationAccess";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
+import CollapsiblePanel from "../../components/CollapsiblePanel";
 import Card from "../../components/Card";
 import { EditableNameRow, PlainRow, SelectionRow } from "../../components/ResourceRows";
 import ViewLink from "../../components/ViewLink";
@@ -44,6 +47,7 @@ type Props = {
 
 export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, tenantId, githubAccount, repoName, selectedEnv, variables, githubUrl }: Props) {
   const [varExpanded, setVarExpanded] = useState(false);
+  const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
   const [editingStorage, setEditingStorage] = useState(false);
   const [editingWebPubSub, setEditingWebPubSub] = useState(false);
   const [editingFunctionApp, setEditingFunctionApp] = useState(false);
@@ -87,7 +91,6 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
 
         {infra.steps.length === 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <ResourceGroupCreationAccess access={infra.creationAccess} resourceAccess />
             <Box>
               <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Resources to be created</Typography>
               <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
@@ -147,18 +150,22 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
               </Box>
             </Box>
 
-            <Button
-              variant="contained"
-              onClick={() => void infra.run()}
-              disabled={infra.running || editingStorage || editingWebPubSub || editingFunctionApp || !infra.location.trim() || infra.creationAccess.status !== "ready"}
-              sx={{
-                alignSelf: "flex-start",
-                py: 0.85,
-                px: 2.5,
-              }}
-            >
-              {infra.done ? "Re-run" : "Create backend environment"}
-            </Button>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <Button
+                variant="contained"
+                onClick={() => void infra.run()}
+                disabled={infra.running || editingStorage || editingWebPubSub || editingFunctionApp || !infra.location.trim() || infra.creationAccess.status !== "ready"}
+                sx={{ py: 0.85, px: 2.5 }}
+              >
+                {infra.done ? "Re-run" : "Create backend environment"}
+              </Button>
+              {infra.creationAccess.status === "error" && (
+                <Box role="alert" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <ErrorOutlineIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "error.main" }} />
+                  <Typography color="error.main">Insufficient permissions to continue</Typography>
+                </Box>
+              )}
+            </Box>
           </Box>
         )}
 
@@ -184,6 +191,12 @@ export default function RemoteTerminalInfraCard({ card, infra, subscriptionId, t
               </Button>
             )}
           </Box>
+        )}
+
+        {(infra.creationAccess.status === "warning" || infra.creationAccess.status === "error") && (
+          <CollapsiblePanel label="Prerequisites" id="remote-terminal-prerequisites" open={prerequisitesOpen} onToggle={() => setPrerequisitesOpen((open) => !open)}>
+            <AzureAccessCheck access={infra.creationAccess} resourceAccess errorStyle />
+          </CollapsiblePanel>
         )}
 
         {/* ── Divider (clickable toggle) ── */}

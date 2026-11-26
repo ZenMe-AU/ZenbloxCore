@@ -58,3 +58,7 @@ AzuriteConfig
 
 corpSetup/CloudFront/source/loginApp/config.js
 **/.vitepress/cache/
+# Keep developer-local UI feedback notes out of the shared source tree.
+/zeninstallerPvt/ui/Feedback.md
+# Playwright's last-run selection is local runner state, not a test artifact to commit.
+zeninstallerPvt/ui/test-results/.last-run.json

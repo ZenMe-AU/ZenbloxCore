@@ -46,17 +46,24 @@ export async function requestAuthorizationCode(opts: {
 const PENDING_CODE_KEY = "oauth_pending_code";
 const PENDING_PROVIDER_KEY = "oauth_pending_provider";
 
+function pendingKeys(provider: string) {
+  const suffix = provider === "github" ? "" : `:${provider}`;
+  return { code: PENDING_CODE_KEY + suffix, provider: PENDING_PROVIDER_KEY + suffix };
+}
+
 function storePendingCode(provider: string, code: string): void {
-  write(PENDING_CODE_KEY, code);
-  write(PENDING_PROVIDER_KEY, provider);
+  const keys = pendingKeys(provider);
+  write(keys.code, code);
+  write(keys.provider, provider);
 }
 
 // Reading clears it, so a failed exchange is not retried against a code the provider has spent.
 export function takePendingCode(provider: string): string | null {
-  if (read(PENDING_PROVIDER_KEY) !== provider) return null;
-  const code = read(PENDING_CODE_KEY);
-  remove(PENDING_CODE_KEY);
-  remove(PENDING_PROVIDER_KEY);
+  const keys = pendingKeys(provider);
+  if (read(keys.provider) !== provider) return null;
+  const code = read(keys.code);
+  remove(keys.code);
+  remove(keys.provider);
   return code;
 }
 

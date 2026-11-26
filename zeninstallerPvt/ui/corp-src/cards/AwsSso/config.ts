@@ -6,7 +6,7 @@
 import { awsConsoleRoleName, awsSamlProviderName } from "../../config/awsConfig";
 import { APP_SCOPES, CLAIMS_POLICY_SCOPES, GROUPS_SCOPES } from "../../config/azureConfig";
 
-export const AWS_SSO_TITLE = "AWS single sign-on with Entra ID";
+export const AWS_SSO_TITLE = "AWS App Registration";
 
 export const AWS_SSO_SCOPES = [...APP_SCOPES, ...GROUPS_SCOPES, ...CLAIMS_POLICY_SCOPES]; // All need admin consent.
 

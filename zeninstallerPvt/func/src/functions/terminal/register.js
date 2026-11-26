@@ -14,7 +14,8 @@ app.http("register", {
   route: "terminal/register",
   authLevel: "anonymous",
   handler: corsWrapper(
-    requireAuth({ ms: true, msRbac: ["Storage Table Data Contributor"] })(async (request, context) => {
+    // requireAuth({ ms: true, msRbac: ["Storage Table Data Contributor"] })(async (request, context) => { // Deprecated: for now a sign-in to this tenant is enough; kept for reference.
+    requireAuth({ ms: true })(async (request, context) => {
       const body = await request.json();
       const sessionId = body?.sessionId;
       const accessToken = body?.accessToken;

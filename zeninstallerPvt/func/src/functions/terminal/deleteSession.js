@@ -14,7 +14,8 @@ app.http("deleteSession", {
   route: "terminal/session/{id}",
   authLevel: "anonymous",
   handler: corsWrapper(
-    requireAuth({ ms: true, msRbac: ["Storage Table Data Contributor"] })(async (request, context) => {
+    // requireAuth({ ms: true, msRbac: ["Storage Table Data Contributor"] })(async (request, context) => { // Deprecated: for now a sign-in to this tenant is enough; kept for reference.
+    requireAuth({ ms: true })(async (request, context) => {
       const sessionId = request.params.id;
 
       if (!sessionId) {

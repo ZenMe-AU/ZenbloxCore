@@ -147,7 +147,7 @@ describe("useGithubEnvironment", () => {
       expect(latest?.selectedEnv).toBeNull();
       expect(latest?.branchMatchWarning).toBeNull();
       expect(latest?.branchMatchError).toBeNull();
-      expect(latest?.status).toBe("idle");
+      expect(latest?.status).toBe("loading");
       expect(latest?.restore.env.ready).toBe(false);
       expect(latest?.restore.env.scope).toBe(22);
     });
@@ -177,6 +177,7 @@ describe("useGithubEnvironment", () => {
 
     await waitFor(() => {
       expect(latest?.envRefreshFailed).toBe(true);
+      expect(latest?.status).toBe("error");
       expect(latest?.envLoading).toBe(false);
       expect(latest?.restore.env.ready).toBe(true);
       expect(consoleError).toHaveBeenCalled();
@@ -241,7 +242,7 @@ describe("useGithubEnvironment", () => {
     });
   });
 
-  it("sets error when multiple branches match selected environment", async () => {
+  it("sets a blocking warning when multiple branches match selected environment", async () => {
     let latest: UseGithubEnvironment | null = null;
     const root = createRoot(document.createElement("div"));
 
@@ -266,7 +267,7 @@ describe("useGithubEnvironment", () => {
     });
 
     await waitFor(() => {
-      expect(latest?.status).toBe("error");
+      expect(latest?.status).toBe("warning");
       expect(latest?.branchMatchError).toContain("Multiple branches match environment");
       expect(latest?.branchMatchWarning).toBeNull();
     });
@@ -276,7 +277,7 @@ describe("useGithubEnvironment", () => {
     });
   });
 
-  it("sets error when no branch matches selected environment", async () => {
+  it("sets a blocking warning when no branch matches selected environment", async () => {
     let latest: UseGithubEnvironment | null = null;
     const root = createRoot(document.createElement("div"));
 
@@ -296,7 +297,7 @@ describe("useGithubEnvironment", () => {
     });
 
     await waitFor(() => {
-      expect(latest?.status).toBe("error");
+      expect(latest?.status).toBe("warning");
       expect(latest?.branchMatchError).toContain("No branch found matching environment");
       expect(latest?.branchMatchWarning).toBeNull();
     });

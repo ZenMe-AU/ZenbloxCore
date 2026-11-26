@@ -5,21 +5,28 @@
 
 import { useEffect, useState } from "react";
 import { Box, Button, LinearProgress, Link, Typography } from "@mui/material";
-import { PIPELINE } from "./logic/pipeline";
 import { type CardChrome, type CardHook, type CardId } from "./types";
 import { groupSx } from "./config/cardLayout";
 import { createResultStorage } from "./logic/resultStorage";
 import { useGithubLoginCard } from "./cards/GithubLogin/useGithubLoginCard";
+import ProtoCard from "./cards/ProtoCard/ProtoCard";
 import { useGithubSignupCard } from "./cards/GithubSignup/useGithubSignupCard";
 import { useRepoCard } from "./cards/Repo/useRepoCard";
 import { useGithubVariables } from "./hooks/useGithubVariables";
-import { useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
-import { useDeploymentPlan } from "./cards/Stage/useDeploymentPlan";
-import { useCorpStageCards } from "./cards/Stage/useCorpStageCards";
+import { useGithubVariablesCacheSession } from "./hooks/useGithubVariablesV2";
+import { INITIAL_URL_PARAMS, useUrlRestore, useUrlSync } from "./hooks/useUrlStateManager";
+import { useDeploymentPlan as useGaDeploymentPlan } from "./cards/GaStage/useDeploymentPlan";
+import { createGaStageCardModel } from "./cards/GaStage/createGaStageCardModel";
+import { GA_STAGE_DEFINITIONS } from "./cards/GaStage/stageDefinitions";
+import GaCloudFront from "./cards/GaCloudFront/GaCloudFront";
+import { GA_CLOUDFRONT_CARD_ID, GA_CLOUDFRONT_STAGE } from "./cards/GaCloudFront/config";
+import GaSubscriptionBudget from "./cards/GaSubscriptionBudget/GaSubscriptionBudget";
+import { GA_SUBSCRIPTION_BUDGET_CARD_ID, GA_SUBSCRIPTION_BUDGET_STAGE } from "./cards/GaSubscriptionBudget/config";
 import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
 import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
+import { useCreateAdminUsersCard } from "./cards/CreateAdminUsers/useCreateAdminUsersCard";
 import { useCoreInfraCard } from "./cards/CoreInfra/useCoreInfraCard";
 import { usePrivateFrontendInfraCard } from "./cards/PrivateFrontendInfra/usePrivateFrontendInfraCard";
 import { useRemoteTerminalInfraCard } from "./cards/RemoteTerminalInfra/useRemoteTerminalInfraCard";
@@ -43,28 +50,35 @@ import RestoreToast from "./components/RestoreToast";
 import CardIntro from "./components/CardIntro";
 import ExternalLink from "./components/ExternalLink";
 import GithubLoginCard from "./cards/GithubLogin/GithubLoginCard";
+import GithubLoginV2 from "./cards/GithubLoginV2/GithubLoginV2";
 import GithubSignupCard from "./cards/GithubSignup/GithubSignupCard";
 import RepoCard from "./cards/Repo/RepoCard";
+import RepoV2 from "./cards/RepoV2/RepoV2";
 import AzureLoginCard from "./cards/AzureLogin/AzureLoginCard";
+import AzureLoginV2 from "./cards/AzureLoginV2/AzureLoginV2";
 import AzureAppRegistrationCard from "./cards/AzureAppRegistration/AzureAppRegistrationCard";
 import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCard";
+import AzureSubscriptionCardV2 from "./cards/AzureSubscriptionV2/AzureSubscriptionV2";
+import AzureAppRegistrationCardV2 from "./cards/AzureAppRegistrationV2/AzureAppRegistrationCardV2";
 import CoreInfraCard from "./cards/CoreInfra/CoreInfraCard";
 import PrivateFrontendInfraCard from "./cards/PrivateFrontendInfra/PrivateFrontendInfraCard";
 import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
 import BackendDeployCard from "./cards/BackendDeploy/BackendDeployCard";
 import WebDeployCard from "./cards/WebDeploy/WebDeployCard";
 import CreateDomainCard from "./cards/CreateDomain/CreateDomainCard";
+import CreateAdminUsersCard from "./cards/CreateAdminUsers/CreateAdminUsersCard";
 import AccessPassCard from "./cards/AccessPass/AccessPassCard";
+import AccessPassV2 from "./cards/AccessPassV2/AccessPassV2";
 // import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
 import AwsSsoCard from "./cards/AwsSso/AwsSsoCard";
 import AwsSsoStackCard from "./cards/AwsSsoStack/AwsSsoStackCard";
-import StageCard from "./cards/Stage/StageCard";
 import AvdGalleryCard from "./cards/AvdGallery/AvdGalleryCard";
 import PawImageCard from "./cards/PawImage/PawImageCard";
 import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
 
 import { withAITracking } from "@microsoft/applicationinsights-react-js";
 import { reactPlugin } from "./monitor/applicationInsights";
+import { createAppContext } from "./appContext";
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
@@ -72,6 +86,8 @@ const EXPANDED_CARDS_KEY = "zeninstaller_corp_expanded_cards";
 const { save: saveExpandedCards, load: loadExpandedCards } = createResultStorage<CardId[]>(EXPANDED_CARDS_KEY);
 
 function AppDashboard() {
+  const [appCtxStore] = useState(() => createAppContext(Object.fromEntries(INITIAL_URL_PARAMS.entries())));
+  useGithubVariablesCacheSession(appCtxStore);
   const allCards: Record<string, CardHook> = {};
 
   function addCard<T extends CardHook>(newCard: T): T {
@@ -103,7 +119,6 @@ function AppDashboard() {
       savedTenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
     })
   );
-
   // AWS login is unused since the AWS console sign-in stack replaced AWS setup.
   // const awsLogin = addCard(useAwsLoginCard());
 
@@ -122,7 +137,6 @@ function AppDashboard() {
       savedSubscriptionId: githubVariableValues.AZURE_SUBSCRIPTION_ID ?? "",
     })
   );
-
   const azureAppSetup = addCard(
     useAzureAppRegistrationCard({
       azureAccount: azureLogin.account,
@@ -226,6 +240,13 @@ function AppDashboard() {
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
     })
   );
+  const adminUsers = addCard(
+    useCreateAdminUsersCard({
+      azureAccount: azureLogin.account,
+      tenantId: azureLogin.confirmedTenantId,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
+    })
+  );
 
   const privAvdTarget = {
     account: githubRepoEnv.repo.selectedAccount,
@@ -236,10 +257,10 @@ function AppDashboard() {
   const pawImage = addCard(usePawImageCard(privAvdTarget));
   const pawDeploy = addCard(usePawDeployCard(privAvdTarget));
 
-  const plan = useDeploymentPlan({
+  const gaPlan = useGaDeploymentPlan({
     account: githubRepoEnv.repo.selectedAccount,
     repoName: githubRepoEnv.repo.selectedRepo?.name ?? null,
-    pipeline: PIPELINE,
+    stageDefinitions: GA_STAGE_DEFINITIONS,
     selectedEnv: githubRepoEnv.env.selectedEnv,
     branches: githubRepoEnv.repo.branchList,
     branchMatchError: githubRepoEnv.env.branchMatchError,
@@ -316,9 +337,9 @@ function AppDashboard() {
     });
   };
 
-  const cardProps = (id: CardId): CardChrome => {
-    const misconfigured = allCards[id].status === "unavailable";
-    const requirementsForCard = (allCards[id].cardRequirements ?? [])
+  const cardPropsFor = (id: CardId, card: CardHook): CardChrome => {
+    const misconfigured = card.status === "unavailable";
+    const requirementsForCard = (card.cardRequirements ?? [])
       .filter((reqCardId) => !allCards[reqCardId]?.done)
       .map((reqCardId) => ({
         label: allCards[reqCardId].cardDependencyLabel,
@@ -330,8 +351,8 @@ function AppDashboard() {
       cardId: id,
       // A locked card's hook computed its status assuming prerequisites were already met —
       // override to "idle" so it doesn't show e.g. a stale "warning" for work it can't do yet.
-      status: locked ? "idle" : allCards[id].status,
-      summary: allCards[id].summary,
+      status: locked ? "idle" : card.status,
+      summary: card.summary,
       locked,
       requirements,
       unavailable: misconfigured,
@@ -340,10 +361,9 @@ function AppDashboard() {
       onRequirementClick: openCard,
     };
   };
-
-  const stageCards = useCorpStageCards({
-    pipeline: PIPELINE,
-    plan,
+  const cardProps = (id: CardId): CardChrome => cardPropsFor(id, allCards[id]);
+  const gaStageCardInputs = {
+    plan: gaPlan,
     allCards,
     repoDone: githubRepoEnv.done,
     repoDependencyLabel: githubRepoEnv.cardDependencyLabel,
@@ -355,9 +375,25 @@ function AppDashboard() {
     onVariableConfirmed: githubVariables.onConfirmed,
     onToggle: toggle,
     onRequirementClick: openCard,
+  };
+  const {
+    stageDef: gaSubscriptionBudgetStageDef,
+    ...gaSubscriptionBudgetProps
+  } = createGaStageCardModel({
+    ...gaStageCardInputs,
+    cardId: GA_SUBSCRIPTION_BUDGET_CARD_ID,
+    stageDef: GA_SUBSCRIPTION_BUDGET_STAGE,
+  });
+  const {
+    stageDef: gaCloudFrontStageDef,
+    ...gaCloudFrontProps
+  } = createGaStageCardModel({
+    ...gaStageCardInputs,
+    cardId: GA_CLOUDFRONT_CARD_ID,
+    stageDef: GA_CLOUDFRONT_STAGE,
   });
 
-  const progressCards = [
+  const progressCards: { id: CardId; title: string; done: boolean; chrome: CardChrome }[] = [
     ...([
       ["github_login", "GitHub login"],
       ["repo", "Repository & environment"],
@@ -366,6 +402,7 @@ function AppDashboard() {
       ["azure_app_registration", "Create an app registration in Azure"],
       ["core_infra", "Terraform state backend"],
       ["create_domain", "Core domain"],
+      ["create_admin_users", "Create admin users"],
       ["remote_terminal_infra", "Private Zeninstaller Backend Environment"],
       ["backend_deploy", "Private Zeninstaller Backend"],
       ["private_frontend_infra", "Frontend hosting environment"],
@@ -379,12 +416,18 @@ function AppDashboard() {
       done: allCards[id].done,
       chrome: cardProps(id),
     })),
-    ...stageCards.map(({ card, stageDef }) => ({
-      id: card.cardId,
-      title: stageDef.label,
-      done: card.status === "complete" || card.status === "skipped",
-      chrome: card,
-    })),
+    {
+      id: GA_SUBSCRIPTION_BUDGET_CARD_ID,
+      title: gaSubscriptionBudgetStageDef.label,
+      done: gaSubscriptionBudgetProps.card.status === "complete",
+      chrome: gaSubscriptionBudgetProps.card,
+    },
+    {
+      id: GA_CLOUDFRONT_CARD_ID,
+      title: gaCloudFrontStageDef.label,
+      done: gaCloudFrontProps.card.status === "complete",
+      chrome: gaCloudFrontProps.card,
+    },
     ...[avdGallery, pawImage, pawDeploy].map(({ cardId, cardDependencyLabel, done }) => ({
       id: cardId,
       title: cardDependencyLabel,
@@ -475,13 +518,18 @@ function AppDashboard() {
                 />
               </Box>
 
+              <ProtoCard {...appCtxStore} />
+
               <GithubLoginCard card={cardProps("github_login")} auth={githubLogin} />
+              <GithubLoginV2 {...appCtxStore} />
 
               <GithubSignupCard card={cardProps("github_signup")} signup={githubSignup} onOpenLogin={() => openCard("github_login")} />
 
               <RepoCard card={cardProps("repo")} githubRepo={githubRepoEnv} lockedByPR={false} />
+              <RepoV2 appCtxStore={appCtxStore} />
 
               <AzureLoginCard card={cardProps("azure_login")} azureLogin={azureLogin} />
+              <AzureLoginV2 appCtxStore={appCtxStore} />
 
               <AzureSubscriptionCard
                 card={cardProps("azure_subscription")}
@@ -495,6 +543,7 @@ function AppDashboard() {
                 onOpenAzureLogin={() => openCard("azure_login")}
                 onUserInteract={() => urlRestore.cancel(["tenant", "subscription"])}
               />
+              <AzureSubscriptionCardV2 appCtxStore={appCtxStore} />
 
               <AzureAppRegistrationCard
                 card={cardProps("azure_app_registration")}
@@ -506,6 +555,7 @@ function AppDashboard() {
                 variables={githubVariables}
                 githubUrl={githubRepoEnv.githubEnvUrl}
               />
+              <AzureAppRegistrationCardV2 appCtxStore={appCtxStore} />
 
               <CoreInfraCard
                 card={cardProps("core_infra")}
@@ -534,6 +584,11 @@ function AppDashboard() {
                 variables={githubVariables}
                 githubUrl={githubRepoEnv.githubEnvUrl}
               />
+
+              <CreateAdminUsersCard card={cardProps("create_admin_users")} adminUsers={adminUsers} />
+
+              <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
+              <AccessPassV2 appCtxStore={appCtxStore} />
 
               <RemoteTerminalInfraCard
                 card={cardProps("remote_terminal_infra")}
@@ -584,6 +639,27 @@ function AppDashboard() {
                 }
               />
 
+              <AvdGalleryCard
+                card={cardProps("privavd_gallery")}
+                privAvd={avdGallery}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
+              <PawImageCard
+                card={cardProps("privavd_image")}
+                privAvd={pawImage}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
+              <PawDeployCard
+                card={cardProps("privavd_paw")}
+                privAvd={pawDeploy}
+                {...privAvdTarget}
+                variables={githubVariables}
+              />
+
               {/* <AwsLoginCard card={cardProps("aws_login")} awsLogin={awsLogin} /> */}
 
               <AwsSsoCard
@@ -608,32 +684,8 @@ function AppDashboard() {
                 githubUrl={githubRepoEnv.githubEnvUrl}
               />
 
-              {stageCards.map(({ key, ...stageCard }) => (
-                <StageCard key={key} {...stageCard} azureAccount={azureLogin.account} />
-              ))}
-
-              <AvdGalleryCard
-                card={cardProps("privavd_gallery")}
-                privAvd={avdGallery}
-                {...privAvdTarget}
-                variables={githubVariables}
-              />
-
-              <PawImageCard
-                card={cardProps("privavd_image")}
-                privAvd={pawImage}
-                {...privAvdTarget}
-                variables={githubVariables}
-              />
-
-              <PawDeployCard
-                card={cardProps("privavd_paw")}
-                privAvd={pawDeploy}
-                {...privAvdTarget}
-                variables={githubVariables}
-              />
-
-              <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
+              <GaSubscriptionBudget key={GA_SUBSCRIPTION_BUDGET_CARD_ID} {...gaSubscriptionBudgetProps} azureAccount={azureLogin.account} />
+              <GaCloudFront key={GA_CLOUDFRONT_CARD_ID} {...gaCloudFrontProps} azureAccount={azureLogin.account} />
             </Box>
           </Box>
         </Box >

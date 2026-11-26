@@ -7,6 +7,7 @@ import { expect, type BrowserContext, type Page, type Route } from "@playwright/
 import { CORP_URL, GITHUB_API_URL, AZURE_MANAGEMENT_URL } from "../../testInit";
 import { installMockAzure, installMockGitHub, installRelayNetworkGuard } from "./mockTestHelper.mts";
 import { expandCard } from "./cardHelper.mts";
+import { getWebStorageAccountName } from "../../../corp-src/logic/naming.ts";
 
 export const tenantId = "00000000-0000-0000-0000-000000000001";
 export const subscriptionId = "mock-subscription";
@@ -91,10 +92,12 @@ export async function prepareCardMocks(
     })
   );
   await page.route(`${GITHUB_API_URL}/**/deployments?*`, (route) => replyJson(route, []));
-  await page.route(`https://${siteStorage}.blob.core.windows.net/$web?restype=container&comp=metadata`, (route) => {
-    if (route.request().method() !== "GET") return route.fallback();
-    return route.fulfill({ status: 404 });
-  });
+  for (const accountName of [siteStorage, getWebStorageAccountName(subscriptionId)]) {
+    await page.route(`https://${accountName}.blob.core.windows.net/$web?restype=container&comp=metadata`, (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      return route.fulfill({ status: 404 });
+    });
+  }
   await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
     const path = new URL(route.request().url()).pathname.toLowerCase();
     if (route.request().method() !== "GET") return route.fallback();

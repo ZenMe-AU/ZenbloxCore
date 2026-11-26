@@ -3,8 +3,9 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { Forbidden, Unauthorized } from "../error/index.js";
+import { Forbidden, InternalError, Unauthorized } from "../error/index.js";
 import { assertRoles } from "./rbac.js";
+import { getAppCredential } from "./obo.js";
 
 export const GH_TOKEN_HEADER = "Zb.Github.Authorization";
 export const MS_TOKEN_HEADER = "Zb.Msal.Authorization";
@@ -71,11 +72,12 @@ export function getMsToken(request) {
 export function requireAuth({ github = false, ms = false, msRbac, check } = {}) {
   return (handler) => async (request, context) => {
     const githubToken = tryGetAccessToken(request);
-    const msToken = getMsToken(request); // check for presence only: the OBO exchange validates it
+    const msToken = getMsToken(request);
 
     if (github && !githubToken) throw Unauthorized({ meta: { reason: "github_token_missing" } });
-    // only check for presence; the actual validation happens during rbac checks.
     if (ms && !msToken) throw Unauthorized({ meta: { reason: "microsoft_token_missing" } });
+    // A Microsoft sign-in counts only once ARM accepts the token and it was issued by this Function App's tenant.
+    if (ms) await assertTenant(msToken);
     // Azure enforces its own roles where a call runs as the caller; this is for the calls that do not.
     if (msRbac?.length) await assertRoles(msToken, msRbac);
 
@@ -85,4 +87,37 @@ export function requireAuth({ github = false, ms = false, msRbac, check } = {}) 
 
     return handler(request, context);
   };
+}
+
+const ARM = "https://management.azure.com";
+
+// A JWT's claims, unverified: read only from a token ARM has just accepted, or from our own identity's token.
+function tokenClaims(token) {
+  try {
+    return JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+let functionTenant = null;
+// The tenant this Function App runs in, read once from its own identity's token; a failure is retried next time.
+function functionTenantId() {
+  functionTenant ??= getAppCredential().getToken(`${ARM}/.default`).then(({ token }) => {
+    const tid = tokenClaims(token)?.tid;
+    if (!tid) throw new Error("The Function App's own token carries no tenant id");
+    return tid;
+  }).catch((cause) => {
+    functionTenant = null;
+    throw InternalError({ cause, meta: { reason: "function_tenant_unresolved" } });
+  });
+  return functionTenant;
+}
+
+// ARM refuses a token that is forged, expired or not issued for ARM, so once it accepts one, the token's tid can be trusted.
+async function assertTenant(msToken) {
+  const res = await fetch(`${ARM}/tenants?api-version=2022-12-01`, { headers: { Authorization: `Bearer ${msToken}` } });
+  if (res.status === 401) throw Unauthorized({ meta: { reason: "microsoft_token_invalid" } });
+  if (!res.ok) throw InternalError({ meta: { reason: "microsoft_token_check_failed", status: res.status } });
+  if (tokenClaims(msToken)?.tid !== await functionTenantId()) throw Forbidden({ meta: { reason: "other_tenant" } });
 }

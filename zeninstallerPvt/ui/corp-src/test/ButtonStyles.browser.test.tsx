@@ -12,6 +12,7 @@ import { Box, Button, ThemeProvider, ToggleButton } from "@mui/material";
 import PrivateFrontendInfraCard from "../cards/PrivateFrontendInfra/PrivateFrontendInfraCard";
 import RemoteTerminalInfraCard from "../cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
 import type { SetupStep } from "../types";
+import type { CardResourceAccess } from "../hooks/util/useAzureCardAccess";
 import theme from "../theme";
 
 describe("compact button styling", () => {
@@ -74,6 +75,7 @@ describe("compact button styling", () => {
           locations: [], locationsLoading: false,
           resourceGroupName: "test-private-rg", lawName: "test-private-law",
           result: null, resultMatches: false,
+          creationAccess: { status: "ready", error: null, failureKind: null, retry: vi.fn(), check: vi.fn(), reportFailure: vi.fn(), missingRoles: null, missingEntra: null, unregisteredProviders: [], registeringProviders: false, registerProviders: async () => {}, missingConsent: [], grantConsent: vi.fn() } as CardResourceAccess,
         };
         const commonProps = {
           subscriptionId: "test-subscription", githubAccount: null,
@@ -125,7 +127,7 @@ describe("compact button styling", () => {
             .filter((button) => !button.closest('[aria-label="Connection details"]'));
           expect(buttons.map((button) => button.textContent)).toEqual([
             "Reference action",
-            done ? "Re-run" : "Create frontend hosting environment",
+            done ? "Re-run" : "Create private hosting environment",
             done ? "Re-run" : "Create backend environment",
           ]);
           const reference = getComputedStyle(buttons[0]);

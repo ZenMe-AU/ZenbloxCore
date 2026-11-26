@@ -1,0 +1,152 @@
+/**
+ * @license SPDX-FileCopyrightText: © 2026 Zenme Pty Ltd <info@zenme.com.au>
+ * @license SPDX-License-Identifier: MIT
+ */
+
+import type { Account, CardChrome, CardHook, CardId, CardStatus, GhEnv, PlanSummary, Stage } from "./types";
+import type { StageOperation, UseDeploymentPlan } from "./useDeploymentPlan";
+import type { GaStageDefinition } from "./stageDefinitions";
+import { assessPrerequisites, getEffectiveStatus, getStageSummaryText, stageToCardStatus, type PrerequisiteAssessment } from "../../logic/stage";
+
+export type GaStageCardModel = {
+  card: CardChrome;
+  stageDef: GaStageDefinition;
+  stage: Stage;
+  prerequisiteAssessment: PrerequisiteAssessment;
+  deployDisabled: boolean;
+  deployedEnv: Record<string, string> | null;
+  variableValues: Record<string, string>;
+  cardStatus: Record<CardId, CardStatus>;
+  account: Account | null;
+  repoName: string;
+  selectedEnv: GhEnv | null;
+  onVariableConfirmed: (key: string, value: string) => void;
+  trackDeploy?: (start: (isCurrent: () => boolean) => Promise<boolean>) => Promise<void>;
+  onPlanSummary: (s: PlanSummary) => void;
+  onRunStatusUpdate: () => Promise<void>;
+  statusUpdateRunning: boolean;
+  statusUpdateCountdown: number;
+  statusUpdateDisabled: boolean;
+  runError: string | null;
+  latestSha?: string;
+  operation: StageOperation;
+  forcePlan: () => Promise<void>;
+  forceDeploy: (start: (isCurrent: () => boolean) => Promise<boolean>) => Promise<void>;
+  forceIdle: () => void;
+  forceError: (kind: "plan" | "deploy") => void;
+};
+
+export function createGaStageCardModel({
+  cardId,
+  stageDef,
+  plan,
+  allCards,
+  repoDone,
+  repoDependencyLabel,
+  expandedIds,
+  account,
+  repoName,
+  selectedEnv,
+  variableValues,
+  onVariableConfirmed,
+  onToggle,
+  onRequirementClick,
+}: {
+  cardId: CardId;
+  stageDef: GaStageDefinition;
+  plan: UseDeploymentPlan;
+  allCards: Record<string, CardHook>;
+  repoDone: boolean;
+  repoDependencyLabel?: string | null;
+  expandedIds: Set<CardId>;
+  account: Account | null;
+  repoName: string;
+  selectedEnv: GhEnv | null;
+  variableValues: Record<string, string>;
+  onVariableConfirmed: (key: string, value: string) => void;
+  onToggle: (id: CardId) => void;
+  onRequirementClick: (id: CardId) => void;
+}): GaStageCardModel {
+  const cardStatus = Object.fromEntries(Object.entries(allCards).map(([id, hook]) => [id, hook.status])) as Record<CardId, CardStatus>;
+  const stage = plan.stages.find((s) => s.stage === stageDef.dir) ?? {
+    stage: stageDef.dir,
+    status: "pending" as const,
+  };
+  const summary = plan.stageSummaries[stageDef.dir];
+  const effectiveStatus = getEffectiveStatus(stage, summary, stageDef.optional);
+  const prerequisiteAssessment = assessPrerequisites(stageDef.prerequisites, variableValues, cardStatus, plan.deployedEnv);
+  const run = plan.runs[stageDef.dir];
+  const isStale = run?.state === "active";
+  const runError = run?.state === "error" ? run.error : null;
+  const inputsMissing = prerequisiteAssessment.missing.length > 0 || prerequisiteAssessment.incomplete.length > 0;
+  const deployDisabled = !repoDone || isStale || prerequisiteAssessment.blocked || !!runError;
+  const requirements = repoDone
+    ? []
+    : [
+        {
+          label: repoDependencyLabel ?? "Repository & environment",
+          target: "repo" as CardId,
+        },
+      ];
+  const locked = requirements.length > 0;
+  let cardSummary: string | undefined;
+  if (!locked) {
+    try {
+      cardSummary = prerequisiteAssessment.blocked
+        ? prerequisiteAssessment.summary
+        : runError ?? (isStale
+          ? run.kind === "deploy" ? "Deployment running..." : "Plan running..."
+          : getStageSummaryText(stage, summary, plan.stagesLoading, false, stageDef.optional));
+    } catch (error) {
+      console.error("Failed to build stage card summary:", error);
+      cardSummary = "";
+    }
+  }
+  const card: CardChrome = {
+    cardId,
+    status: locked ? "idle" : runError ? "warning" : stageToCardStatus(effectiveStatus, isStale, plan.stagesLoading, prerequisiteAssessment.blocked),
+    summary: cardSummary,
+    locked,
+    requirements,
+    unavailable: false,
+    expanded: expandedIds.has(cardId),
+    onToggle: () => onToggle(cardId),
+    onRequirementClick,
+  };
+  const trackDeploy =
+    !deployDisabled && effectiveStatus === "success" && stage.runId && selectedEnv
+      ? async (start: (isCurrent: () => boolean) => Promise<boolean>) => {
+          await plan.deployStage(stageDef.dir, start);
+        }
+      : undefined;
+
+  return {
+    card,
+    stageDef,
+    stage,
+    prerequisiteAssessment,
+    deployDisabled,
+    deployedEnv: plan.deployedEnv,
+    variableValues,
+    cardStatus,
+    account,
+    repoName,
+    selectedEnv,
+    onVariableConfirmed,
+    trackDeploy,
+    onPlanSummary: (s) => plan.setStageSummary(stageDef.dir, s),
+    onRunStatusUpdate: async () => {
+      if (repoDone && !inputsMissing && !isStale) await plan.onRun(stageDef.dir);
+    },
+    statusUpdateRunning: isStale,
+    statusUpdateCountdown: run?.state === "active" ? run.countdown : 0,
+    statusUpdateDisabled: !repoDone || inputsMissing || isStale,
+    runError,
+    latestSha: plan.latestSha,
+    operation: run ?? { state: "idle" },
+    forcePlan: () => plan.forcePlan(stageDef.dir),
+    forceDeploy: (start) => plan.forceDeploy(stageDef.dir, start),
+    forceIdle: () => plan.forceIdle(stageDef.dir),
+    forceError: (kind) => plan.forceError(stageDef.dir, kind),
+  };
+}

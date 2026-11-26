@@ -65,7 +65,9 @@ test("Saved tenant missing from tenant list", async ({ page, context }, testInfo
     tenantIds: [mockTenantId, missingTenantId],
   });
   await page.evaluate((tenantId) => sessionStorage.setItem("zeninstaller_arm_tenant", tenantId), missingTenantId);
-  await page.reload();
+  const url = new URL(page.url());
+  url.searchParams.set("tenant", missingTenantId);
+  await page.goto(url.toString());
   const card = await expandAzureLoginCard(page);
   await expect(card.getByText("Saved tenant not found — please pick another.", { exact: true })).toBeVisible();
   await expect(card.getByTestId("tenant-select").locator("input")).toHaveValue(missingTenantId);

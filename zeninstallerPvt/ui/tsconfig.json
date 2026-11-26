@@ -15,5 +15,8 @@
     "corp-src",
     "pwtests",
     "vite.config.ts"
+  ],
+  "exclude": [
+    "corp-src/archive"
   ]
 }
