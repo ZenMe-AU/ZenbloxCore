@@ -10,9 +10,10 @@ import { createRepoApi } from "./api";
 import { useGithubRepo, type UseGithubRepo } from "./useGithubRepo";
 import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
 import {
-  getRepoPrerequisites,
+  cardId,
   getBaseCardContext,
-  initialRepoCardContext,
+  githubLoginCardId,
+  initialCardContext,
   initialState,
   reducer,
   type Lifecycle,
@@ -33,10 +34,10 @@ export interface UseRepoV2 {
 
 export function useRepoV2(appStore: AppContext): UseRepoV2 {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { appContext, prerequisites, unmet: unmetCardPrerequisites } = useCardAppContext(appStore, initialRepoCardContext, getRepoPrerequisites);
-  const token = prerequisites?.token;
-  const mode = prerequisites?.mode;
-  const user = prerequisites?.user ?? null;
+  const { appContext, prerequisites, unmet: unmetCardPrerequisites } = useCardAppContext(appStore, initialCardContext);
+  const token = prerequisites?.[githubLoginCardId].githubToken;
+  const mode = prerequisites?.[githubLoginCardId].githubMode;
+  const user = prerequisites?.[githubLoginCardId].githubAccount ?? null;
   const [initialUrlParams] = useState(() => appContext.urlParams);
   const api = useMemo(() => token && mode ? createRepoApi(token, mode) : null, [token, mode]);
   const githubRepo = useGithubRepo(user, api, initialUrlParams.account, initialUrlParams.repo);
@@ -123,13 +124,13 @@ export function useRepoV2(appStore: AppContext): UseRepoV2 {
         },
       }
       : null;
-    appStore.update("repo_v2", {
+    appStore.update(cardId, {
       title: baseCardContext.title,
       prerequisiteIds: baseCardContext.prerequisiteIds,
       currentBaseCardStatus: baseCardContext.lifecycle,
       currentStatus: state.lifecycle,
       githubRepository,
-    } satisfies SharedCard<"repo_v2">);
+    } satisfies SharedCard<typeof cardId>);
   }, [appStore, baseCardContext.title, baseCardContext.prerequisiteIds, baseCardContext.lifecycle, state.lifecycle, done, githubRepo.selectedAccount, githubRepo.selectedRepo, env.selectedEnv]);
 
   return {

@@ -5,6 +5,7 @@
 
 import type {
   Lifecycle as BaseCardLifecycle,
+  BaseCardContext,
   BaseCardEvent,
   BaseCardState,
   BaseCardStateGraph,
@@ -25,6 +26,12 @@ declare module "../../appContext" {
     };
   }
 }
+
+export const initialCardContext = {
+  cardId,
+  title: "GitHub Login 2",
+  prerequisiteIds: [],
+} satisfies Omit<BaseCardContext, "lifecycle">;
 
 export const lifecycles = ["loading", "ready", "signing-in", "signed-in", "expired"] as const;
 export type Lifecycle = typeof lifecycles[number];

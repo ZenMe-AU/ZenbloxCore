@@ -3,7 +3,6 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { AppContext } from "../../appContext";
 import type {
   Lifecycle as BaseCardLifecycle,
   BaseCardContext,
@@ -92,13 +91,6 @@ export const initialState: State = {
 
 export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
   return stateGraph[state].baseCardLifecycle;
-}
-
-// The signed-in account and confirmed tenant, once Azure login 2 and Repository & environment 2 are complete.
-export function getPrerequisites(appContext: ReturnType<AppContext["getSnapshot"]>) {
-  const login = appContext.cards[azureLoginCardId];
-  if (!login?.initialised || !login.azureAccount || !login.azureTenantId) return null;
-  return { account: login.azureAccount, tenantId: login.azureTenantId };
 }
 
 export function deriveLifecycle({

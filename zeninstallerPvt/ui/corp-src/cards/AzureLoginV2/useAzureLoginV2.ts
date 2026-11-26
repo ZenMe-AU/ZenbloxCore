@@ -16,6 +16,7 @@ import { findIgnoreCase } from "../../logic/search";
 import {
   cardId,
   getBaseCardContext,
+  initialCardContext,
   initialState,
   reducer,
 } from "./stateMachine";
@@ -76,7 +77,7 @@ function friendlyTenantError(err: unknown): string {
  */
 export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { appContext } = useCardAppContext(appStore, state.baseCardContext);
+  const { appContext } = useCardAppContext(appStore, initialCardContext);
   const { account, manualTenantId, confirmedTenantId, loginError, tenantIdError } = state.privateContext;
   const [initialTenantId] = useState(() => appContext.urlParams.tenant);
   const initialTenantApplied = useRef(false);

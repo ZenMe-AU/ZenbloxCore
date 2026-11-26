@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { AppContext, AppContextCardId } from "../../appContext";
+import type { AppContextCardId } from "../../appContext";
 import type {
   Lifecycle as BaseCardLifecycle,
   BaseCardContext,
@@ -107,24 +107,6 @@ export const initialState: State = {
 
 export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
   return stateGraph[state].baseCardLifecycle;
-}
-
-// Everything the app registration is made for, once its prerequisite tree is complete (GitHub login 2 comes in
-// through Repository & environment 2) and the cards have shared what it needs, GitHub login 2's token included.
-export function getPrerequisites(appContext: ReturnType<AppContext["getSnapshot"]>) {
-  const azureLogin = appContext.cards[azureLoginCardId];
-  const repo = appContext.cards[repoCardId];
-  const subscription = appContext.cards[subscriptionCardId];
-  const githubLogin = appContext.cards[githubLoginCardId];
-  if (!azureLogin?.initialised || !repo?.initialised || !subscription?.initialised || !githubLogin?.initialised) return null;
-  if (!azureLogin.azureAccount || !azureLogin.azureTenantId || !subscription.azureSubscription) return null;
-  if (!repo.githubRepository || !githubLogin.githubToken) return null;
-  return {
-    account: azureLogin.azureAccount,
-    tenantId: azureLogin.azureTenantId,
-    subscription: subscription.azureSubscription,
-    githubRepository: repo.githubRepository,
-  };
 }
 
 export function deriveLifecycle({

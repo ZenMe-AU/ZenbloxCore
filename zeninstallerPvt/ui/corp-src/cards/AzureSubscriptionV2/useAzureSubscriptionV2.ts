@@ -12,8 +12,9 @@ import { useCardAppContext, type BaseCardContext } from "../../components/useBas
 import { useGithubVariablesV2, type GithubTarget, type UseGithubVariablesV2 } from "../../hooks/useGithubVariablesV2";
 import { findIgnoreCase } from "../../logic/search";
 import {
+  azureLoginCardId,
+  cardId,
   deriveLifecycle,
-  getPrerequisites,
   githubLoginCardId,
   initialCardContext,
   initialState,
@@ -65,9 +66,9 @@ function friendlySubsError(err: unknown): string {
 
 export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscriptionV2 {
   const [state, dispatchLifecycle] = useReducer(reducer, initialState);
-  const { appContext, prerequisites, unmet, blockedSummary } = useCardAppContext(appStore, initialCardContext, getPrerequisites);
-  const account = prerequisites?.account ?? null;
-  const tenantId = prerequisites?.tenantId ?? null;
+  const { appContext, prerequisites, unmet, blockedSummary } = useCardAppContext(appStore, initialCardContext);
+  const account = prerequisites?.[azureLoginCardId].azureAccount ?? null;
+  const tenantId = prerequisites?.[azureLoginCardId].azureTenantId ?? null;
   const key = account && tenantId ? `${account.homeAccountId}|${tenantId}` : null;
   const [initialSubscription] = useState(() => appContext.urlParams.subscription);
 
@@ -162,7 +163,7 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
     appStore.updateUrl({ subscription: selectedSubscriptionId || undefined });
   }, [appStore, initialSubscription, subscriptionsLoaded, selectedSubscriptionId]);
   useEffect(() => {
-    appStore.update("azure_subscription_v2", {
+    appStore.update(cardId, {
       title: baseCardContext.title,
       prerequisiteIds: baseCardContext.prerequisiteIds,
       currentBaseCardStatus: baseCardContext.lifecycle,
@@ -170,7 +171,7 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
       azureSubscription: done && selectedSubscription
         ? { id: selectedSubscription.id, displayName: selectedSubscription.displayName, tenantId: selectedSubscription.tenantId }
         : null,
-    } satisfies SharedCard<"azure_subscription_v2">);
+    } satisfies SharedCard<typeof cardId>);
   }, [appStore, baseCardContext.title, baseCardContext.prerequisiteIds, baseCardContext.lifecycle, lifecycle, done, selectedSubscription]);
 
   return {

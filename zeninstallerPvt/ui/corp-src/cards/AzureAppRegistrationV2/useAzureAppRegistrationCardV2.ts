@@ -28,12 +28,15 @@ import type { SetupStep } from "../../types";
 import { azureAppRegistrationAccess } from "./config";
 import { useRbacCheck, type RbacCheckStatus } from "./useRbacCheck";
 import {
+  azureLoginCardId,
+  cardId,
   getBaseCardContext,
-  getPrerequisites,
   githubLoginCardId,
   initialCardContext,
   initialState,
   reducer,
+  repoCardId,
+  subscriptionCardId,
   canLifecycleTransition,
   type Lifecycle,
 } from "./stateMachine";
@@ -89,7 +92,11 @@ export const runSteps: readonly SetupStep[] = [
   { id: "rbac", label: "Assign RBAC roles", status: "pending" },
 ];
 
-export type RunAppRegistrationInput = NonNullable<ReturnType<typeof getPrerequisites>> & {
+export type RunAppRegistrationInput = {
+  account: NonNullable<SharedCard<typeof azureLoginCardId>["azureAccount"]>;
+  tenantId: string;
+  subscription: NonNullable<SharedCard<typeof subscriptionCardId>["azureSubscription"]>;
+  githubRepository: NonNullable<SharedCard<typeof repoCardId>["githubRepository"]>;
   githubRepoId: number;
   appName: string; // Trimmed.
   githubApi: ReturnType<typeof createGithubApi>;
@@ -227,13 +234,13 @@ export async function runAppRegistration(input: RunAppRegistrationInput): Promis
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegistrationV2 {
-  const { appContext, prerequisites, unmet, blockedSummary } = useCardAppContext(appStore, initialCardContext, getPrerequisites);
+  const { appContext, prerequisites, unmet, blockedSummary } = useCardAppContext(appStore, initialCardContext);
   const [state, dispatchLifecycle] = useReducer(reducer, initialState);
-  const account = prerequisites?.account ?? null;
-  const tenantId = prerequisites?.tenantId;
-  const subscription = prerequisites?.subscription ?? null;
+  const account = prerequisites?.[azureLoginCardId].azureAccount ?? null;
+  const tenantId = prerequisites?.[azureLoginCardId].azureTenantId ?? null;
+  const subscription = prerequisites?.[subscriptionCardId].azureSubscription ?? null;
   const subscriptionId = subscription?.id ?? "";
-  const githubRepository = prerequisites?.githubRepository ?? null;
+  const githubRepository = prerequisites?.[repoCardId].githubRepository ?? null;
   const environmentName = githubRepository?.environment.name ?? "";
   const githubRepoId = typeof githubRepository?.repository.id === "number" ? githubRepository.repository.id : null;
   const [appName, setAppName] = useState(DEFAULT_APP_NAME);
@@ -242,13 +249,17 @@ export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegi
   // From AppContext rather than prerequisites: React Compiler won't keep a memo keyed on a field of prerequisites (react-hooks/preserve-manual-memoization).
   const githubLogin = appContext.cards[githubLoginCardId];
   const githubToken = prerequisites && githubLogin?.initialised ? githubLogin.githubToken : null;
+  // What the app registration is made for; null until all of it has been shared.
+  const target = account && tenantId && subscription && githubRepository && githubToken
+    ? { account, tenantId, subscription, githubRepository }
+    : null;
   const githubApi = useMemo(() => githubToken ? createGithubApi(githubToken.reveal()) : null, [githubToken]);
   const variables = useGithubVariablesV2({ target: githubRepository, api: githubApi });
   const savedClientId = variables.values.AZURE_CLIENT_ID ?? "";
   const savedPlanClientId = variables.values.AZURE_PLAN_CLIENT_ID ?? "";
   const [namedFor, setNamedFor] = useState<string | null>(null);
   // The name isn't part of the scope: typing it must not reset a run or put the card back to loading.
-  const scopeKey = prerequisites && githubRepoId !== null
+  const scopeKey = target && githubRepoId !== null
     ? JSON.stringify([account?.homeAccountId, tenantId, subscriptionId, githubRepository?.account.id, githubRepository?.repository.id, environmentName])
     : null;
   const trimmedAppName = appName.trim();
@@ -321,7 +332,7 @@ export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegi
   };
 
   const run = async () => {
-    if (!runAllowed || !scopeKey || !prerequisites || !githubApi || githubRepoId === null || !trimmedAppName) return;
+    if (!runAllowed || !scopeKey || !target || !githubApi || githubRepoId === null || !trimmedAppName) return;
     runControllerRef.current?.abort();
     const controller = new AbortController();
     runControllerRef.current = controller;
@@ -329,7 +340,7 @@ export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegi
     dispatchLifecycle({ type: "run-started", scopeKey, runId, steps: [...runSteps] });
     try {
       const clientId = await runAppRegistration({
-        ...prerequisites,
+        ...target,
         githubRepoId,
         appName: trimmedAppName,
         githubApi,
@@ -363,7 +374,7 @@ export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegi
   const baseCardContext = getBaseCardContext(state, {
     unmetCardPrerequisites: unmet,
     blockedSummary,
-    prerequisitesMet: !!prerequisites,
+    prerequisitesMet: !!target,
     checkingMessage: activity,
     managementAccessStatus: managementAccess.status,
     discoveryError: discoveryQuery.error instanceof Error ? discoveryQuery.error.message : null,
@@ -388,13 +399,13 @@ export function useAzureAppRegistrationV2(appStore: AppContext): UseAzureAppRegi
   const done = lifecycle === "complete";
 
   useEffect(() => {
-    appStore.update("azure_app_registration_v2", {
+    appStore.update(cardId, {
       title: baseCardContext.title,
       prerequisiteIds: baseCardContext.prerequisiteIds,
       currentBaseCardStatus: baseCardContext.lifecycle,
       currentStatus: lifecycle,
       azureClientId: done ? savedClientId : null,
-    } satisfies SharedCard<"azure_app_registration_v2">);
+    } satisfies SharedCard<typeof cardId>);
   }, [appStore, baseCardContext.title, baseCardContext.prerequisiteIds, baseCardContext.lifecycle, lifecycle, done, savedClientId]);
 
   return {

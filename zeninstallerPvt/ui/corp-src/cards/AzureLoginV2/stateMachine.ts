@@ -25,6 +25,12 @@ declare module "../../appContext" {
   }
 }
 
+export const initialCardContext = {
+  cardId,
+  title: "Azure login 2",
+  prerequisiteIds: [],
+} satisfies Omit<BaseCardContext, "lifecycle">;
+
 export type Lifecycle =
   | "loading"
   | "unconfigured"
@@ -106,9 +112,7 @@ export type Event =
 export const initialState: State = {
   lifecycle: "loading",
   baseCardContext: {
-    cardId,
-    title: "Azure login 2",
-    prerequisiteIds: [],
+    ...initialCardContext,
     unmetCardPrerequisites: [],
   },
   privateContext: {

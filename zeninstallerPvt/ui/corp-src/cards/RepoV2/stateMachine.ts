@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { AppContext, AppContextCardId } from "../../appContext";
+import type { AppContextCardId } from "../../appContext";
 import type {
   BaseCardContext,
   BaseCardEvent,
@@ -28,9 +28,9 @@ declare module "../../appContext" {
   }
 }
 
-const githubLoginCardId = "github_login_v2" satisfies BaseCardContext["cardId"];
+export const githubLoginCardId = "github_login_v2" satisfies BaseCardContext["cardId"];
 
-export const initialRepoCardContext = {
+export const initialCardContext = {
   cardId,
   title: "Repository & environment 2",
   prerequisiteIds: [githubLoginCardId],
@@ -56,7 +56,7 @@ export type Event =
 export const initialState: State = {
   lifecycle: "loading",
   baseCardContext: {
-    ...initialRepoCardContext,
+    ...initialCardContext,
     unmetCardPrerequisites: [githubLoginCardId],
   },
 };
@@ -72,12 +72,6 @@ export const stateGraph: BaseCardStateGraph<Lifecycle> = {
 
 export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
   return stateGraph[state].baseCardLifecycle;
-}
-
-export function getRepoPrerequisites(appContext: ReturnType<AppContext["getSnapshot"]>) {
-  const login = appContext.cards[githubLoginCardId];
-  if (!login?.initialised || !login.githubAccount || !login.githubToken || !login.githubMode) return null;
-  return { user: login.githubAccount, token: login.githubToken, mode: login.githubMode };
 }
 
 export function canTransition(currentState: State, nextState: Lifecycle): boolean {
