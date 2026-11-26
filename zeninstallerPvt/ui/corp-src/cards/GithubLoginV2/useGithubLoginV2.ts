@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useReducer, useState, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useReducer, useState, useRef } from "react";
 import { createGithubApi, fetchGithubUser } from "../../api/github";
 import { BACKEND_CONFIGURED, exchangeGithubCode, verifyAuthWithToken } from "../../api/backend";
 import { appUrl, requestAuthorizationCode, takePendingCode } from "../../logic/oauth";
@@ -15,10 +15,12 @@ import {
   GITHUB_CLIENT_ID,
   GITHUB_SCOPES,
 } from "../../config/githubConfig";
-import type { BaseCardContext } from "../../components/useBaseCard";
+import { useCardAppContext, type BaseCardContext } from "../../components/useBaseCard";
 import { SensitiveToken, type AppContext } from "../../appContext";
 import {
   deriveLifecycle,
+  cardId,
+  initialCardContext,
   initialState,
   reducer,
   stateGraph,
@@ -26,9 +28,6 @@ import {
   type GithubAccount,
   type Lifecycle as GithubLoginV2Lifecycle,
 } from "./stateMachine";
-
-const cardId = "github_login_v2" as const;
-const cardTitle: string = "GitHub Login 2";
 
 const AUTH_RECORD_KEY = cardId + "_auth";
 const GITHUB_PROVIDER = cardId;
@@ -137,7 +136,7 @@ function writeGithubAuthRecord(record: GithubAuthRecord | null): void {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useGithubLoginV2(appStore: AppContext) {
-  const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
+  const { appContext } = useCardAppContext(appStore, initialCardContext);
   const [loggingIn, setLoggingIn] = useState(true);
   const [account, setAccount] = useState<GithubAccount | null>(null);
   const [session, setSession] = useState<{ token: SensitiveToken; mode: GithubAuthRecord["mode"] } | null>(null);
@@ -364,7 +363,7 @@ export function useGithubLoginV2(appStore: AppContext) {
   }
   useEffect(() => {
     appStore.update(cardId, {
-      title: cardTitle,
+      title: initialCardContext.title,
       currentBaseCardStatus: toBaseCardLifecycle(lifecycle),
       currentStatus: lifecycle,
       githubAccount: account,
@@ -373,9 +372,7 @@ export function useGithubLoginV2(appStore: AppContext) {
     });
   }, [appStore, lifecycle, account, session]);
   const baseCardContext = {
-    cardId: cardId,
-    title: cardTitle,
-    prerequisiteIds: [],
+    ...initialCardContext,
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),
     stateMachine: { graph: stateGraph, currentState: lifecycle },

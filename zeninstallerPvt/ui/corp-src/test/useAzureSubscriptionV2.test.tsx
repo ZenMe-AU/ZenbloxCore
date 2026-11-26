@@ -5,6 +5,7 @@
 
 import { act } from "react";
 import { createRoot } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, expect, it, vi } from "vitest";
 import { createAppContext, SensitiveToken } from "../appContext";
 import { useAzureSubscriptionV2, type UseAzureSubscriptionV2 } from "../cards/AzureSubscriptionV2/useAzureSubscriptionV2";
@@ -61,17 +62,18 @@ it("uses the canonical two-context contract and publishes the saved subscription
     currentBaseCardStatus: "complete",
     currentStatus: "complete",
     githubRepository: {
-      account: { id: 1, login: "owner", type: "User" },
-      repository: { id: 2, name: "repo" },
-      environment: { id: 3, name: "PROD", url: "https://example.test/env" },
+      account: { id: 1, login: "owner", type: "User", htmlUrl: "https://github.com/owner" },
+      repository: { id: 2, name: "repo", htmlUrl: "https://github.com/owner/repo" },
+      environment: { id: 3, name: "PROD", settingsUrl: "https://github.com/owner/repo/settings/environments/3/edit" },
     },
   });
 
   let latest: UseAzureSubscriptionV2 | undefined;
   function Harness() { latest = useAzureSubscriptionV2(store); return null; }
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const root = createRoot(document.createElement("div"));
   try {
-    await act(async () => root.render(<Harness />));
+    await act(async () => root.render(<QueryClientProvider client={queryClient}><Harness /></QueryClientProvider>));
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
 
     expect(Object.keys(latest ?? {})).toEqual(["baseCardContext", "privateContext"]);
@@ -82,6 +84,8 @@ it("uses the canonical two-context contract and publishes the saved subscription
     expect(latest?.privateContext.subscriptions).toEqual([
       { id: "subscription-1", displayName: "Production", tenantId: "tenant-1" },
     ]);
+    expect(latest?.privateContext).toMatchObject({ subscriptionsLoaded: true, subscriptionsRefreshing: false });
+    expect(listSubscriptions).toHaveBeenCalledTimes(1);
     expect(latest?.privateContext).not.toHaveProperty("currentState");
     expect(latest?.privateContext.appContext.cards.azure_subscription_v2).toMatchObject({
       initialised: true,
@@ -89,6 +93,18 @@ it("uses the canonical two-context contract and publishes the saved subscription
       currentStatus: "saved",
       azureSubscription: { id: "subscription-1", displayName: "Production", tenantId: "tenant-1" },
     });
+
+    listSubscriptions.mockRejectedValueOnce(new Error("network unavailable"));
+    await act(async () => {
+      await latest?.privateContext.refreshSubscriptions();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(listSubscriptions).toHaveBeenCalledTimes(2);
+    expect(latest?.privateContext.subscriptions).toEqual([
+      { id: "subscription-1", displayName: "Production", tenantId: "tenant-1" },
+    ]);
+    expect(latest?.privateContext.subscriptionsRefreshError).toMatch(/Couldn't load subscriptions/);
+    expect(latest?.baseCardContext.stateMachine?.currentState).toBe("saved");
   } finally {
     await act(async () => root.unmount());
   }
@@ -126,17 +142,18 @@ it("restores the V2 subscription from the initial URL params", async () => {
     currentBaseCardStatus: "complete",
     currentStatus: "complete",
     githubRepository: {
-      account: { id: 1, login: "owner", type: "User" },
-      repository: { id: 2, name: "repo" },
-      environment: { id: 3, name: "PROD", url: "https://example.test/env" },
+      account: { id: 1, login: "owner", type: "User", htmlUrl: "https://github.com/owner" },
+      repository: { id: 2, name: "repo", htmlUrl: "https://github.com/owner/repo" },
+      environment: { id: 3, name: "PROD", settingsUrl: "https://github.com/owner/repo/settings/environments/3/edit" },
     },
   });
 
   let latest: UseAzureSubscriptionV2 | undefined;
   function Harness() { latest = useAzureSubscriptionV2(store); return null; }
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const root = createRoot(document.createElement("div"));
   try {
-    await act(async () => root.render(<Harness />));
+    await act(async () => root.render(<QueryClientProvider client={queryClient}><Harness /></QueryClientProvider>));
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));

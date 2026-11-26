@@ -3,22 +3,24 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { AuthenticationResult } from "@azure/msal-browser";
 import { useQuery } from "@tanstack/react-query";
 import { cleanTenantId, getMsal, getToken, LOGIN_AUTHORITY, MSA_TENANT, PINNED_TENANT_ID } from "../../auth/msal";
 import { listTenants } from "../../api/azureGraph";
 import { ARM_SCOPES, AZURE_CLIENT_ID, LOGIN_SCOPES } from "../../config/azureConfig";
 import type { AppContext, SharedCard } from "../../appContext";
+import { useCardAppContext } from "../../components/useBaseCard";
 import type { AzureAccount, AzureTenant } from "../../types";
 import { findIgnoreCase } from "../../logic/search";
 import {
+  cardId,
   getBaseCardContext,
+  initialCardContext,
   initialState,
   reducer,
 } from "./stateMachine";
 
-const cardId = "azure_login_v2";
 
 // Its own key, so a tenant consent redirect started here is not confirmed by the original Azure login card on the way back.
 const SESSION_KEY = "zeninstaller_arm_tenant_v2";
@@ -74,8 +76,8 @@ function friendlyTenantError(err: unknown): string {
  * the GitHub variables, the URL restore, the app-registration result's MSA tenant, and setActiveAzureIdentity.
  */
 export function useAzureLoginV2(appStore: AppContext): UseAzureLoginV2 {
-  const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatch] = useReducer(reducer, initialState);
+  const { appContext } = useCardAppContext(appStore, initialCardContext);
   const { account, manualTenantId, confirmedTenantId, loginError, tenantIdError } = state.privateContext;
   const [initialTenantId] = useState(() => appContext.urlParams.tenant);
   const initialTenantApplied = useRef(false);

@@ -3,21 +3,23 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useMemo, useReducer, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { listSubscriptions, type Subscription } from "../../api/azureGraph";
 import { createGithubApi } from "../../api/github";
-import type { AppContext, AppContextCardId, SharedCard } from "../../appContext";
-import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
+import type { AppContext, SharedCard } from "../../appContext";
+import { useCardAppContext, type BaseCardContext } from "../../components/useBaseCard";
 import { useGithubVariablesV2, type GithubTarget, type UseGithubVariablesV2 } from "../../hooks/useGithubVariablesV2";
-import { getEnvSettingsUrl } from "../../logic/github";
 import { findIgnoreCase } from "../../logic/search";
 import {
+  azureLoginCardId,
+  cardId,
   deriveLifecycle,
-  getGithubTarget,
-  getPrerequisites,
+  githubLoginCardId,
   initialCardContext,
   initialState,
   reducer,
+  repoCardId,
   stateGraph,
   toBaseCardLifecycle,
   type Lifecycle,
@@ -27,9 +29,12 @@ import {
 
 interface PrivateContext {
   appContext: ReturnType<AppContext["getSnapshot"]>;
-  blockedBy: readonly { cardId: AppContextCardId; label: string }[];
   tenantId: string | null;
   subscriptions: Subscription[];
+  subscriptionsLoaded: boolean;
+  subscriptionsRefreshing: boolean;
+  subscriptionsRefreshError: string | null;
+  refreshSubscriptions: () => Promise<void>;
   selectedSubscriptionId: string;
   setSelectedSubscriptionId: (id: string) => void;
   // Goes up on every pick, the same subscription included, so a pick puts it back in the Saved to GitHub draft.
@@ -60,79 +65,77 @@ function friendlySubsError(err: unknown): string {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscriptionV2 {
-  const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatchLifecycle] = useReducer(reducer, initialState);
-  const prerequisiteContext = { ...initialCardContext, lifecycle: toBaseCardLifecycle(state.lifecycle) };
-  const prerequisites = getPrerequisites(appContext, prerequisiteContext);
-  const missing = checkPrerequisites(appContext, prerequisiteContext);
-  // Azure login 2 can be complete without an account in AppContext yet; it is still the way on.
-  const blockedBy = (missing.length > 0 ? missing : initialCardContext.prerequisiteIds.slice(0, 1)).map((id) => {
-    const cardId = id as AppContextCardId;
-    const prerequisite = appContext.cards[cardId];
-    return { cardId, label: prerequisite?.initialised ? `${prerequisite.title} (${id})` : id };
-  });
-  const account = prerequisites?.account ?? null;
-  const tenantId = prerequisites?.tenantId ?? null;
+  const { appContext, prerequisites, unmet, blockedSummary } = useCardAppContext(appStore, initialCardContext);
+  const account = prerequisites?.[azureLoginCardId].azureAccount ?? null;
+  const tenantId = prerequisites?.[azureLoginCardId].azureTenantId ?? null;
   const key = account && tenantId ? `${account.homeAccountId}|${tenantId}` : null;
   const [initialSubscription] = useState(() => appContext.urlParams.subscription);
 
-  const [loaded, setLoaded] = useState<{ key: string; subs: Subscription[]; error: string | null } | null>(null);
-  const [picked, setPicked] = useState<{ key: string; id: string } | null>(null);
-  const [populateCount, setPopulateCount] = useState(0);
+  const subscriptionsQuery = useQuery({
+    queryKey: ["azure_subscription_v2", "subscriptions", account?.homeAccountId, tenantId],
+    enabled: !!account && !!tenantId,
+    staleTime: Infinity,
+    retry: false,
+    queryFn: () => listSubscriptions(account!, tenantId!),
+  });
+  const subscriptions = useMemo(() => subscriptionsQuery.data ?? [], [subscriptionsQuery.data]);
+  const subscriptionsLoaded = !!key && !subscriptionsQuery.isPending;
 
-  useEffect(() => {
-    if (!account || !tenantId) return;
-    let cancelled = false;
-    const loadKey = `${account.homeAccountId}|${tenantId}`;
-    listSubscriptions(account, tenantId)
-      .then((subs) => {
-        if (cancelled) return;
-        setLoaded({ key: loadKey, subs, error: subs.length === 0 ? "No subscriptions found for this account." : null });
-        if (subs.length === 1) setPicked({ key: loadKey, id: subs[0].id });
-      })
-      .catch((err) => {
-        if (!cancelled) setLoaded({ key: loadKey, subs: [], error: friendlySubsError(err) });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [account, tenantId]);
-
-  const githubTarget = getGithubTarget(appContext);
-  const github = githubTarget && {
-    account: githubTarget.account,
-    repoName: githubTarget.repository.name,
-    envName: githubTarget.environment.name,
-    envUrl: getEnvSettingsUrl(`${githubTarget.account.login}/${githubTarget.repository.name}`, githubTarget.environment.id),
-  };
+  // Where the pick is saved; Repository & environment 2 publishes it only once it's complete.
+  const repo = appContext.cards[repoCardId];
+  const github = repo?.initialised && repo.currentBaseCardStatus === "complete" ? repo.githubRepository : null;
   // GitHub is called from the browser whichever way GitHub login 2 got its token; the backend only exchanges it.
-  const githubToken = githubTarget?.token;
+  // Nothing loads before github is set, so the token needs no gate of its own.
+  const githubLogin = appContext.cards[githubLoginCardId];
+  const githubToken = githubLogin?.initialised ? githubLogin.githubToken : null;
   const variableApi = useMemo(() => githubToken ? createGithubApi(githubToken.reveal()) : null, [githubToken]);
   const variables = useGithubVariablesV2({ target: github, api: variableApi });
-  const forThisKey = !!key && loaded?.key === key;
-  const subscriptions = useMemo(() => forThisKey ? loaded.subs : [], [forThisKey, loaded]);
-  const subsError = forThisKey ? loaded.error : null;
+  const subsError = subscriptionsQuery.error && subscriptions.length === 0
+    ? friendlySubsError(subscriptionsQuery.error)
+    : subscriptionsLoaded && subscriptions.length === 0 ? "No subscriptions found for this account." : null;
+  const subscriptionsRefreshError = subscriptionsQuery.error && subscriptions.length > 0
+    ? friendlySubsError(subscriptionsQuery.error)
+    : null;
+  const refreshSubscriptions = async () => {
+    await subscriptionsQuery.refetch();
+  };
   const savedSubscriptionId = variables.values.AZURE_SUBSCRIPTION_ID ?? "";
-  const pickedId = key && picked?.key === key ? picked.id : "";
   const initialMatch = initialSubscription
     ? subscriptions.find((subscription) => subscription.id === initialSubscription)
       ?? findIgnoreCase(subscriptions, (subscription) => subscription.displayName, initialSubscription)
     : undefined;
-  const selectedSubscriptionId = pickedId
-    || (initialSubscription ? initialMatch?.id ?? ""
-      : subscriptions.some((subscription) => subscription.id === savedSubscriptionId) ? savedSubscriptionId : "");
+  const preferredSubscriptionId = initialSubscription
+    ? initialMatch?.id ?? ""
+    : subscriptions.some((subscription) => subscription.id === savedSubscriptionId)
+      ? savedSubscriptionId
+      : subscriptions.length === 1 ? subscriptions[0].id : "";
+  const selectedSubscriptionId = state.scopeKey === key ? state.selectedSubscriptionId : preferredSubscriptionId;
   const selectedSubscription = subscriptions.find((subscription) => subscription.id === selectedSubscriptionId) ?? null;
   const setSelectedSubscriptionId = (id: string) => {
     if (!key) return;
-    setPicked({ key, id });
-    setPopulateCount((count) => count + 1);
+    dispatchLifecycle({ type: "subscription-selected", subscriptionId: id });
   };
+  useEffect(() => {
+    if (!key) {
+      dispatchLifecycle({ type: "scope-synced", scopeKey: null, selectedSubscriptionId: "" });
+      return;
+    }
+    if (!subscriptionsLoaded) return;
+    const selectionIsValid = state.scopeKey === key
+      && subscriptions.some((subscription) => subscription.id === state.selectedSubscriptionId);
+    dispatchLifecycle({
+      type: "scope-synced",
+      scopeKey: key,
+      selectedSubscriptionId: selectionIsValid ? state.selectedSubscriptionId : preferredSubscriptionId,
+    });
+  }, [key, preferredSubscriptionId, state.scopeKey, state.selectedSubscriptionId, subscriptions, subscriptionsLoaded]);
   const saved = !variables.loading
     && variables.values.AZURE_SUBSCRIPTION_ID === selectedSubscriptionId && variables.values.AZURE_TENANT_ID === tenantId;
-  const lifecycle = deriveLifecycle({ prerequisitesMet: !!key, loaded: forThisKey, error: subsError, picked: !!selectedSubscription, saved });
-  if (lifecycle !== state.lifecycle) {
-    dispatchLifecycle({ type: "transition", lifecycle });
-  }
+  const lifecycle = deriveLifecycle({ prerequisitesMet: !!key, loaded: subscriptionsLoaded, error: subsError, picked: !!selectedSubscription, saved });
+  useEffect(() => {
+    if (lifecycle !== state.lifecycle) dispatchLifecycle({ type: "transition", lifecycle });
+  }, [lifecycle, state.lifecycle]);
   const done = lifecycle === "saved";
   // The build bakes VITE_AZURE_TENANT_ID in to pin sign-in to this tenant, so it tracks the same choice.
   const populate = (lifecycle === "unsaved" || done) && tenantId
@@ -140,7 +143,7 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
     : undefined;
   const differsFromGithub = lifecycle === "unsaved" && !variables.loading;
   const summary = ({
-    blocked: blockedBy[0].label,
+    blocked: blockedSummary,
     loading: "Loading subscriptions...",
     selecting: "Select a subscription",
     unsaved: "Doesn't match what's saved to GitHub", // The header can't see the draft, so it states only what is true either way.
@@ -152,33 +155,38 @@ export function useAzureSubscriptionV2(appStore: AppContext): UseAzureSubscripti
     ...initialCardContext,
     summary,
     lifecycle: toBaseCardLifecycle(lifecycle),
+    unmetCardPrerequisites: unmet,
     stateMachine: { graph: stateGraph, currentState: lifecycle },
   } satisfies BaseCardContext<Lifecycle>;
   useEffect(() => {
-    if (initialSubscription && !forThisKey) return;
+    if (initialSubscription && !subscriptionsLoaded) return;
     appStore.updateUrl({ subscription: selectedSubscriptionId || undefined });
-  }, [appStore, initialSubscription, forThisKey, selectedSubscriptionId]);
+  }, [appStore, initialSubscription, subscriptionsLoaded, selectedSubscriptionId]);
   useEffect(() => {
-    appStore.update("azure_subscription_v2", {
+    appStore.update(cardId, {
       title: baseCardContext.title,
+      prerequisiteIds: baseCardContext.prerequisiteIds,
       currentBaseCardStatus: baseCardContext.lifecycle,
       currentStatus: lifecycle,
       azureSubscription: done && selectedSubscription
         ? { id: selectedSubscription.id, displayName: selectedSubscription.displayName, tenantId: selectedSubscription.tenantId }
         : null,
-    } satisfies SharedCard<"azure_subscription_v2">);
-  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, lifecycle, done, selectedSubscription]);
+    } satisfies SharedCard<typeof cardId>);
+  }, [appStore, baseCardContext.title, baseCardContext.prerequisiteIds, baseCardContext.lifecycle, lifecycle, done, selectedSubscription]);
 
   return {
     baseCardContext,
     privateContext: {
       appContext,
-      blockedBy,
       tenantId,
       subscriptions,
+      subscriptionsLoaded,
+      subscriptionsRefreshing: subscriptionsQuery.isFetching && !subscriptionsQuery.isPending,
+      subscriptionsRefreshError,
+      refreshSubscriptions,
       selectedSubscriptionId,
       setSelectedSubscriptionId,
-      populateCount,
+      populateCount: state.populateCount,
       subsError,
       github,
       variables,

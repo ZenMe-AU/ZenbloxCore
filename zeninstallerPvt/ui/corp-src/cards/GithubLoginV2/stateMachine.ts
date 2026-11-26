@@ -5,6 +5,7 @@
 
 import type {
   Lifecycle as BaseCardLifecycle,
+  BaseCardContext,
   BaseCardEvent,
   BaseCardState,
   BaseCardStateGraph,
@@ -14,15 +15,23 @@ import type { SensitiveToken } from "../../appContext";
 
 export type GithubAccount = { login: string };
 
+export const cardId = "github_login_v2" as const;
+
 declare module "../../appContext" {
   interface SharedCardDataById {
-    github_login_v2: {
+    [cardId]: {
       githubAccount: Readonly<GithubAccount> | null;
       githubToken: SensitiveToken | null;
       githubMode: "direct" | "backend" | null;
     };
   }
 }
+
+export const initialCardContext = {
+  cardId,
+  title: "GitHub Login 2",
+  prerequisiteIds: [],
+} satisfies Omit<BaseCardContext, "lifecycle">;
 
 export const lifecycles = ["loading", "ready", "signing-in", "signed-in", "expired"] as const;
 export type Lifecycle = typeof lifecycles[number];

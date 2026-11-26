@@ -76,7 +76,7 @@ it("renders the registered prerequisite through BaseCard while blocked", async (
       </QueryClientProvider>
     ));
     await act(async () => container.querySelector<HTMLButtonElement>("#card-title-repo_v2 button")?.click());
-    expect(container.querySelector<HTMLAnchorElement>('a[href="#card-github_login_v2"]')?.textContent).toContain("GitHub login 2");
+    expect([...container.querySelectorAll("#card-content-repo_v2 button")].some((button) => button.textContent?.includes("GitHub login 2"))).toBe(true);
   } finally {
     await act(async () => root.unmount());
   }
@@ -130,14 +130,14 @@ it("uses the V2 shared session, tracks its lifecycle, and clears selections on l
     expect(createRepoApi).toHaveBeenCalledWith(token, "backend");
     await act(async () => latest?.privateContext.repo.setSelectedRepo({ id: 2, name: "test-repo" }));
     await waitFor(() => expect(latest?.privateContext.env.envList).toHaveLength(1));
-    await act(async () => latest?.privateContext.env.setSelectedEnv({ id: 3, name: "PROD", url: "https://example.test/env" }));
+    await act(async () => latest?.privateContext.env.setSelectedEnv({ id: 3, name: "PROD", settingsUrl: "https://github.com/v2-user/test-repo/settings/environments/3/edit" }));
     await waitFor(() => {
       expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("complete");
       expect(latest?.baseCardContext.lifecycle).toBe("complete");
       expect(getPublishedRepo(store)?.githubRepository).toEqual({
-        account: { id: 1, login: "v2-user", type: "User" },
-        repository: { id: 2, name: "test-repo" },
-        environment: { id: 3, name: "PROD", url: "https://example.test/env" },
+        account: { id: 1, login: "v2-user", type: "User", htmlUrl: "https://github.com/v2-user" },
+        repository: { id: 2, name: "test-repo", htmlUrl: "https://github.com/v2-user/test-repo" },
+        environment: { id: 3, name: "PROD", settingsUrl: "https://github.com/v2-user/test-repo/settings/environments/3/edit" },
       });
     });
     let resolveCheck!: (value: { templateName: string }) => void;

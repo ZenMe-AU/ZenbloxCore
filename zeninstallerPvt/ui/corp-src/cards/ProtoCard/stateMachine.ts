@@ -12,9 +12,11 @@ import type {
 } from "../../components/basecardlifecycle";
 import type { AppContextCardId } from "../../appContext";
 
+export const cardId = "proto_card" as const;
+
 declare module "../../appContext" {
   interface SharedCardDataById {
-    proto_card: Record<never, never>;
+    [cardId]: Record<never, never>;
   }
 }
 
@@ -47,7 +49,7 @@ export type Event =
 export const initialState: State = {
   lifecycle: "loading",
   baseCardContext: {
-    cardId: "proto_card",
+    cardId,
     title,
     prerequisiteIds: ["", ""],
     unmetCardPrerequisites: [],

@@ -3,19 +3,19 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import { useEffect, useMemo, useReducer, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import type { SharedCard, AppContext } from "../../appContext";
-import { checkPrerequisites, type BaseCardContext } from "../../components/useBaseCard";
+import { useCardAppContext, type BaseCardContext } from "../../components/useBaseCard";
 import { createRepoApi } from "./api";
 import { useGithubRepo, type UseGithubRepo } from "./useGithubRepo";
 import { useGithubEnvironment, type UseGithubEnvironment } from "./useGithubEnvironment";
 import {
-  getRepoPrerequisites,
+  cardId,
   getBaseCardContext,
-  initialRepoCardContext,
+  githubLoginCardId,
+  initialCardContext,
   initialState,
   reducer,
-  toBaseCardLifecycle,
   type Lifecycle,
 } from "./stateMachine";
 
@@ -33,20 +33,11 @@ export interface UseRepoV2 {
 }
 
 export function useRepoV2(appStore: AppContext): UseRepoV2 {
-  const appContext = useSyncExternalStore(appStore.subscribe, appStore.getSnapshot, appStore.getSnapshot);
   const [state, dispatch] = useReducer(reducer, initialState);
-  const prerequisiteContext = {
-    ...initialRepoCardContext,
-    lifecycle: toBaseCardLifecycle(state.lifecycle),
-  } satisfies BaseCardContext<Lifecycle>;
-  const prerequisites = getRepoPrerequisites(appContext, prerequisiteContext);
-  const missingPrerequisites = checkPrerequisites(appContext, prerequisiteContext);
-  const unmetCardPrerequisites = prerequisites
-    ? missingPrerequisites
-    : [...new Set([...missingPrerequisites, ...initialRepoCardContext.prerequisiteIds])];
-  const token = prerequisites?.token;
-  const mode = prerequisites?.mode;
-  const user = prerequisites?.user ?? null;
+  const { appContext, prerequisites, unmet: unmetCardPrerequisites } = useCardAppContext(appStore, initialCardContext);
+  const token = prerequisites?.[githubLoginCardId].githubToken;
+  const mode = prerequisites?.[githubLoginCardId].githubMode;
+  const user = prerequisites?.[githubLoginCardId].githubAccount ?? null;
   const [initialUrlParams] = useState(() => appContext.urlParams);
   const api = useMemo(() => token && mode ? createRepoApi(token, mode) : null, [token, mode]);
   const githubRepo = useGithubRepo(user, api, initialUrlParams.account, initialUrlParams.repo);
@@ -119,18 +110,28 @@ export function useRepoV2(appStore: AppContext): UseRepoV2 {
           id: githubRepo.selectedAccount.id,
           login: githubRepo.selectedAccount.login,
           type: githubRepo.selectedAccount.type,
+          htmlUrl: githubRepo.selectedAccount.htmlUrl,
         },
-        repository: { id: githubRepo.selectedRepo.id, name: githubRepo.selectedRepo.name },
-        environment: { id: env.selectedEnv.id, name: env.selectedEnv.name, url: env.selectedEnv.url },
+        repository: {
+          id: githubRepo.selectedRepo.id,
+          name: githubRepo.selectedRepo.name,
+          htmlUrl: githubRepo.selectedRepo.htmlUrl,
+        },
+        environment: {
+          id: env.selectedEnv.id,
+          name: env.selectedEnv.name,
+          settingsUrl: env.selectedEnv.settingsUrl,
+        },
       }
       : null;
-    appStore.update("repo_v2", {
+    appStore.update(cardId, {
       title: baseCardContext.title,
+      prerequisiteIds: baseCardContext.prerequisiteIds,
       currentBaseCardStatus: baseCardContext.lifecycle,
       currentStatus: state.lifecycle,
       githubRepository,
-    } satisfies SharedCard<"repo_v2">);
-  }, [appStore, baseCardContext.title, baseCardContext.lifecycle, state.lifecycle, done, githubRepo.selectedAccount, githubRepo.selectedRepo, env.selectedEnv]);
+    } satisfies SharedCard<typeof cardId>);
+  }, [appStore, baseCardContext.title, baseCardContext.prerequisiteIds, baseCardContext.lifecycle, state.lifecycle, done, githubRepo.selectedAccount, githubRepo.selectedRepo, env.selectedEnv]);
 
   return {
     baseCardContext,

@@ -4,7 +4,7 @@
  */
 
 import { useState, type ReactNode } from "react";
-import { Box, Button, Link, TextField, Typography, useTheme } from "@mui/material";
+import { Box, Button, TextField, Typography } from "@mui/material";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
@@ -17,15 +17,14 @@ import ProcessRetryNotice from "../../components/ProcessRetryNotice";
 import StatusText from "../../components/StatusText";
 import ViewLink from "../../components/ViewLink";
 import { AZURE_APP_KEYS } from "../../logic/variables";
-import type { CardChrome } from "../../types";
-import { AZURE_APP_REGISTRATIONS_URL, getAppRegistrationUrl } from "../AzureAppRegistration/consoleUrls";
+import type { AppContext } from "../../appContext";
+import { AZURE_APP_REGISTRATIONS_URL, getAppRegistrationUrl } from "./consoleUrls";
 import CloudVariableDetailV2 from "../CloudVariableDetailV2";
 import StepRow from "../StepRow";
-import type { UseCard } from "./useAzureAppRegistrationCardV2";
+import { useAzureAppRegistrationV2, type UseAzureAppRegistrationV2 } from "./useAzureAppRegistrationCardV2";
 
 type Props = {
-  cardChrome: CardChrome;
-  card: UseCard;
+  appCtxStore: AppContext;
 };
 
 function Intro() {
@@ -58,48 +57,8 @@ function SaveHint({ children }: { children: string }) {
   );
 }
 
-function BlockedContent({ card, cardChrome }: Props) {
-  const theme = useTheme();
-  const colors = theme.vars.palette.card;
-  return (
-    <>
-      <Intro />
-      <Box
-        role="status"
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 0.75,
-          px: 1.75,
-          py: 1.5,
-          background: colors.requirementPanel,
-          border: `1px solid ${theme.vars.palette.divider}`,
-          borderRadius: "8px",
-        }}
-      >
-        <Typography sx={{ typography: "body1", color: theme.vars.palette.text.secondary }}>
-          The following prerequisites are incomplete.
-        </Typography>
-        {card.privateContext.blockedBy.map((prerequisite) => (
-          <Link
-            key={prerequisite.cardId}
-            href={`#card-${prerequisite.cardId}`}
-            onClick={() => {
-              const requirement = cardChrome.requirements.find((item) => item.target === prerequisite.cardId);
-              if (requirement) cardChrome.onRequirementClick(requirement.target);
-            }}
-            sx={{ alignSelf: "flex-start", fontWeight: 500 }}
-          >
-            {prerequisite.label}
-          </Link>
-        ))}
-      </Box>
-    </>
-  );
-}
-
-function Action({ card }: Pick<Props, "card">) {
-  const clientId = card.privateContext.spClientId;
+function Action({ privateContext }: Pick<UseAzureAppRegistrationV2, "privateContext">) {
+  const clientId = privateContext.spClientId;
   return (
     <ViewLink
       href={clientId ? getAppRegistrationUrl(clientId) : AZURE_APP_REGISTRATIONS_URL}
@@ -108,14 +67,14 @@ function Action({ card }: Pick<Props, "card">) {
   );
 }
 
-function Content({ card }: Pick<Props, "card">) {
-  const { baseCardContext, privateContext } = card;
+function CardContentMain({ baseCardContext, privateContext }: UseAzureAppRegistrationV2) {
   const done = baseCardContext.lifecycle === "complete";
   const {
     appName,
     setAppName,
     steps,
     running,
+    runAllowed,
     run,
     reset,
     rbacStatus,
@@ -123,13 +82,16 @@ function Content({ card }: Pick<Props, "card">) {
     rbacError,
     planClientIdMismatch,
     managementAccess,
-    github,
     variables,
-    populate,
+    runClientId,
     autoSaveCounter,
-    differsFromGithub,
   } = privateContext;
   const [prerequisitesOpen, setPrerequisitesOpen] = useState(false);
+  // Repository & environment 2's githubRepository, gated the same way the hook loads the variables.
+  const githubRepository = variables.target;
+  const populate = runClientId ? { AZURE_CLIENT_ID: runClientId, AZURE_PLAN_CLIENT_ID: runClientId } : undefined;
+  // Unsaved is derived from the run and what GitHub holds, so the lifecycle already says it.
+  const differsFromGithub = baseCardContext.stateMachine?.currentState === "unsaved";
 
   const varHasAny = AZURE_APP_KEYS.some((key) => !!variables.values[key]);
   // The saved app isn't in the selected tenant, or its service principal has no role on the selected subscription.
@@ -163,7 +125,7 @@ function Content({ card }: Pick<Props, "card">) {
             <Button
               variant="contained"
               onClick={() => void run()}
-              disabled={!appName.trim() || managementAccess.status !== "ready"}
+              disabled={!runAllowed || !appName.trim() || managementAccess.status !== "ready"}
               sx={{ py: 0.85, px: 2.5 }}
             >
               {rbacMissing ? "Grant Reader access on this subscription" : done ? "Re-run app registration" : "Create app registration"}
@@ -203,9 +165,9 @@ function Content({ card }: Pick<Props, "card">) {
         </CollapsiblePanel>
       )}
 
-      {github && (
+      {githubRepository && (
         <CloudVariableDetailV2
-          key={JSON.stringify([github.account.id, github.repoName, github.envName])}
+          key={JSON.stringify([githubRepository.account.id, githubRepository.repository.name, githubRepository.environment.name])}
           keys={AZURE_APP_KEYS}
           variables={variables}
           populate={populate}
@@ -224,22 +186,21 @@ function Content({ card }: Pick<Props, "card">) {
   );
 }
 
-export default function Card({ cardChrome, card }: Props) {
-  const { baseCardContext } = card;
+function CardEntrypoint({ appCtxStore }: Props) {
+  const cardHook = useAzureAppRegistrationV2(appCtxStore);
+  const { baseCardContext, privateContext } = cardHook;
   return (
     <BaseCard
       baseCardContext={baseCardContext}
-      expanded={cardChrome.expanded}
-      onToggle={cardChrome.onToggle}
-      action={<Action card={card} />}
+      appContext={privateContext.appContext}
+      blockedIntro={<Intro />}
+      action={<Action privateContext={privateContext} />}
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {baseCardContext.lifecycle === "blocked" ? (
-          <BlockedContent card={card} cardChrome={cardChrome} />
-        ) : (
-          <Content card={card} />
-        )}
+        <CardContentMain baseCardContext={baseCardContext} privateContext={privateContext} />
       </Box>
     </BaseCard>
   );
 }
+
+export default CardEntrypoint;

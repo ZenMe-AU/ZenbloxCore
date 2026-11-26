@@ -5,15 +5,17 @@
 
 import { useId } from "react";
 import { Box, Typography, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import type { StateGraph } from "./basecardlifecycle";
 
 type Point = { x: number; y: number };
 
 export type StateDiagramLayout<StateId extends string> = {
-    width: number;
-    height: number;
+    width?: number;
+    height?: number;
     nodeWidth: number;
     nodeHeight: number;
+    fontSize?: number;
     positions: Partial<Record<StateId, Point>>;
     edgePaths?: readonly { from: StateId; to: StateId; path: string }[];
 };
@@ -22,6 +24,9 @@ type Props<StateId extends string, BaseLifecycle extends string> = {
     graph: StateGraph<StateId, BaseLifecycle>;
     currentState: StateId;
     layout?: StateDiagramLayout<StateId>;
+    ariaLabel?: string;
+    nodeTone?: Partial<Record<StateId, "success" | "warning">>;
+    dashedNodes?: ReadonlySet<StateId>;
 };
 
 const defaultNodeWidth = 132;
@@ -31,6 +36,9 @@ export default function StateDiagram<StateId extends string, BaseLifecycle exten
     graph,
     currentState,
     layout,
+    ariaLabel,
+    nodeTone,
+    dashedNodes,
 }: Props<StateId, BaseLifecycle>) {
     const theme = useTheme();
     const markerId = `state-diagram-arrow-${useId().replace(/:/g, "")}`;
@@ -136,7 +144,7 @@ export default function StateDiagram<StateId extends string, BaseLifecycle exten
                         height={height}
                         viewBox={`0 0 ${width} ${height}`}
                         role="img"
-                        aria-label={`State graph. Current state: ${graph[currentState].label}. ${description}`}
+                        aria-label={ariaLabel ?? `State graph. Current state: ${graph[currentState].label}. ${description}`}
                     >
                         <defs>
                             <marker id={markerId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -152,12 +160,15 @@ export default function StateDiagram<StateId extends string, BaseLifecycle exten
                                 fill="none"
                                 stroke={from === currentState ? theme.palette.primary.main : theme.palette.divider}
                                 strokeWidth={from === currentState ? 2 : 1.5}
+                                strokeDasharray={dashedNodes?.has(from) ? "5 4" : undefined}
                                 markerEnd={`url(#${markerId})`}
                             />
                         ))}
                         {states.map((state) => {
                             const { x, y } = positions.get(state)!;
                             const isCurrent = state === currentState;
+                            const tone = nodeTone?.[state];
+                            const solid = isCurrent ? theme.palette[tone ?? "primary"] : null;
                             return (
                                 <g key={state} data-state={state} aria-current={isCurrent ? "true" : undefined}>
                                     <title>{`${graph[state].label}; BaseCard lifecycle: ${graph[state].baseCardLifecycle}`}</title>
@@ -167,17 +178,18 @@ export default function StateDiagram<StateId extends string, BaseLifecycle exten
                                         width={nodeWidth}
                                         height={nodeHeight}
                                         rx={6}
-                                        fill={isCurrent ? theme.palette.primary.main : theme.palette.background.paper}
-                                        stroke={isCurrent ? theme.palette.primary.main : theme.palette.divider}
+                                        fill={solid ? solid.main : tone ? alpha(theme.palette[tone].main, 0.16) : theme.palette.background.paper}
+                                        stroke={solid ? solid.main : tone ? theme.palette[tone].main : theme.palette.divider}
                                         strokeWidth={isCurrent ? 2 : 1}
+                                        strokeDasharray={dashedNodes?.has(state) ? "5 4" : undefined}
                                     />
                                     <text
                                         x={x}
                                         y={y}
                                         textAnchor="middle"
                                         dominantBaseline="middle"
-                                        fill={isCurrent ? theme.palette.primary.contrastText : theme.palette.text.primary}
-                                        fontSize="14"
+                                        fill={solid ? solid.contrastText : theme.palette.text.primary}
+                                        fontSize={layout?.fontSize ?? 14}
                                     >
                                         {graph[state].label}
                                     </text>

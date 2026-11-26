@@ -3,20 +3,18 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-import type { AppContext } from "../../appContext";
-import { checkPrerequisites } from "../../components/useBaseCard";
 import type {
   Lifecycle as BaseCardLifecycle,
   BaseCardContext,
-  BaseCardEvent,
-  BaseCardState,
   BaseCardStateGraph,
   BaseCardStateMachine,
 } from "../../components/basecardlifecycle";
 
+export const cardId = "azure_subscription_v2" as const;
+
 declare module "../../appContext" {
   interface SharedCardDataById {
-    azure_subscription_v2: {
+    [cardId]: {
       azureSubscription: Readonly<{ id: string; displayName: string; tenantId: string }> | null;
     };
   }
@@ -27,7 +25,7 @@ export const repoCardId = "repo_v2" satisfies BaseCardContext["cardId"];
 export const githubLoginCardId = "github_login_v2" satisfies BaseCardContext["cardId"];
 
 export const initialCardContext = {
-  cardId: "azure_subscription_v2",
+  cardId,
   title: "Choose Azure subscription 2",
   prerequisiteIds: [azureLoginCardId, repoCardId],
 } satisfies Omit<BaseCardContext, "lifecycle">;
@@ -51,55 +49,48 @@ export const stateGraph = {
   selecting: {
     label: "Select a subscription",
     baseCardLifecycle: "ready",
-    transitions: ["blocked", "loading", "unsaved", "saved"],
+    transitions: ["blocked", "loading", "unsaved", "saved", "error"],
   },
   // Picked, but GitHub holds a different tenant or subscription (or none) until it is saved.
   unsaved: {
     label: "Unsaved change",
     baseCardLifecycle: "commit",
-    transitions: ["blocked", "loading", "selecting", "saved"],
+    transitions: ["blocked", "loading", "selecting", "saved", "error"],
   },
   saved: {
     label: "Saved to GitHub",
     baseCardLifecycle: "complete",
-    transitions: ["blocked", "loading", "selecting", "unsaved"],
+    transitions: ["blocked", "loading", "selecting", "unsaved", "error"],
   },
   // No subscriptions, or the list could not load; a new tenant or sign-in loads it again.
   error: {
     label: "No subscriptions",
     baseCardLifecycle: "error",
-    transitions: ["blocked", "loading"],
+    transitions: ["blocked", "loading", "selecting", "unsaved", "saved"],
   },
 } as const satisfies BaseCardStateGraph<Lifecycle>;
 
-export type State = BaseCardState<Lifecycle>;
+export type State = {
+  lifecycle: Lifecycle;
+  scopeKey: string | null;
+  selectedSubscriptionId: string;
+  populateCount: number;
+};
 
-export type Event = BaseCardEvent<Lifecycle>;
+export type Event =
+  | { type: "scope-synced"; scopeKey: string | null; selectedSubscriptionId: string }
+  | { type: "subscription-selected"; subscriptionId: string }
+  | { type: "transition"; lifecycle: Lifecycle };
 
-export const initialState: State = { lifecycle: "blocked" };
+export const initialState: State = {
+  lifecycle: "blocked",
+  scopeKey: null,
+  selectedSubscriptionId: "",
+  populateCount: 0,
+};
 
 export function toBaseCardLifecycle(state: Lifecycle): BaseCardLifecycle {
   return stateGraph[state].baseCardLifecycle;
-}
-
-// The signed-in account and confirmed tenant, once Azure login 2 and Repository & environment 2 are complete.
-export function getPrerequisites(
-  appContext: ReturnType<AppContext["getSnapshot"]>,
-  baseCardContext: BaseCardContext,
-) {
-  if (checkPrerequisites(appContext, baseCardContext).length > 0) return null;
-  const login = appContext.cards[azureLoginCardId];
-  if (!login?.initialised || !login.azureAccount || !login.azureTenantId) return null;
-  return { account: login.azureAccount, tenantId: login.azureTenantId };
-}
-
-// Where the pick is saved and GitHub login 2's token to save it with, once it and Repository & environment 2 are complete.
-export function getGithubTarget(appContext: ReturnType<AppContext["getSnapshot"]>) {
-  const login = appContext.cards[githubLoginCardId];
-  const repo = appContext.cards[repoCardId];
-  if (!login?.initialised || !repo?.initialised || login.currentBaseCardStatus !== "complete" || repo.currentBaseCardStatus !== "complete") return null;
-  if (!login.githubToken || !repo.githubRepository) return null;
-  return { token: login.githubToken, ...repo.githubRepository };
 }
 
 export function deriveLifecycle({
@@ -128,11 +119,22 @@ export function canTransition(currentState: State, nextState: Lifecycle): boolea
 }
 
 export function reducer(state: State, event: Event): State {
+  if (event.type === "scope-synced") {
+    if (state.scopeKey === event.scopeKey && state.selectedSubscriptionId === event.selectedSubscriptionId) return state;
+    return { ...state, scopeKey: event.scopeKey, selectedSubscriptionId: event.selectedSubscriptionId };
+  }
+  if (event.type === "subscription-selected") {
+    return {
+      ...state,
+      selectedSubscriptionId: event.subscriptionId,
+      populateCount: state.populateCount + 1,
+    };
+  }
   if (!canTransition(state, event.lifecycle)) {
     throw new Error(`Cannot transition from ${state.lifecycle} to ${event.lifecycle}`);
   }
   if (event.lifecycle === state.lifecycle) return state;
-  return { lifecycle: event.lifecycle };
+  return { ...state, lifecycle: event.lifecycle };
 }
 
 export const stateMachine: BaseCardStateMachine<Lifecycle> = {

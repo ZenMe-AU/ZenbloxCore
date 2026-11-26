@@ -7,12 +7,13 @@ import { Box, ButtonBase, CircularProgress, Typography } from "@mui/material";
 import LockIcon from "@mui/icons-material/Lock";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import type { Branch, GhEnv } from "../../types";
+import type { Branch } from "../../types";
+import type { GithubEnvironment } from "./types";
 import { isValidEnvName } from "./env";
 import EnvBranchDetail from "./EnvBranchDetail";
 import RefreshButton from "../../components/RefreshButton";
 import { useRefreshIndicator } from "../../hooks/util/useRefreshIndicator";
-import { getEnvironmentsUrl, getEnvSettingsUrl } from "../../logic/github";
+import { getEnvironmentsUrl, getEnvSettingsUrl } from "./githubUrls";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
 import { warningMessageIconSx } from "../../config/styles";
@@ -21,10 +22,10 @@ import StatusText from "../../components/StatusText";
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 type Props = {
-  envList: GhEnv[];
+  envList: GithubEnvironment[];
   validEnvs: readonly string[];
-  selectedEnv: GhEnv | null;
-  onEnvChange: (env: GhEnv | null) => void;
+  selectedEnv: GithubEnvironment | null;
+  onEnvChange: (env: GithubEnvironment | null) => void;
   lockedByPR: boolean;
   branchMatchWarning: string | null;
   branchMatchError: string | null;

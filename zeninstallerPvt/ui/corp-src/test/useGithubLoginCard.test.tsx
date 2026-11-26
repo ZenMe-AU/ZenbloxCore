@@ -6,6 +6,7 @@
 import { act, StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearGithubToken } from "../cards/GithubLogin/useGithubLoginCard";
 import { readGithubAuthRecord, useGithubLoginCard, type UseGithubLoginCard } from "../cards/GithubLogin/useGithubLoginCard";
@@ -49,9 +50,11 @@ vi.mock("../api/github", () => ({
 // jsdom refuses real navigation, so the redirect is captured instead of followed.
 const navigations: string[] = [];
 let v2Store = createAppContext();
+let v2QueryClient = new QueryClient();
 beforeEach(() => {
   navigations.length = 0;
   v2Store = createAppContext();
+  v2QueryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   Object.defineProperty(window, "location", {
     configurable: true,
     value: {
@@ -79,7 +82,7 @@ function HookHarness(props: { onUpdate: (value: UseGithubLoginCard) => void }) {
   return null;
 }
 
-function V2Harness({ onUpdate }: { onUpdate: (value: UseGithubLoginV2) => void }) {
+function V2HarnessContent({ onUpdate }: { onUpdate: (value: UseGithubLoginV2) => void }) {
   const auth = useGithubLoginV2(v2Store);
   useEffect(() => onUpdate(auth), [auth, onUpdate]);
   return (
@@ -87,6 +90,10 @@ function V2Harness({ onUpdate }: { onUpdate: (value: UseGithubLoginV2) => void }
       <CardContentMain baseCardContext={auth.baseCardContext} privateContext={auth.privateContext} />
     </ThemeProvider>
   );
+}
+
+function V2Harness(props: { onUpdate: (value: UseGithubLoginV2) => void }) {
+  return <QueryClientProvider client={v2QueryClient}><V2HarnessContent {...props} /></QueryClientProvider>;
 }
 
 function getV2Shared() {
@@ -127,9 +134,11 @@ describe("useGithubLoginCard", () => {
 
     try {
       await act(async () => root.render(
-        <ThemeProvider theme={theme}>
-          <GithubLoginV2 {...v2Store} />
-        </ThemeProvider>
+        <QueryClientProvider client={v2QueryClient}>
+          <ThemeProvider theme={theme}>
+            <GithubLoginV2 {...v2Store} />
+          </ThemeProvider>
+        </QueryClientProvider>
       ));
       await waitFor(() => {
         expect(container.querySelector("#card-github_login_v2")).not.toBeNull();

@@ -4,6 +4,7 @@ export type GithubAccount = {
   login: string;
   type: "User" | "Organization";
   id: number;
+  htmlUrl: string; // The account's page on GitHub.
 };
 
 export type GithubRepository = {
@@ -14,6 +15,7 @@ export type GithubRepository = {
 export type GithubRepositoryOption = {
   id: number | string;
   name: string;
+  htmlUrl: string; // The repository's page on GitHub; for a new one, where it will be once cloned.
   isNew?: boolean;
 };
 
@@ -26,7 +28,7 @@ export type GithubBranch = {
 export type GithubEnvironment = {
   name: string;
   id: number;
-  url: string;
+  settingsUrl: string; // The environment's settings page on GitHub.
 };
 
 export type RepoStatus = "idle" | "loading" | "complete" | "warning" | "error";
