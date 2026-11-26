@@ -42,6 +42,21 @@ The workflow removes existing authentication methods before resetting the passwo
 
 Successful Access Pass rows use a subtle green tint mixed with the active theme's paper surface; marked-complete rows use the same muted treatment in blue. Text retains readable theme colours in both light and dark modes.
 
+### Access Pass 2
+
+`corp-src/cards/AccessPassV2` implements the [prototype contract](corp-src/cards/ProtoCard/card_prototype_design.md) and is displayed alongside the original Access Pass card. Use **Azure login 2** to confirm its account and tenant; it consumes that card's typed AppContext publication, not the original login hook.
+
+Its reducer owns photo-ID confirmation, the ordered Graph workflow, delivery/completion flags, and pagination. Its hook returns exactly `{ baseCardContext, privateContext }`, uses TanStack Query for managed users and restored-pass validation, and publishes only lifecycle metadata to AppContext. Pass values never enter AppContext or BaseCardContext. BaseCard owns blocked content, force-unlock presentation and the state diagram; force unlocking does not authorize creation.
+
+The V2 card uses its own account-and-tenant-scoped local storage key, `zeninstaller_corp_access_pass_v2`, and validates saved passes before showing them. It does not share results, confirmation flags or checkbox IDs with the original card. An account/tenant change clears the current private workflow and prevents further steps in an in-flight run; already completed Graph operations cannot be rolled back.
+
+Focused validation:
+
+```powershell
+pnpm exec vitest run --project unit corp-src\test\accessPassV2StateMachine.test.ts corp-src\test\useAccessPassV2.test.tsx corp-src\test\useAccessPassCard.test.tsx corp-src\test\basecardlifecycle.test.ts
+pnpm exec vitest run --project web corp-src\test\accessPassV2.browser.test.tsx
+```
+
 ## Test automation
 
 - Stable UI test hooks and the muted-title-only axe exception above remain part of the test contract; no axe rules are disabled.

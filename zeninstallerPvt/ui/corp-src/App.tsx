@@ -68,6 +68,7 @@ import WebDeployCard from "./cards/WebDeploy/WebDeployCard";
 import CreateDomainCard from "./cards/CreateDomain/CreateDomainCard";
 import CreateAdminUsersCard from "./cards/CreateAdminUsers/CreateAdminUsersCard";
 import AccessPassCard from "./cards/AccessPass/AccessPassCard";
+import AccessPassV2 from "./cards/AccessPassV2/AccessPassV2";
 // import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
 import AwsSsoCard from "./cards/AwsSso/AwsSsoCard";
 import AwsSsoStackCard from "./cards/AwsSsoStack/AwsSsoStackCard";
@@ -587,6 +588,7 @@ function AppDashboard() {
               <CreateAdminUsersCard card={cardProps("create_admin_users")} adminUsers={adminUsers} />
 
               <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
+              <AccessPassV2 appCtxStore={appCtxStore} />
 
               <RemoteTerminalInfraCard
                 card={cardProps("remote_terminal_infra")}

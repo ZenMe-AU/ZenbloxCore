@@ -29,6 +29,29 @@ vi.mock("../cards/GithubSignup/useGithubSignupCard", async (importOriginal) => {
 });
 
 describe("App - Home Page", () => {
+  it("renders the original and V2 Access Pass cards alongside each other", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const queryClient = new QueryClient();
+    try {
+      await act(async () => root.render(
+        <QueryClientProvider client={queryClient}><ThemeProvider theme={theme}><App /></ThemeProvider></QueryClientProvider>
+      ));
+      await expect.poll(() => container.querySelectorAll("#card-access_pass").length).toBe(1);
+      expect(container.querySelectorAll("#card-access_pass_v2")).toHaveLength(1);
+      expect(container.querySelector("#card-title-access_pass_v2")?.textContent).toContain("Access pass 2");
+      const store = vi.mocked(createAppContext).mock.results.at(-1)!.value;
+      expect(store.getSnapshot().cards.access_pass_v2).toMatchObject({
+        initialised: true, currentBaseCardStatus: "blocked", currentStatus: "blocked",
+      });
+    } finally {
+      await act(async () => root.unmount());
+      queryClient.clear();
+      container.remove();
+    }
+  });
+
   it("should render without crashing", () => {
     const container = document.createElement("div");
     const root = createRoot(container);

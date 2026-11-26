@@ -83,9 +83,11 @@ function BlockedContent({ card, cardChrome }: Props) {
         {card.privateContext.blockedBy.map((prerequisite) => (
           <Link
             key={prerequisite.cardId}
-            component="button"
-            type="button"
-            onClick={() => cardChrome.onRequirementClick(prerequisite.cardId)}
+            href={`#card-${prerequisite.cardId}`}
+            onClick={() => {
+              const requirement = cardChrome.requirements.find((item) => item.target === prerequisite.cardId);
+              if (requirement) cardChrome.onRequirementClick(requirement.target);
+            }}
             sx={{ alignSelf: "flex-start", fontWeight: 500 }}
           >
             {prerequisite.label}
