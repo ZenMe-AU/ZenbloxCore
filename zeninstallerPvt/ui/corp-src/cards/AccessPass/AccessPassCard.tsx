@@ -5,6 +5,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Box, Button, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import type { Theme } from "@mui/material/styles";
 import type { CardChrome, SetupStep } from "../../types";
 import type { UseAccessPassCard } from "./useAccessPassCard";
 import StepRow from "../StepRow";
@@ -17,6 +18,7 @@ import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
 import { getEntraUsersUrl } from "../../logic/consoleUrls";
+import { borderTint } from "../../config/styles";
 
 const COMPLETED_USERS_KEY = "zeninstaller_corp_access_pass_completed_users";
 const DELIVERY_CONFIRMED_USERS_KEY = "zeninstaller_corp_access_pass_delivery_confirmed_users";
@@ -241,7 +243,16 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                       const savedPass = passValuesByUserId[user.id];
                       const isCompletedUser = !!completedByUserId[user.id];
                       const isDeliveryConfirmed = !!deliveryConfirmedByUserId[user.id];
-                      const rowHighlightSx = isCompletedUser ? { backgroundColor: "info.light" } : isCurrentResult ? { backgroundColor: "success.light" } : undefined;
+                      const rowHighlightSx = isCompletedUser || isCurrentResult ? (theme: Theme) => ({
+                        backgroundColor: theme.vars.palette.background.paper,
+                        "@supports (color: color-mix(in srgb, red, white))": {
+                          backgroundColor: borderTint(
+                            isCompletedUser ? theme.vars.palette.info.main : theme.vars.palette.success.main,
+                            theme.vars.palette.background.paper,
+                            8
+                          ),
+                        },
+                      }) : undefined;
                       const showingConfirmationForUser = confirmationUserId === user.id && !running;
                       const showingInlineStepsForUser = showingSelectedUserSteps && statusUserId === user.id;
                       return (
@@ -370,6 +381,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     borderLeft: "2px solid",
                                     borderColor: "divider",
                                     pl: 1.25,
+                                    "& [data-sensitive='true']": { color: "text.secondary" },
                                   }}
                                 >
                                   {hydratedSelectedUserSteps.map((s) => (
@@ -412,7 +424,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                           )}
                           {savedPass && (
                             <TableRow sx={rowHighlightSx ?? { background: "inherit" }}>
-                              <TableCell colSpan={3} sx={{ py: 0.5, px: 1.5 }}>
+                              <TableCell colSpan={3} sx={{ py: 0.5, px: 1.5, "& .MuiButton-root": { color: "text.secondary" } }}>
                                 <CopyRow label="New Temporary Access Pass:" value={savedPass} masked />
                               </TableCell>
                             </TableRow>
@@ -451,7 +463,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                       style={{ margin: 0, width: 14, height: 14 }}
                                     />
                                     <Box>
-                                      <Typography component="label" htmlFor={`access-pass-delivery-${user.id}`} color="primary.dark">
+                                      <Typography component="label" htmlFor={`access-pass-delivery-${user.id}`} color="text.primary">
                                         Confirm that the person has signed in and set up their own sign-in method at:
                                       </Typography>{" "}
                                       <ExternalLink href="https://mysignins.microsoft.com/" label="Microsoft My Sign-ins">
@@ -463,7 +475,7 @@ export default function AccessPassCard({ card, accessPass }: Props) {
                                     {isCompletedUser ? (
                                       <Typography
                                         sx={{
-                                          color: "primary.dark",
+                                          color: "primary.main",
                                           fontWeight: 600,
                                           px: 1.2,
                                           py: 0.35,

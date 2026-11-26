@@ -26,6 +26,7 @@ export const GRANT_CONSENT_SCOPES = ["https://graph.microsoft.com/AppRoleAssignm
 
 export const ACCESS_PASS_SCOPES = [
   "https://graph.microsoft.com/User.ReadWrite.All",
+  "https://graph.microsoft.com/User-PasswordProfile.ReadWrite.All",
   "https://graph.microsoft.com/UserAuthenticationMethod.ReadWrite.All",
   "https://graph.microsoft.com/Policy.ReadWrite.AuthenticationMethod",
 ];

@@ -15,11 +15,12 @@ import {
   createTemporaryAccessPassForUser,
   temporaryAccessPassMethodExists,
   type EntraUser,
-  type GraphAuthMethod,
 } from "../../api/azureGraph";
 import { isConsentError } from "../../logic/consent";
 import { generateRandomPassword } from "../../logic/password";
 import { createResultStorage } from "../../logic/resultStorage";
+import { getAuthMethodDeletePath, toTapErrorMessage, type AccessPassResult } from "../../logic/accessPass";
+export type { AccessPassResult } from "../../logic/accessPass";
 import { logEvent } from "../../monitor/telemetry";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
 import type { CardHook, CardRequirements, CardStatus, SetupStep, AzureAccount } from "../../types";
@@ -31,22 +32,6 @@ export type AzureSetupResult = {
   tapMethodId?: string;
 };
 
-function getAuthMethodDeletePath(userId: string, method: GraphAuthMethod): string | null {
-  const methodType = method["@odata.type"]?.toLowerCase();
-
-  if (methodType?.includes("passwordauthenticationmethod")) return null;
-
-  if (methodType?.includes("emailauthenticationmethod")) return `/users/${userId}/authentication/emailMethods/${method.id}`;
-  if (methodType?.includes("phoneauthenticationmethod")) return `/users/${userId}/authentication/phoneMethods/${method.id}`;
-  if (methodType?.includes("microsoftauthenticatorauthenticationmethod")) return `/users/${userId}/authentication/microsoftAuthenticatorMethods/${method.id}`;
-  if (methodType?.includes("fido2authenticationmethod")) return `/users/${userId}/authentication/fido2Methods/${method.id}`;
-  if (methodType?.includes("softwareoathauthenticationmethod")) return `/users/${userId}/authentication/softwareOathMethods/${method.id}`;
-  if (methodType?.includes("windowshelloforbusinessauthenticationmethod")) return `/users/${userId}/authentication/windowsHelloForBusinessMethods/${method.id}`;
-  if (methodType?.includes("temporaryaccesspassauthenticationmethod")) return `/users/${userId}/authentication/temporaryAccessPassMethods/${method.id}`;
-
-  return null;
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type UseAccessPassCardParams = {
@@ -54,8 +39,6 @@ export type UseAccessPassCardParams = {
   // From useAzureAccount — this card locks behind azure_login, so both are set once it renders.
   confirmedTenantId: string | null;
 };
-
-export type AccessPassResult = { accessPassValue: string; tenantId: string; targetUserId: string; tapMethodId: string };
 
 export interface UseAccessPassCard extends CardHook {
   readonly cardId: "access_pass";
@@ -79,54 +62,6 @@ export interface UseAccessPassCard extends CardHook {
 const RESULT_KEY = "zeninstaller_corp_access_pass_result";
 
 const { save: saveResult, load: loadResult } = createResultStorage<AccessPassResult>(RESULT_KEY);
-
-// Convert known error messages from the TAP creation API into user-friendly messages.
-function toTapErrorMessage(err: unknown): string {
-  const msg = err instanceof Error ? err.message : "Failed";
-  const lower = msg.toLowerCase();
-
-  if (lower.includes("authenticationmethodspolicy") && lower.includes("403")) {
-    return (
-      "Not authorized to enable Temporary Access Pass for this tenant. " +
-      "This requires the Authentication Policy Administrator role (a higher privilege than " +
-      "creating a pass) — ask a tenant admin to enable it in Entra ID > Authentication methods " +
-      "> Policies, or grant that role temporarily."
-    );
-  }
-
-  if (lower.includes("403") && (lower.includes("temporaryaccesspassmethods") || lower.includes("accessdenied"))) {
-    return (
-      "Not authorized to create Temporary Access Pass. " +
-      "Ensure your signed-in account has Authentication Administrator or Privileged Authentication Administrator role, " +
-      "the app has delegated UserAuthenticationMethod.ReadWrite.All with admin consent, and Temporary Access Pass is enabled in Entra Authentication methods policy."
-    );
-  }
-
-  if (lower.includes("aadsts65001") || lower.includes("interaction_required") || lower.includes("consent_required")) {
-    return "Graph admin consent is required for this tenant. Reconnect Azure and grant consent, then try again.";
-  }
-
-  if (lower.includes("404") && lower.includes("temporaryaccesspassmethods")) {
-    return "Selected user was not found in the current tenant context. Re-select the user and try again.";
-  }
-
-  if (lower.includes("authentication/methods") && lower.includes("403")) {
-    return (
-      "Not authorized to remove existing sign-in methods. " +
-      "Ensure your account has Authentication Administrator or Privileged Authentication Administrator role, " +
-      "and delegated UserAuthenticationMethod.ReadWrite.All has admin consent."
-    );
-  }
-
-  if (lower.includes("passwordprofile") && lower.includes("403")) {
-    return (
-      "Not authorized to reset the user password. " +
-      "Ensure your account has permissions to reset user passwords and delegated User.ReadWrite.All has admin consent."
-    );
-  }
-
-  return msg;
-}
 
 /*
  * Creates a Microsoft Entra Temporary Access Pass for a user managed by the signed-in
@@ -280,7 +215,7 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
           setConsentRequired(true);
           updateStep(currentStepId, "error", 'Additional consent required — click "Grant consent" below, then try again.');
         } else {
-          updateStep(currentStepId, "error", toTapErrorMessage(err));
+          updateStep(currentStepId, "error", toTapErrorMessage(err, currentStepId));
         }
         return null;
       } finally {
