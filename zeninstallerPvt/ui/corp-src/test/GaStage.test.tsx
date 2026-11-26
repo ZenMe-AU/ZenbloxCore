@@ -168,6 +168,11 @@ function props(overrides: Partial<StageCardProps> = {}): StageCardProps {
     statusUpdateDisabled: true,
     runError: null,
     azureAccount,
+    operation: { state: "idle" },
+    forcePlan: vi.fn(),
+    forceDeploy: vi.fn(),
+    forceIdle: vi.fn(),
+    forceError: vi.fn(),
     ...overrides,
   };
 }
@@ -226,7 +231,7 @@ describe("GaStage parity baseline", () => {
     await act(async () => {
       root!.render(
         <ThemeProvider theme={theme}>
-          <StageCard {...legacyProps} />
+          <StageCard {...legacyProps} trackDeploy={undefined} />
           <GaStage {...gaProps} />
         </ThemeProvider>
       );
@@ -371,7 +376,7 @@ describe("GaStage parity baseline", () => {
   });
 
   it("loads a successful plan, exposes deploy, and starts terminal tracking", async () => {
-    const trackDeploy = vi.fn().mockResolvedValue(undefined);
+    const trackDeploy = vi.fn(async (start: (isCurrent: () => boolean) => Promise<boolean>) => { await start(() => true); });
     const onPlanSummary = vi.fn();
     const rendered = await renderStage(props({
       card: cardChrome({ status: "warning", summary: "Ready to deploy" }),
@@ -395,19 +400,47 @@ describe("GaStage parity baseline", () => {
     expect(onPlanSummary).toHaveBeenCalledWith({ create: 0, update: 0, delete: 0, replace: 0 });
     expect(rendered.container.textContent).toContain("No changes detected.");
 
-    await act(async () => buttonNamed(rendered.container, "Deploy")?.click());
+    await act(async () => [...rendered.container.querySelectorAll("button")].find((button) => button.textContent === "Deploy")?.click());
     expect(mocks.remoteStart).toHaveBeenCalledOnce();
     expect(trackDeploy).toHaveBeenCalledOnce();
   });
 
-  it("preserves the current duplicate RemoteTerminal rendering baseline", async () => {
+  it("offers operation controls on a locked card without a description", async () => {
+    const forcePlan = vi.fn();
+    const forceDeploy = vi.fn();
+    const forceIdle = vi.fn();
+    const forceError = vi.fn();
+    const rendered = await renderStage(props({
+      stageDef: { ...stageDef, description: undefined },
+      card: cardChrome({ locked: true, requirements: [{ label: "Repository", target: "repo" }] }),
+      operation: { state: "error", kind: "plan", error: "forced" },
+      forcePlan,
+      forceDeploy,
+      forceIdle,
+      forceError,
+    }));
+    root = rendered.root;
+    expect(rendered.container.textContent).toContain("Operation: plan error");
+    const controls = rendered.container.querySelector('[aria-label="Operation state controls"]')!;
+    const buttons = [...controls.querySelectorAll("button")];
+    await act(async () => {
+      buttons.forEach((button) => button.click());
+    });
+    expect(forceIdle).toHaveBeenCalledOnce();
+    expect(forcePlan).toHaveBeenCalledOnce();
+    expect(forceDeploy).toHaveBeenCalledWith(mocks.remoteStart);
+    expect(forceError.mock.calls).toEqual([["plan"], ["deploy"]]);
+    expect(rendered.container.querySelectorAll('[data-testid="ga-remote-terminal"]')).toHaveLength(1);
+  });
+
+  it("renders one remote terminal per card", async () => {
     const rendered = await renderStage(props({
       prerequisiteAssessment: { missing: [], incomplete: [], changed: [], blocked: false, summary: "" },
       variableValues: { ...props().variableValues, CONTACT_EMAILS: "owner@example.com" },
     }));
     root = rendered.root;
 
-    expect(rendered.container.querySelectorAll('[data-testid="ga-remote-terminal"]')).toHaveLength(2);
+    expect(rendered.container.querySelectorAll('[data-testid="ga-remote-terminal"]')).toHaveLength(1);
   });
 
   it("loads and reveals failed plan output and completed deployment output", async () => {

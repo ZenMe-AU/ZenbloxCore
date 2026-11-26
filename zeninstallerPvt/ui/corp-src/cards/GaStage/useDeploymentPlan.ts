@@ -13,14 +13,15 @@ interface PollContext {
   triggerTime: number;
   stageKey: GaStageKey;
   kind: "plan" | "deploy";
+  generation: number;
 }
 
-export interface StageRun {
-  kind: "plan" | "deploy";
-  countdown: number;
-  retryCount: number;
-  error: string | null;
-}
+type OperationKind = "plan" | "deploy";
+type StartDeployment = (isCurrent: () => boolean) => Promise<boolean>;
+export type StageRun =
+  | { state: "active"; kind: OperationKind; countdown: number; retryCount: number }
+  | { state: "error"; kind: OperationKind; error: string };
+export type StageOperation = StageRun | { state: "idle" };
 
 export interface UseDeploymentPlan {
   latestSha?: string;
@@ -33,7 +34,11 @@ export interface UseDeploymentPlan {
   // Both take just the stage key: the hook already holds the definitions, selected
   // env and the branches, so handing them back in would be a second source for the same value.
   onRun: (stageKey: GaStageKey) => Promise<void>; // One card, one stage — never the whole pipeline.
-  deployStage: (stageKey: GaStageKey) => Promise<void>;
+  deployStage: (stageKey: GaStageKey, start: StartDeployment) => Promise<void>;
+  forcePlan: (stageKey: GaStageKey) => Promise<void>;
+  forceDeploy: (stageKey: GaStageKey, start: StartDeployment) => Promise<void>;
+  forceIdle: (stageKey: GaStageKey) => void;
+  forceError: (stageKey: GaStageKey, kind: OperationKind) => void;
   setStageSummary: (key: GaStageKey, summary: PlanSummary) => void;
 }
 
@@ -76,43 +81,82 @@ export function useDeploymentPlan(opts: {
   const [deployedEnv, setDeployedEnv] = useState<Record<string, string> | null>(null);
   // One interval per stage, so a second card starting a run cannot cancel the first one's.
   const tickers = useRef<Partial<Record<GaStageKey, ReturnType<typeof setInterval>>>>({});
-
-  const patchRun = (stageKey: GaStageKey, patch: Partial<StageRun> | null) =>
-    setRuns((prev) => {
-      if (!patch) {
-        const rest = { ...prev };
-        delete rest[stageKey];
-        return rest;
-      }
-      const base = prev[stageKey] ?? { kind: "plan", countdown: 0, retryCount: 0, error: null };
-      return { ...prev, [stageKey]: { ...base, ...patch } };
-    });
+  const generations = useRef<Partial<Record<GaStageKey, number>>>({});
+  const operationNames = useRef<Partial<Record<GaStageKey, string>>>({});
+  const trace = (stageKey: GaStageKey, event: string, generation: number) =>
+    console.info(`[GaStage ${stageKey}] ${event} (operation ${generation})`);
+  const stateName = (state: StageOperation) => state.state === "idle" ? "idle" : `${state.kind} ${state.state}`;
 
   const stopTicker = (stageKey: GaStageKey) => {
     clearInterval(tickers.current[stageKey]);
     delete tickers.current[stageKey];
   };
+  const begin = (stageKey: GaStageKey, state: StageOperation, reason: string) => {
+    stopTicker(stageKey);
+    const generation = (generations.current[stageKey] ?? 0) + 1;
+    generations.current[stageKey] = generation;
+    const next = stateName(state);
+    trace(stageKey, `${operationNames.current[stageKey] ?? "idle"} -> ${next} (${reason})`, generation);
+    operationNames.current[stageKey] = next;
+    setRuns((previous) => {
+      const next = { ...previous };
+      if (state.state === "idle") delete next[stageKey];
+      else next[stageKey] = state;
+      return next;
+    });
+    return generation;
+  };
+  const update = (stageKey: GaStageKey, generation: number, state: StageOperation) => {
+    if (generations.current[stageKey] !== generation) {
+      trace(stageKey, "ignored stale operation update", generation);
+      return;
+    }
+    const next = stateName(state);
+    if (operationNames.current[stageKey] !== next) {
+      trace(stageKey, `${operationNames.current[stageKey] ?? "idle"} -> ${next}`, generation);
+      operationNames.current[stageKey] = next;
+    }
+    setRuns((previous) => {
+      const next = { ...previous };
+      if (state.state === "idle") delete next[stageKey];
+      else next[stageKey] = state;
+      return next;
+    });
+  };
+  const fail = (stageKey: GaStageKey, generation: number, kind: OperationKind, error: string) => {
+    console.error(`[GaStage ${stageKey}] ${error}`);
+    update(stageKey, generation, { state: "error", kind, error });
+  };
   useEffect(() => () => {
-    stageDefinitionsRef.current.forEach(({ dir }) => stopTicker(dir));
+    stageDefinitionsRef.current.forEach(({ dir }) => {
+      stopTicker(dir);
+      generations.current[dir] = (generations.current[dir] ?? 0) + 1;
+      if (operationNames.current[dir] && operationNames.current[dir] !== "idle") {
+        trace(dir, `${operationNames.current[dir]} -> idle (unmounted; stopped tracking)`, generations.current[dir]);
+      }
+      delete operationNames.current[dir];
+    });
   }, []);
   const lastFetchedEnvId = useRef<number | null>(null);
 
   const implRef = useRef<{
     loadPlanImpl: (ref: string, poll?: PollContext) => void;
-    startPollingImpl: (ref: string, attempt: number, triggerTime: number, stageKey: GaStageKey, kind: "plan" | "deploy") => void;
+    startPollingImpl: (ref: string, attempt: number, triggerTime: number, stageKey: GaStageKey, kind: OperationKind, generation: number) => void;
   }>({ loadPlanImpl: () => {}, startPollingImpl: () => {} });
 
-  const startPollingImpl = (ref: string, attempt: number, triggerTime: number, stageKey: GaStageKey, kind: "plan" | "deploy") => {
+  const startPollingImpl = (ref: string, attempt: number, triggerTime: number, stageKey: GaStageKey, kind: OperationKind, generation: number) => {
+    if (generations.current[stageKey] !== generation) return;
     const delay = POLL_DELAYS[attempt] ?? POLL_DELAYS[POLL_DELAYS.length - 1];
+    trace(stageKey, `${kind} report poll ${attempt + 1} scheduled in ${delay}s`, generation);
     stopTicker(stageKey);
-    patchRun(stageKey, { kind, countdown: delay });
+    update(stageKey, generation, { state: "active", kind, countdown: delay, retryCount: attempt });
     const deadline = Date.now() + delay * 1000;
     tickers.current[stageKey] = setInterval(() => {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-      patchRun(stageKey, { countdown: remaining });
+      update(stageKey, generation, { state: "active", kind, countdown: remaining, retryCount: attempt });
       if (remaining <= 0) {
         stopTicker(stageKey);
-        implRef.current.loadPlanImpl(ref, { attempt, triggerTime, stageKey, kind });
+        implRef.current.loadPlanImpl(ref, { attempt, triggerTime, stageKey, kind, generation });
       }
     }, 1000);
   };
@@ -138,6 +182,10 @@ export function useDeploymentPlan(opts: {
       })
     )
       .then((entries) => {
+        if (poll && generations.current[poll.stageKey] !== poll.generation) {
+          trace(poll.stageKey, "ignored stale report response", poll.generation);
+          return;
+        }
         const byKey = new Map(entries);
         if (!poll) setStagesLoading(false);
 
@@ -148,17 +196,13 @@ export function useDeploymentPlan(opts: {
           if (reported <= poll.triggerTime) {
             const next = poll.attempt + 1;
             if (next >= POLL_DELAYS.length) {
-              patchRun(poll.stageKey, {
-                retryCount: next,
-                countdown: 0,
-                error: "Workflow is taking too long. Please check GitHub Actions.",
-              });
+              fail(poll.stageKey, poll.generation, poll.kind, "Workflow is taking too long. Please check GitHub Actions.");
             } else {
-              patchRun(poll.stageKey, { retryCount: next });
-              implRef.current.startPollingImpl(ref, next, poll.triggerTime, poll.stageKey, poll.kind);
+              implRef.current.startPollingImpl(ref, next, poll.triggerTime, poll.stageKey, poll.kind, poll.generation);
             }
           } else {
-            patchRun(poll.stageKey, null);
+            trace(poll.stageKey, `${poll.kind} report received; polling complete`, poll.generation);
+            update(poll.stageKey, poll.generation, { state: "idle" });
           }
         }
 
@@ -199,9 +243,13 @@ export function useDeploymentPlan(opts: {
         setHasPlan(true);
       })
       .catch((e) => {
+        if (poll && generations.current[poll.stageKey] !== poll.generation) {
+          trace(poll.stageKey, "ignored stale report failure", poll.generation);
+          return;
+        }
         console.error("Failed to load the stage reports:", e);
         if (!poll) setStagesLoading(false);
-        if (poll) patchRun(poll.stageKey, { countdown: 0, error: "Could not read the stage reports" });
+        if (poll) fail(poll.stageKey, poll.generation, poll.kind, "Could not read the stage reports");
         setStageSummariesState({});
         setStages(definitions.map(({ dir }) => ({ stage: dir, status: "pending" as const })));
         setHasPlan(false);
@@ -214,7 +262,14 @@ export function useDeploymentPlan(opts: {
   });
 
   useEffect(() => {
-    stageDefinitionsRef.current.forEach(({ dir }) => stopTicker(dir));
+    stageDefinitionsRef.current.forEach(({ dir }) => {
+      stopTicker(dir);
+      generations.current[dir] = (generations.current[dir] ?? 0) + 1;
+      if (operationNames.current[dir] && operationNames.current[dir] !== "idle") {
+        trace(dir, `${operationNames.current[dir]} -> idle (environment changed; stopped tracking)`, generations.current[dir]);
+      }
+      delete operationNames.current[dir];
+    });
     setRuns({});
     setStages([]);
     setStageSummariesState({});
@@ -230,12 +285,17 @@ export function useDeploymentPlan(opts: {
     if (branch) implRef.current.loadPlanImpl(branch.name);
   }, [opts.selectedEnv?.id, opts.branchMatchError]);
 
-  const onRun = useCallback(async (stageKey: GaStageKey) => {
+  const runPlan = async (stageKey: GaStageKey, forced: boolean) => {
     const acc = accountRef.current;
     const repo = repoNameRef.current;
     const env = selectedEnvRef.current;
     const stage = stageDefinitionsRef.current.find((s) => s.dir === stageKey);
-    if (!acc || !repo || !envReadyRef.current || !env || !stage) return;
+    if (!forced && (!acc || !repo || !envReadyRef.current || !env || !stage)) return;
+    const generation = begin(stageKey, { state: "active", kind: "plan", countdown: 0, retryCount: 0 }, forced ? "forced" : "plan requested");
+    if (!acc || !repo || !env || !stage?.workflowId) {
+      fail(stageKey, generation, "plan", "Cannot start plan: account, repository, environment, and workflow are required.");
+      return;
+    }
     // Starting a new plan invalidates any local summary from the previous run.
     setStageSummariesState((previous) => {
       const next = { ...previous };
@@ -243,41 +303,69 @@ export function useDeploymentPlan(opts: {
       return next;
     });
     const triggerTime = Date.now();
-    patchRun(stageKey, { kind: "plan", countdown: 0, retryCount: 0, error: null });
-
     try {
       await triggerWorkflow(acc, repo, stage.workflowId, env.name, env.name, stage.dir);
     } catch (e) {
       console.error("Failed to trigger workflow:", e);
-      patchRun(stageKey, { error: "Failed to trigger workflow", countdown: 0 });
+      fail(stageKey, generation, "plan", "Failed to trigger workflow");
       return;
     }
+    if (generations.current[stageKey] !== generation) {
+      trace(stageKey, "ignored stale plan dispatch result", generation);
+      return;
+    }
+    trace(stageKey, "plan workflow dispatched", generation);
 
     const matchedBranch = branchesRef.current.find((b) => b.name.toLowerCase() === env.name.toLowerCase());
     if (!matchedBranch) {
-      patchRun(stageKey, { error: `No branch found matching env "${env.name}"`, countdown: 0 });
+      fail(stageKey, generation, "plan", `No branch found matching env "${env.name}"`);
       return;
     }
-    implRef.current.startPollingImpl(matchedBranch.name, 0, triggerTime, stageKey, "plan");
-  }, []);
+    implRef.current.startPollingImpl(matchedBranch.name, 0, triggerTime, stageKey, "plan", generation);
+  };
+  const onRun = (stageKey: GaStageKey) => runPlan(stageKey, false);
+  const forcePlan = (stageKey: GaStageKey) => runPlan(stageKey, true);
 
-  // Watches for the deploy report. The remote terminal is what actually dispatches the run.
-  const deployStage = useCallback(async (stageKey: GaStageKey) => {
-    const acc = accountRef.current;
-    const repo = repoNameRef.current;
+  const startDeploy = async (stageKey: GaStageKey, start: StartDeployment, forced: boolean) => {
+    const generation = begin(stageKey, { state: "active", kind: "deploy", countdown: 0, retryCount: 0 }, forced ? "forced" : "deploy requested");
     const env = selectedEnvRef.current;
-    const stageDef = stageDefinitionsRef.current.find((s) => s.dir === stageKey);
-    const stage = stagesRef.current.find((s) => s.stage === stageKey);
-    if (!acc || !repo || !env || !stageDef || !stage?.runId) return;
-
-    patchRun(stageKey, { kind: "deploy", countdown: 0, retryCount: 0, error: null });
-
+    const stage = stagesRef.current.find((item) => item.stage === stageKey);
+    const definition = stageDefinitionsRef.current.find((item) => item.dir === stageKey);
+    if (!accountRef.current || !repoNameRef.current || !env || !stage?.runId || !definition?.deployWorkflowId) {
+      fail(stageKey, generation, "deploy", "Cannot start deployment: account, repository, environment, and plan run are required.");
+      return;
+    }
     const triggerTime = Date.now();
-    // Same branch lookup onRun does, from the same ref. onRun treats no match as an error while
-    // this falls back to the env name — left as it was rather than changed in passing.
+    trace(stageKey, "starting deployment terminal and workflow", generation);
+    try {
+      if (!await start(() => generations.current[stageKey] === generation)) {
+        if (generations.current[stageKey] !== generation) {
+          trace(stageKey, "ignored stale deploy startup result", generation);
+          return;
+        }
+        fail(stageKey, generation, "deploy", "Failed to start the deployment terminal.");
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to start the deployment terminal:", error);
+      fail(stageKey, generation, "deploy", "Failed to start the deployment terminal.");
+      return;
+    }
+    if (generations.current[stageKey] !== generation) {
+      trace(stageKey, "ignored stale deploy startup result", generation);
+      return;
+    }
+    trace(stageKey, "deployment workflow dispatched", generation);
     const ref = branchesRef.current.find((b) => b.name.toLowerCase() === env.name.toLowerCase())?.name ?? env.name;
-    implRef.current.startPollingImpl(ref, 0, triggerTime, stageKey, "deploy");
-  }, []);
+    implRef.current.startPollingImpl(ref, 0, triggerTime, stageKey, "deploy", generation);
+  };
+  const deployStage = (stageKey: GaStageKey, start: StartDeployment) => startDeploy(stageKey, start, false);
+  const forceDeploy = (stageKey: GaStageKey, start: StartDeployment) => startDeploy(stageKey, start, true);
+
+  const forceIdle = (stageKey: GaStageKey) => { begin(stageKey, { state: "idle" }, "forced"); };
+  const forceError = (stageKey: GaStageKey, kind: OperationKind) => {
+    begin(stageKey, { state: "error", kind, error: `Forced ${kind} error state; no workflow failure is implied.` }, "forced");
+  };
 
   const setStageSummary = useCallback((key: GaStageKey, summary: PlanSummary) => {
     setStageSummariesState((prev) => ({ ...prev, [key]: summary }));
@@ -295,6 +383,10 @@ export function useDeploymentPlan(opts: {
     deployedEnv,
     onRun,
     deployStage,
+    forcePlan,
+    forceDeploy,
+    forceIdle,
+    forceError,
     setStageSummary,
   };
 }

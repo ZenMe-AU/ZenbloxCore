@@ -25,6 +25,10 @@ function makePlan(): UseDeploymentPlan {
     deployedEnv: null,
     onRun: vi.fn().mockResolvedValue(undefined),
     deployStage: vi.fn().mockResolvedValue(undefined),
+    forcePlan: vi.fn(),
+    forceDeploy: vi.fn(),
+    forceIdle: vi.fn(),
+    forceError: vi.fn(),
     setStageSummary: vi.fn(),
   };
 }
@@ -69,6 +73,7 @@ describe("createGaStageCardModel", () => {
     const plan = makePlan();
     const onToggle = vi.fn();
     const onRequirementClick = vi.fn();
+    const start = vi.fn().mockResolvedValue(true);
     const selectedEnv = { id: 1, name: "PROD", url: "https://github.example/env" } as GhEnv;
     const models = [
       createGaStageCardModel({
@@ -108,15 +113,15 @@ describe("createGaStageCardModel", () => {
       model.card.onToggle();
       await model.onRunStatusUpdate();
       model.onPlanSummary({ create: 1, update: 0, delete: 0, replace: 0 });
-      await model.trackDeploy?.();
+      await model.trackDeploy?.(start);
     }
 
     expect(models.map(({ card }) => card.cardId)).toEqual([GA_SUBSCRIPTION_BUDGET_CARD_ID, GA_CLOUDFRONT_CARD_ID]);
     expect(onToggle.mock.calls).toEqual([[GA_SUBSCRIPTION_BUDGET_CARD_ID], [GA_CLOUDFRONT_CARD_ID]]);
     expect(plan.onRun).toHaveBeenNthCalledWith(1, "SubscriptionBudget");
     expect(plan.onRun).toHaveBeenNthCalledWith(2, "CloudFront");
-    expect(plan.deployStage).toHaveBeenNthCalledWith(1, "SubscriptionBudget");
-    expect(plan.deployStage).toHaveBeenNthCalledWith(2, "CloudFront");
+    expect(plan.deployStage).toHaveBeenNthCalledWith(1, "SubscriptionBudget", start);
+    expect(plan.deployStage).toHaveBeenNthCalledWith(2, "CloudFront", start);
     expect(plan.setStageSummary).toHaveBeenNthCalledWith(1, "SubscriptionBudget", { create: 1, update: 0, delete: 0, replace: 0 });
     expect(plan.setStageSummary).toHaveBeenNthCalledWith(2, "CloudFront", { create: 1, update: 0, delete: 0, replace: 0 });
   });
