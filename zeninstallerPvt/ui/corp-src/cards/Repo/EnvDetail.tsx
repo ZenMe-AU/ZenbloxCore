@@ -67,6 +67,18 @@ export default function EnvDetail({
   const filteredEnvs = envList.filter((e) => isValidEnvName(e.name, validEnvs));
   // Show EnvBranchDetail only when the error is "no branch found" (not PR mismatch / multiple)
   const showBranchCreate = !!selectedEnv && !!branchMatchError && branchMatchError.startsWith("No branch found");
+  const refreshByBranchError = showBranchCreate && !loading && !refreshFailed && !creatingBranch;
+  const refreshButton = !lockedByPR && (
+    <RefreshButton
+      busy={loading}
+      result={refreshResult}
+      sx={{ ml: 2 }}
+      onClick={() => {
+        markClicked();
+        onRefresh();
+      }}
+    />
+  );
   // Always available once a repo is known — points at the specific env once one's picked, otherwise the environments list (e.g. to add a new one).
   const githubEnvironmentsUrl = repoFullName ? (selectedEnv ? getEnvSettingsUrl(repoFullName, selectedEnv.id) : getEnvironmentsUrl(repoFullName)) : null;
 
@@ -83,17 +95,7 @@ export default function EnvDetail({
           </Box>{" "}
           are configured independently, with their own settings and deployments. PROD is the live deployment; TEST is for validating changes. Everything below applies only to the environment you select.
         </Typography>
-        {!lockedByPR && (
-          <RefreshButton
-            busy={loading}
-            result={refreshResult}
-            sx={{ ml: 2 }}
-            onClick={() => {
-              markClicked();
-              onRefresh();
-            }}
-          />
-        )}
+        {!refreshByBranchError && refreshButton}
       </Box>
 
       {/* Env chips */}
@@ -180,6 +182,7 @@ export default function EnvDetail({
         <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75, my: 1.5 }}>
           <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main", flexShrink: 0 }} />
           <Typography color="warning.dark">{branchMatchError}</Typography>
+          {refreshByBranchError && refreshButton}
         </Box>
       )}
 

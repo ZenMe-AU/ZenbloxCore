@@ -40,7 +40,7 @@ export default function EnvBranchDetail({
         {/* Create button */}
         <Button
           onClick={() => onCreateBranch(targetBranch)}
-          disabled={creatingBranch || !sourceBranch}
+          disabled={creatingBranch || (branches.length > 0 && !sourceBranch)}
           variant="contained"
           size="small"
           startIcon={creatingBranch ? <CircularProgress aria-label={`Creating branch ${targetBranch}`} size={12} /> : <AddIcon />}
