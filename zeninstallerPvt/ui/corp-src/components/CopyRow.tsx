@@ -4,13 +4,18 @@
  */
 
 import { useState } from "react";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, IconButton, Tooltip, Typography } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
-// A labelled value with a copy button. `masked` hides the value but still copies the real one.
-export default function CopyRow({ label, value, masked = false }: { label: string; value: string; masked?: boolean }) {
+// Muted until hovered, with a caption-sized icon, in both the labelled and the icon-only button.
+const copyButtonColorSx = { color: "text.muted", "&:hover": { color: "primary.main" } } as const;
+const copyTextButtonSx = { ...copyButtonColorSx, minWidth: 0, p: 0.5 } as const;
+const copyIconSx = { typography: "caption" } as const;
+const copyTextSx = { ml: 0.5 } as const;
+
+// A copy button on its own; `label` names what it copies for screen readers, `text` is what it shows, `iconOnly` shows it as a tooltip instead.
+export function CopyButton({ label, value, text = "Copy", iconOnly = false }: { label: string; value: string; text?: string; iconOnly?: boolean }) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
-  const displayValue = masked ? "*".repeat(Math.max(value.length, 12)) : value;
   const copy = async () => {
     let copied = false;
     try {
@@ -26,8 +31,32 @@ export default function CopyRow({ label, value, masked = false }: { label: strin
     setCopyState(copied ? "copied" : "failed");
     setTimeout(() => setCopyState("idle"), 1500);
   };
-  const copied = copyState === "copied";
-  const copyLabel = copied ? "Copied" : copyState === "failed" ? "Copy failed" : "Copy";
+  const copyLabel = copyState === "copied" ? "Copied" : copyState === "failed" ? "Copy failed" : text;
+  if (iconOnly) {
+    return (
+      <Tooltip title={copyLabel}>
+        <IconButton aria-label={`${copyLabel} ${label}`} size="small" onClick={copy} sx={copyButtonColorSx}>
+          <ContentCopyIcon aria-hidden="true" sx={copyIconSx} />
+        </IconButton>
+      </Tooltip>
+    );
+  }
+  return (
+    <Button
+      aria-label={`${copyLabel} ${label}`}
+      size="small"
+      onClick={copy}
+      sx={copyTextButtonSx}
+    >
+      <ContentCopyIcon aria-hidden="true" sx={copyIconSx} />
+      <Typography component="span" aria-live={copyState === "failed" ? "assertive" : "polite"} sx={copyTextSx}>{copyLabel}</Typography>
+    </Button>
+  );
+}
+
+// A labelled value with a copy button. `masked` hides the value but still copies the real one.
+export default function CopyRow({ label, value, masked = false }: { label: string; value: string; masked?: boolean }) {
+  const displayValue = masked ? "*".repeat(Math.max(value.length, 12)) : value;
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 1, py: 0.5 }}>
       <Typography variant="fieldLabel" sx={{ minWidth: 180 }}>{label}</Typography>
@@ -41,15 +70,7 @@ export default function CopyRow({ label, value, masked = false }: { label: strin
       >
         {displayValue}
       </Typography>
-      <Button
-        aria-label={`${copyLabel} ${label}`}
-        size="small"
-        onClick={copy}
-        sx={{ minWidth: 0, p: 0.5, color: "text.muted", "&:hover": { color: "primary.main" } }}
-      >
-        <ContentCopyIcon aria-hidden="true" sx={{ typography: "caption" }} />
-        <Typography component="span" aria-live={copyState === "failed" ? "assertive" : "polite"} sx={{ ml: 0.5 }}>{copyLabel}</Typography>
-      </Button>
+      <CopyButton label={label} value={value} />
     </Box>
   );
 }

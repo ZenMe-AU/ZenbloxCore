@@ -14,6 +14,7 @@ import {
 	expandAzureSubscriptionCard,
 	expandRepoCard,
 	hostingSection,
+	openDnsVerifyCard,
 } from "../util/cardHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
@@ -110,7 +111,6 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 			}
 
 			await expect(domainInput).toHaveValue(liveDnsDomain);
-			await expect(card.getByRole("checkbox", { name: /as the tenant's primary domain/ })).toBeChecked();
 			const setupButton = page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment" });
 			await expect(rerunButton).toBeHidden();
 			await expectVisibleWithin(setupButton, "New domain setup button", 60_000);
@@ -120,7 +120,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 			await expect(card.getByText("CORE_RESOURCE_GROUP", { exact: true })).toHaveCount(0);
 			await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled({ timeout: 60_000 });
 			await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
-			await expect(card.getByRole("button", { name: "Verify domain now" })).toBeEnabled();
+			await expect((await openDnsVerifyCard(page)).getByRole("button", { name: "Verify domain now" })).toBeEnabled();
 			await expect(card.getByText(`Resource group: zbcore-${companyShortCode}-rg`, { exact: true })).toBeVisible();
 			await expect(card.getByText(`Log Analytics: zbcore-${companyShortCode}-law`, { exact: true })).toBeVisible();
 			await expectSnapshot(page, card, testInfo, "new-setup", viewportName);
@@ -134,7 +134,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 			}
 
 			await expect(card.getByRole("button", { name: "Save variables" })).toBeDisabled();
-			await expect(card.getByRole("button", { name: "Verify domain now" })).toBeEnabled();
+			await expect((await openDnsVerifyCard(page)).getByRole("button", { name: "Verify domain now" })).toBeEnabled();
 			const setupButton = page.locator("#card-core_infra").getByRole("button", { name: "Re-run" });
 			await expectVisibleWithin(setupButton, "Corp domain setup button", 50_000);
 			await setupButton.click();
@@ -152,8 +152,9 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		await test.step("Verify the domain card completion state", async () => {
 			await expectVisibleWithin(card.getByText("Resources", { exact: true }), "Domain resources section", 50_000);
 			await expectVisibleWithin(card.getByText(`DNS zone: ${liveDnsDomain}`, { exact: true }), "Persisted DNS zone name", 50_000);
-			await expect(card.getByRole("button", { name: "Verify domain now" })).toBeEnabled();
-			await expect(card.getByText(/verified and set as the primary domain/i)).toHaveCount(0);
+			const verifyCard = await openDnsVerifyCard(page);
+			await expect(verifyCard.getByRole("button", { name: "Verify domain now" })).toBeEnabled();
+			await expect(verifyCard.getByText("Primary domain set successfully.", { exact: true })).toHaveCount(0);
 			await expect(card.getByText("CORE_RESOURCE_GROUP", { exact: true })).toHaveCount(0);
 			await expectSnapshot(page, card, testInfo, "end", viewportName);
 		});

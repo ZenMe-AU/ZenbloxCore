@@ -204,6 +204,7 @@ function AppDashboard() {
   const dnsVerify = addCard(
     useDnsVerifyCard({
       azureAccount: azureLogin.account,
+      subscriptionId: azureSubscription.selectedSubscriptionId,
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
       dnsName,
     })
@@ -560,7 +561,7 @@ function AppDashboard() {
                 githubUrl={githubRepoEnv.githubEnvUrl}
               /> */}
 
-              <DnsVerifyCard card={cardProps("dns_verify")} dnsVerify={dnsVerify} dnsName={dnsName} nameServers={coreInfra.createDomain.nameServers} />
+              <DnsVerifyCard card={cardProps("dns_verify")} dnsVerify={dnsVerify} dnsName={dnsName} />
 
               <CreateAdminUsersCard card={cardProps("create_admin_users")} adminUsers={adminUsers} />
 

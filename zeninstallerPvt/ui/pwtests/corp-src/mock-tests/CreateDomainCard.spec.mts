@@ -13,7 +13,7 @@ import {
 	mockTenantId,
 	type CreateDomainAzureMockState,
 } from "../util/mockTestHelper.mts";
-import { hostingSection } from "../util/cardHelper.mts";
+import { hostingSection, openDnsVerifyCard } from "../util/cardHelper.mts";
 
 const companyShortCode = "pwtests";
 const domainName = "pwtests.example";
@@ -97,30 +97,29 @@ test("Restores an unverified DNS zone and verifies without making it primary", a
 		initialAzureState: { domainExists: true, dnsZoneExists: true, dnsTxtExists: true },
 	});
 	await expect(card.getByText("Checking whether this domain is already set up...", { exact: true })).toBeHidden();
-	await expect(card.getByRole("button", { name: "Verify domain now", exact: true })).toBeEnabled();
-	await expect(card.getByText("Point your domain at Azure DNS", { exact: true })).toBeVisible();
-	await expect(card.getByText("ns1.mock.azure-dns.com.", { exact: true })).toBeVisible();
+	const verifyCard = await openDnsVerifyCard(page);
+	const verifyButton = verifyCard.getByRole("button", { name: "Verify domain now", exact: true });
+	const primaryButton = verifyCard.getByRole("button", { name: "Set as primary domain", exact: true });
+	await expect(verifyButton).toBeEnabled();
+	await expect(verifyCard.getByText("Point your domain at Azure DNS", { exact: true })).toBeVisible();
+	await expect(verifyCard.getByText("ns1.mock.azure-dns.com.", { exact: true })).toBeVisible();
 	expect(dnsZoneQueries.length).toBeGreaterThan(0);
 	expect(resourceWrites).toEqual([]);
-	const primaryChoice = card.getByRole("checkbox", { name: /as the tenant's primary domain/ });
-	await expect(primaryChoice).toHaveCount(2);
-	await expect(primaryChoice.first()).toBeChecked();
-	await primaryChoice.first().uncheck();
-	await expect(primaryChoice.last()).not.toBeChecked();
-	await page.reload();
-	await openDomainCard(card);
-	await expect(primaryChoice.first()).not.toBeChecked();
-	await expect(card.getByRole("button", { name: "Verify domain now", exact: true })).toBeEnabled();
-	await card.getByRole("button", { name: "Verify domain now", exact: true }).click();
-	await expect(card.getByText(`Domain ${domainName} is verified.`, { exact: true })).toBeVisible();
-	await expect(card.getByRole("button", { name: "Verify domain now", exact: true })).toHaveCount(0);
+	// Primary is its own optional action now, enabled only once the domain is verified.
+	await expect(verifyCard.getByRole("checkbox")).toHaveCount(0);
+	await expect(primaryButton).toBeDisabled();
+	await verifyButton.click();
+	await expect(verifyCard.getByText("Domain verified successfully.", { exact: true })).toBeVisible();
+	await expect(verifyButton).toBeDisabled();
+	await expect(primaryButton).toBeEnabled();
 	expect(azure.domainVerified).toBe(true);
 	expect(azure.domainPrimary).toBe(false);
 	expect(prepared.github.variables.CORE_RESOURCE_GROUP).toBe("zbcore-pwtests-rg");
 	await page.reload();
 	await openDomainCard(card);
-	await expect(card.getByText(`Domain ${domainName} is verified.`, { exact: true })).toBeVisible();
-	await expect(primaryChoice).not.toBeChecked();
+	await openDnsVerifyCard(page);
+	await expect(verifyCard.getByText("Domain verified successfully.", { exact: true })).toBeVisible();
+	await expect(primaryButton).toBeEnabled();
 	await expect(card.getByText("CORE_RESOURCE_GROUP", { exact: true })).toHaveCount(0);
 	await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
 	expect(resourceWrites).toEqual([]);
@@ -198,7 +197,6 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		await card.getByRole("button", { name: "Save 1 variable" }).click();
 		await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
 		await expect(domainInput).toHaveValue(domainName);
-		await expect(card.getByRole("checkbox", { name: /as the tenant's primary domain/ })).toBeChecked();
 
 		const setupButton = page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment" });
 		await expect(setupButton).toBeEnabled();
@@ -245,7 +243,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 
 		await expect(card.getByText("Resources", { exact: true })).toBeVisible();
 		await expect(card.getByText(`DNS zone: ${domainName}`, { exact: true })).toBeVisible();
-		await expect(card.getByRole("button", { name: "Verify domain now" })).toBeEnabled();
+		await expect((await openDnsVerifyCard(page)).getByRole("button", { name: "Verify domain now" })).toBeEnabled();
 		expect(azure.domainVerified).toBe(false);
 		expect(azure.domainPrimary).toBe(false);
 		expect(azure.dnsZoneExists).toBe(true);
@@ -259,15 +257,21 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 	});
 
 	await test.step("Retry verification after simulated DNS propagation", async () => {
-		await card.getByRole("button", { name: "Verify domain now" }).click();
-		await expect(card.getByText("Verification did not complete — DNS may still be propagating. Try again shortly.", { exact: true })).toBeVisible();
+		const verifyCard = await openDnsVerifyCard(page);
+		await verifyCard.getByRole("button", { name: "Verify domain now" }).click();
+		await expect(verifyCard.getByText("Awaiting DNS propagation. Try again later.", { exact: true })).toBeVisible();
 		expect(azure.domainVerified).toBe(false);
 		expect(azure.domainPrimary).toBe(false);
 		expect(getDomainVerificationAttempts()).toBe(1);
 
-		await card.getByRole("button", { name: "Verify domain now" }).click();
-		await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
+		await verifyCard.getByRole("button", { name: "Verify domain now" }).click();
+		await expect(verifyCard.getByText("Domain verified successfully.", { exact: true })).toBeVisible();
+		// Verifying no longer sets primary; that is its own optional action.
 		expect(azure.domainVerified).toBe(true);
+		expect(azure.domainPrimary).toBe(false);
+		expect(getDomainVerificationAttempts()).toBe(2);
+		await verifyCard.getByRole("button", { name: "Set as primary domain" }).click();
+		await expect(verifyCard.getByText("Primary domain set successfully.", { exact: true })).toBeVisible();
 		expect(azure.domainPrimary).toBe(true);
 		expect(getDomainVerificationAttempts()).toBe(2);
 		expect(txtRecordWrites).toHaveLength(1);
@@ -278,8 +282,10 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 	await test.step("Read back verified status after reload", async () => {
 		await page.reload();
 		await openDomainCard(card);
-		await expect(card.getByText(new RegExp(`Domain ${domainName} is verified and set as the primary domain\\.`))).toBeVisible();
-		await expect(card.getByRole("button", { name: "Verify domain now" })).toHaveCount(0);
+		const verifyCard = await openDnsVerifyCard(page);
+		await expect(verifyCard.getByText("Domain verified successfully.", { exact: true })).toBeVisible();
+		await expect(verifyCard.getByText("Primary domain set successfully.", { exact: true })).toBeVisible();
+		await expect(verifyCard.getByRole("button", { name: "Verify domain now" })).toBeDisabled();
 		expect(azure.domainVerified).toBe(true);
 		expect(azure.domainPrimary).toBe(true);
 		await expectSnapshot(page, card, testInfo, "verified-persisted", viewportName);

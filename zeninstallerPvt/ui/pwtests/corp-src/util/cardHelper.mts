@@ -18,6 +18,13 @@ export function hostingSection(page: Page) {
   return page.locator("#card-core_infra");
 }
 
+// Verifying the domain and setting it as primary live in their own card, apart from the hosting environment.
+export async function openDnsVerifyCard(page: Page) {
+  const card = page.locator("#card-dns_verify");
+  await expandCard(card);
+  return card;
+}
+
 export async function openHostingSection(page: Page) {
   await expandCard(page.locator("#card-core_infra"));
   const section = hostingSection(page);

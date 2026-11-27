@@ -4,71 +4,176 @@
  */
 
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { warningMessageIconSx } from "../../config/styles";
-import type { UseDnsVerifyCard } from "./useDnsVerifyCard";
+import CancelIcon from "@mui/icons-material/Cancel";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import type { PrimaryState, UseDnsVerifyCard, VerifyState } from "./useDnsVerifyCard";
 import Card from "../../components/Card";
 import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
+import { CopyButton } from "../../components/CopyRow";
+import { warningMessageIconSx } from "../../config/styles";
 import type { CardChrome } from "../../types";
 
 type Props = {
   card: CardChrome;
   dnsVerify: UseDnsVerifyCard;
   dnsName: string;
-  nameServers: string[]; // From the corp domain setup, which created the zone.
 };
 
 function Intro({ dnsName }: { dnsName: string }) {
   return (
     <Typography variant="body1" color="text.secondary">
-      Point <b>{dnsName || "your domain"}</b> at the Azure DNS name servers at your registrar, then verify it in Entra ID and, if you choose, make it the
-      tenant's primary domain. DNS changes can take minutes to hours to reach Microsoft.
+      Point <b>{dnsName || "your domain"}</b> to Azure DNS, then verify the domain in Microsoft Entra ID.
     </Typography>
   );
 }
 
-function PrimaryCheckbox({ checked, disabled, dnsName, onChange }: { checked: boolean; disabled: boolean; dnsName: string; onChange: (v: boolean) => void }) {
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const cardBodySx = { display: "flex", flexDirection: "column", gap: 2 } as const;
+const overflowWrapSx = { overflowWrap: "anywhere" } as const;
+
+// The tenant's verified domains, as a left-bordered list like the other cards' resource lists.
+const domainListLabelSx = { mb: 0.75 } as const;
+const domainListSx = { borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 } as const;
+const domainTagSx = { color: "text.muted" } as const;
+
+// The registrar instructions: an info-bordered panel holding the name server list and the propagation note.
+const dnsPanelSx = {
+  backgroundColor: "background.default",
+  border: "1px solid",
+  borderColor: "info.main",
+  borderRadius: 1,
+  px: 2,
+  py: 1.5,
+  display: "flex",
+  flexDirection: "column",
+  gap: 1,
+} as const;
+const dnsPanelHeaderSx = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 } as const;
+const dnsPanelHeadingSx = { fontWeight: 600 } as const;
+
+// Index, value and copy each keep their own column, so every row lines up; the list is only as wide as its longest value.
+const nameServerListSx = { listStyle: "none", m: 0, px: 1.5, py: 0, width: "fit-content", maxWidth: "100%", backgroundColor: "background.paper", borderRadius: 0.5 } as const;
+const nameServerRowSx = {
+  display: "grid",
+  gridTemplateColumns: "40px minmax(0, 1fr) 28px",
+  columnGap: 1.5,
+  alignItems: "center",
+  minHeight: 30,
+  "&:not(:last-of-type)": { borderBottom: "1px solid", borderColor: "divider" },
+} as const;
+const nameServerCopySx = { display: "flex", justifyContent: "flex-end" } as const;
+
+const noteRowSx = { display: "flex", alignItems: "center", gap: 0.75 } as const;
+const noteIconSx = { ...warningMessageIconSx, color: "text.secondary" } as const;
+
+// Both rows share one button width, so their status icons and messages line up.
+const actionListSx = { display: "flex", flexDirection: "column", gap: 1.5 } as const;
+const actionRowSx = { display: "flex", alignItems: "center", gap: 1.5 } as const;
+const actionButtonSx = {
+  width: 180,
+  flexShrink: 0,
+  borderColor: "primary.light",
+  color: "primary.dark",
+  "&:hover": { borderColor: "primary.main", backgroundColor: "action.hover" },
+} as const;
+const actionStatusSx = { display: "flex", alignItems: "center", gap: 1, minWidth: 0 } as const;
+const statusIconSlotSx = { display: "flex", flexShrink: 0, width: 16, justifyContent: "center" } as const;
+const statusMessageSx = { minWidth: 0 } as const;
+
+// ─── Action status ────────────────────────────────────────────────────────────
+
+type Tone = "success" | "processing" | "warning" | "error";
+
+const toneMessageSx = (fontWeight: number) => ({ ...overflowWrapSx, fontWeight }) as const;
+const toneIconSx = (color: string) => ({ ...warningMessageIconSx, color }) as const;
+
+// Each tone has its own icon as well as its colour, so the state never rests on colour alone; processing shows a spinner instead.
+const TONE_STYLE: Record<Tone, { Icon?: typeof CheckCircleIcon; iconSx?: ReturnType<typeof toneIconSx>; textColor: string; messageSx: ReturnType<typeof toneMessageSx> }> = {
+  success: { Icon: CheckCircleIcon, iconSx: toneIconSx("success.main"), textColor: "success.dark", messageSx: toneMessageSx(500) },
+  processing: { textColor: "text.secondary", messageSx: toneMessageSx(400) },
+  warning: { Icon: ScheduleIcon, iconSx: toneIconSx("warning.main"), textColor: "warning.dark", messageSx: toneMessageSx(400) },
+  error: { Icon: CancelIcon, iconSx: toneIconSx("error.main"), textColor: "error.main", messageSx: toneMessageSx(400) },
+};
+
+type ActionStatus = { tone: Tone; message: string };
+
+// A row with nothing to report shows only its button: verify before its first attempt, primary until it is being set (disabled until verified).
+const VERIFY_STATUS: Record<VerifyState, ActionStatus | null> = {
+  idle: null,
+  verifying: { tone: "processing", message: "Verifying domain…" },
+  awaitingPropagation: { tone: "warning", message: "Awaiting DNS propagation. Try again later." },
+  verified: { tone: "success", message: "Domain verified successfully." },
+  failed: { tone: "error", message: "Domain verification failed." },
+};
+const PRIMARY_STATUS: Record<PrimaryState, ActionStatus | null> = {
+  blocked: null,
+  optional: null,
+  setting: { tone: "processing", message: "Setting primary domain…" },
+  primary: { tone: "success", message: "Primary domain set successfully." },
+  failed: { tone: "error", message: "Failed to set primary domain." },
+};
+
+// One action: its button, then the status icon and message for what it last did; a failure keeps the button for a retry.
+function ActionRow({ label, onClick, disabled, status, detail }: {
+  label: string; onClick: () => void; disabled: boolean; status: ActionStatus | null; detail?: string | null;
+}) {
+  const isError = status?.tone === "error";
+  const style = status ? TONE_STYLE[status.tone] : null;
   return (
-    <Box component="label" sx={{ display: "flex", alignItems: "center", gap: 0.75, cursor: "pointer" }}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} style={{ margin: 0, width: 14, height: 14 }} />
-      <Typography component="span" color="text.muted">
-        Set <b>{dnsName}</b> as the tenant's primary domain
-      </Typography>
+    <Box sx={actionRowSx}>
+      <Button variant="outlined" onClick={onClick} disabled={disabled} sx={actionButtonSx}>
+        {label}
+      </Button>
+      <Box role={isError ? "alert" : "status"} aria-live={isError ? "assertive" : "polite"} sx={actionStatusSx}>
+        {status && style && (
+          <>
+            <Box sx={statusIconSlotSx}>
+              {style.Icon ? <style.Icon aria-hidden="true" sx={style.iconSx} /> : <CircularProgress size={14} color="info" aria-hidden="true" />}
+            </Box>
+            <Box sx={statusMessageSx}>
+              <Typography color={style.textColor} sx={style.messageSx}>{status.message}</Typography>
+              {detail && <Typography variant="body2" color="text.secondary" sx={overflowWrapSx}>{detail}</Typography>}
+            </Box>
+          </>
+        )}
+      </Box>
     </Box>
   );
 }
 
-export default function DnsVerifyCard({ card, dnsVerify, dnsName, nameServers }: Props) {
-  const { checkingStatus, checkStatusError, verifiedDomains, domainVerified, isPrimary, makePrimary, setMakePrimary, verifying, done, verifyError, verify } = dnsVerify;
+export default function DnsVerifyCard({ card, dnsVerify, dnsName }: Props) {
+  const { checkingStatus, checkStatusError, verifiedDomains, domainVerified, nameServers, verifyState, verifyError, verify, primaryState, primaryError, setPrimary } = dnsVerify;
 
   return (
     <Card title="Verify DNS domain" lockedIntro={<Intro dnsName={dnsName} />} {...card}>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <Box sx={cardBodySx}>
         <Intro dnsName={dnsName} />
         {checkStatusError && <ErrorText>Couldn't check the domain: {checkStatusError}</ErrorText>}
         {checkingStatus && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <Box sx={noteRowSx}>
             <CircularProgress aria-label="Checking domain" size={12} />
             <StatusText>Checking whether this domain is already verified...</StatusText>
           </Box>
         )}
         {verifiedDomains.length > 0 && (
           <Box>
-            <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>Verified domains in this tenant</Typography>
-            <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
+            <Typography variant="sectionLabel" sx={domainListLabelSx}>Verified domains in this tenant</Typography>
+            <Box sx={domainListSx}>
               {verifiedDomains.map((d) => (
                 <Typography key={d.name} color="text.primary">
                   {d.name}
                   {d.isDefault && (
-                    <Box component="span" sx={{ color: "text.muted" }}>
+                    <Box component="span" sx={domainTagSx}>
                       {" "}
                       — primary
                     </Box>
                   )}
                   {d.isInitial && (
-                    <Box component="span" sx={{ color: "text.muted" }}>
+                    <Box component="span" sx={domainTagSx}>
                       {" "}
                       — initial
                     </Box>
@@ -81,72 +186,48 @@ export default function DnsVerifyCard({ card, dnsVerify, dnsName, nameServers }:
 
         {/* Name servers + registrar instruction */}
         {nameServers.length > 0 && !domainVerified && (
-          <Box
-            sx={{
-              backgroundColor: "background.default",
-              border: "1px solid",
-              borderColor: "info.main",
-              borderRadius: 1,
-              px: 2,
-              py: 1.5,
-              display: "flex",
-              flexDirection: "column",
-              gap: 1,
-            }}
-          >
-            <Typography color="info.dark" sx={{ fontWeight: 600 }}>Point your domain at Azure DNS</Typography>
-            <Typography color="info.dark">
-              At your domain registrar, replace the NS records for <b>{dnsName}</b> with the Azure name servers below. Microsoft can only verify the domain once
-              DNS resolves through Azure.
+          <Box sx={dnsPanelSx}>
+            <Box sx={dnsPanelHeaderSx}>
+              <Typography color="info.dark" sx={dnsPanelHeadingSx}>Point your domain at Azure DNS</Typography>
+              <CopyButton label="all name servers" value={nameServers.join("\n")} text="Copy all" />
+            </Box>
+            <Typography color="text.secondary">
+              At your domain registrar, replace the name servers for <b>{dnsName}</b> with the Azure name servers below.
             </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
-              {nameServers.map((ns) => (
-                <Typography key={ns} color="text.primary" sx={{ typography: "technical" }}>
-                  {ns}
-                </Typography>
+            <Box component="ul" aria-label="Azure name servers" sx={nameServerListSx}>
+              {nameServers.map((ns, index) => (
+                <Box component="li" key={ns} sx={nameServerRowSx}>
+                  <Typography variant="body2" color="text.muted">NS {index + 1}</Typography>
+                  <Typography variant="technicalBody" color="text.primary" sx={overflowWrapSx}>
+                    {ns}
+                  </Typography>
+                  <Box sx={nameServerCopySx}>
+                    <CopyButton label={`name server ${ns}`} value={ns} iconOnly />
+                  </Box>
+                </Box>
               ))}
+            </Box>
+            <Box sx={noteRowSx}>
+              <InfoOutlinedIcon aria-hidden="true" sx={noteIconSx} />
+              <Typography color="text.secondary">DNS propagation can take minutes to hours.</Typography>
             </Box>
           </Box>
         )}
-        {/* Domain verification + primary promotion (one button drives both) */}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          {done && (
-            <Box role="status" aria-live="polite" sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-              <CheckCircleOutlineIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main" }} />
-              <Typography color="success.dark">
-                Domain <b>{dnsName}</b> is verified{isPrimary && " and set as the primary domain"}.
-              </Typography>
-            </Box>
-          )}
-          {/* The user's call, so it stays until the domain is primary: ticking it after verifying brings back the button. */}
-          {!isPrimary && <PrimaryCheckbox checked={makePrimary} disabled={verifying} dnsName={dnsName} onChange={setMakePrimary} />}
-          {!done && (
-            <>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-                <Button
-                  variant="outlined"
-                  onClick={verify}
-                  disabled={verifying}
-                  startIcon={verifying ? <CircularProgress size={12} /> : undefined}
-                  sx={{
-                    borderColor: "primary.light",
-                    color: "primary.dark",
-                    "&:hover": { borderColor: "primary.main", backgroundColor: "action.hover" },
-                  }}
-                >
-                  {domainVerified ? "Set as primary domain" : "Verify domain now"}
-                </Button>
-                {!domainVerified && (
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <WarningAmberIcon aria-hidden="true" sx={{ ...warningMessageIconSx, color: "warning.main" }} />
-                    <Typography color="warning.main">DNS propagation can take minutes to hours</Typography>
-                  </Box>
-                )}
-              </Box>
-              {verifying && <StatusText>Verifying domain...</StatusText>}
-              {verifyError && <ErrorText>{verifyError}</ErrorText>}
-            </>
-          )}
+        <Box sx={actionListSx}>
+          <ActionRow
+            label="Verify domain now"
+            onClick={verify}
+            disabled={verifyState === "verifying" || verifyState === "verified"}
+            status={VERIFY_STATUS[verifyState]}
+            detail={verifyState === "failed" ? verifyError : null}
+          />
+          <ActionRow
+            label="Set as primary domain"
+            onClick={setPrimary}
+            disabled={primaryState !== "optional" && primaryState !== "failed"}
+            status={PRIMARY_STATUS[primaryState]}
+            detail={primaryState === "failed" ? primaryError : null}
+          />
         </Box>
       </Box>
     </Card>
