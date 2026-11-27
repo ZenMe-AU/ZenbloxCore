@@ -55,6 +55,12 @@ describe("shared UI building blocks", () => {
         cardId: "access_pass", status: "complete", done: true, summary: "Access pass created", cardRequirements: [], cardDependencyLabel: "Sign in",
         managerUsers: [{ id: "user-1", displayName: "Test User", userPrincipalName: "test@example.com" }],
         selectedManagerUserId: "user-1", setSelectedManagerUserId: vi.fn(), managerUsersLoading: false, managerUsersError: null,
+        membershipError: null,
+        access: {
+          status: "ready", error: null, failureKind: null, retry: vi.fn(), check: vi.fn(), reportFailure: vi.fn(),
+          missingRoles: null, missingEntra: null, unregisteredProviders: [], registeringProviders: false,
+          registerProviders: async () => {}, missingConsent: [], grantConsent: vi.fn(),
+        },
         consentRequired: false, requestAccessPassConsent: async () => {}, running: false, reset: vi.fn(), runForUser: async () => null,
         result: { accessPassValue: "test-pass", tenantId: "tenant", targetUserId: "user-1", tapMethodId: "tap-1" },
         steps: [{ id: "tap", label: "Create Temporary Access Pass", status: "done", detail: "Temporary Access Pass created" }],
