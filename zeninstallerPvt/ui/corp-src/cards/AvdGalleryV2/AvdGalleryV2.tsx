@@ -12,10 +12,6 @@ import { PRIVAVD_GALLERY_DESCRIPTION, PRIVAVD_GALLERY_RESOURCES } from "./config
 import type { UseAvdGalleryV2 } from "./useAvdGalleryV2";
 import { useAvdGalleryV2 } from "./useAvdGalleryV2";
 
-type Props = {
-  appCtxStore: AppContext;
-};
-
 function Intro() {
   return (
     <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
@@ -52,12 +48,12 @@ function CardContentMain({ privateContext }: UseAvdGalleryV2) {
   );
 }
 
-function CardEntrypoint({ appCtxStore }: Props): ReactElement {
-  const { baseCardContext, privateContext } = useAvdGalleryV2(appCtxStore);
+function CardEntrypoint(appCtx: AppContext): ReactElement {
+  const card = useAvdGalleryV2(appCtx);
   return (
-    <BaseCard baseCardContext={baseCardContext} appContext={privateContext.appContext} blockedIntro={<Intro />}>
+    <BaseCard baseCardContext={card.baseCardContext} appContext={card.privateContext.appContext} blockedIntro={<Intro />}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        <CardContentMain baseCardContext={baseCardContext} privateContext={privateContext} />
+        <CardContentMain baseCardContext={card.baseCardContext} privateContext={card.privateContext} />
       </Box>
     </BaseCard>
   );

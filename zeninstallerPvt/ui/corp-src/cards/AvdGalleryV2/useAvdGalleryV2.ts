@@ -47,8 +47,8 @@ function deriveLifecycle({
   done: boolean;
 }): Lifecycle {
   if (unmet.length > 0) return "blocked";
-  if (loading) return "loading";
   if (deploying) return "action";
+  if (loading) return "loading";
   if (error) return "error";
   return done ? "complete" : "ready";
 }

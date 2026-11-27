@@ -647,7 +647,7 @@ function AppDashboard() {
                 {...privAvdTarget}
                 variables={githubVariables}
               />
-              <AvdGalleryV2 appCtxStore={appCtxStore} />
+              <AvdGalleryV2 {...appCtxStore} />
 
               <PawImageCard
                 card={cardProps("privavd_image")}

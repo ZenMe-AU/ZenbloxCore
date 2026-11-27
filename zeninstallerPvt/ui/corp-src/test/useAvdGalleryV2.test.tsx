@@ -11,36 +11,43 @@ import { useAvdGalleryV2 } from "../cards/AvdGalleryV2/useAvdGalleryV2";
 import { coreInfraCardId, initialCardContext, initialState, reducer, repoCardId } from "../cards/AvdGalleryV2/stateMachine";
 import { checkPrerequisites } from "../components/useBaseCard";
 
+const { deploymentHook, variablesHook } = vi.hoisted(() => ({
+  deploymentHook: vi.fn(),
+  variablesHook: vi.fn(),
+}));
+
 vi.mock("../hooks/util/usePrivAvdDeploy", () => ({
-  usePrivAvdDeploy: () => ({
-    done: false,
-    status: "idle",
-    summary: "Not deployed",
-    report: null,
-    deploying: false,
-    error: null,
-    terminal: {},
-    deploy: vi.fn(),
-  }),
+  usePrivAvdDeploy: deploymentHook,
 }));
 
 vi.mock("../hooks/useGithubVariablesV2", () => ({
-  useGithubVariablesV2: () => ({
-    values: {},
-    loading: false,
-    refreshing: false,
-    error: false,
-    onRefresh: vi.fn(),
-    onConfirmed: vi.fn(),
-    api: null,
-    target: null,
-  }),
+  useGithubVariablesV2: variablesHook,
 }));
 
 describe("AvdGalleryV2", () => {
   let appStore: ReturnType<typeof createAppContext>;
 
   beforeEach(() => {
+    deploymentHook.mockReturnValue({
+      done: false,
+      status: "idle",
+      summary: "Not deployed",
+      report: null,
+      deploying: false,
+      error: null,
+      terminal: {},
+      deploy: vi.fn(),
+    });
+    variablesHook.mockReturnValue({
+      values: {},
+      loading: false,
+      refreshing: false,
+      error: false,
+      onRefresh: vi.fn(),
+      onConfirmed: vi.fn(),
+      api: null,
+      target: null,
+    });
     appStore = createAppContext();
     appStore.update("github_login_v2", {
       title: "GitHub Login 2",
@@ -83,6 +90,32 @@ describe("AvdGalleryV2", () => {
     expect(appStore.getSnapshot().cards.avd_gallery_v2).toMatchObject({
       initialised: true,
       currentBaseCardStatus: "ready",
+    });
+    await act(async () => root.unmount());
+  });
+
+  it("shows action lifecycle while a re-deploy is running", async () => {
+    deploymentHook.mockReturnValue({
+      done: false,
+      status: "loading",
+      summary: "Deploying...",
+      report: null,
+      deploying: true,
+      error: null,
+      terminal: {},
+      deploy: vi.fn(),
+    });
+    let card: ReturnType<typeof useAvdGalleryV2> | undefined;
+    function Harness() {
+      card = useAvdGalleryV2(appStore);
+      return null;
+    }
+
+    const root = createRoot(document.createElement("div"));
+    await act(async () => root.render(<Harness />));
+    expect(card?.baseCardContext).toMatchObject({
+      lifecycle: "action",
+      summary: "Deploying...",
     });
     await act(async () => root.unmount());
   });
