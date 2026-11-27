@@ -3,7 +3,6 @@ packages:
   - corpSetup/CloudFront/source/loginApp
   - selfService/web
   - selfService/backend
-  - portal/ui
   - "*/ui"
   - "*/func"
 overrides:

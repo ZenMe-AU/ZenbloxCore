@@ -29,10 +29,6 @@
       "path": "./corpSetup/CloudFront/source/loginApp",
     },
     {
-      "name": "portal-ui",
-      "path": "./portal/ui",
-    },
-    {
       "name": "portal-accessPass-ui",
       "path": "./accessPass/ui",
     },
