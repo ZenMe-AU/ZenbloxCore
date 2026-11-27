@@ -413,6 +413,7 @@ export function isInternalTenantMember(user: SignedInUserMembership): boolean {
   return user.userType === "Member" && !user.userPrincipalName?.toUpperCase().includes("#EXT#");
 }
 
+// Only members without EXT is treated as internal staff.
 export async function isSignedInUserInternalMember(account: AzureAccount, overrideTenantId?: string): Promise<boolean> {
   const token = await getToken(account, ACCESS_PASS_SCOPES, overrideTenantId);
   const user: SignedInUserMembership = await gFetch(token, GRAPH, "/me?$select=userType,userPrincipalName");
