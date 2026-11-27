@@ -49,6 +49,14 @@ export type CoreInfraResult = {
   stateResourceGroup: string; // Where the account actually lives, which is not always this card's own group.
 };
 
+export const coreInfraAppContextId = "core_infra" as const;
+
+declare module "../../appContext" {
+  interface SharedCardDataById {
+    [coreInfraAppContextId]: Record<never, never>;
+  }
+}
+
 export type CoreInfraRbacStatus = "unknown" | "rg-not-found" | "missing-role" | "ready";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

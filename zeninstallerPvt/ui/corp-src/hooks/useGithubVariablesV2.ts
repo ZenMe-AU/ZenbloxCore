@@ -13,7 +13,7 @@ import type { UseGithubVariables } from "./useGithubVariables";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type VariableApi = Pick<ApiProvider, "fetchVariables" | "createVariable" | "updateVariable" | "deleteVariable">;
+export type VariableApi = Pick<ApiProvider, "fetchVariables" | "createVariable" | "updateVariable" | "deleteVariable" | "fetchLogArtifact">;
 
 // Shaped like Repository & environment 2's published githubRepository, so a card passes that as is.
 export type GithubTarget = Readonly<{

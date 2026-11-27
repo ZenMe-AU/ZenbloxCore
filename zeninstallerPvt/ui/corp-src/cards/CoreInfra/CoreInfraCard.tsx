@@ -9,6 +9,7 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { warningMessageIconSx } from "../../config/styles";
 import type { UseCoreInfraCard } from "./useCoreInfraCard";
+import { coreInfraAppContextId } from "./useCoreInfraCard";
 import StepRow from "../StepRow";
 import AzureAccessCheck from "../../components/AzureAccessCheck";
 import CollapsiblePanel from "../../components/CollapsiblePanel";
@@ -23,6 +24,7 @@ import CloudVariableDetail from "../CloudVariableDetail";
 import type { UseGithubVariables } from "../../hooks/useGithubVariables";
 import StatusText from "../../components/StatusText";
 import type { Account, CardChrome, AzureAccount, GhEnv } from "../../types";
+import type { AppContext } from "../../appContext";
 
 const CORE_INFRA_KEYS = [...CORP_NAME_KEYS, ...TFSTATE_BACKEND_KEYS];
 
@@ -38,6 +40,7 @@ type Props = {
   selectedEnv: GhEnv | null;
   variables: UseGithubVariables;
   githubUrl?: string;
+  appCtxStore?: AppContext;
 };
 
 function Intro({ containerName }: { containerName: string }) {
@@ -73,6 +76,7 @@ export default function CoreInfraCard({
   selectedEnv,
   variables,
   githubUrl,
+  appCtxStore,
 }: Props) {
   const {
     location,
@@ -127,6 +131,24 @@ export default function CoreInfraCard({
   if (!subscriptionId) missing.push("AZURE_SUBSCRIPTION_ID");
   if (!spClientId) missing.push("AZURE_CLIENT_ID");
   const ready = !!azureAccount && missing.length === 0;
+
+  useEffect(() => {
+    if (!appCtxStore) return;
+    const currentBaseCardStatus = card.locked
+      ? "blocked"
+      : infra.status === "loading"
+        ? "loading"
+        : infra.status === "error"
+          ? "error"
+          : done
+            ? "complete"
+            : "ready";
+    appCtxStore.update(coreInfraAppContextId, {
+      title: "Terraform state backend",
+      currentBaseCardStatus,
+      currentStatus: infra.status,
+    });
+  }, [appCtxStore, card.locked, done, infra.status]);
 
   // Previously completed for this target, but the live check now shows the resource group is gone or the SP lost access.
   const rgNotFound = resultMatches && infraRbacStatus === "rg-not-found";

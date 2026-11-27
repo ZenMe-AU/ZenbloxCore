@@ -73,6 +73,7 @@ import AccessPassV2 from "./cards/AccessPassV2/AccessPassV2";
 import AwsSsoCard from "./cards/AwsSso/AwsSsoCard";
 import AwsSsoStackCard from "./cards/AwsSsoStack/AwsSsoStackCard";
 import AvdGalleryCard from "./cards/AvdGallery/AvdGalleryCard";
+import AvdGalleryV2 from "./cards/AvdGalleryV2/AvdGalleryV2";
 import PawImageCard from "./cards/PawImage/PawImageCard";
 import PawDeployCard from "./cards/PawDeploy/PawDeployCard";
 
@@ -560,6 +561,7 @@ function AppDashboard() {
               <CoreInfraCard
                 card={cardProps("core_infra")}
                 infra={infra}
+                appCtxStore={appCtxStore}
                 azureAccount={azureLogin.account}
                 corpName={corpName}
                 subscriptionId={azureSubscription.selectedSubscriptionId}
@@ -645,6 +647,7 @@ function AppDashboard() {
                 {...privAvdTarget}
                 variables={githubVariables}
               />
+              <AvdGalleryV2 appCtxStore={appCtxStore} />
 
               <PawImageCard
                 card={cardProps("privavd_image")}
