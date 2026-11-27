@@ -150,3 +150,14 @@ variable "ARTIFACT_KEEPER_FILE_SHARE" {
     error_message = "ARTIFACT_KEEPER_FILE_SHARE=true needs ARTIFACT_KEEPER_BLOB_HOST: the share lives on the same Artifact Keeper private storage account."
   }
 }
+
+variable "CLIPBOARD_MODE" {
+  description = "Clipboard between the user's device and the PAW: \"paste-in\" (default) = plain text can be pasted INTO the session, nothing can be copied out; \"two-way\" = no restriction (testing only); \"off\" = no clipboard. Enforced on each session host by scripts/Set-PawRedirectionPolicy.ps1; takes effect after the session host's next restart."
+  type        = string
+  default     = "paste-in"
+
+  validation {
+    condition     = contains(["paste-in", "two-way", "off"], var.CLIPBOARD_MODE)
+    error_message = "CLIPBOARD_MODE must be paste-in, two-way or off."
+  }
+}

@@ -93,6 +93,12 @@ this module.
 	the firewall configuration is commented out.
 - Private network egress from session hosts is denied by the NSG.
 - The local administrator password is generated and retained only in Terraform state.
+- Device redirection is pinned: no local drives, USB devices, printers, COM
+  ports, phones or cameras in the session (several Microsoft defaults are ON).
+- Clipboard: `CLIPBOARD_MODE` (`TF_VAR_CLIPBOARD_MODE`) is `paste-in` by default
+  (plain text can be pasted into the PAW, nothing can be copied out); `two-way`
+  is for testing only; `off` removes the clipboard. Enforced on the session host
+  by `scripts/Set-PawRedirectionPolicy.ps1`; applies after the next restart.
 
 - The gallery image is read as an external dependency and is not managed here.
 - The PAW deployment has its own Terraform state and workspace per resource group.

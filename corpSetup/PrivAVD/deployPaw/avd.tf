@@ -26,7 +26,12 @@ resource "azurerm_virtual_desktop_host_pool" "pooled" {
   load_balancer_type       = "BreadthFirst"
   start_vm_on_connect      = true
   validate_environment     = false
-  custom_rdp_properties    = "targetisaadjoined:i:1;enablerdsaadauth:i:1;redirectclipboard:i:1;"
+  custom_rdp_properties    = "targetisaadjoined:i:1;enablerdsaadauth:i:1;redirectclipboard:i:${var.CLIPBOARD_MODE == "off" ? 0 : 1};drivestoredirect:s:;usbdevicestoredirect:s:;redirectprinters:i:0;redirectcomports:i:0;"
+  # Redirection is pinned rather than left to Microsoft defaults (COM ports
+  # are ON by default): no local drives, USB devices, printers or COM ports in
+  # the session. Phones/cameras (MTP/PTP, also ON by default) and the clipboard
+  # DIRECTION are enforced on the session host by
+  # scripts/Set-PawRedirectionPolicy.ps1 (CLIPBOARD_MODE).
   # Session hosts still reach the broker/gateway through the connection
   # private endpoint (private_link.tf); clients may also use the public
   # gateway (windows.app from anywhere). VMs keep zero inbound exposure

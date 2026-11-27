@@ -139,3 +139,30 @@ resource "azurerm_virtual_machine_run_command" "artifact_keeper_file_share" {
   # One run command at a time per VM.
   depends_on = [azurerm_virtual_machine_run_command.artifact_keeper_trust]
 }
+
+# Clipboard direction (CLIPBOARD_MODE) and phone/camera (MTP/PTP) blocking are
+# session-host policies: the host pool RDP properties (avd.tf) only switch
+# redirection on or off. See scripts/Set-PawRedirectionPolicy.ps1. Takes
+# effect after the session host's next restart.
+resource "azurerm_virtual_machine_run_command" "redirection_policy" {
+  count              = var.SESSION_HOST_COUNT
+  name               = "paw-redirection-policy"
+  location           = azurerm_resource_group.avd.location
+  virtual_machine_id = azurerm_windows_virtual_machine.session_host[count.index].id
+
+  source {
+    script = file("${path.module}/scripts/Set-PawRedirectionPolicy.ps1")
+  }
+
+  parameter {
+    name  = "ClipboardMode"
+    value = var.CLIPBOARD_MODE
+  }
+
+  # One run command at a time per VM.
+  depends_on = [
+    azurerm_virtual_machine_extension.avd_register,
+    azurerm_virtual_machine_run_command.artifact_keeper_trust,
+    azurerm_virtual_machine_run_command.artifact_keeper_file_share,
+  ]
+}
