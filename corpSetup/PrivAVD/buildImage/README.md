@@ -24,6 +24,10 @@ image definition must already exist.
 
 ### Product decisions (Winget-Repo in the golden image)
 
+- **Off by default since 2026-11-27.** The image build skips Winget-Repo unless
+  `TF_VAR_INSTALL_WINGET_REPO=true` is set in the shared `.env` (Packer variable
+  `INSTALL_WINGET_REPO`); PAW software comes from the image and Artifact Keeper
+  instead. The notes below describe Winget-Repo when it is switched on.
 - Every PAW deployed from this image includes a private Winget-Repo instance
   running on https://localhost:5000 — no network access needed, no external
   dependencies, works on a born-locked PAW.

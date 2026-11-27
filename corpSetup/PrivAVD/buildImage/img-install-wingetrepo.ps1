@@ -26,6 +26,15 @@
 
 $ErrorActionPreference = 'Stop'
 
+# Off unless INSTALL_WINGET_REPO=true (paw-image.pkr.hcl, default false;
+# TF_VAR_INSTALL_WINGET_REPO in the shared .env). Off = exit before touching
+# the machine. To run this by hand on a test VM, set
+# $env:INSTALL_WINGET_REPO = 'true' first.
+if ($env:INSTALL_WINGET_REPO -ne 'true') {
+    Write-Host 'Winget-Repo: switched off (INSTALL_WINGET_REPO is not true) - skipping.'
+    exit 0
+}
+
 $repoDir = 'C:\Winget-Repo'
 $toolsDir = 'C:\Tools'
 $pythonExe = 'C:\Program Files\Python312\python.exe'

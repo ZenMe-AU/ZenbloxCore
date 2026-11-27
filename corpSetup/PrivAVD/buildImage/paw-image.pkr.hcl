@@ -49,8 +49,15 @@ variable "IMAGE_VERSION" {
 }
 
 variable "PACKAGE_URL" {
-  description = "Read-only SAS URL of the wingetrepo-packages.zip blob in Azure Storage (maintained by upload-packages.ps1, stored as TF_VAR_PACKAGE_URL in the shared .env). The build VM downloads the archive from this URL - bulk WinRM transfer was abandoned after two hangs."
+  description = "Read-only SAS URL of the wingetrepo-packages.zip blob in Azure Storage (maintained by upload-packages.ps1, stored as TF_VAR_PACKAGE_URL in the shared .env). Only used when INSTALL_WINGET_REPO = true. The build VM downloads the archive from this URL - bulk WinRM transfer was abandoned after two hangs."
   type        = string
+  default     = ""
+}
+
+variable "INSTALL_WINGET_REPO" {
+  description = "Include the localhost Winget-Repo service in the image (TF_VAR_INSTALL_WINGET_REPO in the shared .env; build.ps1 passes it). Default false: PAW software comes from the image and Artifact Keeper instead. true restores the Winget-Repo install and needs PACKAGE_URL."
+  type        = bool
+  default     = false
 }
 
 source "azure-arm" "paw" {
@@ -144,9 +151,12 @@ build {
   # pointing at the local repo. Default winget/msstore sources are removed.
   # The service is stopped at the end of this provisioner (before sysprep)
   # and re-starts on first boot.
+  # OFF by default since 2026-11-27 (INSTALL_WINGET_REPO = false): the script
+  # then exits at once and the restart below costs one extra reboot. Set
+  # TF_VAR_INSTALL_WINGET_REPO=true in the shared .env to include it again.
   provisioner "powershell" {
     script = "img-install-wingetrepo.ps1"
-    environment_vars = ["PACKAGE_URL=${var.PACKAGE_URL}"]
+    environment_vars = ["PACKAGE_URL=${var.PACKAGE_URL}", "INSTALL_WINGET_REPO=${var.INSTALL_WINGET_REPO}"]
   }
 
   # Restart after the Winget-Repo install: the Python installer and pip can

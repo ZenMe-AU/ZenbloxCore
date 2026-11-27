@@ -17,19 +17,29 @@ $packerTemplate = Join-Path $PSScriptRoot "paw-image.pkr.hcl"
 # Gallery image versions must be unique, so the patch component is the current Unix time (fits Azure's uint32 version limit until year 2106).
 $imageVersion = "$TF_VAR_IMAGE_VERSION.$([DateTimeOffset]::UtcNow.ToUnixTimeSeconds())"
 
-# Self-heal the offline package blob: ensure-packages.ps1 probes the SAS URL
-# and rebuilds everything from corpSetup/WingetRepo/dependencies (zip ->
-# storage account -> blob -> fresh SAS -> .env) if the blob is missing,
-# unreachable, or the storage account was deleted. No manual upload step.
-& (Join-Path $PSScriptRoot 'ensure-packages.ps1')
+# Winget-Repo is optional and OFF by default: TF_VAR_INSTALL_WINGET_REPO=true
+# in .env includes it. Only then is the offline package blob needed.
+$installWingetRepo = ("$TF_VAR_INSTALL_WINGET_REPO".Trim().ToLowerInvariant() -eq 'true')
 
-# ensure-packages.ps1 may have (re)written .env - re-read the URL it wrote.
-$TF_VAR_PACKAGE_URL = $null
-Get-Content (Join-Path $PSScriptRoot "..\.env") | ForEach-Object {
-    if ($_ -match '^\s*TF_VAR_PACKAGE_URL\s*=\s*(.+)$') { $TF_VAR_PACKAGE_URL = $Matches[1].Trim() }
+if ($installWingetRepo) {
+    # Self-heal the offline package blob: ensure-packages.ps1 probes the SAS URL
+    # and rebuilds everything from corpSetup/WingetRepo/dependencies (zip ->
+    # storage account -> blob -> fresh SAS -> .env) if the blob is missing,
+    # unreachable, or the storage account was deleted. No manual upload step.
+    & (Join-Path $PSScriptRoot 'ensure-packages.ps1')
+
+    # ensure-packages.ps1 may have (re)written .env - re-read the URL it wrote.
+    $TF_VAR_PACKAGE_URL = $null
+    Get-Content (Join-Path $PSScriptRoot "..\.env") | ForEach-Object {
+        if ($_ -match '^\s*TF_VAR_PACKAGE_URL\s*=\s*(.+)$') { $TF_VAR_PACKAGE_URL = $Matches[1].Trim() }
+    }
+    if ([string]::IsNullOrWhiteSpace($TF_VAR_PACKAGE_URL)) {
+        throw "TF_VAR_PACKAGE_URL is still missing after ensure-packages.ps1 ran - see its output above."
+    }
 }
-if ([string]::IsNullOrWhiteSpace($TF_VAR_PACKAGE_URL)) {
-    throw "TF_VAR_PACKAGE_URL is still missing after ensure-packages.ps1 ran - see its output above."
+else {
+    Write-Host 'Winget-Repo: switched off (TF_VAR_INSTALL_WINGET_REPO is not true) - skipping the package blob.'
+    $TF_VAR_PACKAGE_URL = ''
 }
 
 # Pass the same values Terraform used to create the gallery/RG so Packer
@@ -42,7 +52,8 @@ $packerVars = @(
     "-var", "GALLERY_RG=$TF_VAR_GALLERY_RG",
     "-var", "IMAGE_NAME=$TF_VAR_IMAGE_NAME",
     "-var", "IMAGE_VERSION=$imageVersion",
-    "-var", "PACKAGE_URL=$TF_VAR_PACKAGE_URL"
+    "-var", "PACKAGE_URL=$TF_VAR_PACKAGE_URL",
+    "-var", "INSTALL_WINGET_REPO=$($installWingetRepo.ToString().ToLowerInvariant())"
 )
 
 Push-Location $PSScriptRoot
