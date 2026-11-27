@@ -437,6 +437,50 @@ describe("useGithubRepo", () => {
     }
   });
 
+  it("refreshes branches even when the account list refresh fails", async () => {
+    mockApi.checkTemplate.mockResolvedValue({ templateName: "ZenMe-AU/ZenbloxCore" });
+    let latest: UseGithubRepo | null = null;
+    const root = createRoot(document.createElement("div"));
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await act(async () => root.render(<HookHarness user={baseUser()} onUpdate={(value) => { latest = value; }} />));
+      await act(async () => latest?.setSelectedRepo({ id: 1, name: "repo-a" }));
+      expect(latest?.branchList).toEqual([]);
+      mockApi.fetchOrgList.mockRejectedValueOnce(new Error("Account refresh failed"));
+      mockApi.fetchBranches.mockResolvedValue([{ name: "main", commit: "sha", protected: false }]);
+      await act(async () => latest?.onRefresh());
+      await waitFor(() => {
+        expect(latest?.sourceBranch).toBe("main");
+        expect(latest?.branchList.map((branch) => branch.name)).toEqual(["main"]);
+        expect(latest?.repoRefreshFailed).toBe(true);
+      });
+    } finally {
+      await act(async () => root.unmount());
+      error.mockRestore();
+    }
+  });
+
+  it("preserves the branch refresh error after repository lists finish loading", async () => {
+    mockApi.checkTemplate.mockResolvedValue({ templateName: "ZenMe-AU/ZenbloxCore" });
+    let latest: UseGithubRepo | null = null;
+    const root = createRoot(document.createElement("div"));
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await act(async () => root.render(<HookHarness user={baseUser()} onUpdate={(value) => { latest = value; }} />));
+      await act(async () => latest?.setSelectedRepo({ id: 1, name: "repo-a" }));
+      mockApi.fetchBranches.mockRejectedValueOnce(new Error("Branch permission denied"));
+      await act(async () => latest?.onRefresh());
+      await waitFor(() => {
+        expect(latest?.repoLoading).toBe(false);
+        expect(latest?.repoError).toContain("Branch permission denied");
+        expect(latest?.status).toBe("error");
+      });
+    } finally {
+      await act(async () => root.unmount());
+      error.mockRestore();
+    }
+  });
+
   it("handles repo fetch failures and still marks repos loaded", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     mockApi.fetchRepos.mockRejectedValueOnce(new Error("repos fail"));
@@ -618,7 +662,7 @@ describe("useGithubRepo", () => {
       await latest?.onClone();
     });
 
-    expect(latest?.cloneError).toBe("Clone failed");
+    expect(latest?.cloneError).toBe("Clone failed: clone failed");
     expect(latest?.cloning).toBe(false);
 
     await act(async () => {
@@ -749,7 +793,7 @@ describe("useGithubRepo", () => {
       await latest?.onCreateBranch("feature/fail");
     });
 
-    expect(latest?.createBranchError).toBe("Failed to create branch");
+    expect(latest?.createBranchError).toBe("Failed to create branch: branch fail");
     expect(latest?.creatingBranch).toBe(false);
 
     await act(async () => {
@@ -789,7 +833,7 @@ describe("useGithubRepo", () => {
         expect(mockApi.createBranch).not.toHaveBeenCalled();
         expect(latest?.branchList).toEqual(branches);
       }
-      expect(latest?.createBranchError).toBe(refreshFails ? "Failed to create branch" : branches.length ? null : "No source branch is available yet. Please try again.");
+      expect(latest?.createBranchError).toBe(refreshFails ? "Failed to create branch: Refresh failed" : branches.length ? null : "No source branch is available yet. Please try again.");
       expect(latest?.creatingBranch).toBe(false);
     } finally {
       await act(async () => root.unmount());

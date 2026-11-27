@@ -116,6 +116,7 @@ export function useGithubRepo(user: User | null): UseGithubRepo {
       setTemplateStatus(account && repo && !repo.isNew ? "checking" : "not_clone");
       setTemplateName(null);
       setBranchList([]);
+      setSourceBranch("");
       setCreateBranchError(null);
       setRepoError(null);
       if (!account || !repo || repo.isNew) {
@@ -239,7 +240,7 @@ export function useGithubRepo(user: User | null): UseGithubRepo {
     const repo = selectedRepoRef.current;
     if (!acc || !repo) return;
     const name = repo.name;
-    if (repoListRef.current.find((r) => r.name === name)) {
+    if (findIgnoreCase(repoListRef.current, (r) => r.name, name)) {
       setCloneError(null);
       setCloneValidationWarning(`Repository "${name}" already exists. Select it or choose a different name.`);
       return;
@@ -258,8 +259,9 @@ export function useGithubRepo(user: User | null): UseGithubRepo {
         const failed = results.envs.filter((e) => !e.success).map((e) => e.name);
         setCloneEnvWarning(`Repo created but failed to create environments: ${failed.join(", ")}`);
       }
-    } catch {
-      setCloneError("Clone failed");
+    } catch (error) {
+      console.error("Failed to clone repository:", error);
+      setCloneError(`Clone failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setCloning(false);
     }
@@ -274,8 +276,12 @@ export function useGithubRepo(user: User | null): UseGithubRepo {
     setCloneEnvWarning(null);
     setStatus("loading");
     if (acc) delete repoCache.current[String(acc.id)];
-    Promise.all([fetchOrgList(), acc ? fetchRepos(acc) : Promise.resolve([])])
-      .then(async ([orgs, list]) => {
+    Promise.all([
+      fetchOrgList(),
+      acc ? fetchRepos(acc) : Promise.resolve([]),
+      checkSelectedRepo(acc, selectedRepoRef.current),
+    ])
+      .then(([orgs, list]) => {
         if (selectedAccountRef.current?.id !== acc?.id) return;
         setAccountList(orgs);
         if (!acc) {
@@ -284,8 +290,6 @@ export function useGithubRepo(user: User | null): UseGithubRepo {
         }
         setRepoList(list);
         repoCache.current[String(acc.id)] = list;
-        setRepoError(null);
-        await checkSelectedRepo(acc, selectedRepoRef.current);
       })
       .catch((e) => {
         console.error(e);
@@ -323,7 +327,7 @@ export function useGithubRepo(user: User | null): UseGithubRepo {
     } catch (error) {
       console.error("Failed to create branch:", error);
       if (sequence !== repoCheckSequence.current) return;
-      setCreateBranchError("Failed to create branch");
+      setCreateBranchError(`Failed to create branch: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setCreatingBranch(false);
     }

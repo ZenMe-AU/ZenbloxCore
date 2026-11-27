@@ -240,7 +240,7 @@ it.each([
     expect(api.fetchBranches).toHaveBeenCalledTimes(2);
     if (source) expect(api.createBranch).toHaveBeenCalledWith(expect.objectContaining({ login: "v2-user" }), "test-repo", "PROD", source);
     else expect(api.createBranch).not.toHaveBeenCalled();
-    expect(latest?.privateContext.repo.createBranchError).toBe(refreshFails ? "Failed to create branch" : branches.length ? null : "No source branch is available yet. Please try again.");
+    expect(latest?.privateContext.repo.createBranchError).toBe(refreshFails ? "Failed to create branch: Refresh failed" : branches.length ? null : "No source branch is available yet. Please try again.");
   } finally {
     await act(async () => root.unmount());
     queryClient.clear();
@@ -323,6 +323,48 @@ it("ignores an old account request after switching GitHub sessions", async () =>
   } finally {
     await act(async () => root.unmount());
   }
+});
+
+it.each(["local", "server"])("explains a duplicate repository name detected by %s", async (detection) => {
+    const message = 'Could not clone repository "v2-user/test-repo": 422 - Could not clone: Name already exists on this account';
+    api.generateRepo.mockRejectedValueOnce(new Error(message));
+    const store = createAppContext();
+    store.update("github_login_v2", {
+      title: "GitHub login 2", currentBaseCardStatus: "complete", currentStatus: "signed-in",
+      githubAccount: { login: "v2-user" }, githubToken: new SensitiveToken("token"), githubMode: "direct",
+    });
+    let latest: UseRepoV2 | undefined;
+    function Harness() {
+      const value = useRepoV2(store);
+      useEffect(() => { latest = value; }, [value]);
+      return null;
+    }
+    const root = createRoot(document.createElement("div"));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await act(async () => root.render(<QueryClientProvider client={queryClient}><Harness /></QueryClientProvider>));
+      await waitFor(() => expect(latest?.privateContext.repo.repoList).toHaveLength(1));
+      if (detection === "server") {
+        api.fetchRepos.mockResolvedValue([]);
+        await act(async () => latest?.privateContext.repo.onRefresh());
+        await waitFor(() => expect(latest?.privateContext.repo.repoList).toEqual([]));
+      }
+      await act(async () => latest?.privateContext.repo.setSelectedRepo({ id: "TEST-REPO", name: "TEST-REPO", isNew: true }));
+      await act(async () => { await latest?.privateContext.repo.onClone(); });
+      if (detection === "local") {
+        expect(api.generateRepo).not.toHaveBeenCalled();
+        expect(latest?.privateContext.repo.cloneValidationWarning).toContain('Repository "TEST-REPO" already exists');
+      } else {
+        expect(latest?.privateContext.repo.cloneError).toBe(`Clone failed: ${message}`);
+        expect(latest?.baseCardContext.summary).toBe(`Clone failed: ${message}`);
+        expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("error");
+      }
+    } finally {
+      await act(async () => root.unmount());
+      queryClient.clear();
+      error.mockRestore();
+    }
 });
 
 it("reports an account loading failure and recovers on refresh", async () => {

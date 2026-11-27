@@ -133,7 +133,7 @@ export function useGithubRepo(
   const onClone = useCallback(async () => {
     if (!api || !selectedAccount || !selectedRepo) return;
     const name = selectedRepo.name;
-    if (repoList.some((repo) => repo.name === name)) {
+    if (findIgnoreCase(repoList, (repo) => repo.name, name)) {
       setCloneError(null);
       setCloneValidationWarning(`Repository "${name}" already exists. Select it or choose a different name.`);
       return;
@@ -152,8 +152,9 @@ export function useGithubRepo(
       if (!result.envSuccess) {
         setCloneEnvWarning(`Repo created but failed to create environments: ${result.results.envs.filter((env) => !env.success).map((env) => env.name).join(", ")}`);
       }
-    } catch {
-      setCloneError("Clone failed");
+    } catch (error) {
+      console.error("Failed to clone repository:", error);
+      setCloneError(`Clone failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setCloning(false);
     }
@@ -190,7 +191,7 @@ export function useGithubRepo(
       }));
     } catch (error) {
       console.error("Failed to create branch:", error);
-      setCreateBranchError("Failed to create branch");
+      setCreateBranchError(`Failed to create branch: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setCreatingBranch(false);
     }

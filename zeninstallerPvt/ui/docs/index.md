@@ -19,6 +19,8 @@ You will need:
 
 If you do not have a GitHub account yet, use the **GitHub Sign Up** card to open GitHub's signup page in a new tab with your email prefilled. Finish creating the account on GitHub, then return to ZenInstaller to sign in. Your email is sent directly to GitHub only when you continue.
 
+In **Repository & environment**, refresh after creating branches on GitHub. If an environment branch is missing, select an existing source branch (usually `main`) and create it. Branch refresh reads the current GitHub list rather than the browser cache. Clone and branch failures show GitHub's error details; if a repository name already exists, select that repository or choose a different name.
+
 Need help?
 
 - [Configure GitHub sign-in for a ZenInstaller deployment](Allow_access_to_GitHub) — for operators deploying or hosting ZenInstaller; the hosted service's users do not need to register a separate OAuth app.

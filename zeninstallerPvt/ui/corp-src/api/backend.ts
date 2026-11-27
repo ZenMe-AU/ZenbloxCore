@@ -15,6 +15,7 @@ import type { RemoteLoginDispatch } from "./github";
 import { REMOTE_TERMINAL_TTL_SECONDS } from "../config/remoteTerminal";
 import { ARM_SCOPES } from "../config/azureConfig";
 import type { SessionCredentials } from "../logic/remoteTerminal";
+import { githubResponseError } from "./githubError";
 
 const url = import.meta.env.VITE_API_URL;
 export const BACKEND_CONFIGURED = !!url;
@@ -145,7 +146,7 @@ export async function generateRepo(
       envNames: validEnvs,
     }),
   }, githubAuth);
-  if (!res.ok) throw new Error(`Failed to clone repo: ${res.status}`);
+  if (!res.ok) throw await githubResponseError(res, `Could not clone repository "${account.login}/${targetName}"`);
   const data = await res.json();
   return { repo: data.data, envSuccess: data.envSuccess, results: data.results };
 }
@@ -154,8 +155,8 @@ export async function generateRepo(
 
 export async function fetchBranches(account: Account, repo: string, githubAuth?: GithubAuth): Promise<Branch[]> {
   const params = new URLSearchParams({ owner: account.login, repo, type: account.type });
-  const res = await fetchWithAuth(`${url}/getBranches?${params}`, {}, githubAuth);
-  if (!res.ok) throw new Error(`Failed to fetch branches: ${res.status}`);
+  const res = await fetchWithAuth(`${url}/getBranches?${params}`, { cache: "no-store" }, githubAuth);
+  if (!res.ok) throw await githubResponseError(res, "Failed to fetch branches");
   const data = await res.json();
   return data.branches || [];
 }
@@ -165,7 +166,7 @@ export async function createBranch(account: Account, repo: string, branchName: s
     method: "POST",
     body: JSON.stringify({ owner: account.login, type: account.type, repo, branch: branchName, source: sourceBranch }),
   }, githubAuth);
-  if (!res.ok) throw new Error(`Failed to create branch: ${res.status}`);
+  if (!res.ok) throw await githubResponseError(res, `Failed to create branch "${branchName}"`);
   const data = await res.json();
   return data.branch;
 }

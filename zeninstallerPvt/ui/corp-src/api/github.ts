@@ -8,6 +8,7 @@ import JSZip from "jszip";
 import type { Account, Branch, GhEnv, PullRequest, Repo, StageReport, WorkflowRun, UpsertSecretResult } from "../types";
 import { toStageReport } from "../logic/stage";
 import { readBlobWithProgress, type DownloadProgress } from "../logic/download";
+import { githubResponseError } from "./githubError";
 
 const GH = "https://api.github.com";
 
@@ -59,12 +60,12 @@ export function createGithubApi(token: string) {
     });
   }
 
-  async function paginate<T>(path: string): Promise<T[]> {
+  async function paginate<T>(path: string, init: RequestInit = {}): Promise<T[]> {
     const results: T[] = [];
     let url: string | null = `${GH}${path}${path.includes("?") ? "&" : "?"}per_page=100`;
     while (url) {
-      const res = await fetch(url, { headers: hdr() });
-      if (!res.ok) throw new Error(`GitHub API ${res.status}: ${url}`);
+      const res = await fetch(url, { ...init, headers: hdr() });
+      if (!res.ok) throw await githubResponseError(res, "GitHub API request failed");
       const data = await res.json();
       // Some endpoints return { total_count, items: [...] } instead of a bare array
       const page: T[] = Array.isArray(data) ? data : ((Object.values(data as object).find(Array.isArray) as T[]) ?? []);
@@ -143,7 +144,7 @@ export function createGithubApi(token: string) {
         include_all_branches: includeAllBranch,
       }),
     });
-    if (!res.ok) throw new Error(`Failed to generate repo: ${res.status}`);
+    if (!res.ok) throw await githubResponseError(res, `Could not clone repository "${account.login}/${targetName}"`);
     const data = await res.json();
     const repo: Repo = { id: data.id, name: data.name };
     if (!createEnvs) return { repo, envSuccess: true, results: { envs: [] } };
@@ -162,19 +163,19 @@ export function createGithubApi(token: string) {
   // ── Branches ──────────────────────────────────────────────────────────────────
 
   async function fetchBranches(account: Account, repo: string): Promise<Branch[]> {
-    const all = await paginate<{ name: string; commit: { sha: string }; protected: boolean }>(`/repos/${account.login}/${repo}/branches`);
+    const all = await paginate<{ name: string; commit: { sha: string }; protected: boolean }>(`/repos/${account.login}/${repo}/branches`, { cache: "no-store" });
     return all.map((b) => ({ name: b.name, commit: b.commit.sha, protected: b.protected }));
   }
 
   async function createBranch(account: Account, repo: string, branchName: string, sourceBranch: string): Promise<Branch> {
-    const refRes = await gh(`/repos/${account.login}/${repo}/git/ref/heads/${sourceBranch}`);
-    if (!refRes.ok) throw new Error(`Failed to resolve source branch "${sourceBranch}": ${refRes.status}`);
+    const refRes = await gh(`/repos/${account.login}/${repo}/git/ref/heads/${encodeURIComponent(sourceBranch)}`, { cache: "no-store" });
+    if (!refRes.ok) throw await githubResponseError(refRes, `Failed to resolve source branch "${sourceBranch}"`);
     const { object } = await refRes.json();
     const res = await gh(`/repos/${account.login}/${repo}/git/refs`, {
       method: "POST",
       body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: object.sha }),
     });
-    if (!res.ok) throw new Error(`Failed to create branch "${branchName}": ${res.status}`);
+    if (!res.ok) throw await githubResponseError(res, `Failed to create branch "${branchName}"`);
     return { name: branchName, commit: object.sha, protected: false };
   }
 
