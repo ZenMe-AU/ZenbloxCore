@@ -60,12 +60,6 @@ variable "INSTALL_WINGET_REPO" {
   default     = false
 }
 
-variable "INSTALL_DEV_TOOLS" {
-  description = "Install the developer tools for all users: VS Code, Git, Node.js with npm, pnpm and Terraform, at the versions and checksums pinned in img-install-devtools.ps1 (TF_VAR_INSTALL_DEV_TOOLS in the shared .env; build.ps1 passes it). Default true; false leaves them out of the image."
-  type        = bool
-  default     = true
-}
-
 source "azure-arm" "paw" {
   use_azure_cli_auth = true
   subscription_id    = var.SUBSCRIPTION_ID
@@ -121,18 +115,6 @@ build {
 
   provisioner "powershell" {
     script = "img-harden-paw.ps1"
-  }
-
-  # Developer tools (VS Code, Git, Node.js with npm, pnpm, Terraform) for all
-  # users. The build VM is the image's only internet-connected moment, so the
-  # tools are downloaded here from the vendors, checked against pinned
-  # checksums and publisher signatures, installed, and smoke-tested; nothing is
-  # installed on a running PAW. Where the tools fetch packages, providers and
-  # extensions from (the inside Artifact Keeper) is a deploy-time setting.
-  # Switch: INSTALL_DEV_TOOLS (default true).
-  provisioner "powershell" {
-    script           = "img-install-devtools.ps1"
-    environment_vars = ["INSTALL_DEV_TOOLS=${var.INSTALL_DEV_TOOLS}"]
   }
 
   # Enable Windows Update for production usage

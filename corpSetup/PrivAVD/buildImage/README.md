@@ -22,47 +22,6 @@ image definition must already exist.
 
 ## Design decisions
 
-### Product decisions (developer tools in the golden image)
-
-- **Five tools for all users, baked at build time** (`img-install-devtools.ps1`,
-  runs right after hardening): Visual Studio Code, Git for Windows, Node.js LTS
-  with npm, pnpm and Terraform. A deployed PAW is born locked and cannot
-  download installers, so nothing is installed on a running PAW.
-- **Pinned versions** (2026-11-27): VS Code 1.148.0, Node.js 24.22.3 LTS
-  (npm 11.19.1), pnpm 11.22.0, Git 2.56.1, Terraform 1.17.2. pnpm matches the
-  `packageManager` pin of the project used on the PAW (ZBApp: pnpm@11.22.0),
-  and Node.js 24 meets its `engines` requirement.
-- **Every download is checked before it is installed.** It must match the
-  checksum pinned in the script, and the Windows installers must carry a valid
-  signature from the expected publisher (Microsoft, OpenJS Foundation,
-  Johannes Schindelin for Git for Windows). Any mismatch fails the build. The
-  pins come from the vendors' published checksums; the Node.js and Terraform
-  checksum files were verified against the Node.js release keys and
-  HashiCorp's signing key when the versions were pinned.
-- **Switch:** `TF_VAR_INSTALL_DEV_TOOLS` in the shared `.env` (Packer variable
-  `INSTALL_DEV_TOOLS`), default `true`; `false` leaves the tools out.
-- **Settings for a PAW without internet:** VS Code self-update off and
-  telemetry off (machine policy); Terraform's version check off
-  (`CHECKPOINT_DISABLE=1`); npm's update, audit and funding lookups off
-  (packages are audited before they are approved); Windows long paths on.
-  Git uses VS Code as its editor, `main` as the default branch and the Windows
-  certificate store for HTTPS.
-- **pnpm and npm work in any PowerShell, including VS Code's terminal:** their
-  `.ps1` launchers are removed, so PowerShell uses the `.cmd` launchers, which
-  no execution policy blocks. No execution policy is changed.
-- **Not in the image:** where npm/pnpm, Terraform and VS Code fetch packages,
-  providers and extensions, and the certificate authority they trust. Those
-  differ per environment and are deploy-time settings (the inside Artifact
-  Keeper).
-- **Each build records its contents** in `C:\ProgramData\Zenblox\paw-devtools.json`
-  (version, download URL and checksum per tool).
-- **Bumping a version:** change Version, Url, File and the checksum of that
-  entry together, from the sources listed at the top of the script, then run a
-  test build. The script is idempotent and can be run on a test VM first
-  (tested 2026-11-27 on a throwaway VM from the same base image: all five
-  tools installed and passed the smoke test; a second run skipped every
-  install).
-
 ### Product decisions (Winget-Repo in the golden image)
 
 - **Off by default since 2026-11-27.** The image build skips Winget-Repo unless
@@ -168,8 +127,8 @@ image definition must already exist.
 - The build host needs NO Python for the build itself: only Packer + the az
   CLI. The wheelhouse is frozen in the package archive.
 - Still requires network during the build: the `windows-update` provisioner,
-  the Microsoft-hosted AVD agent downloads, the developer-tool downloads from
-  the vendors (checksum-pinned), and the package-archive blob download. The Winget-Repo SOFTWARE install itself is offline (pip
+  the Microsoft-hosted AVD agent downloads, and the package-archive blob
+  download. The Winget-Repo SOFTWARE install itself is offline (pip
   --no-index against the local wheelhouse).
 
 ### Existing decisions (pre-Winget-Repo)
