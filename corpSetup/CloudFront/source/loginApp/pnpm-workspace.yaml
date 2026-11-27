@@ -1,0 +1,4 @@
+overrides:
+  browserslist@<=4.28.6: ^4.28.7
+allowBuilds:
+  esbuild: true
