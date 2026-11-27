@@ -7,7 +7,11 @@ import type { ArmRole, CardResourceAccessRequest } from "../../types";
 import { APP_SCOPES, readWrite } from "../../config/azureConfig";
 
 const RESOURCE_PROVIDERS: readonly string[] = [];
-const APP_CONSENT: readonly string[] = APP_SCOPES;
+const APP_CONSENT: readonly string[] = [
+  "https://graph.microsoft.com/Application.ReadWrite.All",
+  "https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All",
+  "https://graph.microsoft.com/User.Read"
+];
 const ARM_ROLES: readonly ArmRole[] = [
   {
     scope: "subscription",

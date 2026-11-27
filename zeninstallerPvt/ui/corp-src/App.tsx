@@ -25,11 +25,9 @@ import { GA_SUBSCRIPTION_BUDGET_CARD_ID, GA_SUBSCRIPTION_BUDGET_STAGE } from "./
 import { useAzureLoginCard } from "./cards/AzureLogin/useAzureLoginCard";
 import { useAzureAppRegistrationCard } from "./cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubscriptionCard";
-import { useCreateDomainCard } from "./cards/CreateDomain/useCreateDomainCard";
 import { useCreateAdminUsersCard } from "./cards/CreateAdminUsers/useCreateAdminUsersCard";
+import { useDnsVerifyCard } from "./cards/DnsVerify/useDnsVerifyCard";
 import { useCoreInfraCard } from "./cards/CoreInfra/useCoreInfraCard";
-import { usePrivateFrontendInfraCard } from "./cards/PrivateFrontendInfra/usePrivateFrontendInfraCard";
-import { useRemoteTerminalInfraCard } from "./cards/RemoteTerminalInfra/useRemoteTerminalInfraCard";
 import { useBackendDeployCard } from "./cards/BackendDeploy/useBackendDeployCard";
 import { useAccessPassCard } from "./cards/AccessPass/useAccessPassCard";
 // AWS login is unused since the AWS console sign-in stack replaced AWS setup.
@@ -61,12 +59,13 @@ import AzureSubscriptionCard from "./cards/AzureSubscription/AzureSubscriptionCa
 import AzureSubscriptionCardV2 from "./cards/AzureSubscriptionV2/AzureSubscriptionV2";
 import AzureAppRegistrationCardV2 from "./cards/AzureAppRegistrationV2/AzureAppRegistrationCardV2";
 import CoreInfraCard from "./cards/CoreInfra/CoreInfraCard";
-import PrivateFrontendInfraCard from "./cards/PrivateFrontendInfra/PrivateFrontendInfraCard";
-import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
+// import PrivateFrontendInfraCard from "./cards/PrivateFrontendInfra/PrivateFrontendInfraCard"; // Deprecated: now a section of CoreInfraCard, the original is in archive/cards/; kept for reference.
+// import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalInfraCard"; // Deprecated: now a section of CoreInfraCard, the original is in archive/cards/; kept for reference.
 import BackendDeployCard from "./cards/BackendDeploy/BackendDeployCard";
 import WebDeployCard from "./cards/WebDeploy/WebDeployCard";
-import CreateDomainCard from "./cards/CreateDomain/CreateDomainCard";
+// import CreateDomainCard from "./cards/CreateDomain/CreateDomainCard"; // Deprecated: now a section of CoreInfraCard, the original is in archive/cards/; kept for reference.
 import CreateAdminUsersCard from "./cards/CreateAdminUsers/CreateAdminUsersCard";
+import DnsVerifyCard from "./cards/DnsVerify/DnsVerifyCard";
 import AccessPassCard from "./cards/AccessPass/AccessPassCard";
 import AccessPassV2 from "./cards/AccessPassV2/AccessPassV2";
 // import AwsLoginCard from "./cards/AwsLogin/AwsLoginCard";
@@ -176,23 +175,16 @@ function AppDashboard() {
       roleArn: githubVariableValues.AWS_ROLE_ARN ?? "",
     })
   );
-  const infra = addCard(
+  const coreInfra = addCard(
     useCoreInfraCard({
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
+      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
       corpName,
+      dnsName,
       spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
-      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
       variableValues: githubVariableValues,
-    })
-  );
-  const remoteTerminalInfra = addCard(
-    useRemoteTerminalInfraCard({
-      azureAccount: azureLogin.account,
-      subscriptionId: azureSubscription.selectedSubscriptionId,
-      variableValues: githubVariableValues,
-      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-      allowedOrigins: [window.location.origin, ...(dnsName ? [`https://www.${dnsName}`, `https://${dnsName}`] : [])],
+      appOrigin: window.location.origin,
       githubAccount: githubRepoEnv.repo.selectedAccount,
       githubRepo: githubRepoEnv.repo.selectedRepo?.name ?? "",
       githubRepoId: typeof githubRepoEnv.repo.selectedRepo?.id === "number" ? githubRepoEnv.repo.selectedRepo.id : null,
@@ -210,15 +202,6 @@ function AppDashboard() {
       variableValues: githubVariableValues,
     })
   );
-  const privateFrontendInfra = addCard(
-    usePrivateFrontendInfraCard({
-      variableValues: githubVariableValues,
-      azureAccount: azureLogin.account,
-      subscriptionId: azureSubscription.selectedSubscriptionId,
-      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-      allowedOrigins: [window.location.origin],
-    })
-  );
 
   const webDeploy = addCard(
     useWebDeployCard({
@@ -231,14 +214,11 @@ function AppDashboard() {
       selectedEnv: githubRepoEnv.env.selectedEnv,
     })
   );
-  const createDomain = addCard(
-    useCreateDomainCard({
+  const dnsVerify = addCard(
+    useDnsVerifyCard({
       azureAccount: azureLogin.account,
-      subscriptionId: azureSubscription.selectedSubscriptionId,
-      corpName,
-      dnsName,
-      spClientId: githubVariableValues.AZURE_CLIENT_ID ?? "",
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
+      dnsName,
     })
   );
   const adminUsers = addCard(
@@ -366,6 +346,7 @@ function AppDashboard() {
     };
   };
   const cardProps = (id: CardId): CardChrome => cardPropsFor(id, allCards[id]);
+
   const gaStageCardInputs = {
     plan: gaPlan,
     allCards,
@@ -404,12 +385,13 @@ function AppDashboard() {
       ["azure_login", "Azure login"],
       ["azure_subscription", "Choose Azure subscription"],
       ["azure_app_registration", "Create an app registration in Azure"],
-      ["core_infra", "Terraform state backend"],
-      ["create_domain", "Core domain"],
+      ["core_infra", "Private hosting environment"],
+      ["dns_verify", "Verify DNS domain"],
+      // ["create_domain", "Core domain"], // Deprecated: part of the Private hosting environment card; kept for reference.
       ["create_admin_users", "Create admin users"],
-      ["remote_terminal_infra", "Private Zeninstaller Backend Environment"],
+      // ["remote_terminal_infra", "Private Zeninstaller Backend Environment"], // Deprecated: part of the Private hosting environment card; kept for reference.
       ["backend_deploy", "Private Zeninstaller Backend"],
-      ["private_frontend_infra", "Frontend hosting environment"],
+      // ["private_frontend_infra", "Frontend hosting environment"], // Deprecated: part of the Private hosting environment card; kept for reference.
       ["web_deploy", "Private Zeninstaller Frontend"],
       // ["aws_login", "AWS login"],
       ["aws_sso", AWS_SSO_TITLE],
@@ -563,11 +545,13 @@ function AppDashboard() {
 
               <CoreInfraCard
                 card={cardProps("core_infra")}
-                infra={infra}
+                coreInfra={coreInfra}
                 appCtxStore={appCtxStore}
                 azureAccount={azureLogin.account}
                 corpName={corpName}
+                dnsName={dnsName}
                 subscriptionId={azureSubscription.selectedSubscriptionId}
+                tenantId={githubVariableValues.AZURE_TENANT_ID ?? ""}
                 spClientId={azureAppSetup.spClientId}
                 githubAccount={githubRepoEnv.repo.selectedAccount}
                 repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
@@ -576,7 +560,7 @@ function AppDashboard() {
                 githubUrl={githubRepoEnv.githubEnvUrl}
               />
 
-              <CreateDomainCard
+              {/* <CreateDomainCard // Deprecated: now a section of the Private hosting environment card; kept for reference.
                 card={cardProps("create_domain")}
                 createDomain={createDomain}
                 azureAccount={azureLogin.account}
@@ -588,14 +572,16 @@ function AppDashboard() {
                 selectedEnv={githubRepoEnv.env.selectedEnv}
                 variables={githubVariables}
                 githubUrl={githubRepoEnv.githubEnvUrl}
-              />
+              /> */}
+
+              <DnsVerifyCard card={cardProps("dns_verify")} dnsVerify={dnsVerify} dnsName={dnsName} nameServers={coreInfra.createDomain.nameServers} />
 
               <CreateAdminUsersCard card={cardProps("create_admin_users")} adminUsers={adminUsers} />
 
               <AccessPassCard card={cardProps("access_pass")} accessPass={azureAccessPass} />
               <AccessPassV2 appCtxStore={appCtxStore} />
 
-              <RemoteTerminalInfraCard
+              {/* <RemoteTerminalInfraCard // Deprecated: now a section of the Private hosting environment card; kept for reference.
                 card={cardProps("remote_terminal_infra")}
                 infra={remoteTerminalInfra}
                 subscriptionId={azureSubscription.selectedSubscriptionId}
@@ -605,7 +591,7 @@ function AppDashboard() {
                 selectedEnv={githubRepoEnv.env.selectedEnv}
                 variables={githubVariables}
                 githubUrl={githubRepoEnv.githubEnvUrl}
-              />
+              /> */}
 
               <BackendDeployCard
                 card={cardProps("backend_deploy")}
@@ -617,7 +603,7 @@ function AppDashboard() {
                 }
               />
 
-              <PrivateFrontendInfraCard
+              {/* <PrivateFrontendInfraCard // Deprecated: now a section of the Private hosting environment card; kept for reference.
                 card={cardProps("private_frontend_infra")}
                 infra={privateFrontendInfra}
                 subscriptionId={azureSubscription.selectedSubscriptionId}
@@ -627,7 +613,7 @@ function AppDashboard() {
                 selectedEnv={githubRepoEnv.env.selectedEnv}
                 variables={githubVariables}
                 githubUrl={githubRepoEnv.githubEnvUrl}
-              />
+              /> */}
 
               <WebDeployCard
                 card={cardProps("web_deploy")}

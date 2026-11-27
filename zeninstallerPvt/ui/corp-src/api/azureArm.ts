@@ -1014,6 +1014,10 @@ export function dnsZoneScope(subscriptionId: string, resourceGroup: string, dnsN
 export function resourceGroupScope(subscriptionId: string, resourceGroup: string): string {
   return `/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}`;
 }
+// Any resource in a group, e.g. type "Microsoft.Web/sites".
+export function armResourceId(subscriptionId: string, resourceGroup: string, type: string, name: string): string {
+  return `${resourceGroupScope(subscriptionId, resourceGroup)}/providers/${type}/${name}`;
+}
 
 export function subscriptionScope(subscriptionId: string): string {
   return `/subscriptions/${subscriptionId}`;
@@ -1026,8 +1030,8 @@ const WEB_API = "2023-12-01";
 
 export async function findWebPubSubGroup(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<string | null> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
-  const found = await findListedResource(token, `/subscriptions/${subscriptionId}/providers/Microsoft.SignalRService/webPubSub?api-version=${WEBPUBSUB_API}`, name);
-  return found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1] ?? null;
+  // The resources index, like the Function App lookup, rather than the provider's subscription-wide list.
+  return (await findResourceGroupOf(token, subscriptionId, `Microsoft.SignalRService/webPubSub/${name}`)) ?? null;
 }
 
 export async function webPubSubNameAvailable(
@@ -1049,8 +1053,8 @@ export async function webPubSubNameAvailable(
 
 export async function findFunctionAppGroup(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<string | null> {
   const token = await getToken(account, ARM_SCOPES, overrideTenantId);
-  const found = await findListedResource(token, `/subscriptions/${subscriptionId}/providers/Microsoft.Web/sites?api-version=${WEB_API}`, name);
-  return found?.id?.match(/resourceGroups\/([^/]+)/i)?.[1] ?? null;
+  // The resources index, since Microsoft.Web's own subscription-wide site list can fail with a 502 ProviderError.
+  return (await findResourceGroupOf(token, subscriptionId, `Microsoft.Web/sites/${name}`)) ?? null;
 }
 
 export async function functionAppNameAvailable(account: AzureAccount, subscriptionId: string, name: string, overrideTenantId?: string): Promise<boolean> {

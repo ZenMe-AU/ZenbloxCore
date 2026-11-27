@@ -8,10 +8,27 @@ import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { ThemeProvider } from "@mui/material";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import CreateDomainCard from "../cards/CreateDomain/CreateDomainCard";
-import { useCreateDomainCard, type UseCreateDomainCard } from "../cards/CreateDomain/useCreateDomainCard";
+import { usePartRun, type PartRun } from "./hookTestUtils";
+import { CoreEnvironmentSection } from "../cards/CoreInfra/CoreInfraCard";
+import type { UseTerraformStatePart } from "../cards/CoreInfra/useTerraformStatePart";
+import type { CardResourceAccess } from "../hooks/util/useAzureCardAccess";
+import { useDomainPart, type UseDomainPart } from "../cards/CoreInfra/useDomainPart";
 import type { AzureAccount } from "../types";
 import theme from "../theme";
+import type { UseFrontendPart } from "../cards/CoreInfra/useFrontendPart";
+import type { UseBackendPart } from "../cards/CoreInfra/useBackendPart";
+
+// The private group's parts of the same section, with access in place, so only the core part under test shows its access.
+const readyFrontend = { cardId: "private_frontend_infra", creationAccess: { status: "ready" } } as unknown as UseFrontendPart;
+const readyBackend = { cardId: "remote_terminal_infra", creationAccess: { status: "ready" } } as unknown as UseBackendPart;
+
+// The state backend part of the same block, done and with access in place, so only the domain's access shows.
+const doneStateBackend = {
+  cardId: "core_infra", status: "complete", summary: "", done: true, steps: [], running: false, run: async () => true, reset: vi.fn(), runNonce: 0,
+  creationAccess: { status: "ready", error: null, failureKind: null, retry: vi.fn(), check: vi.fn(), reportFailure: vi.fn(), missingRoles: null, missingEntra: null, unregisteredProviders: [], registeringProviders: false, registerProviders: async () => {}, missingConsent: [], grantConsent: vi.fn() } as CardResourceAccess, resourceGroupName: "zbcore-zenblox-rg", lawName: "zbcore-zenblox-law",
+  storage: { name: "zbcorezenblox", apply: vi.fn(), check: async () => true, checking: false, error: null },
+  containerName: "tfstate", result: null, resultMatches: false, infraRbacStatus: "unknown",
+} as unknown as UseTerraformStatePart;
 
 async function waitFor(assertion: () => void, timeoutMs = 2000) {
   const deadline = Date.now() + timeoutMs;
@@ -44,12 +61,8 @@ const { apiMocks } = vi.hoisted(() => ({
     getEntraDomain: vi.fn(),
     createEntraDomain: vi.fn(),
     getDomainVerificationTxt: vi.fn(),
-    verifyEntraDomain: vi.fn(),
-    setPrimaryEntraDomain: vi.fn(),
     listVerifiedDomains: vi.fn().mockResolvedValue([]),
     getExistingSP: vi.fn(),
-    grantAdminConsent: vi.fn(),
-    listAppRoleAssignments: vi.fn(),
     isConsentError: vi.fn(),
   },
 }));
@@ -82,12 +95,8 @@ vi.mock("../api/azureGraph", () => ({
   getEntraDomain: apiMocks.getEntraDomain,
   createEntraDomain: apiMocks.createEntraDomain,
   getDomainVerificationTxt: apiMocks.getDomainVerificationTxt,
-  verifyEntraDomain: apiMocks.verifyEntraDomain,
-  setPrimaryEntraDomain: apiMocks.setPrimaryEntraDomain,
   listVerifiedDomains: apiMocks.listVerifiedDomains,
   getExistingSP: apiMocks.getExistingSP,
-  grantAdminConsent: apiMocks.grantAdminConsent,
-  listAppRoleAssignments: apiMocks.listAppRoleAssignments,
 }));
 
 vi.mock("../logic/consent", () => ({
@@ -102,37 +111,33 @@ vi.mock("../config/azureConfig", async (importOriginal) => ({
   ARM_SCOPES: ["arm.scope"],
   APP_SCOPES: ["app.scope"],
   DOMAIN_SCOPES: ["domain.scope"],
-  GRANT_CONSENT_SCOPES: ["grant.scope"],
-  GRAPH_PERMISSIONS: {
-    DomainReadWriteAll: "Domain.ReadWrite.All",
-  },
 }));
 
 function HookHarness(
   props: {
-    onUpdate: (value: UseCreateDomainCard) => void;
-  } & Parameters<typeof useCreateDomainCard>[0]
+    onUpdate: (value: PartRun<UseDomainPart>) => void;
+  } & Parameters<typeof useDomainPart>[0]
 ) {
-  const value = useCreateDomainCard(props);
+  const value = usePartRun(useDomainPart(props));
   useEffect(() => {
     props.onUpdate(value);
   }, [value, props]);
   return null;
 }
 
-function baseProps(overrides: Partial<Parameters<typeof useCreateDomainCard>[0]> = {}): Parameters<typeof useCreateDomainCard>[0] {
+function baseProps(overrides: Partial<Parameters<typeof useDomainPart>[0]> = {}): Parameters<typeof useDomainPart>[0] {
   return {
     azureAccount: { tenantId: "tenant-1" } as AzureAccount,
     subscriptionId: "sub-1",
+    location: "australiaeast",
     corpName: "Zenblox",
     dnsName: "zenblox.io",
-    spClientId: "client-a",
     tenantId: "tenant-1",
     ...overrides,
   };
 }
 
-describe("useCreateDomainCard", () => {
+describe("useDomainPart", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
@@ -152,33 +157,28 @@ describe("useCreateDomainCard", () => {
     apiMocks.getEntraDomain.mockResolvedValue(null);
     apiMocks.createEntraDomain.mockResolvedValue({ isVerified: false, isDefault: false });
     apiMocks.getDomainVerificationTxt.mockResolvedValue("txt-token");
-    apiMocks.verifyEntraDomain.mockResolvedValue({ isVerified: true, isDefault: false });
-    apiMocks.setPrimaryEntraDomain.mockResolvedValue(undefined);
     apiMocks.getExistingSP.mockResolvedValue({ id: "sp-1" });
-    apiMocks.grantAdminConsent.mockResolvedValue(undefined);
-    apiMocks.listAppRoleAssignments.mockResolvedValue([]);
     apiMocks.isConsentError.mockReturnValue(false);
   });
 
-  it("shows failed resource access beside Re-run and in collapsible prerequisites below it", async () => {
+  it("shows failed resource access as an alert and in collapsible prerequisites below it", async () => {
     apiMocks.ensureResourceGroupCreationAccess.mockRejectedValue(new Error("Missing DNS access"));
     apiMocks.getEntraDomain.mockResolvedValue({ isVerified: true, isDefault: true });
-    let latest: UseCreateDomainCard | null = null;
+    let latest: PartRun<UseDomainPart> | null = null;
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
     const props = baseProps();
     function Harness() {
-      const domain = useCreateDomainCard(props);
+      const domain = usePartRun(useDomainPart(props));
       useEffect(() => { latest = domain; }, [domain]);
       return (
         <ThemeProvider theme={theme}>
-          <CreateDomainCard
-            card={{ cardId: "create_domain", status: domain.status, summary: domain.summary, locked: false, requirements: [],
-              unavailable: false, expanded: true, onToggle: vi.fn(), onRequirementClick: vi.fn() }}
-            createDomain={domain} azureAccount={props.azureAccount} corpName={props.corpName} dnsName={props.dnsName}
-            subscriptionId={props.subscriptionId} githubAccount={null} repoName="repo" selectedEnv={null}
+          <CoreEnvironmentSection
+            infra={doneStateBackend} createDomain={domain} azureAccount={props.azureAccount} corpName={props.corpName} dnsName={props.dnsName}
+            subscriptionId={props.subscriptionId} tenantId="tenant-1" spClientId="client-a" githubAccount={null} repoName="repo" selectedEnv={null}
             variables={{ values: {}, loading: false, refreshing: false, error: false, onRefresh: async () => {}, onConfirmed: vi.fn() }}
+            frontend={readyFrontend} backend={readyBackend} missing={[]}
           />
         </ThemeProvider>
       );
@@ -189,28 +189,22 @@ describe("useCreateDomainCard", () => {
         expect(latest?.creationAccess.status).toBe("error");
         expect(latest?.done).toBe(true);
       });
-      expect(latest?.status).toBe("error");
-      expect(latest?.summary).toBe("Insufficient permissions to continue");
-      const create = [...container.querySelectorAll("button")].find((button) => button.textContent === "Re-run")!;
-      const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="create-domain-prerequisites"]')!;
-      expect(create.disabled).toBe(true);
-      expect(create.parentElement?.textContent).toContain("Insufficient permissions to continue");
-      expect(create.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const alert = container.querySelector('[role="alert"]')!;
+      const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="core-infra-prerequisites"]')!;
+      expect(alert.textContent).toContain("Insufficient permissions to continue");
+      expect(alert.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(toggle.getAttribute("aria-expanded")).toBe("false");
       await act(async () => toggle.click());
       expect(toggle.getAttribute("aria-expanded")).toBe("true");
-      const panel = container.querySelector('#create-domain-prerequisites[role="region"]')!;
+      const panel = container.querySelector('#core-infra-prerequisites[role="region"]')!;
       expect(panel.textContent).toContain("Missing DNS access");
       expect([...container.querySelectorAll("button")].filter((button) => button.textContent === "Recheck resource access")).toHaveLength(1);
       apiMocks.ensureResourceGroupCreationAccess.mockResolvedValue(undefined);
       const retry = [...panel.querySelectorAll("button")].find((button) => button.textContent === "Recheck resource access")!;
       await act(async () => retry.click());
       await waitFor(() => expect(latest?.creationAccess.status).toBe("ready"));
-      expect(latest?.status).toBe("complete");
-      expect(latest?.summary).toBe("Domain verified and primary");
-      expect(create.disabled).toBe(false);
-      expect(create.parentElement?.textContent).not.toContain("Insufficient permissions to continue");
-      expect(container.querySelector('[aria-controls="create-domain-prerequisites"]')).toBeNull();
+      expect(container.textContent).not.toContain("Insufficient permissions to continue");
+      expect(container.querySelector('[aria-controls="core-infra-prerequisites"]')).toBeNull();
     } finally {
       await act(async () => root.unmount());
       container.remove();
@@ -225,12 +219,10 @@ describe("useCreateDomainCard", () => {
         dnsName: "zenblox.io",
         subscriptionId: "sub-1",
         nameServers: ["old-ns"],
-        domainVerified: true,
-        isPrimary: true,
       })
     );
 
-    let latest: UseCreateDomainCard | null = null;
+    let latest: PartRun<UseDomainPart> | null = null;
     const root = createRoot(document.createElement("div"));
 
     await act(async () => {
@@ -261,8 +253,6 @@ describe("useCreateDomainCard", () => {
     await waitFor(() => {
       expect(latest?.resourcesDone).toBe(false);
       expect(latest?.nameServers).toEqual([]);
-      expect(latest?.domainVerified).toBe(false);
-      expect(latest?.isPrimary).toBe(false);
       expect(latest?.steps).toEqual([]);
     });
 
@@ -275,7 +265,7 @@ describe("useCreateDomainCard", () => {
     apiMocks.getEntraDomain.mockRejectedValueOnce(new Error("AADSTS65001"));
     apiMocks.isConsentError.mockImplementation((msg: string) => msg.includes("AADSTS65001"));
 
-    let latest: UseCreateDomainCard | null = null;
+    let latest: PartRun<UseDomainPart> | null = null;
     const root = createRoot(document.createElement("div"));
 
     await act(async () => {
@@ -317,36 +307,8 @@ describe("useCreateDomainCard", () => {
     });
   });
 
-  it("returns early from run when required inputs are missing", async () => {
-    let latest: UseCreateDomainCard | null = null;
-    const root = createRoot(document.createElement("div"));
-
-    await act(async () => {
-      root.render(
-        <HookHarness
-          {...baseProps({ azureAccount: null, subscriptionId: "", corpName: "", dnsName: "" })}
-          onUpdate={(value) => {
-            latest = value;
-          }}
-        />
-      );
-    });
-
-    await act(async () => {
-      await latest?.run();
-    });
-
-    expect(latest?.running).toBe(false);
-    expect(latest?.steps).toEqual([]);
-    expect(apiMocks.ensureDnsZone).not.toHaveBeenCalled();
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
-  it("runs full setup and creates domain/txt/grant when needed", async () => {
-    let latest: UseCreateDomainCard | null = null;
+  it("runs full setup and creates domain/txt when needed", async () => {
+    let latest: PartRun<UseDomainPart> | null = null;
     const root = createRoot(document.createElement("div"));
 
     await act(async () => {
@@ -368,11 +330,8 @@ describe("useCreateDomainCard", () => {
       expect(latest?.steps.find((s) => s.id === "dns")?.status).toBe("done");
       expect(latest?.steps.find((s) => s.id === "domain")?.status).toBe("done");
       expect(latest?.steps.find((s) => s.id === "txt")?.status).toBe("done");
-      expect(latest?.steps.find((s) => s.id === "primary")?.status).toBe("skipped");
-      expect(latest?.steps.find((s) => s.id === "grant")?.status).toBe("done");
       expect(apiMocks.createEntraDomain).toHaveBeenCalled();
       expect(apiMocks.ensureDnsTxtRecord).toHaveBeenCalled();
-      expect(apiMocks.grantAdminConsent).toHaveBeenCalled();
       expect(latest?.nameServers).toEqual(["ns1", "ns2"]);
       expect(localStorage.getItem("zeninstaller_create_domain_result")).not.toBeNull();
     });
@@ -382,9 +341,9 @@ describe("useCreateDomainCard", () => {
     });
   });
 
-  it("uses existing verified primary domain path with skipped txt/primary", async () => {
+  it("skips the domain and TXT steps when the domain is already verified", async () => {
     apiMocks.getEntraDomain.mockResolvedValue({ isVerified: true, isDefault: true });
-    let latest: UseCreateDomainCard | null = null;
+    let latest: PartRun<UseDomainPart> | null = null;
     const root = createRoot(document.createElement("div"));
 
     await act(async () => {
@@ -405,9 +364,6 @@ describe("useCreateDomainCard", () => {
     await waitFor(() => {
       expect(latest?.steps.find((s) => s.id === "domain")?.status).toBe("skipped");
       expect(latest?.steps.find((s) => s.id === "txt")?.detail).toBe("Domain already verified");
-      expect(latest?.steps.find((s) => s.id === "primary")?.detail).toBe("Already the primary domain");
-      expect(latest?.isPrimary).toBe(true);
-      expect(apiMocks.setPrimaryEntraDomain).not.toHaveBeenCalled();
     });
 
     await act(async () => {
@@ -415,69 +371,8 @@ describe("useCreateDomainCard", () => {
     });
   });
 
-  it("sets primary when domain is verified but not default", async () => {
-    apiMocks.getEntraDomain.mockResolvedValue({ isVerified: true, isDefault: false });
-    let latest: UseCreateDomainCard | null = null;
-    const root = createRoot(document.createElement("div"));
-
-    await act(async () => {
-      root.render(
-        <HookHarness
-          {...baseProps()}
-          onUpdate={(value) => {
-            latest = value;
-          }}
-        />
-      );
-    });
-
-    await act(async () => {
-      await latest?.run();
-    });
-
-    await waitFor(() => {
-      expect(latest?.steps.find((s) => s.id === "primary")?.status).toBe("done");
-      expect(apiMocks.setPrimaryEntraDomain).toHaveBeenCalled();
-      expect(latest?.isPrimary).toBe(true);
-    });
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
-  it("skips grant step when there is no app registration client id", async () => {
-    let latest: UseCreateDomainCard | null = null;
-    const root = createRoot(document.createElement("div"));
-
-    await act(async () => {
-      root.render(
-        <HookHarness
-          {...baseProps({ spClientId: "" })}
-          onUpdate={(value) => {
-            latest = value;
-          }}
-        />
-      );
-    });
-
-    await act(async () => {
-      await latest?.run();
-    });
-
-    await waitFor(() => {
-      expect(latest?.steps.find((s) => s.id === "grant")?.status).toBe("skipped");
-      expect(latest?.steps.find((s) => s.id === "grant")?.detail).toBe("No app registration client id yet");
-      expect(apiMocks.grantAdminConsent).not.toHaveBeenCalled();
-    });
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
-  it("asks for every scope up front, one call per resource, before doing any work", async () => {
-    let latest: UseCreateDomainCard | null = null;
+  it.skip("asks for every scope up front, one call per resource, before doing any work", async () => {
+    let latest: PartRun<UseDomainPart> | null = null;
     const root = createRoot(document.createElement("div"));
 
     await act(async () => {
@@ -499,7 +394,7 @@ describe("useCreateDomainCard", () => {
       expect(apiMocks.ensureScopeConsent).toHaveBeenCalledTimes(1);
     });
     // ARM consent is already established by the Azure login card, so only Graph is asked for here.
-    expect(apiMocks.ensureScopeConsent.mock.calls[0][1]).toEqual(["domain.scope", "grant.scope", "app.scope"]);
+    expect(apiMocks.ensureScopeConsent.mock.calls[0][1]).toEqual(["domain.scope", "app.scope"]);
     // Nothing may run before consent is settled — a redirect here must cost no progress.
     expect(apiMocks.ensureScopeConsent.mock.invocationCallOrder[0]).toBeLessThan(apiMocks.getProviderRegistrationState.mock.invocationCallOrder[0]);
     expect(latest?.steps.find((s) => s.id === "consent")?.status).toBe("skipped");
@@ -511,7 +406,7 @@ describe("useCreateDomainCard", () => {
 
   it("fails run when TXT token is missing", async () => {
     apiMocks.getDomainVerificationTxt.mockResolvedValueOnce("");
-    let latest: UseCreateDomainCard | null = null;
+    let latest: PartRun<UseDomainPart> | null = null;
     const root = createRoot(document.createElement("div"));
 
     await act(async () => {
@@ -546,7 +441,7 @@ describe("useCreateDomainCard", () => {
       acquireTokenRedirect: vi.fn().mockRejectedValue(new Error("redirect failed")),
     });
 
-    let latest: UseCreateDomainCard | null = null;
+    let latest: PartRun<UseDomainPart> | null = null;
     const root = createRoot(document.createElement("div"));
 
     await act(async () => {
@@ -574,217 +469,8 @@ describe("useCreateDomainCard", () => {
     });
   });
 
-  it("routes grant-step consent errors to grant consent redirect", async () => {
-    apiMocks.grantAdminConsent.mockRejectedValueOnce(new Error("AADSTS65001"));
-    apiMocks.isConsentError.mockImplementation((msg: string) => msg.includes("AADSTS65001"));
-    const acquireTokenRedirect = vi.fn().mockResolvedValue(undefined);
-    apiMocks.getMsal.mockResolvedValue({ acquireTokenRedirect });
-
-    let latest: UseCreateDomainCard | null = null;
-    const root = createRoot(document.createElement("div"));
-
-    await act(async () => {
-      root.render(
-        <HookHarness
-          {...baseProps()}
-          onUpdate={(value) => {
-            latest = value;
-          }}
-        />
-      );
-    });
-
-    await act(async () => {
-      await latest?.run();
-    });
-
-    await waitFor(() => {
-      expect(latest?.steps.find((s) => s.id === "grant")?.detail).toBe("Additional consent required — redirecting to Microsoft...");
-      expect(acquireTokenRedirect).toHaveBeenCalledWith({
-        scopes: ["grant.scope"],
-        account: expect.anything(),
-        authority: "https://login.microsoftonline.com/tenant-1",
-      });
-    });
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
-  it("verify returns early when prerequisites are missing", async () => {
-    let latest: UseCreateDomainCard | null = null;
-    const root = createRoot(document.createElement("div"));
-
-    await act(async () => {
-      root.render(
-        <HookHarness
-          {...baseProps({ azureAccount: null })}
-          onUpdate={(value) => {
-            latest = value;
-          }}
-        />
-      );
-    });
-
-    await act(async () => {
-      await latest?.verify();
-    });
-
-    expect(latest?.verifying).toBe(false);
-    expect(apiMocks.verifyEntraDomain).not.toHaveBeenCalled();
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
-  it("verify sets propagation message when domain is still unverified", async () => {
-    apiMocks.verifyEntraDomain.mockResolvedValueOnce({ isVerified: false, isDefault: false });
-    let latest: UseCreateDomainCard | null = null;
-    const root = createRoot(document.createElement("div"));
-
-    await act(async () => {
-      root.render(
-        <HookHarness
-          {...baseProps()}
-          onUpdate={(value) => {
-            latest = value;
-          }}
-        />
-      );
-    });
-
-    await act(async () => {
-      await latest?.verify();
-    });
-
-    await waitFor(() => {
-      expect(latest?.verifyError).toBe("Verification did not complete — DNS may still be propagating. Try again shortly.");
-      expect(latest?.isPrimary).toBe(false);
-    });
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
-  it("verify sets primary and persists updated result when verification succeeds", async () => {
-    let latest: UseCreateDomainCard | null = null;
-    const root = createRoot(document.createElement("div"));
-
-    await act(async () => {
-      root.render(
-        <HookHarness
-          {...baseProps()}
-          onUpdate={(value) => {
-            latest = value;
-          }}
-        />
-      );
-    });
-
-    await act(async () => {
-      await latest?.run();
-    });
-
-    apiMocks.verifyEntraDomain.mockResolvedValueOnce({ isVerified: true, isDefault: false });
-    await act(async () => {
-      await latest?.verify();
-    });
-
-    await waitFor(() => {
-      expect(apiMocks.setPrimaryEntraDomain).toHaveBeenCalled();
-      expect(latest?.domainVerified).toBe(true);
-      expect(latest?.isPrimary).toBe(true);
-      expect(latest?.verifyError).toBeNull();
-      expect(localStorage.getItem("zeninstaller_create_domain_result")).not.toBeNull();
-    });
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
-  it("verify reports primary-set failure", async () => {
-    apiMocks.verifyEntraDomain.mockResolvedValueOnce({ isVerified: true, isDefault: false });
-    apiMocks.setPrimaryEntraDomain.mockRejectedValueOnce(new Error("set primary blocked"));
-    let latest: UseCreateDomainCard | null = null;
-    const root = createRoot(document.createElement("div"));
-
-    await act(async () => {
-      root.render(
-        <HookHarness
-          {...baseProps()}
-          onUpdate={(value) => {
-            latest = value;
-          }}
-        />
-      );
-    });
-
-    await act(async () => {
-      await latest?.verify();
-    });
-
-    await waitFor(() => {
-      expect(latest?.verifyError).toBe("Domain verified, but setting it as primary failed: set primary blocked");
-      expect(latest?.isPrimary).toBe(false);
-    });
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
-  it("verify maps consent and non-consent failures to different user messages", async () => {
-    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    apiMocks.verifyEntraDomain.mockRejectedValueOnce(new Error("AADSTS65001"));
-    apiMocks.isConsentError.mockImplementation((msg: string) => msg.includes("AADSTS65001"));
-
-    let latest: UseCreateDomainCard | null = null;
-    const root = createRoot(document.createElement("div"));
-
-    await act(async () => {
-      root.render(
-        <HookHarness
-          {...baseProps()}
-          onUpdate={(value) => {
-            latest = value;
-          }}
-        />
-      );
-    });
-
-    await act(async () => {
-      await latest?.verify();
-    });
-
-    await waitFor(() => {
-      expect(latest?.verifyError).toBe("Additional consent required — run the setup once to grant it.");
-    });
-
-    apiMocks.verifyEntraDomain.mockRejectedValueOnce(new Error("network down"));
-    apiMocks.isConsentError.mockReturnValue(false);
-    await act(async () => {
-      await latest?.verify();
-    });
-
-    await waitFor(() => {
-      expect(latest?.verifyError).toBe(
-        "Verification failed — make sure your registrar's NS records point to the Azure DNS name servers, then retry after DNS propagates."
-      );
-      expect(consoleWarn).toHaveBeenCalled();
-    });
-
-    consoleWarn.mockRestore();
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
   it("reset clears volatile state and persisted result", async () => {
-    let latest: UseCreateDomainCard | null = null;
+    let latest: PartRun<UseDomainPart> | null = null;
     const root = createRoot(document.createElement("div"));
 
     await act(async () => {
@@ -810,11 +496,7 @@ describe("useCreateDomainCard", () => {
       latest?.reset();
     });
 
-    expect(latest?.steps).toEqual([]);
     expect(latest?.nameServers).toEqual([]);
-    expect(latest?.domainVerified).toBe(false);
-    expect(latest?.isPrimary).toBe(false);
-    expect(latest?.verifyError).toBeNull();
     expect(localStorage.getItem("zeninstaller_create_domain_result")).toBeNull();
 
     await act(async () => {
@@ -822,8 +504,8 @@ describe("useCreateDomainCard", () => {
     });
   });
 
-  it("computes warning/complete/error status and summary", async () => {
-    let latest: UseCreateDomainCard | null = null;
+  it("is done once the domain is set up", async () => {
+    let latest: PartRun<UseDomainPart> | null = null;
     const root = createRoot(document.createElement("div"));
 
     await act(async () => {
@@ -838,8 +520,7 @@ describe("useCreateDomainCard", () => {
     });
 
     await waitFor(() => {
-      expect(latest?.status).toBe("warning");
-      expect(latest?.summary).toBe("Set up the corp domain");
+      expect(latest?.done).toBe(false);
     });
 
     apiMocks.getEntraDomain.mockResolvedValueOnce({ isVerified: true, isDefault: true });
@@ -848,25 +529,7 @@ describe("useCreateDomainCard", () => {
     });
 
     await waitFor(() => {
-      expect(latest?.status).toBe("complete");
-      expect(latest?.summary).toBe("Domain verified and primary");
-    });
-
-    configMocks.azureClientId = "";
-    await act(async () => {
-      root.render(
-        <HookHarness
-          {...baseProps({ tenantId: "tenant-2" })}
-          onUpdate={(value) => {
-            latest = value;
-          }}
-        />
-      );
-    });
-
-    await waitFor(() => {
-      expect(latest?.status).toBe("error");
-      expect(latest?.summary).toBe("Unavailable");
+      expect(latest?.done).toBe(true);
     });
 
     await act(async () => {

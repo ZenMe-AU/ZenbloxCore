@@ -108,9 +108,9 @@ The warning is advisory: you can still select and save the subscription.
 Passing this check is not a guarantee of completing every installer stage. Entra directory roles/admin consent, storage data permissions,
 tenant-root management-group access, AWS/GitHub access, Azure policies, deny assignments, and role-assignment conditions are not verified here.
 
-The Core domain, Terraform state backend, Frontend hosting environment, and Private Zeninstaller Backend Environment cards check your signed-in account's
-effective permissions as soon as your Azure account and subscription are selected, before you click the resource creation button. The button stays
-disabled while access is being checked or is missing. Access feedback appears above **Resources to be created**, with an outlined warning and a
+Both blocks of the Private hosting environment card (Core environment and Private Zeninstaller environment) check your signed-in account's
+effective permissions as soon as your Azure account and subscription are selected, before you click **Create private hosting environment**, which
+creates both blocks at the same time. The button stays disabled while either block's access is being checked or is missing. Access feedback appears above **Resources to be created**, with an outlined warning and a
 **Recheck subscription access** button. Use it after activating a role or receiving access; changing the
 account, tenant, or subscription automatically starts a new check. Access is checked again when setup starts.
 You need **Contributor** access on that subscription, or equivalent

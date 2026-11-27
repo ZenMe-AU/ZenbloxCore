@@ -44,7 +44,7 @@ test("Validates storage names and keeps unavailable names in the editor", async 
   await card.getByRole("button", { name: "Edit Storage account", exact: true }).click();
   const storageInput = card.getByRole("textbox", { name: "Storage account", exact: true });
   const confirm = card.getByRole("button", { name: "Confirm Storage account", exact: true });
-  await expect(card.getByRole("button", { name: "Create core infrastructure", exact: true })).toBeDisabled();
+  await expect(card.getByRole("button", { name: "Create private hosting environment", exact: true })).toBeDisabled();
   await storageInput.fill("UP");
   await confirm.click();
   await expect(card.getByText("3-24 characters, lowercase letters and digits only", { exact: true })).toBeVisible();
@@ -57,7 +57,7 @@ test("Validates storage names and keeps unavailable names in the editor", async 
   await confirm.click();
   await expect(storageInput).toBeHidden();
   expect(availabilityNames).toEqual(["zbcorepwtestsstor", "zbcorepwtestsstor"]);
-  await expect(card.getByRole("button", { name: "Create core infrastructure", exact: true })).toBeEnabled();
+  await expect(card.getByRole("button", { name: "Create private hosting environment", exact: true })).toBeEnabled();
   await expectSnapshot(page, card, testInfo, "storage-name-availability", viewportName);
 });
 
@@ -95,7 +95,7 @@ test("Allows manual region entry when Azure region lookup fails", async ({ page,
   await card.locator("#core-infra-location").fill("westus2");
   await card.getByRole("button", { name: "Confirm Azure region" }).click();
   await expect(card.getByText(/Location:/)).toContainText("westus2");
-  await card.getByRole("button", { name: "Create core infrastructure" }).click();
+  await card.getByRole("button", { name: "Create private hosting environment" }).click();
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
   await expectSuccessfulSteps(card, coreInfraStepLabels("pwtests"));
   const resourceGroupWrite = resourceWrites.find((write) => write.path.endsWith("/resourcegroups/zbcore-pwtests-rg"));
@@ -113,13 +113,13 @@ test("Retries a transient resource-group provisioning failure", async ({ page, c
     { failFirstResourceGroupPut: true },
   );
   await saveCoreCompanyCode(card);
-  await card.getByRole("button", { name: "Create core infrastructure" }).click();
+  await card.getByRole("button", { name: "Create private hosting environment" }).click();
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
   const resourceGroupRow = card.getByText("Create resource group zbcore-pwtests-rg", { exact: true }).locator("../..");
   await expect(resourceGroupRow.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(1);
   await expect(azureMock.createdResources).not.toContain("resource-group");
   await card.getByRole("button", { name: "Start over" }).click();
-  await expect(card.getByRole("button", { name: "Create core infrastructure" })).toBeEnabled();
+  await expect(card.getByRole("button", { name: "Create private hosting environment" })).toBeEnabled();
   await runCoreInfrastructure(card);
   expect(getResourceGroupPutAttempts()).toBe(2);
   await expect(azureMock.createdResources).toContain("resource-group");
@@ -182,7 +182,7 @@ test("Does not reuse infrastructure status after the subscription target drifts"
   const driftedCard = page.locator("#card-core_infra");
   await openCoreInfraCard(driftedCard);
   await expect(prepared.github.variables.AZURE_SUBSCRIPTION_ID).toBe(mockSecondSubscriptionId);
-  await expect(driftedCard.getByRole("button", { name: "Create core infrastructure" })).toBeEnabled();
+  await expect(driftedCard.getByRole("button", { name: "Create private hosting environment" })).toBeEnabled();
   await expect(driftedCard.getByRole("button", { name: "Re-run" })).toHaveCount(0);
   await expectSnapshot(page, driftedCard, testInfo, "target-drift", viewportName);
 });
@@ -202,7 +202,7 @@ test("Recreates missing infrastructure and repairs revoked resource-group access
   const recoveredCard = page.locator("#card-core_infra");
   await openCoreInfraCard(recoveredCard);
   await expect(recoveredCard.getByText("The resource group doesn't exist in the selected subscription anymore — re-run to recreate it.", { exact: true })).toBeVisible();
-  await recoveredCard.getByRole("button", { name: "Create core infrastructure" }).click();
+  await recoveredCard.getByRole("button", { name: "Create private hosting environment" }).click();
   await expect(recoveredCard.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
   await expectSuccessfulSteps(recoveredCard, coreInfraStepLabels("pwtests"));
   expect(azureMock.createdResources).toContain("resource-group");
@@ -216,13 +216,13 @@ test("Shows prerequisites before infrastructure setup", async ({ page, context }
   await installMockGitHub(page, context);
   await page.goto(CORP_URL);
   const card = page.locator("#card-core_infra");
-  await card.getByText("Terraform state backend", { exact: true }).click();
+  await card.getByText("Private hosting environment", { exact: true }).click();
 
   await expect(card.getByText("Complete these setup steps first. Select a step to open its card.", { exact: true })).toBeVisible();
   for (const prerequisite of ["Sign in to Azure", "Select a repository & environment", "Select a subscription", "Complete the Azure app registration"]) {
     await expect(card.getByText(prerequisite, { exact: true })).toBeVisible();
   }
-  await expect(card.getByRole("button", { name: "Create core infrastructure" })).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Create private hosting environment" })).toHaveCount(0);
   await expectSnapshot(page, card, testInfo, "prerequisites-required", viewportName);
 });
 
@@ -239,7 +239,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 
   await test.step("Open backend card where core infrastructure does not exist", async () => {
     await saveCoreCompanyCode(card);
-    await expect(card.getByRole("button", { name: "Create core infrastructure" })).toBeEnabled();
+    await expect(card.getByRole("button", { name: "Create private hosting environment" })).toBeEnabled();
     await chooseAustraliaEast(card, page);
     await confirmStorageName(card);
     await expectSnapshot(page, card, testInfo, "not-setup-start", viewportName);
@@ -455,7 +455,7 @@ async function prepareCoreInfraCard(
 }
 
 async function openCoreInfraCard(card: import("@playwright/test").Locator) {
-  const header = card.getByRole("button", { name: /^Terraform state backend/ });
+  const header = card.getByRole("button", { name: /^Private hosting environment/ });
   await expect(header).toBeVisible();
   await expect(header).not.toContainText("Locked", { timeout: 60_000 });
   await expandCard(card);
@@ -482,7 +482,7 @@ async function chooseAustraliaEast(card: import("@playwright/test").Locator, pag
 }
 
 async function runCoreInfrastructure(card: import("@playwright/test").Locator) {
-  const setupButton = card.getByRole("button", { name: /^(?:Create core infrastructure|Re-run)$/ });
+  const setupButton = card.getByRole("button", { name: /^(?:Create private hosting environment|Re-run)$/ });
   await expect(setupButton).toBeEnabled();
   await setupButton.click();
   await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 180_000 });
@@ -499,7 +499,7 @@ async function confirmStorageName(card: import("@playwright/test").Locator) {
   await card.getByRole("button", { name: "Edit Storage account", exact: true }).click();
   const input = card.getByRole("textbox", { name: "Storage account", exact: true });
   await expect(input).toHaveValue("zbcorepwtestsstor");
-  await expect(card.getByRole("button", { name: "Create core infrastructure", exact: true })).toBeDisabled();
+  await expect(card.getByRole("button", { name: "Create private hosting environment", exact: true })).toBeDisabled();
   await card.getByRole("button", { name: "Confirm Storage account", exact: true }).click();
   await expect(input).toBeHidden();
 }

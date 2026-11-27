@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-// UI component: ../../../corp-src/cards/CreateDomain/CreateDomainCard.tsx
+// UI component: ../../../corp-src/cards/CoreInfra/CreateDomainCard.tsx
 import { expect } from "@playwright/test";
 import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
@@ -13,6 +13,7 @@ import {
 	expandAzureLoginCard,
 	expandAzureSubscriptionCard,
 	expandRepoCard,
+	hostingSection,
 } from "../util/cardHelper.mts";
 import { checkRepoExists, chooseExistingRepo, createNewRepo } from "../util/testHelper.mts";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "../util/setupHelper.mts";
@@ -27,8 +28,6 @@ const domainSetupStepLabels = (companyShortCode: string) => [
 	`Create DNS zone ${liveDnsDomain}`,
 	"Add custom domain to Entra ID",
 	"Create domain-verification TXT record",
-	"Set as primary domain",
-	"Grant domain permission to the pipeline",
 ];
 
 test("Happy path", async ({ page, context }, testInfo) => {
@@ -70,7 +69,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 			await expect(terraformCard.getByRole("button", { name: /^Save\s+variables?$/ })).toBeDisabled({ timeout: 60_000 });
 
 			// Re-run even a completed backend: its cached status does not check the state container.
-			const setupButton = terraformCard.getByRole("button", { name: /^(?:Create core infrastructure|Re-run)$/ });
+			const setupButton = terraformCard.getByRole("button", { name: /^(?:Create private hosting environment|Re-run)$/ });
 			await expectVisibleWithin(setupButton, "Terraform backend setup button", 50_000);
 			await expect(setupButton).toBeEnabled({ timeout: 60_000 });
 			await setupButton.click();
@@ -82,11 +81,11 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 			await expectSnapshot(page, terraformCard, testInfo, "company-code-saved", viewportName);
 		});
 
-		const card = page.locator("#card-create_domain");
+		const card = hostingSection(page);
 		await test.step("Open the Corp domain card", async () => {
 			const description = card.getByText(/Creates the DNS zone for/i);
 			if (!(await description.isVisible().catch(() => false))) {
-				await card.getByText("Core domain", { exact: true }).first().click();
+				await page.locator("#card-core_infra").getByText("Private hosting environment", { exact: true }).click();
 			}
 			await expectVisibleWithin(card.getByText(/Creates the DNS zone for/i), "Domain setup description", 50_000);
 		});
@@ -95,7 +94,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 			const domainInput = card.getByRole("textbox", { name: "DNS Domain", exact: true });
 			await expectVisibleWithin(domainInput, "Corp domain input", 50_000);
 			await expect(card.getByRole("progressbar")).toBeHidden({ timeout: 60_000 });
-			const rerunButton = card.getByRole("button", { name: "Re-run" });
+			const rerunButton = page.locator("#card-core_infra").getByRole("button", { name: "Re-run" });
 
 			if ((await domainInput.inputValue()).trim() !== liveDnsDomain) {
 				await expectSnapshot(page, card, testInfo, "start", viewportName, {
@@ -112,7 +111,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 
 			await expect(domainInput).toHaveValue(liveDnsDomain);
 			await expect(card.getByRole("checkbox", { name: /as the tenant's primary domain/ })).toBeChecked();
-			const setupButton = card.getByRole("button", { name: "Set up core DNS domain" });
+			const setupButton = page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment" });
 			await expect(rerunButton).toBeHidden();
 			await expectVisibleWithin(setupButton, "New domain setup button", 60_000);
 			await setupButton.click();
@@ -131,23 +130,22 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		await test.step("Reuse the existing Corp domain", async () => {
 			await page.reload();
 			if (!(await card.getByText(/Creates the DNS zone for/i).isVisible())) {
-				await card.getByText("Core domain", { exact: true }).first().click();
+				await page.locator("#card-core_infra").getByText("Private hosting environment", { exact: true }).click();
 			}
 
 			await expect(card.getByRole("button", { name: "Save variables" })).toBeDisabled();
 			await expect(card.getByRole("button", { name: "Verify domain now" })).toBeEnabled();
-			const setupButton = card.getByRole("button", { name: "Re-run" });
+			const setupButton = page.locator("#card-core_infra").getByRole("button", { name: "Re-run" });
 			await expectVisibleWithin(setupButton, "Corp domain setup button", 50_000);
 			await setupButton.click();
 			await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Domain re-run completion", 500_000);
 			await expectSuccessfulSteps(card, domainSetupStepLabels(companyShortCode));
-			await expect(card.getByText("Grant domain permission to the pipeline", { exact: true }).locator("../..")).toContainText("Already granted");
 			await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
 			await expectVisibleWithin(card.getByRole("button", { name: "Start over" }), "Start over button", 50_000);
 			await expectSnapshot(page, card, testInfo, "existing-setup", viewportName);
 			await page.reload();
 			if (!(await card.getByText(/Creates the DNS zone for/i).isVisible())) {
-				await card.getByText("Core domain", { exact: true }).first().click();
+				await page.locator("#card-core_infra").getByText("Private hosting environment", { exact: true }).click();
 			}
 		});
 
@@ -224,7 +222,7 @@ async function prepareExistingAzureSubscription(
 	//TODO: check what happens if registration name left blank (catch error)
 	const appRegistrationCard = await expandAzureAppRegistrationCard(page);
 	const coreInfraCard = page.locator("#card-core_infra");
-	await coreInfraCard.getByText("Terraform state backend", { exact: true }).click();
+	await coreInfraCard.getByText("Private hosting environment", { exact: true }).click();
 	const appRegistrationRequirement = coreInfraCard.getByText("Complete the Azure app registration", { exact: true });
 	const connectionInputs = appRegistrationCard.locator('[data-sensitive="true"] input');
 	await expect(connectionInputs).toHaveCount(2, { timeout: 50_000 });

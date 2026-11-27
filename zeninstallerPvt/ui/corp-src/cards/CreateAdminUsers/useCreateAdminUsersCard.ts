@@ -181,7 +181,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     cardId: "create_admin_users",
     status,
     summary,
-    cardRequirements: ["azure_login", "azure_subscription", "create_domain"], // admin accounts use the verified corp domain
+    cardRequirements: ["azure_login", "azure_subscription", "dns_verify"], // admin accounts use the verified corp domain
     cardDependencyLabel: CREATE_ADMIN_USERS_TITLE,
     done,
     admins,

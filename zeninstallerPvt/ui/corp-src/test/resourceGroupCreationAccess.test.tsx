@@ -7,7 +7,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ensureManagementAccess, ensureResourceGroupCreationAccess, listLocations, findStorageAccountGroup } from "../api/azureArm";
+import { usePartRun } from "./hookTestUtils";
+import { ensureManagementAccess, ensureResourceGroupCreationAccess, findStorageAccountGroup } from "../api/azureArm";
 // import { ensureInstallerSubscriptionAccess } from "../api/azureArm";
 // import { INSTALLER_SUBSCRIPTION_ACTIONS } from "../cards/AzureSubscription/config";
 import { getAzureAccessFailureKind, MissingAzureAccessError } from "../logic/azureAccessFailure";
@@ -15,12 +16,14 @@ import { useSubscriptionAccess, type SubscriptionAccess } from "../hooks/util/us
 import { useCardResourceAccess, type CardResourceAccess } from "../hooks/util/useAzureCardAccess";
 import { ARM_SCOPES } from "../config/azureConfig";
 import { AZURE_PIM_ACTIVATION_URL } from "../logic/consoleUrls";
-import { useCoreInfraCard } from "../cards/CoreInfra/useCoreInfraCard";
-import { useCreateDomainCard } from "../cards/CreateDomain/useCreateDomainCard";
-import { usePrivateFrontendInfraCard } from "../cards/PrivateFrontendInfra/usePrivateFrontendInfraCard";
-import PrivateFrontendInfraCard from "../cards/PrivateFrontendInfra/PrivateFrontendInfraCard";
-import { useRemoteTerminalInfraCard } from "../cards/RemoteTerminalInfra/useRemoteTerminalInfraCard";
-import RemoteTerminalInfraCard from "../cards/RemoteTerminalInfra/RemoteTerminalInfraCard";
+import { useTerraformStatePart } from "../cards/CoreInfra/useTerraformStatePart";
+import { useDomainPart } from "../cards/CoreInfra/useDomainPart";
+import { useFrontendPart, type UseFrontendPart } from "../cards/CoreInfra/useFrontendPart";
+import { PrivateConnectionDetails } from "../cards/CoreInfra/PrivateFrontendInfraCard";
+import { CoreEnvironmentSection } from "../cards/CoreInfra/CoreInfraCard";
+import type { UseTerraformStatePart } from "../cards/CoreInfra/useTerraformStatePart";
+import type { UseDomainPart } from "../cards/CoreInfra/useDomainPart";
+import { useBackendPart, type UseBackendPart } from "../cards/CoreInfra/useBackendPart";
 import { DEPLOYMENT_TERMINAL_KEYS } from "../logic/variables";
 import theme from "../theme";
 import type { AzureAccount, SetupStep } from "../types";
@@ -62,6 +65,29 @@ vi.mock("../api/azureGraph", () => ({
 }));
 
 const account = { tenantId: "tenant-1", username: "installer" } as AzureAccount;
+
+// The other part of the private block, with access in place, so only the part under test shows its access.
+const resourceName = (name: string) => ({ name, apply: vi.fn(), check: async () => true, checking: false, error: null });
+const privatePart = {
+  status: "complete", summary: "", steps: [], running: false, run: async () => true, reset: vi.fn(), runNonce: 0, creationAccess: { status: "ready", error: null, failureKind: null, retry: vi.fn(), check: vi.fn(), reportFailure: vi.fn(), missingRoles: null, missingEntra: null, unregisteredProviders: [], registeringProviders: false, registerProviders: async () => {}, missingConsent: [], grantConsent: vi.fn() } as CardResourceAccess,
+  resourceGroupName: "zeninstaller-private-rg", lawName: "zeninstaller-private-law", result: null, resultMatches: false,
+};
+const doneFrontend = {
+  ...privatePart, cardId: "private_frontend_infra", done: true, siteStorage: resourceName("site"),
+} as unknown as UseFrontendPart;
+const idleBackend = {
+  ...privatePart, cardId: "remote_terminal_infra", status: "warning", done: false, appInsightsName: "insights", hubName: "terminal", pipelineAppName: "pipeline",
+  storage: resourceName("api"), webPubSub: resourceName("pubsub"), functionApp: resourceName("function"),
+} as unknown as UseBackendPart;
+// The core group's parts of the same section, with access in place, so only the private part under test shows its access.
+const readyInfra = {
+  cardId: "core_infra", creationAccess: privatePart.creationAccess, runNonce: 0, infraRbacStatus: "unknown", resultMatches: false, result: null,
+  resourceGroupName: "zbcore-corp-rg", containerName: "tfstate", storage: resourceName("zbcorecorp"),
+} as unknown as UseTerraformStatePart;
+const readyDomain = {
+  cardId: "create_domain", creationAccess: privatePart.creationAccess, runNonce: 0, resourcesDone: false, resourceGroupName: "zbcore-corp-rg",
+  checkingStatus: false, checkStatusError: null,
+} as unknown as UseDomainPart;
 const writeAction = "Microsoft.Resources/subscriptions/resourceGroups/write";
 const permissionsPath = "/subscriptions/sub-1/providers/Microsoft.Authorization/permissions?api-version=2022-04-01";
 let root: Root | undefined;
@@ -162,10 +188,10 @@ describe("backend environment activity", () => {
     ...Object.fromEntries(DEPLOYMENT_TERMINAL_KEYS.map((key) => [key, "saved-value"])),
     API_STORAGE_ACCOUNT: "teststorage123", WEBPUBSUB_ENDPOINT: "test-wps.webpubsub.azure.com", VITE_API_URL: "https://test-function.azurewebsites.net",
   };
-  let latest!: ReturnType<typeof useRemoteTerminalInfraCard>;
+  let latest!: ReturnType<typeof useBackendPart>;
   function Harness() {
-    latest = useRemoteTerminalInfraCard({
-      azureAccount: account, subscriptionId: "sub-1", tenantId: "tenant-1", variableValues,
+    latest = useBackendPart({
+      azureAccount: account, subscriptionId: "sub-1", tenantId: "tenant-1", location: "australiaeast", variableValues,
       allowedOrigins: [], githubAccount: { login: "example", id: 1, type: "User" }, githubRepo: "repo", githubRepoId: 1, githubEnvName: "PROD",
     });
     return null;
@@ -177,10 +203,10 @@ describe("backend environment activity", () => {
   it("does not report saved configuration ready while resource access is being checked", async () => {
     mocks.getToken.mockReturnValue(new Promise<string>(() => { }));
     const variableValues = Object.fromEntries(DEPLOYMENT_TERMINAL_KEYS.map((key) => [key, "saved-value"]));
-    let latest!: ReturnType<typeof useRemoteTerminalInfraCard>;
+    let latest!: ReturnType<typeof useBackendPart>;
     function Harness() {
-      latest = useRemoteTerminalInfraCard({
-        azureAccount: account, subscriptionId: "sub-1", tenantId: "tenant-1", variableValues,
+      latest = useBackendPart({
+        azureAccount: account, subscriptionId: "sub-1", tenantId: "tenant-1", location: "australiaeast", variableValues,
         allowedOrigins: [], githubAccount: null, githubRepo: "repo", githubRepoId: 1, githubEnvName: "PROD",
       });
       return null;
@@ -189,38 +215,9 @@ describe("backend environment activity", () => {
     await act(async () => root!.render(<Harness />));
     expect(latest.done).toBe(true);
     expect(latest.creationAccess.status).toBe("checking");
-    expect(latest.status).toBe("loading");
-    expect(latest.summary).toBe("Checking Azure resource access");
   });
 
-  it("shows fetching regions until the request finishes, including an empty successful list", async () => {
-    allowAccess();
-    let release!: (locations: []) => void;
-    vi.mocked(listLocations).mockReturnValueOnce(new Promise((resolve) => { release = resolve; }));
-    root = createRoot(document.createElement("div"));
-    await act(async () => root!.render(<Harness />));
-    expect(latest).toMatchObject({ status: "loading", summary: "Fetching Azure regions", locationsLoading: true });
-    await act(async () => release([]));
-    expect(latest).toMatchObject({ status: "complete", summary: "Backend environment ready", locationsLoading: false });
-  });
-
-  it("shows the active setup step and does not go green after that step fails", async () => {
-    allowAccess();
-    let release!: () => void;
-    mocks.ensureRegistered.mockImplementationOnce(async () => { await new Promise<void>((resolve) => { release = resolve; }); throw new Error("Registration failed"); });
-    root = createRoot(document.createElement("div"));
-    await act(async () => root!.render(<Harness />));
-    let task: Promise<void> | undefined;
-    try {
-      await act(async () => { task = latest.run(); });
-      expect(latest).toMatchObject({ status: "loading", summary: "Register required Azure resource providers", running: true });
-    } finally {
-      await act(async () => { release(); await task; });
-    }
-    expect(latest).toMatchObject({ status: "error", summary: "Failed: Register required Azure resource providers", running: false });
-  });
-
-  it("shows a resource-name check instead of the saved ready state", async () => {
+  it("marks the storage name as checking until Azure answers", async () => {
     allowAccess();
     root = createRoot(document.createElement("div"));
     await act(async () => root!.render(<Harness />));
@@ -228,12 +225,12 @@ describe("backend environment activity", () => {
     vi.mocked(findStorageAccountGroup).mockReturnValueOnce(new Promise((resolve) => { release = resolve; }));
     let task: Promise<boolean> | undefined;
     try {
-      await act(async () => { task = latest.checkStorageAccount(); });
-      expect(latest).toMatchObject({ status: "loading", summary: "Checking storage account name", storageChecking: true });
+      await act(async () => { task = latest.storage.check(); });
+      expect(latest.storage.checking).toBe(true);
     } finally {
       await act(async () => { release("existing-rg"); await task; });
     }
-    expect(latest).toMatchObject({ status: "complete", summary: "Backend environment ready" });
+    expect(latest.storage).toMatchObject({ checking: false, error: null });
   });
 });
 
@@ -392,10 +389,10 @@ describe("deployment access failure classification", () => {
 // });
 
 const cards = [
-  { name: "Terraform state backend", useCard: useCoreInfraCard },
-  { name: "Core domain", useCard: useCreateDomainCard },
-  { name: "Frontend hosting environment", useCard: usePrivateFrontendInfraCard },
-  { name: "Private Zeninstaller Backend Environment", useCard: useRemoteTerminalInfraCard },
+  { name: "Terraform state backend", useCard: useTerraformStatePart },
+  { name: "Core domain", useCard: useDomainPart },
+  { name: "Frontend hosting environment", useCard: useFrontendPart },
+  { name: "Private Zeninstaller Backend Environment", useCard: useBackendPart },
 ];
 
 describe.each(cards)("$name access preflight", ({ useCard }) => {
@@ -403,6 +400,7 @@ describe.each(cards)("$name access preflight", ({ useCard }) => {
     azureAccount: account,
     subscriptionId: "sub-1",
     tenantId: "tenant-1",
+    location: "australiaeast",
     corpName: "Example",
     dnsName: "example.com",
     spClientId: "pipeline-client",
@@ -413,11 +411,11 @@ describe.each(cards)("$name access preflight", ({ useCard }) => {
     githubRepoId: 2,
     githubEnvName: "TEST",
   };
-  let latest: { run: () => Promise<void>; steps: SetupStep[]; running: boolean; creationAccess: CardResourceAccess };
+  let latest: { run: () => Promise<boolean>; steps: SetupStep[]; running: boolean; creationAccess: CardResourceAccess };
 
   async function mount(subscriptionId = props.subscriptionId) {
     function Harness() {
-      latest = useCard({ ...props, subscriptionId });
+      latest = usePartRun(useCard({ ...props, subscriptionId }));
       return null;
     }
     root ??= createRoot(document.createElement("div"));
@@ -502,12 +500,13 @@ describe.each(cards)("$name access preflight", ({ useCard }) => {
   });
 });
 
-it("shows backend access errors beside Re-run and in an independent prerequisites section", async () => {
+it("shows backend access errors as an alert and in an independent prerequisites section", async () => {
   const values = Object.fromEntries(DEPLOYMENT_TERMINAL_KEYS.map((key) => [key, "saved-value"]));
   const props = {
     azureAccount: account,
     subscriptionId: "sub-1",
     tenantId: "tenant-1",
+    location: "australiaeast",
     variableValues: values,
     allowedOrigins: ["https://installer.example.com"],
     githubAccount: { login: "example", id: 1, type: "Organization" as const },
@@ -518,47 +517,38 @@ it("shows backend access errors beside Re-run and in an independent prerequisite
   const variables = { values, loading: false, refreshing: false, error: false, onRefresh: vi.fn(async () => { }), onConfirmed: vi.fn() };
   const container = document.createElement("div");
   root = createRoot(container);
-  let latest: ReturnType<typeof useRemoteTerminalInfraCard>;
+  let latest: ReturnType<typeof useBackendPart>;
 
   function Harness() {
-    const infra = useRemoteTerminalInfraCard(props);
+    const infra = useBackendPart(props);
     latest = infra;
     return (
       <ThemeProvider theme={theme}>
-        <RemoteTerminalInfraCard
-          card={{
-            cardId: "remote_terminal_infra", status: infra.status, summary: infra.summary,
-            locked: false, requirements: [], unavailable: false, expanded: true,
-            onToggle: vi.fn(), onRequirementClick: vi.fn(),
-          }}
-          infra={infra}
-          subscriptionId="sub-1"
-          githubAccount={null}
-          repoName="corp"
-          selectedEnv={null}
-          variables={variables}
+        <CoreEnvironmentSection
+          infra={readyInfra} createDomain={readyDomain} frontend={doneFrontend} backend={infra} azureAccount={account} corpName="corp" dnsName="corp.example.com"
+          subscriptionId="sub-1" tenantId="tenant-1" spClientId="client" githubAccount={null} repoName="corp" selectedEnv={null} variables={variables} missing={[]}
         />
+        {/* The card puts connection details at its bottom, after the section. */}
+        <PrivateConnectionDetails frontend={doneFrontend} backend={infra} githubAccount={null} repoName="corp" selectedEnv={null} variables={variables} />
       </ThemeProvider>
     );
   }
 
   await act(async () => root!.render(<Harness />));
   expect(latest!.done).toBe(true);
-  expect(latest!.status).toBe("error");
-  expect(latest!.summary).toBe("Insufficient permissions to continue");
-  const rerun = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Re-run")!;
-  expect(rerun.disabled).toBe(true);
-  expect(rerun.parentElement?.textContent).toContain("Insufficient permissions to continue");
-  const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="remote-terminal-prerequisites"]')!;
-  const detailsToggle = container.querySelector<HTMLButtonElement>('[aria-controls="remote-terminal-connection-details"]')!;
-  expect(rerun.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(latest!.creationAccess.status).toBe("error");
+  const alert = container.querySelector('[role="alert"]')!;
+  expect(alert.textContent).toContain("Insufficient permissions to continue");
+  const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="core-infra-prerequisites"]')!;
+  const detailsToggle = container.querySelector<HTMLButtonElement>('[aria-controls="private-hosting-connection-details"]')!;
+  expect(alert.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(toggle.compareDocumentPosition(detailsToggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(toggle.querySelectorAll(".collapsible-panel__line")).toHaveLength(2);
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   await act(async () => toggle.click());
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
   expect(detailsToggle.getAttribute("aria-expanded")).toBe("false");
-  const prerequisites = container.querySelector('#remote-terminal-prerequisites')!;
+  const prerequisites = container.querySelector('#core-infra-prerequisites')!;
   expect(prerequisites.textContent).toContain("Missing Azure management permissions");
   expect(prerequisites.querySelector("a")?.href).toBe(AZURE_PIM_ACTIVATION_URL);
   mocks.azFetch.mockImplementation(async (_token: string, _origin: string, path: string) =>
@@ -570,63 +560,55 @@ it("shows backend access errors beside Re-run and in an independent prerequisite
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
   expect(latest!.creationAccess).toMatchObject({ status: "ready", error: null });
-  expect(latest!.status).toBe("complete");
-  expect(container.querySelector('[aria-controls="remote-terminal-prerequisites"]')).toBeNull();
-  expect(rerun.parentElement?.textContent).not.toContain("Insufficient permissions to continue");
+  expect(latest!.done).toBe(true);
+  expect(container.querySelector('[aria-controls="core-infra-prerequisites"]')).toBeNull();
+  expect(container.textContent).not.toContain("Insufficient permissions to continue");
 });
 
-it("shows frontend access errors beside Create and in an independent prerequisites section", async () => {
+it("shows frontend access errors as an alert and in an independent prerequisites section", async () => {
   const values = {};
   const props = {
     azureAccount: account,
     subscriptionId: "sub-1",
     tenantId: "tenant-1",
+    location: "australiaeast",
     variableValues: values,
     allowedOrigins: ["https://installer.example.com"],
   };
   const variables = { values, loading: false, refreshing: false, error: false, onRefresh: vi.fn(async () => { }), onConfirmed: vi.fn() };
   const container = document.createElement("div");
   root = createRoot(container);
-  let latest: ReturnType<typeof usePrivateFrontendInfraCard>;
+  let latest: ReturnType<typeof useFrontendPart>;
 
   function Harness() {
-    const infra = usePrivateFrontendInfraCard(props);
+    const infra = useFrontendPart(props);
     latest = infra;
     return (
       <ThemeProvider theme={theme}>
-        <PrivateFrontendInfraCard
-          card={{
-            cardId: "private_frontend_infra", status: infra.status, summary: infra.summary,
-            locked: false, requirements: [], unavailable: false, expanded: true,
-            onToggle: vi.fn(), onRequirementClick: vi.fn(),
-          }}
-          infra={infra}
-          subscriptionId="sub-1"
-          githubAccount={null}
-          repoName="corp"
-          selectedEnv={null}
-          variables={variables}
+        <CoreEnvironmentSection
+          infra={readyInfra} createDomain={readyDomain} frontend={infra} backend={idleBackend} azureAccount={account} corpName="corp" dnsName="corp.example.com"
+          subscriptionId="sub-1" tenantId="tenant-1" spClientId="client" githubAccount={null} repoName="corp" selectedEnv={null} variables={variables} missing={[]}
         />
+        {/* The card puts connection details at its bottom, after the section. */}
+        <PrivateConnectionDetails frontend={infra} backend={idleBackend} githubAccount={null} repoName="corp" selectedEnv={null} variables={variables} />
       </ThemeProvider>
     );
   }
 
   await act(async () => root!.render(<Harness />));
-  expect(latest!.status).toBe("error");
-  expect(latest!.summary).toBe("Insufficient permissions to continue");
-  const create = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Create frontend hosting environment")!;
-  expect(create.disabled).toBe(true);
-  expect(create.parentElement?.textContent).toContain("Insufficient permissions to continue");
-  const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="private-frontend-prerequisites"]')!;
-  const detailsToggle = container.querySelector<HTMLButtonElement>('[aria-controls="private-frontend-connection-details"]')!;
-  expect(create.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(latest!.creationAccess.status).toBe("error");
+  const alert = container.querySelector('[role="alert"]')!;
+  expect(alert.textContent).toContain("Insufficient permissions to continue");
+  const toggle = container.querySelector<HTMLButtonElement>('[aria-controls="core-infra-prerequisites"]')!;
+  const detailsToggle = container.querySelector<HTMLButtonElement>('[aria-controls="private-hosting-connection-details"]')!;
+  expect(alert.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(toggle.compareDocumentPosition(detailsToggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(toggle.querySelectorAll(".collapsible-panel__line")).toHaveLength(2);
   expect(toggle.getAttribute("aria-expanded")).toBe("false");
   await act(async () => toggle.click());
   expect(toggle.getAttribute("aria-expanded")).toBe("true");
   expect(detailsToggle.getAttribute("aria-expanded")).toBe("false");
-  const prerequisites = container.querySelector('#private-frontend-prerequisites')!;
+  const prerequisites = container.querySelector('#core-infra-prerequisites')!;
   expect(prerequisites.textContent).toContain("Missing Azure management permissions");
   expect(prerequisites.querySelector("a")?.href).toBe(AZURE_PIM_ACTIVATION_URL);
   mocks.azFetch.mockImplementation(async (_token: string, _origin: string, path: string) =>
@@ -638,7 +620,7 @@ it("shows frontend access errors beside Create and in an independent prerequisit
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
   expect(latest!.creationAccess).toMatchObject({ status: "ready", error: null });
-  expect(latest!.status).toBe("warning");
-  expect(container.querySelector('[aria-controls="private-frontend-prerequisites"]')).toBeNull();
-  expect(create.parentElement?.textContent).not.toContain("Insufficient permissions to continue");
+  expect(latest!.done).toBe(false);
+  expect(container.querySelector('[aria-controls="core-infra-prerequisites"]')).toBeNull();
+  expect(container.textContent).not.toContain("Insufficient permissions to continue");
 });

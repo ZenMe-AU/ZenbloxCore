@@ -8,8 +8,8 @@ import { createRoot } from "react-dom/client";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAzureAppRegistrationCard, type UseAzureAppRegistrationCard } from "../cards/AzureAppRegistration/useAzureAppRegistrationCard";
-import { useCoreInfraCard, type UseCoreInfraCard } from "../cards/CoreInfra/useCoreInfraCard";
-import { useCreateDomainCard, type UseCreateDomainCard } from "../cards/CreateDomain/useCreateDomainCard";
+import { useTerraformStatePart, type UseTerraformStatePart } from "../cards/CoreInfra/useTerraformStatePart";
+import { useDomainPart, type UseDomainPart } from "../cards/CoreInfra/useDomainPart";
 import type { AzureAccount } from "../types";
 
 const { apiMocks } = vi.hoisted(() => ({
@@ -250,12 +250,13 @@ describe("azure workflow cards", () => {
 
   it("loads core infrastructure state and reaches ready status", async () => {
     const azureAccount = { tenantId: "tenant-1" } as AzureAccount;
-    let latest: UseCoreInfraCard | null = null;
+    let latest: UseTerraformStatePart | null = null;
     const { root, Harness } = mountHook(
       () =>
-        useCoreInfraCard({
+        useTerraformStatePart({
           azureAccount,
           subscriptionId: "sub-1",
+          location: "australiaeast",
           corpName: "Zenblox",
           spClientId: "client-a",
           tenantId: "tenant-1",
@@ -271,9 +272,7 @@ describe("azure workflow cards", () => {
     });
 
     await waitFor(() => {
-      expect(latest?.cardId).toBe("core_infra");
-      expect(latest?.summary).toBe("Set up corp infrastructure");
-      expect(latest?.cardRequirements).toContain("azure_app_registration");
+      expect(latest?.done).toBe(false);
     });
 
     await act(async () => {
@@ -281,17 +280,17 @@ describe("azure workflow cards", () => {
     });
   });
 
-  it("detects a verified primary domain on mount", async () => {
+  it("detects an existing corp domain on mount", async () => {
     const azureAccount = { tenantId: "tenant-1" } as AzureAccount;
-    let latest: UseCreateDomainCard | null = null;
+    let latest: UseDomainPart | null = null;
     const { root, Harness } = mountHook(
       () =>
-        useCreateDomainCard({
+        useDomainPart({
           azureAccount,
           subscriptionId: "sub-1",
+          location: "australiaeast",
           corpName: "Zenblox",
           dnsName: "zenblox.io",
-          spClientId: "client-a",
           tenantId: "tenant-1",
         }),
       (value) => {
@@ -304,9 +303,7 @@ describe("azure workflow cards", () => {
     });
 
     await waitFor(() => {
-      expect(latest?.cardId).toBe("create_domain");
-      expect(["Set up the corp domain", "Domain verified and primary"]).toContain(latest?.summary);
-      expect(latest?.cardRequirements).toContain("core_infra");
+      expect(latest?.checkingStatus).toBe(false);
     });
 
     await act(async () => {
