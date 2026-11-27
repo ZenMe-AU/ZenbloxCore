@@ -54,3 +54,8 @@ const VARIABLE_DISPLAY_NAMES: Record<string, string> = {
 export function getVariableDisplayName(key: string): string {
   return VARIABLE_DISPLAY_NAMES[key] ?? key;
 }
+
+// Format only: a check on save never looks the domain up. Whether it is delegated or verified is a deployment step.
+export function isDomainName(value: string): boolean {
+  return value.length <= 253 && /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(value);
+}

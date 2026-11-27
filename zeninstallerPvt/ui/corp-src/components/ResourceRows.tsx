@@ -3,17 +3,38 @@
  * @license SPDX-License-Identifier: MIT
  */
 
+import { useRef } from "react";
 import { Box, CircularProgress, IconButton, MenuItem, Select, TextField, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import EditIcon from "@mui/icons-material/Edit";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import UndoIcon from "@mui/icons-material/Undo";
 import ErrorText from "./ErrorText";
 
 // One padding for every inline control, so a name box and a dropdown are the same height in the list.
 const compactInputSx = { "& .MuiInputBase-input": { py: 0.35 } };
 
+// Opens the created resource in its console; rows pass href only once the resource exists.
+function ConsoleLink({ label, href }: { label: string; href: string }) {
+  return (
+    <IconButton
+      component="a"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={href}
+      aria-label={`Open ${label} in the portal (opens in new tab)`}
+      size="small"
+      sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}
+    >
+      <OpenInNewIcon sx={{ typography: "caption" }} />
+    </IconButton>
+  );
+}
+
 // ─── Plain row ────────────────────────────────────────────────────────────────
 
-export function PlainRow({ label, value, error }: { label: string; value: string; error?: string | null }) {
+export function PlainRow({ label, value, error, href }: { label: string; value: string; error?: string | null; href?: string | null }) {
   return (
     <Box>
       <Typography color="text.muted">
@@ -21,6 +42,7 @@ export function PlainRow({ label, value, error }: { label: string; value: string
         <Box component="span" sx={{ color: "text.primary" }}>
           {value}
         </Box>
+        {href && <ConsoleLink label={label} href={href} />}
       </Typography>
       {error && <ErrorText>{error}</ErrorText>}
     </Box>
@@ -40,9 +62,10 @@ type EditableNameRowProps = {
   editing: boolean;
   setEditing: (editing: boolean) => void;
   width: number;
+  href?: string | null;
 };
 
-export function EditableNameRow({ label, value, onChange, error, hint, checking, check, editing, setEditing, width }: EditableNameRowProps) {
+export function EditableNameRow({ label, value, onChange, error, hint, checking, check, editing, setEditing, width, href }: EditableNameRowProps) {
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
@@ -73,6 +96,7 @@ export function EditableNameRow({ label, value, onChange, error, hint, checking,
         ) : (
           <>
             <Typography color="text.primary">{value}</Typography>
+            {href && <ConsoleLink label={label} href={href} />}
             <IconButton aria-label={`Edit ${label}`} size="small" onClick={() => setEditing(true)} sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}>
               <EditIcon sx={{ typography: "caption" }} />
             </IconButton>
@@ -103,6 +127,8 @@ type SelectionRowProps = {
 };
 
 export function SelectionRow({ id, label, name, value, onChange, options, error, loading, placeholder, editing, setEditing }: SelectionRowProps) {
+  // The value when editing began, so Undo puts it back.
+  const saved = useRef(value);
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minHeight: "1.6em" }}>
@@ -145,11 +171,30 @@ export function SelectionRow({ id, label, name, value, onChange, options, error,
             <IconButton aria-label={`Confirm ${name}`} size="small" onClick={() => setEditing(false)} sx={{ color: "success.main", p: 0.25 }}>
               <CheckIcon sx={{ typography: "caption" }} />
             </IconButton>
+            <IconButton
+              aria-label={`Undo ${name}`}
+              size="small"
+              onClick={() => {
+                onChange(saved.current);
+                setEditing(false);
+              }}
+              sx={{ color: "text.muted", p: 0.25, "&:hover": { color: "warning.main" } }}
+            >
+              <UndoIcon sx={{ typography: "caption" }} />
+            </IconButton>
           </>
         ) : (
           <>
             <PlainRow label={label} value={options.find((o) => o.value === value)?.label ?? value} />
-            <IconButton aria-label={`Edit ${name}`} size="small" onClick={() => setEditing(true)} sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}>
+            <IconButton
+              aria-label={`Edit ${name}`}
+              size="small"
+              onClick={() => {
+                saved.current = value;
+                setEditing(true);
+              }}
+              sx={{ color: "text.disabled", p: 0.25, "&:hover": { color: "primary.main" } }}
+            >
               <EditIcon sx={{ typography: "caption" }} />
             </IconButton>
           </>

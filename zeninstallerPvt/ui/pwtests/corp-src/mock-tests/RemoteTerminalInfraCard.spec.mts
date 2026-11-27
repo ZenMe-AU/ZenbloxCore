@@ -1,5 +1,5 @@
 /// <reference types="node" />
-// UI component: ../../../corp-src/cards/RemoteTerminalInfra/RemoteTerminalInfraCard.tsx
+// UI component: ../../../corp-src/cards/CoreInfra/RemoteTerminalInfraCard.tsx
 import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
 import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL } from "../../testInit";
@@ -19,14 +19,14 @@ test("Shows provisioning failure and allows a successful retry", async ({ page, 
 	const viewportName = getViewportName(testInfo);
 	const { card, names, github, unexpectedRequests } =
 		await prepareMockRelay(page, context, viewportName, { failProvisioningOnce: true });
-	const create = card.getByRole("button", { name: "Create backend environment", exact: true });
+	const create = page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment", exact: true });
 	await create.click();
 	await expect(card.getByText(/Mock provisioning permission denied/)).toBeVisible();
 	await expect(create).toBeEnabled();
 	expect(github.variables.WEBPUBSUB_CLIENT_ID).toBeUndefined();
 	expect(github.variables.VITE_API_URL).toBeUndefined();
 	await create.click();
-	await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
+	await expect(page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
 	await expectSuccessfulSteps(card, remoteTerminalStepLabels(names));
 	await openConnectionDetails(card);
 	await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled({ timeout: 60_000 });
@@ -40,14 +40,14 @@ test("Retries a failed backend pipeline service-principal creation", async ({ pa
 	const viewportName = getViewportName(testInfo);
 	const { card, names, graph, github, unexpectedRequests } =
 		await prepareMockRelay(page, context, viewportName, { failPipelinePrincipalOnce: true });
-	const create = card.getByRole("button", { name: "Create backend environment", exact: true });
+	const create = page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment", exact: true });
 	await create.click();
 	await expect(card.getByText(/403 \/servicePrincipals:.*Mock pipeline principal denied/)).toBeVisible();
 	await expect(create).toBeEnabled();
 	expect(github.variables.WEBPUBSUB_CLIENT_ID).toBeUndefined();
 	expect(graph.servicePrincipalWrites).toHaveLength(0);
 	await create.click();
-	await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
+	await expect(page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
 	await expectSuccessfulSteps(card, remoteTerminalStepLabels(names));
 	expect(graph.applicationWrites).toHaveLength(1);
 	expect(graph.servicePrincipalWrites).toEqual([{ appId: pipelineClientId, id: "mock-pipeline-principal" }]);
@@ -61,8 +61,8 @@ test("Retries one failed connection-variable write and verifies persistence", as
 	const viewportName = getViewportName(testInfo);
 	const { card, names, github, unexpectedRequests } =
 		await prepareMockRelay(page, context, viewportName, { failVariableWriteOnce: true });
-	await card.getByRole("button", { name: "Create backend environment", exact: true }).click();
-	await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
+	await page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment", exact: true }).click();
+	await expect(page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
 	await openConnectionDetails(card);
 	await expect(card.getByRole("button", { name: "Save 1 variable", exact: true })).toBeEnabled({ timeout: 60_000 });
 	expect(github.variables.VITE_API_URL).toBeUndefined();
@@ -87,7 +87,7 @@ test("Validates editable resource names and uses the chosen Azure region", async
 	const viewportName = getViewportName(testInfo);
 	const { card, names, availabilityChecks, writes, paths, unexpectedRequests } =
 		await prepareMockRelay(page, context, viewportName, { nameTakenOnce: true });
-	const create = card.getByRole("button", { name: "Create backend environment", exact: true });
+	const create = page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment", exact: true });
 	await card.getByRole("button", { name: "Edit Storage account", exact: true }).click();
 	await expect(create).toBeDisabled();
 	const storage = card.getByRole("textbox", { name: "Storage account", exact: true });
@@ -123,7 +123,7 @@ test("Validates editable resource names and uses the chosen Azure region", async
 	await card.getByRole("button", { name: "Confirm Azure region", exact: true }).click();
 	await expect(create).toBeEnabled();
 	await create.click();
-	await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
+	await expect(page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
 	await expectSuccessfulSteps(card, remoteTerminalStepLabels(names));
 	for (const path of Object.values(paths)) {
 		expect(writes.find((write) => write.path === path)?.body.location).toBe("australiasoutheast");
@@ -144,8 +144,8 @@ test("Reuses saved custom names in their actual groups and scopes OIDC to TEST",
 	await expect(card.getByText(names.storage, { exact: true })).toBeVisible();
 	await expect(card.getByText(names.webPubSub, { exact: true })).toBeVisible();
 	await expect(card.getByText(names.functionApp, { exact: true })).toBeVisible();
-	await card.getByRole("button", { name: "Create backend environment", exact: true }).click();
-	await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
+	await page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment", exact: true }).click();
+	await expect(page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
 	await expectSuccessfulSteps(card, remoteTerminalStepLabels(names, "TEST"));
 	expect(graph.federatedCredentialWrites).toEqual([expect.objectContaining({
 		subject: `repo:mock-user@12345/${repoName}@987654321:environment:TEST`,
@@ -181,10 +181,10 @@ test("Requires authentication before creating backend resources", async ({ page,
 	const viewportName = getViewportName(testInfo);
 	const unexpectedRequests = await installRelayNetworkGuard(context);
 	await page.goto(CORP_URL);
-	const card = page.locator("#card-remote_terminal_infra");
-	await card.getByText("Private Zeninstaller Backend Environment", { exact: true }).click();
+	const card = page.locator("#card-core_infra");
+	await card.getByText("Private hosting environment", { exact: true }).click();
 	await expect(card.getByText("Sign in to Azure", { exact: true })).toBeVisible();
-	await expect(card.getByRole("button", { name: /Create backend environment|Re-run/ })).toHaveCount(0);
+	await expect(page.locator("#card-core_infra").getByRole("button", { name: /Create private hosting environment|Re-run/ })).toHaveCount(0);
 	await expectSnapshot(page, card, testInfo, "authentication-required", viewportName);
 	expect(unexpectedRequests).toEqual([]);
 });
@@ -196,8 +196,8 @@ async function runHappyPath({ page, context }: { page: Page; context: BrowserCon
 		await prepareMockRelay(page, context, viewportName);
 	await expectSnapshot(page, card, testInfo, "start", viewportName);
 	await test.step("Create the backend and save five visible values plus hidden storage", async () => {
-		await card.getByRole("button", { name: "Create backend environment", exact: true }).click();
-		await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
+		await page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment", exact: true }).click();
+		await expect(page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
 		await expectSuccessfulSteps(card, remoteTerminalStepLabels(names));
 		await openConnectionDetails(card);
 		const expected = {
@@ -268,7 +268,7 @@ async function runHappyPath({ page, context }: { page: Page; context: BrowserCon
 	await test.step("Reload and read saved connection details", async () => {
 		await page.reload();
 		await openRemoteTerminalCard(page);
-		await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled();
+		await expect(page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true })).toBeEnabled();
 		await expect(card.getByText(`Resource group: ${backendResourceGroup}`, { exact: true })).toBeVisible();
 		await openConnectionDetails(card);
 		for (const key of terminalKeys) await expect(connectionInput(card, key)).toHaveValue(github.variables[key]);
@@ -278,8 +278,8 @@ async function runHappyPath({ page, context }: { page: Page; context: BrowserCon
 	});
 	await test.step("Re-run without replacing the pipeline identity or resources", async () => {
 		const writeCount = writes.length;
-		await card.getByRole("button", { name: "Re-run", exact: true }).click();
-		await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
+		await page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true }).click();
+		await expect(page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 60_000 });
 		await expectSuccessfulSteps(card, remoteTerminalStepLabels(names));
 		expect(graph.applicationWrites).toHaveLength(1);
 		expect(graph.servicePrincipalWrites).toHaveLength(1);
@@ -293,10 +293,10 @@ async function runHappyPath({ page, context }: { page: Page; context: BrowserCon
 		const original = await input.inputValue();
 		await input.fill("https://unsaved.example");
 		await expect(card.getByRole("button", { name: "Save 1 variable", exact: true })).toBeEnabled();
-		const collapse = card.getByRole("button", { name: "collapse", exact: true });
-		await expect(collapse).toHaveAttribute("aria-controls", "remote-terminal-connection-details");
+		const collapse = card.getByRole("button", { name: "hide results", exact: true });
+		await expect(collapse).toHaveAttribute("aria-controls", "private-hosting-connection-details");
 		await collapse.click();
-		await expect(card.getByRole("button", { name: "open to enter connection detail", exact: true }))
+		await expect(card.getByRole("button", { name: "view results", exact: true }))
 			.toHaveAttribute("aria-expanded", "false");
 		await expect(input).toBeHidden();
 		await openConnectionDetails(card);

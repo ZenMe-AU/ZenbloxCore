@@ -21,7 +21,7 @@ export const STORAGE_SCOPES = ["https://storage.azure.com/user_impersonation"];
 export const DOMAIN_SCOPES = ["https://graph.microsoft.com/Domain.ReadWrite.All"];
 export const ORGANIZATION_SCOPES = ["https://graph.microsoft.com/Organization.Read.All"];
 
-// Domain card: granting DomainReadWriteAll to the pipeline's service principal.
+// Granting Graph app roles to a service principal, as the stage permissions do.
 export const GRANT_CONSENT_SCOPES = ["https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All", "https://graph.microsoft.com/Application.Read.All"];
 
 export const ACCESS_PASS_SCOPES = [

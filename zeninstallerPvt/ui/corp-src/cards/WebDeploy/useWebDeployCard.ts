@@ -291,7 +291,7 @@ export function useWebDeployCard({
     ...presentation,
     run,
     reset,
-    cardRequirements: ["github_login", "repo", "azure_login", "private_frontend_infra"],
+    cardRequirements: ["github_login", "repo", "azure_login", "core_infra"],
     cardDependencyLabel: "Deploy the frontend",
   };
 }

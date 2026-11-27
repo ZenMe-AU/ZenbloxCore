@@ -314,7 +314,7 @@ export function useBackendDeployCard({
     ...presentation,
     run,
     reset,
-    cardRequirements: ["github_login", "repo", "azure_login", "remote_terminal_infra"],
+    cardRequirements: ["github_login", "repo", "azure_login", "core_infra"],
     cardDependencyLabel: "Deploy the backend",
   };
 }

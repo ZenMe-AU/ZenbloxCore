@@ -1,5 +1,5 @@
 /// <reference types="node" />
-// UI component: ../../../corp-src/cards/RemoteTerminalInfra/RemoteTerminalInfraCard.tsx
+// UI component: ../../../corp-src/cards/CoreInfra/RemoteTerminalInfraCard.tsx
 import { expect, test } from "@playwright/test";
 import { viewports } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL } from "../../testInit";
@@ -24,10 +24,10 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await expectSnapshot(page, card, testInfo, "start", viewportName);
 
 			await test.step("Create the backend in the existing repository environment", async () => {
-				const create = card.getByRole("button", { name: /^(?:Create backend environment|Re-run)$/ });
+				const create = page.locator("#card-core_infra").getByRole("button", { name: /^(?:Create private hosting environment|Re-run)$/ });
 				await expect(create).toBeEnabled();
 				await create.click();
-				await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 600_000 });
+				await expect(page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 600_000 });
 				await expectSuccessfulSteps(card, remoteTerminalStepLabels(names));
 				await openConnectionDetails(card);
 				await expect(connectionInput(card, "WEBPUBSUB_ENDPOINT")).toHaveValue(`${names.webPubSub}.webpubsub.azure.com`);
@@ -45,7 +45,7 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			await test.step("Reload and read saved connection details", async () => {
 				await page.reload();
 				await openRemoteTerminalCard(page);
-				await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled();
+				await expect(page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true })).toBeEnabled();
 				await expect(card.getByText(`Resource group: ${backendResourceGroup}`, { exact: true })).toBeVisible();
 				await openConnectionDetails(card);
 				await expect(connectionInput(card, "WEBPUBSUB_CLIENT_ID")).toHaveValue(clientId);
@@ -57,8 +57,8 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 			});
 
 			await test.step("Re-run setup without replacing the pipeline identity", async () => {
-				await card.getByRole("button", { name: "Re-run", exact: true }).click();
-				await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 600_000 });
+				await page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true }).click();
+				await expect(page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true })).toBeEnabled({ timeout: 600_000 });
 				await expectSuccessfulSteps(card, remoteTerminalStepLabels(names));
 				await expect(connectionInput(card, "WEBPUBSUB_CLIENT_ID")).toHaveValue(clientId);
 				await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled({ timeout: 60_000 });
@@ -70,10 +70,10 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 				const original = await input.inputValue();
 				await input.fill("https://unsaved.example");
 				await expect(card.getByRole("button", { name: "Save 1 variable", exact: true })).toBeEnabled();
-				const collapse = card.getByRole("button", { name: "collapse", exact: true });
-				await expect(collapse).toHaveAttribute("aria-controls", "remote-terminal-connection-details");
+				const collapse = card.getByRole("button", { name: "hide results", exact: true });
+				await expect(collapse).toHaveAttribute("aria-controls", "private-hosting-connection-details");
 				await collapse.click();
-				await expect(card.getByRole("button", { name: "open to enter connection detail", exact: true }))
+				await expect(card.getByRole("button", { name: "view results", exact: true }))
 					.toHaveAttribute("aria-expanded", "false");
 				await expect(input).toBeHidden();
 				await openConnectionDetails(card);
@@ -86,10 +86,10 @@ for (const [viewportName, viewport] of Object.entries(viewports)) {
 
 		test("Requires authentication before creating relay resources", async ({ page }, testInfo) => {
 			await page.goto(CORP_URL);
-			const card = page.locator("#card-remote_terminal_infra");
-			await card.getByRole("button", { name: /^Private Zeninstaller Backend Environment/ }).click();
+			const card = page.locator("#card-core_infra");
+			await card.getByRole("button", { name: /^Private hosting environment/ }).click();
 			await expect(card.getByText("Sign in to Azure", { exact: true })).toBeVisible();
-			await expect(card.getByRole("button", { name: /Create backend environment|Re-run/ })).toHaveCount(0);
+			await expect(page.locator("#card-core_infra").getByRole("button", { name: /Create private hosting environment|Re-run/ })).toHaveCount(0);
 			await expectSnapshot(page, card, testInfo, "authentication-required", viewportName);
 		});
 	});
