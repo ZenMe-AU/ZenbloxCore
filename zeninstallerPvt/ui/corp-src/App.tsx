@@ -214,6 +214,7 @@ function AppDashboard() {
       azureAccount: azureLogin.account,
       tenantId: azureLogin.confirmedTenantId,
       subscriptionId: azureSubscription.selectedSubscriptionId,
+      dnsName,
     })
   );
 

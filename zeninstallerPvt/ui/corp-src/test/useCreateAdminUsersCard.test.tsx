@@ -89,13 +89,14 @@ async function waitFor(assertion: () => void, timeoutMs = 2000) {
 
 const account = { tenantId: "tenant-1", homeAccountId: "home-1" } as AccountInfo;
 
-function renderCard() {
+function renderCard(dnsName = "") {
   let latest: UseCreateAdminUsersCard | null = null;
   function Harness() {
     const value = useCreateAdminUsersCard({
       azureAccount: account,
       tenantId: "tenant-1",
       subscriptionId: "sub-1",
+      dnsName,
     });
     useEffect(() => {
       latest = value;
@@ -146,6 +147,17 @@ describe("useCreateAdminUsersCard", () => {
     mocks.getSignedInUser.mockResolvedValue({ id: "me", displayName: "Max Ng", userPrincipalName: "max@corp.com" });
   });
 
+  it("defaults new accounts to the corp domain once verified, otherwise to the tenant's primary", async () => {
+    mocks.listVerifiedDomainsViaOrganization.mockResolvedValue([
+      { name: "corp.onmicrosoft.com", isDefault: true, isInitial: true },
+      { name: "corp.com", isDefault: false, isInitial: false },
+    ]);
+    const verified = renderCard("Corp.com");
+    await waitFor(() => expect(verified.current.defaultDomain).toBe("corp.com"));
+    const unverified = renderCard("other.com");
+    await waitFor(() => expect(unverified.current.defaultDomain).toBe("corp.onmicrosoft.com"));
+  });
+
   it("shows failed access below Create in prerequisites and recovers after rechecking", async () => {
     mocks.ensureCardResourceAccess.mockRejectedValue(new Error("Missing role assignment access"));
     mocks.getEntraLicence.mockResolvedValue("p2");
@@ -154,7 +166,7 @@ describe("useCreateAdminUsersCard", () => {
     document.body.appendChild(container);
     const root = createRoot(container);
     function Harness() {
-      const value = useCreateAdminUsersCard({ azureAccount: account, tenantId: "tenant-1", subscriptionId: "sub-1" });
+      const value = useCreateAdminUsersCard({ azureAccount: account, tenantId: "tenant-1", subscriptionId: "sub-1", dnsName: "" });
       useEffect(() => { latest = value; }, [value]);
       return (
         <ThemeProvider theme={theme}>
@@ -205,7 +217,7 @@ describe("useCreateAdminUsersCard", () => {
     document.body.appendChild(container);
     const root = createRoot(container);
     function Harness() {
-      const value = useCreateAdminUsersCard({ azureAccount: account, tenantId: "tenant-1", subscriptionId: "sub-1" });
+      const value = useCreateAdminUsersCard({ azureAccount: account, tenantId: "tenant-1", subscriptionId: "sub-1", dnsName: "" });
       useEffect(() => { latest = value; }, [value]);
       return (
         <ThemeProvider theme={theme}>
@@ -219,7 +231,7 @@ describe("useCreateAdminUsersCard", () => {
     }
     try {
       await act(async () => root.render(<Harness />));
-      await waitFor(() => expect(latest?.primaryDomain).toBe("corp.com"));
+      await waitFor(() => expect(latest?.defaultDomain).toBe("corp.com"));
       const header = container.querySelector(`[aria-controls="admin-user-${latest!.admins[0].key}"]`)!;
       // Nothing typed yet: not started; beside Create, why it can't run.
       const note = () => container.querySelector('[role="note"]')?.textContent;
@@ -250,7 +262,7 @@ describe("useCreateAdminUsersCard", () => {
     const card = renderCard();
     await waitFor(() => expect(card.current.missingGroups).toEqual(["PrivilegedAccounts"]));
     await waitFor(() => expect(card.current.entraLicence).toBe("p1"));
-    expect(card.current.primaryDomain).toBe("corp.com");
+    expect(card.current.defaultDomain).toBe("corp.com");
     // P1 allows the role-assignable group but not PIM.
     expect(card.current.roleTarget).toBe("group");
     act(() => card.current.setUsePim(true));
@@ -532,7 +544,7 @@ describe("useCreateAdminUsersCard", () => {
 
   it("asks whether an account Entra already has under the UPN is this person, and reuses it only once confirmed", async () => {
     const card = renderCard();
-    await waitFor(() => expect(card.current.primaryDomain).toBe("corp.com"));
+    await waitFor(() => expect(card.current.defaultDomain).toBe("corp.com"));
     const key = card.current.admins[0].key;
     act(() => card.current.updateAdmin(key, { givenName: "Ann", surname: "Lee", mobile: "+61 400 000 001", employeeId: "E001" }));
     await waitFor(() => expect(card.current.rowErrors).toEqual({ [key]: "Ann.Lee@corp.com (Ann Lee) is already in Entra but doesn't have a Privileged Account yet. If you use it, adm_Ann.Lee@corp.com will be created as its Privileged Account." }));
@@ -636,7 +648,7 @@ describe("useCreateAdminUsersCard", () => {
   it("still creates the accounts when passkeys can't be allowed, and skips it when they already are", async () => {
     mocks.ensureFido2Enabled.mockRejectedValueOnce(new Error("403 Forbidden"));
     const card = renderCard();
-    await waitFor(() => expect(card.current.primaryDomain).toBe("corp.com"));
+    await waitFor(() => expect(card.current.defaultDomain).toBe("corp.com"));
     act(() => card.current.updateAdmin(card.current.admins[0].key, { givenName: "Bob", surname: "Wu", mobile: "+61 400 000 002", employeeId: "E002" }));
     await act(async () => {
       await card.current.run();

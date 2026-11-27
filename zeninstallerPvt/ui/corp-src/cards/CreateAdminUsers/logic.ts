@@ -65,9 +65,9 @@ export const newAdmin = (): AdminRow => ({
 export const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 // The row's user and adm_ UPNs; none until it has a name and a domain.
-export function rowUpns(a: AdminRow, primaryDomain: string): string[] {
+export function rowUpns(a: AdminRow, defaultDomain: string): string[] {
   const r = resolveAdmin(a);
-  const domain = a.domain ?? primaryDomain;
+  const domain = a.domain ?? defaultDomain;
   return r.username.trim() && domain ? [`${r.username.trim()}@${domain}`, `${r.privilegedUsername.trim()}@${domain}`] : [];
 }
 
@@ -127,7 +127,7 @@ export function byManager(admins: AdminRow[]): AdminRow[] {
 // takenUpns: accounts Entra already has under the rows' UPNs; reusing one needs the operator's confirmation.
 // employeeIdAccounts: accounts Entra already has with the rows' employee IDs, by lowercase ID.
 // Each row's first problem; adminRowIssues has them all.
-export function adminRowErrors(admins: AdminRow[], existing: readonly AdminPair[] = [], primaryDomain = "", takenUpns: ReadonlyMap<string, FoundAccount> = new Map(), employeeIdAccounts: ReadonlyMap<string, FoundAccount[]> = new Map()): Record<string, string> {
+export function adminRowErrors(admins: AdminRow[], existing: readonly AdminPair[] = [], defaultDomain = "", takenUpns: ReadonlyMap<string, FoundAccount> = new Map(), employeeIdAccounts: ReadonlyMap<string, FoundAccount[]> = new Map()): Record<string, string> {
   // Deprecated: adminRowIssues lists every problem with its field; this keeps the first one's message; kept for reference.
   // const errors: Record<string, string> = {};
   // // const seen = new Set<string>(); // Deprecated: duplicateUpns finds the repeats; kept for reference.
@@ -138,9 +138,9 @@ export function adminRowErrors(admins: AdminRow[], existing: readonly AdminPair[
   //   // const names = [r.username, r.privilegedUsername].map((n) => n.trim().toLowerCase()); // Deprecated: duplicateUpns finds the repeats; kept for reference.
   //   const duplicate = duplicates[a.key];
   //   const employeeId = a.employeeId.trim().toLowerCase();
-  //   const upn = `${r.username.trim()}@${a.domain ?? primaryDomain}`.toLowerCase();
+  //   const upn = `${r.username.trim()}@${a.domain ?? defaultDomain}`.toLowerCase();
   //   const loop = managerLoop(admins, a);
-  //   const owner = !!(a.domain ?? primaryDomain) && existing.find((x) => x.user.employeeId?.trim().toLowerCase() === employeeId && x.user.userPrincipalName.toLowerCase() !== upn);
+  //   const owner = !!(a.domain ?? defaultDomain) && existing.find((x) => x.user.employeeId?.trim().toLowerCase() === employeeId && x.user.userPrincipalName.toLowerCase() !== upn);
   //   if (!a.givenName.trim() || !a.surname.trim()) errors[a.key] = "Enter the first name and surname.";
   //   else if (!MOBILE.test(a.mobile.trim())) errors[a.key] = "Enter a mobile number, e.g. +61 400 000 000.";
   //   else if (!a.employeeId.trim()) errors[a.key] = "Enter the employee ID.";
@@ -157,7 +157,7 @@ export function adminRowErrors(admins: AdminRow[], existing: readonly AdminPair[
   //   employeeIds.add(a.employeeId.trim().toLowerCase());
   // }
   // return errors;
-  return Object.fromEntries(Object.entries(adminRowIssues(admins, existing, primaryDomain, takenUpns, employeeIdAccounts)).map(([key, issues]) => [key, issues[0].message]));
+  return Object.fromEntries(Object.entries(adminRowIssues(admins, existing, defaultDomain, takenUpns, employeeIdAccounts)).map(([key, issues]) => [key, issues[0].message]));
 }
 
 // The rows left once the created admins leave the list. A row that picked one of them as manager now points at that account in Entra.
@@ -172,11 +172,11 @@ export function withoutCreated(admins: AdminRow[], created: CreatedAdmin[]): Adm
 }
 
 // A warning, not an error: the run reuses accounts the operator confirmed are this person.
-export function adminRowWarnings(admins: AdminRow[], primaryDomain: string, takenUpns: ReadonlyMap<string, FoundAccount>, rowErrors: Record<string, string>): Record<string, string> {
+export function adminRowWarnings(admins: AdminRow[], defaultDomain: string, takenUpns: ReadonlyMap<string, FoundAccount>, rowErrors: Record<string, string>): Record<string, string> {
   return Object.fromEntries(admins.flatMap((a) => {
-    // const existing = rowUpns(a, primaryDomain).filter((upn) => takenUpns.has(upn.toLowerCase())); // Deprecated: reusing an account now needs the operator's confirmation; kept for reference.
+    // const existing = rowUpns(a, defaultDomain).filter((upn) => takenUpns.has(upn.toLowerCase())); // Deprecated: reusing an account now needs the operator's confirmation; kept for reference.
     // return existing.length && !rowErrors[a.key] ? [[a.key, `Already in Entra: ${existing.join(", ")}. Running reuses ${existing.length > 1 ? "these accounts" : "this account"} instead of creating one.`]] : []; // Deprecated: reusing an account now needs the operator's confirmation; kept for reference.
-    const reuse = reuseCheck(a, primaryDomain, takenUpns);
+    const reuse = reuseCheck(a, defaultDomain, takenUpns);
     return reuse?.state === "confirmed" && !rowErrors[a.key] ? [[a.key, reuse.message]] : [];
   }));
 }
@@ -205,8 +205,8 @@ export type ReuseCheck =
   | { state: "confirmed"; message: string };
 
 // Null if Entra has no account under the row's UPNs.
-export function reuseCheck(admin: AdminRow, primaryDomain: string, takenUpns: ReadonlyMap<string, FoundAccount>): ReuseCheck | null {
-  const accounts = rowUpns(admin, primaryDomain).flatMap((upn) => takenUpns.get(upn.toLowerCase()) ?? []);
+export function reuseCheck(admin: AdminRow, defaultDomain: string, takenUpns: ReadonlyMap<string, FoundAccount>): ReuseCheck | null {
+  const accounts = rowUpns(admin, defaultDomain).flatMap((upn) => takenUpns.get(upn.toLowerCase()) ?? []);
   if (!accounts.length) return null;
   const employeeId = admin.employeeId.trim();
   // Until the row has an employee ID, nobody is someone else; one typed later is checked then.
@@ -217,7 +217,7 @@ export function reuseCheck(admin: AdminRow, primaryDomain: string, takenUpns: Re
     return { state: "confirmed", message: `Reusing ${accounts.map((account) => account.userPrincipalName).join(", ")}, confirmed as this person.` };
   }
   const inEntra = accounts.find((account) => account.employeeId?.trim())?.employeeId?.trim() ?? null;
-  const missing = missingAccount(rowUpns(admin, primaryDomain)[0], accounts);
+  const missing = missingAccount(rowUpns(admin, defaultDomain)[0], accounts);
   const message = missing ? `${accountNames(accounts)} is already in Entra but ${missing}` : `${accountNames(accounts)} are already in Entra. ${NOTHING_CREATED}`;
   return { state: "unconfirmed", message, accountIds: accounts.map((account) => account.id), employeeId: inEntra };
 }
@@ -271,7 +271,7 @@ export function issueHeadline(admin: AdminRow, issues: RowIssue[]): string {
 export function adminRowIssues(
   admins: AdminRow[],
   existing: readonly AdminPair[] = [],
-  primaryDomain = "",
+  defaultDomain = "",
   takenUpns: ReadonlyMap<string, FoundAccount> = new Map(),
   employeeIdAccounts: ReadonlyMap<string, FoundAccount[]> = new Map()
 ): Record<string, RowIssue[]> {
@@ -283,7 +283,7 @@ export function adminRowIssues(
     const found: RowIssue[] = [];
     const add = (issue: RowIssue) => found.push(issue);
     const employeeId = admin.employeeId.trim();
-    const domain = admin.domain ?? primaryDomain;
+    const domain = admin.domain ?? defaultDomain;
     const upn = `${resolved.username.trim()}@${domain}`.toLowerCase();
 
     if (!admin.givenName.trim()) add({ field: "givenName", kind: "input", summary: "First name missing", message: "Enter the first name." });
@@ -291,7 +291,7 @@ export function adminRowIssues(
     if (!MOBILE.test(admin.mobile.trim())) add({ field: "mobile", kind: "input", summary: admin.mobile.trim() ? "Mobile number invalid" : "Mobile number missing", message: "Enter a mobile number, e.g. +61 400 000 000." });
 
     const owner = !!domain && existing.find((pair) => pair.user.employeeId?.trim().toLowerCase() === employeeId.toLowerCase() && pair.user.userPrincipalName.toLowerCase() !== upn);
-    const elsewhere = employeeId ? employeeIdElsewhere(admin, primaryDomain, existing, employeeIdAccounts) : null;
+    const elsewhere = employeeId ? employeeIdElsewhere(admin, defaultDomain, existing, employeeIdAccounts) : null;
     if (!employeeId) add({ field: "employeeId", kind: "input", summary: "Employee ID missing", message: "Enter the employee ID." });
     else if (employeeIdRows.has(employeeId.toLowerCase())) {
       add({ field: "employeeId", kind: "conflict", summary: "Employee ID repeated", message: `Employee ID ${employeeId} is already used by User ${employeeIdRows.get(employeeId.toLowerCase())}. Enter a different Employee ID, or remove this entry if it refers to the same person.` });
@@ -305,14 +305,14 @@ export function adminRowIssues(
 
     // Asked as soon as Entra has the UPN, like the employee ID's; Use fills in an empty employee ID from Entra, as that one fills in the UPN.
     const duplicate = duplicates[admin.key];
-    const reuse = reuseCheck(admin, primaryDomain, takenUpns);
+    const reuse = reuseCheck(admin, defaultDomain, takenUpns);
     if (!resolved.username.trim()) {
       if (admin.username !== null) add({ field: "upn", kind: "input", summary: "UPN missing", message: "Enter the UPN." });
     } else if (!USERNAME.test(resolved.username.trim())) add({ field: "upn", kind: "input", summary: "UPN invalid", message: "Use letters, numbers, dots, hyphens or underscores in the UPN." });
     else if (duplicate) add({ field: "upn", kind: "conflict", summary: "UPN repeated", message: `${domain ? `${duplicate.upn}@${domain}` : duplicate.upn} is already used by User ${duplicate.row}. Enter a different UPN.` });
     else if (reuse?.state === "otherPerson") add({ field: "upn", kind: "conflict", summary: "UPN belongs to someone else", message: reuse.message });
     else if (reuse?.state === "unconfirmed") {
-      add({ field: "upn", kind: "decision", summary: "UPN already in Entra", message: reuse.message, fix: { label: `Use ${rowUpns(admin, primaryDomain)[0]}`, patch: { confirmedAccountIds: reuse.accountIds, ...(!employeeId && reuse.employeeId ? { employeeId: reuse.employeeId } : {}) } } });
+      add({ field: "upn", kind: "decision", summary: "UPN already in Entra", message: reuse.message, fix: { label: `Use ${rowUpns(admin, defaultDomain)[0]}`, patch: { confirmedAccountIds: reuse.accountIds, ...(!employeeId && reuse.employeeId ? { employeeId: reuse.employeeId } : {}) } } });
     }
 
     const pick = admin.manager;
@@ -326,9 +326,9 @@ export function adminRowIssues(
 }
 
 // Accounts Entra has with the row's employee ID under other UPNs, which no listed admin holds: this person's, so the row should use them.
-function employeeIdElsewhere(admin: AdminRow, primaryDomain: string, existing: readonly AdminPair[], employeeIdAccounts: ReadonlyMap<string, FoundAccount[]>): RowIssue | null {
+function employeeIdElsewhere(admin: AdminRow, defaultDomain: string, existing: readonly AdminPair[], employeeIdAccounts: ReadonlyMap<string, FoundAccount[]>): RowIssue | null {
   const employeeId = admin.employeeId.trim();
-  const own = new Set(rowUpns(admin, primaryDomain).map((upn) => upn.toLowerCase()));
+  const own = new Set(rowUpns(admin, defaultDomain).map((upn) => upn.toLowerCase()));
   const listed = new Set(existing.flatMap((pair) => [pair.user.id, pair.privileged.id]));
   const accounts = (employeeIdAccounts.get(employeeId.toLowerCase()) ?? []).filter((account) => !own.has(account.userPrincipalName.toLowerCase()) && !listed.has(account.id));
   if (!accounts.length) return null;
@@ -342,6 +342,6 @@ function employeeIdElsewhere(admin: AdminRow, primaryDomain: string, existing: r
   return {
     ...issue,
     message: missing ? `${associated}, which ${missing}` : `${issue.message} ${NOTHING_CREATED}`,
-    fix: { label: `Use ${userUpns[0]}`, patch: { username, domain: domain.toLowerCase() === primaryDomain.toLowerCase() ? null : domain, confirmedAccountIds: accounts.map((account) => account.id) } },
+    fix: { label: `Use ${userUpns[0]}`, patch: { username, domain: domain.toLowerCase() === defaultDomain.toLowerCase() ? null : domain, confirmedAccountIds: accounts.map((account) => account.id) } },
   };
 }

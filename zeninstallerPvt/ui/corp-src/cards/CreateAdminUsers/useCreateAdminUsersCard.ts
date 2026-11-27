@@ -34,6 +34,7 @@ export type UseCreateAdminUsersCardParams = {
   azureAccount: AzureAccount | null;
   tenantId: string | null;
   subscriptionId: string;
+  dnsName: string; // The corp domain, which new accounts use once Entra lists it as verified.
 };
 
 export type UseCreateAdminUsersCard = CardHook & {
@@ -50,7 +51,7 @@ export type UseCreateAdminUsersCard = CardHook & {
   searchUsers: (query: string) => Promise<EntraUser[]>; // For the manager picker.
   signedInUser: EntraUser | null; // Every user account's default manager; null until read.
   domains: VerifiedDomain[] | null; // The tenant's verified domains; null until read.
-  primaryDomain: string; // Empty until the domains are read.
+  defaultDomain: string; // The domain new accounts use: the corp domain once verified, otherwise the tenant's primary; empty until the domains are read.
   missingGroups: string[] | null; // Null until Entra was read.
   existingAdmins: AdminPair[] | null; // Admins already in Entra; null until read.
   waitingAdmins: WaitingAdmin[]; // A run finished them, but Entra doesn't list them as existing yet.
@@ -73,7 +74,7 @@ export type UseCreateAdminUsersCard = CardHook & {
   error: string | null; // Reading the groups or admins failed.
 };
 
-export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId }: UseCreateAdminUsersCardParams): UseCreateAdminUsersCard {
+export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId, dnsName }: UseCreateAdminUsersCardParams): UseCreateAdminUsersCard {
   // The user's input.
   const [admins, setAdmins] = useState<AdminRow[]>(() => [newAdmin()]);
   const [pimChoice, setUsePim] = useState<boolean | null>(null);
@@ -94,8 +95,8 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   const { missingGroups, existingAdmins, signedInUser, checking, error: directoryError } = useAdminDirectory(azureAccount, tenantId, checkKey);
   const recheck = useCallback(() => setCheckKey((key) => key + 1), []);
   const { entraLicence, domains, error: tenantError } = useLicenceAndDomains(azureAccount, tenantId);
-  const primaryDomain = domains?.find((d) => d.isDefault)?.name ?? "";
-  const takenUpns = useTakenUpns(azureAccount, tenantId, admins.flatMap((a) => rowUpns(a, primaryDomain)), checkKey);
+  const defaultDomain = domains?.find((d) => d.name.toLowerCase() === dnsName.toLowerCase())?.name ?? domains?.find((d) => d.isDefault)?.name ?? "";
+  const takenUpns = useTakenUpns(azureAccount, tenantId, admins.flatMap((a) => rowUpns(a, defaultDomain)), checkKey);
   const employeeIdAccounts = useEmployeeIdAccounts(azureAccount, tenantId, admins.map((admin) => admin.employeeId), checkKey);
   const tid = tenantId || undefined;
   const findUsers = useCallback((query: string) => (azureAccount ? searchUsers(azureAccount, query, tid) : Promise.resolve([])), [azureAccount, tid]);
@@ -107,17 +108,17 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
   // Their accounts exist, so they count as existing while Entra doesn't list them yet.
   const waitingAdmins = created.filter((createdAdmin) => !existingAdmins?.some((pair) => pair.user.id === createdAdmin.user.id));
   const existingAndWaitingAdmins = [...(existingAdmins ?? []), ...waitingAdmins];
-  const rowErrors = adminRowErrors(admins, existingAndWaitingAdmins, primaryDomain, takenUpns, employeeIdAccounts);
-  const rowIssues = adminRowIssues(admins, existingAndWaitingAdmins, primaryDomain, takenUpns, employeeIdAccounts);
-  const rowWarnings = adminRowWarnings(admins, primaryDomain, takenUpns, rowErrors);
+  const rowErrors = adminRowErrors(admins, existingAndWaitingAdmins, defaultDomain, takenUpns, employeeIdAccounts);
+  const rowIssues = adminRowIssues(admins, existingAndWaitingAdmins, defaultDomain, takenUpns, employeeIdAccounts);
+  const rowWarnings = adminRowWarnings(admins, defaultDomain, takenUpns, rowErrors);
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
-  const canRun = !running && !!primaryDomain && !!signedInUser && access.status === "ready" && licenceAllows("none", entraLicence) && Object.keys(rowErrors).length === 0;
+  const canRun = !running && !!defaultDomain && !!signedInUser && access.status === "ready" && licenceAllows("none", entraLicence) && Object.keys(rowErrors).length === 0;
 
   // The run: steps.ts does the work; the hook keeps the checklist and the consent flag.
   const [runNeedsConsent, setRunNeedsConsent] = useState(false);
   const run = useCallback(async () => {
     if (!azureAccount || !tenantId || !signedInUser || !canRun) return;
-    const input = { azureAccount, tenantId, subscriptionId, admins, primaryDomain, signedInUser, roleTarget, usePim, takenUpns };
+    const input = { azureAccount, tenantId, subscriptionId, admins, defaultDomain, signedInUser, roleTarget, usePim, takenUpns };
     setSteps(adminUsersSteps(input).map((s) => ({ ...s, status: "pending" as const })));
     setRunning(true);
     setRunNeedsConsent(false);
@@ -135,7 +136,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
       setRunning(false);
       setCheckKey((k) => k + 1);
     }
-  }, [azureAccount, tenantId, canRun, signedInUser, primaryDomain, admins, subscriptionId, roleTarget, usePim, takenUpns, setSteps, setRunning, updateStep]);
+  }, [azureAccount, tenantId, canRun, signedInUser, defaultDomain, admins, subscriptionId, roleTarget, usePim, takenUpns, setSteps, setRunning, updateStep]);
 
   // The reads after a run; a run that creates admins starts them again, and they stop once Entra lists everyone.
   const allListed = waitingAdmins.length === 0;
@@ -181,7 +182,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     cardId: "create_admin_users",
     status,
     summary,
-    cardRequirements: ["azure_login", "azure_subscription", "dns_verify"], // admin accounts use the verified corp domain
+    cardRequirements: ["azure_login", "azure_subscription", ], // admin accounts use the verified corp domain
     cardDependencyLabel: CREATE_ADMIN_USERS_TITLE,
     done,
     admins,
@@ -196,7 +197,7 @@ export function useCreateAdminUsersCard({ azureAccount, tenantId, subscriptionId
     searchUsers: findUsers,
     signedInUser,
     domains,
-    primaryDomain,
+    defaultDomain,
     missingGroups,
     existingAdmins,
     waitingAdmins,

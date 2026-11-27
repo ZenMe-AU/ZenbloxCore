@@ -88,12 +88,12 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
   editing: boolean;
   onEditToggle: () => void;
 }) {
-  const { admins, rowIssues, rowWarnings, duplicateUpns, takenUpns, updateAdmin, removeAdmin, searchUsers, signedInUser, domains, primaryDomain, existingAndWaitingAdmins, licenceError, running, consentRequired } = adminUsers;
+  const { admins, rowIssues, rowWarnings, duplicateUpns, takenUpns, updateAdmin, removeAdmin, searchUsers, signedInUser, domains, defaultDomain, existingAndWaitingAdmins, licenceError, running, consentRequired } = adminUsers;
   const r = resolveAdmin(a);
   const defaultName = resolveAdmin({ ...a, displayName: null }).displayName;
   const defaultUpn = resolveAdmin({ ...a, username: null }).username;
-  const domain = a.domain ?? primaryDomain;
-  const reuse = reuseCheck(a, primaryDomain, takenUpns);
+  const domain = a.domain ?? defaultDomain;
+  const reuse = reuseCheck(a, defaultDomain, takenUpns);
   const [leftFields, setLeftFields] = useState<ReadonlySet<RowField>>(new Set()); // Fields the operator has moved out of.
   const leave = (field: RowField) => setLeftFields((prev) => (prev.has(field) ? prev : new Set([...prev, field])));
   // A UPN or display name that follows the names counts as left once a name is.
@@ -314,7 +314,7 @@ export default function AdminUserRow({ adminUsers, admin: a, index, open, onTogg
                             label={`User ${index + 1} domain`}
                             value={domain}
                             domains={domains}
-                            onChange={(d) => updateAdmin(a.key, { domain: d === primaryDomain ? null : d })}
+                            onChange={(d) => updateAdmin(a.key, { domain: d === defaultDomain ? null : d })}
                             disabled={running}
                             note={domainNote}
                             error={!domains && !!licenceError}

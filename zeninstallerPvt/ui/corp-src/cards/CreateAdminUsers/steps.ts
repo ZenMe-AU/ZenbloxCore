@@ -35,7 +35,7 @@ export type AdminUsersInput = {
   tenantId: string;
   subscriptionId: string;
   admins: AdminRow[];
-  primaryDomain: string;
+  defaultDomain: string;
   signedInUser: EntraUser;
   roleTarget: RoleTarget;
   usePim: boolean;
@@ -51,10 +51,10 @@ export type AdminUsersRun = AdminUsersInput & {
 const NESTED = ADMIN_GROUPS.some((g) => g.memberOf.length > 0);
 
 // Every admin gets a user account and an adm_ account, each in its fixed groups; managers from this list come first.
-function accountsOf({ admins, primaryDomain }: AdminUsersInput) {
+function accountsOf({ admins, defaultDomain }: AdminUsersInput) {
   return byManager(admins).flatMap((a) => {
     const r = resolveAdmin(a);
-    const domain = a.domain ?? primaryDomain;
+    const domain = a.domain ?? defaultDomain;
     return [
       { a, kind: "user", upn: `${r.username.trim()}@${domain}`, displayName: r.displayName.trim(), groups: USER_ACCOUNT_GROUPS },
       { a, kind: "priv", upn: `${r.privilegedUsername.trim()}@${domain}`, displayName: r.privilegedDisplayName, groups: PRIVILEGED_ACCOUNT_GROUPS },
