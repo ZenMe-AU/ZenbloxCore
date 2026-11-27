@@ -11,8 +11,7 @@ import { Box, TextField, ThemeProvider } from "@mui/material";
 import { getContrastRatio } from "@mui/material/styles";
 import AccessPassCard from "../cards/AccessPass/AccessPassCard";
 import type { UseAccessPassCard } from "../cards/AccessPass/useAccessPassCard";
-import BackendDeployCard from "../cards/BackendDeploy/BackendDeployCard";
-import WebDeployCard from "../cards/WebDeploy/WebDeployCard";
+import PrivateZeninstallerCard from "../cards/PrivateZeninstaller/PrivateZeninstallerCard";
 import AzureAppRegistrationCard from "../cards/AzureAppRegistration/AzureAppRegistrationCard";
 import type { UseAzureAppRegistrationCard } from "../cards/AzureAppRegistration/useAzureAppRegistrationCard";
 import type { UseBackendPart } from "../cards/CoreInfra/useBackendPart";
@@ -306,9 +305,8 @@ describe("shared UI building blocks", () => {
           const presentation = getDeployCardPresentation({ ready: true, access, done: false, doneSummary: "Deployed", updateAvailable: true, buildSummary: "Build" });
           const common = {
             ...presentation, managementAccess: access, latest, deployed: { version: "1", sha: "abcdefg", builtAt: 10, deployedAt: 10 },
-            loadingLatest: false, loadingDeployed: false, building: false, build: vi.fn(), buildWorkflow: "build.yml", updateAvailable: true,
-            error: null, failedBuildRunId: null, steps: [], running: false, run: vi.fn(), reset: vi.fn(), done: false,
-            cardRequirements: [], cardDependencyLabel: "Deploy",
+            loadingLatest: false, loadingDeployed: false, building: false, build: vi.fn(), updateAvailable: true,
+            error: null, failedBuildRunId: null, steps: [], running: false, run: vi.fn(), done: false,
           };
           const chrome = { status: presentation.status, summary: presentation.summary, locked: false, requirements: [], unavailable: false, expanded: true, onToggle: vi.fn(), onRequirementClick: vi.fn() };
           const severity = presentation.accessNotice?.severity ?? "warning";
@@ -317,10 +315,12 @@ describe("shared UI building blocks", () => {
               border: "1px solid", borderColor: theme.vars.palette.card.border[presentation.status],
               color: severity === "error" ? "error.main" : "warning.dark",
             }} />
-            <BackendDeployCard card={{ ...chrome, cardId: "backend_deploy" }} repoFullName="org/repo"
-              backend={{ ...common, cardId: "backend_deploy", appName: "private-app", deployedUnavailable: false }} />
-            <WebDeployCard card={{ ...chrome, cardId: "web_deploy" }} repoFullName="org/repo" githubAccount={null} repoName="repo" selectedEnv={null} variables={variables}
-              web={{ ...common, cardId: "web_deploy", storageAccountName: "privatesite", siteUrl: null, missingGithubClientId: false, staleVariables: [] }} />
+            <PrivateZeninstallerCard card={{ ...chrome, cardId: "private_zeninstaller" }} repoFullName={null} githubAccount={null} repoName="repo" selectedEnv={null} variables={variables}
+              zeninstaller={{
+                appName: "private-app", storageAccountName: "privatesite", managementAccess: access,
+                backend: { ...common, deployedUnavailable: false },
+                web: { ...common, siteUrl: null, missingGithubClientId: false, staleVariables: [] },
+              }} />
           </ThemeProvider>));
         };
         try {
@@ -329,9 +329,11 @@ describe("shared UI building blocks", () => {
             render();
             await expect.poll(() => document.documentElement.getAttribute("data-mui-color-scheme")).toBe(mode);
             const reference = container.querySelector('[data-testid="deployment-colors"]')!;
+            // The shared card's border carries the deploys' severity; each section is checked for its own copy.
+            const outer = container.querySelector<HTMLElement>("#card-private_zeninstaller")!;
+            await expect.poll(() => getComputedStyle(outer).borderTopColor).toBe(getComputedStyle(reference).borderTopColor);
             for (const cardId of ["backend_deploy", "web_deploy"]) {
               const card = container.querySelector<HTMLElement>(`#card-${cardId}`)!;
-              await expect.poll(() => getComputedStyle(card).borderTopColor).toBe(getComputedStyle(reference).borderTopColor);
               expect(card.textContent).not.toContain("Ready to deploy the new build");
               expect(card.querySelector('[data-testid="ErrorOutlineIcon"]') !== null).toBe(kind === "request");
               const detail = [...card.querySelectorAll<HTMLElement>('[role="alert"] .MuiTypography-root')][0];

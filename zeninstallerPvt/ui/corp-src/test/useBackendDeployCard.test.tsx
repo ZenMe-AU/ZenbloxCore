@@ -2,8 +2,8 @@ import { act, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import BackendDeployCard from "../cards/BackendDeploy/BackendDeployCard";
-import { useBackendDeployCard, type UseBackendDeployCard } from "../cards/BackendDeploy/useBackendDeployCard";
+import { BackendDeploySection } from "../cards/PrivateZeninstaller/PrivateZeninstallerCard";
+import { useBackendDeployCard, type UseBackendDeployCard } from "../cards/PrivateZeninstaller/usePrivateZeninstallerCard";
 import type { AzureAccount } from "../types";
 import theme from "../theme";
 
@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 		retry: vi.fn(),
 		check: vi.fn(),
 		reportFailure: vi.fn(),
+		missingRoles: null, missingEntra: null, unregisteredProviders: [] as string[], registeringProviders: false, registerProviders: async () => {}, missingConsent: [] as string[], grantConsent: vi.fn(),
 	},
 	fetchStageReport: vi.fn(),
 	fetchArtifactZip: vi.fn(),
@@ -50,6 +51,8 @@ const hookProps = {
 	repoName: "repo",
 	selectedEnv: { name: "main", id: 1, url: "" },
 	variableValues: {},
+	appName: "private-app",
+	managementAccess: mocks.access,
 };
 
 async function mount() {
@@ -275,21 +278,15 @@ describe("backend deploy permission errors", () => {
 			repoName: "corp",
 			selectedEnv: { name: "TEST", id: 1, url: "" },
 			variableValues: {},
+			appName: "private-app",
+			managementAccess: mocks.access,
 		};
 
 		function Harness() {
 			const backend = useBackendDeployCard(props);
 			return (
 				<ThemeProvider theme={theme}>
-					<BackendDeployCard
-						card={{
-							cardId: "backend_deploy", status: backend.status, summary: backend.summary,
-							locked: false, requirements: [], unavailable: false, expanded: true,
-							onToggle: vi.fn(), onRequirementClick: vi.fn(),
-						}}
-						backend={backend}
-						repoFullName="example/corp"
-					/>
+					<BackendDeploySection backend={backend} appName={props.appName} />
 				</ThemeProvider>
 			);
 		}

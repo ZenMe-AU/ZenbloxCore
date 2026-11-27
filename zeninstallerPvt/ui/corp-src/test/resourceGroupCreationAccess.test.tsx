@@ -28,7 +28,7 @@ import { DEPLOYMENT_TERMINAL_KEYS } from "../logic/variables";
 import theme from "../theme";
 import type { AzureAccount, SetupStep } from "../types";
 // import type { ResourceGroupCreationAccess } from "../hooks/util/useResourceGroupCreationAccess"; // Deprecated: renamed to useAzureAccessCheck, and cards now expose CardResourceAccess; kept for reference.
-import { backendDeployAccess } from "../cards/BackendDeploy/config";
+import { zeninstallerPvtAccess } from "../cards/PrivateZeninstaller/config";
 
 const mocks = vi.hoisted(() => ({
   getToken: vi.fn(),
@@ -261,7 +261,7 @@ describe("deployment access failure classification", () => {
   it("preserves reported card failures and clears them on retry or target change", async () => {
     let access!: CardResourceAccess;
     function Harness({ subscriptionId = "sub-1" }) {
-      access = useCardResourceAccess({ azureAccount: account, subscriptionId }, backendDeployAccess("app"));
+      access = useCardResourceAccess({ azureAccount: account, subscriptionId }, zeninstallerPvtAccess("site", "app"));
       return null;
     }
     root = createRoot(document.createElement("div"));

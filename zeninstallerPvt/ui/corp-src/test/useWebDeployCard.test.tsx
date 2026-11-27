@@ -2,8 +2,9 @@ import { act, useEffect, type ComponentProps } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@mui/material";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import WebDeployCard from "../cards/WebDeploy/WebDeployCard";
-import { useWebDeployCard, type UseWebDeployCard } from "../cards/WebDeploy/useWebDeployCard";
+import Card from "../components/Card";
+import { WebDeploySection } from "../cards/PrivateZeninstaller/PrivateZeninstallerCard";
+import { useWebDeployCard, type UseWebDeployCard } from "../cards/PrivateZeninstaller/usePrivateZeninstallerCard";
 import type { AzureAccount } from "../types";
 import theme from "../theme";
 
@@ -14,6 +15,7 @@ const { mocks } = vi.hoisted(() => ({
       error: null as string | null,
       failureKind: null as "permission" | "authentication" | "request" | null,
       retry: vi.fn(), check: vi.fn(), reportFailure: vi.fn(),
+      missingRoles: null, missingEntra: null, unregisteredProviders: [] as string[], registeringProviders: false, registerProviders: async () => {}, missingConsent: [] as string[], grantConsent: vi.fn(),
     },
     fetchArtifactZip: vi.fn(),
     fetchStageReport: vi.fn(),
@@ -51,6 +53,8 @@ const props = {
   repoName: "repo",
   selectedEnv: { name: "main", id: 1, url: "" },
   variableValues: { VITE_GITHUB_CLIENT_ID: "client-id" },
+  storageAccountName: "sitestorage",
+  managementAccess: mocks.access,
 };
 
 async function mount(params = props) {
@@ -217,11 +221,13 @@ describe("useWebDeployCard status", () => {
     function Harness() {
       const web = useWebDeployCard(props);
       return <ThemeProvider theme={theme}>
-        <WebDeployCard
-          card={{ cardId: "web_deploy", status: web.status, summary: web.summary, locked: false, requirements: [], unavailable: false, expanded: true, onToggle: vi.fn(), onRequirementClick: vi.fn() }}
-          web={web} repoFullName="org/repo" githubAccount={props.githubAccount} repoName={props.repoName} selectedEnv={props.selectedEnv}
-          variables={{} as ComponentProps<typeof WebDeployCard>["variables"]}
-        />
+        {/* A plain card header stands in for the section header, which shows the frontend's status. */}
+        <Card title="Frontend" cardId="web_deploy" status={web.status} summary={web.summary} locked={false} requirements={[]} unavailable={false} expanded onToggle={vi.fn()} onRequirementClick={vi.fn()}>
+          <WebDeploySection
+            web={web} storageAccountName={props.storageAccountName} managementAccess={props.managementAccess} githubAccount={props.githubAccount} repoName={props.repoName} selectedEnv={props.selectedEnv}
+            variables={{} as ComponentProps<typeof WebDeploySection>["variables"]}
+          />
+        </Card>
       </ThemeProvider>;
     }
     try {

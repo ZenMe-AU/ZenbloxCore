@@ -6,7 +6,7 @@
 import { expect, type BrowserContext, type Page, type Route } from "@playwright/test";
 import { CORP_URL, GITHUB_API_URL, AZURE_MANAGEMENT_URL } from "../../testInit";
 import { installMockAzure, installMockGitHub, installRelayNetworkGuard } from "./mockTestHelper.mts";
-import { expandCard, openHostingSection } from "./cardHelper.mts";
+import { expandCard, openDeploySection, openHostingSection } from "./cardHelper.mts";
 import { getWebStorageAccountName } from "../../../corp-src/logic/naming.ts";
 
 export const tenantId = "00000000-0000-0000-0000-000000000001";
@@ -128,6 +128,7 @@ export async function prepareCardMocks(
     open: async (id: string) => {
       await page.goto(url.toString());
       if (["create_domain", "private_frontend_infra", "remote_terminal_infra"].includes(id)) return openHostingSection(page);
+      if (id === "backend_deploy" || id === "web_deploy") return openDeploySection(page, id);
       const card = page.locator(`#card-${id}`);
       await expandCard(card);
       return card;
