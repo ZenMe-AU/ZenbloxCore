@@ -1,7 +1,7 @@
 import { expect, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { CORP_URL, SUBSCRIPTION_ID, TEST_REPO_MAIN } from "../../testInit";
 import { safePathSegment } from "../../../../../.playwright/testHelper.js";
-import { expandAzureLoginCard, expandAzureSubscriptionCard, expandCard, expandRepoCard } from "./cardHelper.mts";
+import { expandAzureLoginCard, expandAzureSubscriptionCard, expandRepoCard, openHostingSection } from "./cardHelper.mts";
 import { chooseExistingRepo } from "./testHelper.mts";
 import { restoreAzureSessionStorage, restoreGithubSessionStorage } from "./setupHelper.mts";
 
@@ -25,10 +25,7 @@ export function defaultBackendNames(subscriptionId: string): BackendNames {
 }
 
 export async function openRemoteTerminalCard(page: Page) {
-	const card = page.locator("#card-remote_terminal_infra");
-	await expandCard(card);
-	await expect(card.getByText(/The relay behind the stage-card terminal:/)).toBeVisible({ timeout: 60_000 });
-	return card;
+	return openHostingSection(page);
 }
 
 export function connectionInput(card: Locator, key: string) {
@@ -44,10 +41,10 @@ export function connectionInput(card: Locator, key: string) {
 }
 
 export async function openConnectionDetails(card: Locator) {
-	const toggle = card.getByRole("button", { name: /^(?:open to enter connection detail|collapse)$/ });
+	const toggle = card.getByRole("button", { name: /^(?:view results|hide results)$/ });
 	if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
 	await expect(toggle).toHaveAttribute("aria-expanded", "true");
-	await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeVisible();
+	await expect(card.getByRole("region", { name: "Results saved to GitHub", exact: true })).toBeVisible();
 	await expect(card.getByRole("progressbar", { name: "Loading variables", exact: true })).toHaveCount(0, { timeout: 60_000 });
 }
 
