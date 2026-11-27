@@ -4,7 +4,7 @@
  */
 
 /// <reference types="node" />
-// UI component: ../../../corp-src/cards/BackendDeployCard.tsx
+// UI component: ../../../corp-src/cards/PrivateZeninstaller/PrivateZeninstallerCard.tsx
 import { expect } from "@playwright/test";
 import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { CORP_URL } from "../../testInit";
@@ -84,8 +84,8 @@ test("Prerequisite steps are shown", async ({ page, context }, testInfo) => {
 	const viewportName = getViewportName(testInfo);
 	const unexpectedRequests = await installRelayNetworkGuard(context);
 	await page.goto(CORP_URL);
-	const card = page.locator("#card-backend_deploy");
-	await card.getByText("Private Zeninstaller Backend", { exact: true }).click();
+	const card = page.locator("#card-private_zeninstaller");
+	await card.getByText("Private Zeninstaller", { exact: true }).click();
 	await expect(card.getByText("Sign in to Azure", { exact: true })).toBeVisible();
 	await expect(card.getByRole("button", { name: /^(Build|Deploy)$/ })).toHaveCount(0);
 	await expectSnapshot(page, card, testInfo, "authentication-required", viewportName);

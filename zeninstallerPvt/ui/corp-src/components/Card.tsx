@@ -30,7 +30,7 @@ const STATUS_LABEL: Record<CardStatus, string> = {
   locked: "Locked",
 };
 
-function StatusIcon({
+export function StatusIcon({
   status,
   locked,
   iconColors,

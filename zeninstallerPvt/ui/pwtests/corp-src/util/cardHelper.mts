@@ -88,10 +88,14 @@ export async function expandAzureAppRegistrationCard(page: Page) {
   return appRegistrationCard;
 }
 
+// The backend and frontend deploys are sections of the Private Zeninstaller card, shown once it is open.
+export async function openDeploySection(page: Page, id: "backend_deploy" | "web_deploy") {
+  await expandCard(page.locator("#card-private_zeninstaller"));
+  return page.locator(`#card-${id}`);
+}
+
 export async function openBackendCard(page: Page) {
-  const card = page.locator("#card-backend_deploy");
-  await expect(card).toBeVisible();
-  await expandCard(card);
+  const card = await openDeploySection(page, "backend_deploy");
   await expect(card.getByText(/GitHub Actions builds the ZenInstaller backend/)).toBeVisible({ timeout: 60_000 });
   await expect(card.getByText(/checking\.\.\./)).toHaveCount(0, { timeout: 60_000 });
   return card;

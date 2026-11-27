@@ -28,11 +28,10 @@ import { useAzureSubscriptionCard } from "./cards/AzureSubscription/useAzureSubs
 import { useCreateAdminUsersCard } from "./cards/CreateAdminUsers/useCreateAdminUsersCard";
 import { useDnsVerifyCard } from "./cards/DnsVerify/useDnsVerifyCard";
 import { useCoreInfraCard } from "./cards/CoreInfra/useCoreInfraCard";
-import { useBackendDeployCard } from "./cards/BackendDeploy/useBackendDeployCard";
+import { usePrivateZeninstallerCard } from "./cards/PrivateZeninstaller/usePrivateZeninstallerCard";
 import { useAccessPassCard } from "./cards/AccessPass/useAccessPassCard";
 // AWS login is unused since the AWS console sign-in stack replaced AWS setup.
 // import { useAwsLoginCard } from "./cards/AwsLogin/useAwsLoginCard";
-import { useWebDeployCard } from "./cards/WebDeploy/useWebDeployCard";
 import { useAvdGalleryCard } from "./cards/AvdGallery/useAvdGalleryCard";
 import { usePawImageCard } from "./cards/PawImage/usePawImageCard";
 import { usePawDeployCard } from "./cards/PawDeploy/usePawDeployCard";
@@ -61,8 +60,7 @@ import AzureAppRegistrationCardV2 from "./cards/AzureAppRegistrationV2/AzureAppR
 import CoreInfraCard from "./cards/CoreInfra/CoreInfraCard";
 // import PrivateFrontendInfraCard from "./cards/PrivateFrontendInfra/PrivateFrontendInfraCard"; // Deprecated: now a section of CoreInfraCard, the original is in archive/cards/; kept for reference.
 // import RemoteTerminalInfraCard from "./cards/RemoteTerminalInfra/RemoteTerminalInfraCard"; // Deprecated: now a section of CoreInfraCard, the original is in archive/cards/; kept for reference.
-import BackendDeployCard from "./cards/BackendDeploy/BackendDeployCard";
-import WebDeployCard from "./cards/WebDeploy/WebDeployCard";
+import PrivateZeninstallerCard from "./cards/PrivateZeninstaller/PrivateZeninstallerCard";
 // import CreateDomainCard from "./cards/CreateDomain/CreateDomainCard"; // Deprecated: now a section of CoreInfraCard, the original is in archive/cards/; kept for reference.
 import CreateAdminUsersCard from "./cards/CreateAdminUsers/CreateAdminUsersCard";
 import DnsVerifyCard from "./cards/DnsVerify/DnsVerifyCard";
@@ -191,8 +189,9 @@ function AppDashboard() {
       githubEnvName: githubRepoEnv.env.selectedEnv?.name ?? null,
     })
   );
-  const backendDeploy = addCard(
-    useBackendDeployCard({
+  // One card over both deploys; the card lays out each one as its own section.
+  const privateZeninstaller = addCard(
+    usePrivateZeninstallerCard({
       azureAccount: azureLogin.account,
       subscriptionId: azureSubscription.selectedSubscriptionId,
       tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
@@ -200,18 +199,6 @@ function AppDashboard() {
       repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
       selectedEnv: githubRepoEnv.env.selectedEnv,
       variableValues: githubVariableValues,
-    })
-  );
-
-  const webDeploy = addCard(
-    useWebDeployCard({
-      variableValues: githubVariableValues,
-      azureAccount: azureLogin.account,
-      subscriptionId: azureSubscription.selectedSubscriptionId,
-      tenantId: githubVariableValues.AZURE_TENANT_ID ?? "",
-      githubAccount: githubRepoEnv.repo.selectedAccount,
-      repoName: githubRepoEnv.repo.selectedRepo?.name ?? "",
-      selectedEnv: githubRepoEnv.env.selectedEnv,
     })
   );
   const dnsVerify = addCard(
@@ -390,9 +377,8 @@ function AppDashboard() {
       // ["create_domain", "Core domain"], // Deprecated: part of the Private hosting environment card; kept for reference.
       ["create_admin_users", "Create admin users"],
       // ["remote_terminal_infra", "Private Zeninstaller Backend Environment"], // Deprecated: part of the Private hosting environment card; kept for reference.
-      ["backend_deploy", "Private Zeninstaller Backend"],
       // ["private_frontend_infra", "Frontend hosting environment"], // Deprecated: part of the Private hosting environment card; kept for reference.
-      ["web_deploy", "Private Zeninstaller Frontend"],
+      ["private_zeninstaller", "Private Zeninstaller"],
       // ["aws_login", "AWS login"],
       ["aws_sso", AWS_SSO_TITLE],
       ["aws_sso_stack", AWS_SSO_STACK_TITLE],
@@ -593,16 +579,6 @@ function AppDashboard() {
                 githubUrl={githubRepoEnv.githubEnvUrl}
               /> */}
 
-              <BackendDeployCard
-                card={cardProps("backend_deploy")}
-                backend={backendDeploy}
-                repoFullName={
-                  githubRepoEnv.repo.selectedAccount && githubRepoEnv.repo.selectedRepo
-                    ? `${githubRepoEnv.repo.selectedAccount.login}/${githubRepoEnv.repo.selectedRepo.name}`
-                    : null
-                }
-              />
-
               {/* <PrivateFrontendInfraCard // Deprecated: now a section of the Private hosting environment card; kept for reference.
                 card={cardProps("private_frontend_infra")}
                 infra={privateFrontendInfra}
@@ -615,9 +591,9 @@ function AppDashboard() {
                 githubUrl={githubRepoEnv.githubEnvUrl}
               /> */}
 
-              <WebDeployCard
-                card={cardProps("web_deploy")}
-                web={webDeploy}
+              <PrivateZeninstallerCard
+                card={cardProps("private_zeninstaller")}
+                zeninstaller={privateZeninstaller}
                 githubAccount={githubRepoEnv.repo.selectedAccount}
                 repoName={githubRepoEnv.repo.selectedRepo?.name ?? ""}
                 selectedEnv={githubRepoEnv.env.selectedEnv}

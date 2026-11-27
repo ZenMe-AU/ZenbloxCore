@@ -37,6 +37,7 @@ export type CardId =
   | "core_infra"
   | "backend_deploy"
   | "web_deploy"
+  | "private_zeninstaller"
   | "dns_verify"
   | "access_pass"
   | "global_groups"
