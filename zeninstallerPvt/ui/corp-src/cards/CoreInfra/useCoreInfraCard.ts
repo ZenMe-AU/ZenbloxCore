@@ -328,8 +328,9 @@ export function useCoreInfraCard({
 
       currentStep = "rbac";
       updateStep("rbac", "running");
-      const rbac = await ensureRbacRoleAtScope(azureAccount, scope, sp.id, "Storage Blob Data Reader", tenantId);
-      updateStep("rbac", rbac === "exists" ? "skipped" : "done", rbac === "exists" ? "Already assigned" : "Storage Blob Data Reader");
+      // We allow Github to write to the blob where terraform state is stored. TF State updates is not seen as modification to environment.
+      const rbac = await ensureRbacRoleAtScope(azureAccount, scope, sp.id, "Storage Blob Data Contributor", tenantId);
+      updateStep("rbac", rbac === "exists" ? "skipped" : "done", rbac === "exists" ? "Already assigned" : "Storage Blob Data Contributor");
 
       const r: CoreInfraResult = { corpName, subscriptionId, storageAccountName, stateResourceGroup: storageGroup };
       setResult(r);
