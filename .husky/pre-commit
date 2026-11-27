@@ -4,6 +4,10 @@ cd "$(git rev-parse --show-toplevel)"
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
 # Checks for all branches
+echo "Type-checking root tsconfig.json..."
+if ! pnpm exec tsc --project tsconfig.json --noEmit --incremental false; then
+  echo "Warning: TypeScript check failed; commit will continue." >&2
+fi
 
 # Extra checks only on main
 if [ "$BRANCH" = "main" ]; then
