@@ -107,7 +107,12 @@ export function useGithubRepo(
   const [extraBranches, setExtraBranches] = useState<{ key: string; branches: GithubBranch[] }>({ key: "", branches: [] });
   const branchKey = `${selectedAccount?.id ?? ""}|${selectedRepo?.id ?? ""}`;
   const branchList = useMemo(
-    () => [...(verificationQuery.data?.branches ?? []), ...(extraBranches.key === branchKey ? extraBranches.branches : [])],
+    () => {
+      const branches = verificationQuery.data?.branches ?? [];
+      return [...branches, ...(extraBranches.key === branchKey
+        ? extraBranches.branches.filter((branch) => !branches.some((existing) => existing.name === branch.name))
+        : [])];
+    },
     [verificationQuery.data?.branches, extraBranches, branchKey]
   );
   const [sourceBranchPick, setSourceBranchPick] = useState<{ key: string; name: string } | null>(null);
@@ -161,21 +166,35 @@ export function useGithubRepo(
   }, [accountsQuery, reposQuery, selectedAccount, selectedRepo, verificationQuery]);
 
   const onCreateBranch = useCallback(async (targetName: string) => {
-    if (!api || !selectedAccount || !selectedRepo || !sourceBranch) return;
+    if (!api || !selectedAccount || !selectedRepo) return;
     setCreatingBranch(true);
     setCreateBranchError(null);
     try {
-      const branch = await api.createBranch(selectedAccount, selectedRepo.name, targetName, sourceBranch);
+      let source = sourceBranch;
+      if (!source) {
+        const refreshed = await verificationQuery.refetch({ throwOnError: true });
+        const branches = refreshed.data?.branches;
+        if (!branches) throw new Error("Repository branch refresh returned no data");
+        source = branches.find((branch) => branch.name === "main")?.name ?? branches[0]?.name ?? "";
+        if (branches.some((branch) => branch.name === targetName)) return;
+        if (!source) {
+          console.error("No source branch is available after refreshing repository branches.");
+          setCreateBranchError("No source branch is available yet. Please try again.");
+          return;
+        }
+      }
+      const branch = await api.createBranch(selectedAccount, selectedRepo.name, targetName, source);
       setExtraBranches((current) => ({
         key: branchKey,
         branches: [...(current.key === branchKey ? current.branches : []), branch],
       }));
-    } catch {
+    } catch (error) {
+      console.error("Failed to create branch:", error);
       setCreateBranchError("Failed to create branch");
     } finally {
       setCreatingBranch(false);
     }
-  }, [api, branchKey, selectedAccount, selectedRepo, sourceBranch]);
+  }, [api, branchKey, selectedAccount, selectedRepo, sourceBranch, verificationQuery]);
 
   const repoError = accountsQuery.isError
     ? "Could not load GitHub accounts"

@@ -233,6 +233,10 @@ export default function RepoDetail({
                 placeholder="Select or type repo name..."
                 size="small"
                 className="corpTechnicalInput"
+                onBlur={(e) => {
+                  const typed = e.target.value.trim();
+                  if (typed && typed !== selectedRepo?.name) commitTypedRepo(typed);
+                }}
                 onKeyDown={(e) => {
                   // A row the user aimed at wins; otherwise Enter decides from the typed text.
                   if (e.key !== "Enter" || aimedOption.current) return;

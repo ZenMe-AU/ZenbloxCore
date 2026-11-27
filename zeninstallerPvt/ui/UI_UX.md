@@ -165,11 +165,11 @@ flowchart LR
   az[Azure login]
   sub[Azure subscription]
   app[Azure app registration]
-  core[Terraform state backend]
-  dom[Core domain]
-  rt[Remote terminal infra<br/>'Private Zeninstaller Backend Environment']
+  core[Terraform state backend<br/>part of 'Private hosting environment']
+  dom[Core domain<br/>part of 'Private hosting environment']
+  rt[Remote terminal infra<br/>part of 'Private hosting environment']
   be[Private Zeninstaller Backend]
-  fe[Private frontend infra<br/>'Private hosting environment']
+  fe[Private frontend infra<br/>part of 'Private hosting environment']
   web[Private Zeninstaller Frontend]
   aws[AWS login]
   awss[AWS setup]
@@ -219,7 +219,9 @@ flowchart LR
 
 Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRequirements`.
 
-### 4.2 Catalogue (23 progress tasks; helper rendered after task 1)
+`core_infra`, `create_domain`, `private_frontend_infra` and `remote_terminal_infra` render as four parts of one card, **Private hosting environment** (`#card-core_infra`), with one untitled Core environment section covering two resource groups: `zbcore-<code>-rg` (`core_infra` and `create_domain`) and `zeninstaller-private-rg` (`private_frontend_infra` and `remote_terminal_infra`). Each part keeps its own `cardId`, so a card that needs one part waits only for that part; choosing such a requirement opens the hosting card. The hosting card is locked by `core_infra`'s requirements, and its face is complete only when all four parts are (`hostingEnvironmentFace`). The section has one description, one permission alert and one access Prerequisites panel for all four parts, and a stage-style **Prerequisites** panel, like the budget card's, holding the company short code and DNS domain: open while either is missing, closed once both are saved, until the user toggles it. One card-level button asks for every Microsoft permission first, then runs both resource groups at the same time; within each group the second part runs only if the first finished. Under the section comes the button, then both groups' resources in one list (the core group's once the short code and domain are set), ending with the one Location row that sets all four parts: **Resources to be created** before a run, **Resources** once everything is created, with a portal link on each row as soon as its part has created it. One step runner below the list shows the steps of all four parts, and the private group's connection details close the card.
+
+### 4.2 Catalogue (20 progress tasks; helper rendered after task 1; 6a–6c are parts of card 6, not tasks; other numbers kept from before the merge)
 
 | # | `cardId` | Title | Requires | Purpose | Source |
 |---|---|---|---|---|---|
@@ -229,11 +231,12 @@ Edges mean "must be complete before". Declared in each `use*Card` hook's `cardRe
 | 3 | `azure_login` | Azure login | none | MSAL sign-in, tenant selection (or manual tenant id), sign-out | [AzureLogin](corp-src/cards/AzureLogin) |
 | 4 | `azure_subscription` | Choose Azure subscription | `azure_login`, `repo` | Pick subscription; saves ids as GitHub variables; drift detection | [AzureSubscription](corp-src/cards/AzureSubscription) |
 | 5 | `azure_app_registration` | Create an app registration in Azure | `github_login`, `azure_login`, `repo`, `azure_subscription` | Creates the GitHub-Actions service principal and federated credential; RBAC check | [AzureAppRegistration](corp-src/cards/AzureAppRegistration) |
-| 6 | `core_infra` | Terraform state backend | `azure_login`, `repo`, `azure_subscription`, `azure_app_registration` | Company short code and location; identifies the missing short code as an actionable warning; creates state storage; checklist of steps | [CoreInfra](corp-src/cards/CoreInfra) |
-| 7 | `create_domain` | Core domain | `azure_login`, `repo`, `azure_subscription`, `core_infra` | Creates the corp domain resources | [CreateDomain](corp-src/cards/CreateDomain) |
-| 8 | `remote_terminal_infra` | Private Zeninstaller Backend Environment | `azure_login`, `azure_subscription`, `core_infra` | Provisions relay for the remote terminal; connection details | [RemoteTerminalInfra](corp-src/cards/RemoteTerminalInfra) |
+| 6 | `core_infra` | Private hosting environment | `azure_login`, `repo`, `azure_subscription`, `azure_app_registration` | One card, one Core environment section over two resource groups: company short code and DNS domain (in a Prerequisites panel that stays open until both are set), Terraform state storage, DNS zone and Entra custom domain, plus frontend hosting and backend. One button runs both groups in parallel; one location row for all four parts; created resources link to the portal | [CoreInfra](corp-src/cards/CoreInfra) |
+| 6a | `create_domain` | Core domain (part of 6) | `azure_login`, `repo`, `azure_subscription`, `core_infra` | Creates the DNS zone and adds the custom domain to Entra ID; runs after the Terraform state part. Verification is the `dns_verify` card | [CreateDomain](corp-src/cards/CoreInfra/CoreInfraCard.tsx) |
+| 6b | `remote_terminal_infra` | Backend environment (private Zeninstaller block of 6) | `azure_login`, `azure_subscription` | Provisions relay for the remote terminal; runs after frontend hosting; connection details | [RemoteTerminalInfra](corp-src/cards/CoreInfra/PrivateFrontendInfraCard.tsx) |
+| 7 | `dns_verify` | Verify DNS domain | `azure_login`, `create_domain` | Shows the Azure DNS name servers to set at the registrar, verifies the domain in Entra ID and, if chosen, sets it as the primary domain. `create_admin_users` waits for it | [DnsVerify](corp-src/cards/DnsVerify) |
 | 9 | `backend_deploy` | Private Zeninstaller Backend | `github_login`, `repo`, `azure_login`, `remote_terminal_infra` | Build and deploy the Function App backend; reports build/deployment state and links to a failed build run | [BackendDeploy](corp-src/cards/BackendDeploy) |
-| 10 | `private_frontend_infra` | Private hosting environment | `azure_login`, `azure_subscription` | Storage static site / hosting infra | [PrivateFrontendInfra](corp-src/cards/PrivateFrontendInfra) |
+| 6c | `private_frontend_infra` | Frontend hosting (private Zeninstaller block of 6) | `azure_login`, `azure_subscription` | Storage static site / hosting infra | [PrivateFrontendInfra](corp-src/cards/CoreInfra/PrivateFrontendInfraCard.tsx) |
 | 11 | `web_deploy` | Private Zeninstaller Frontend | `github_login`, `repo`, `azure_login`, `private_frontend_infra` | Build and upload the frontend; records build configuration for drift checks and links to a failed build run | [WebDeploy](corp-src/cards/WebDeploy) |
 | 12 | `aws_login` | AWS login | none | Bootstrap access key, MFA code | [AwsLogin](corp-src/cards/AwsLogin) |
 | 13 | `aws_setup` | AWS setup | `aws_login`, `repo` | Creates IAM role for GitHub OIDC; connection details | [AwsSetup](corp-src/cards/AwsSetup) |
@@ -301,11 +304,11 @@ flowchart TD
   RP --> AL[3. Azure login + tenant]
   AL --> SB[4. Subscription -> saved as variables]
   SB --> AR[5. App registration]
-  AR --> CI[6. Terraform state backend]
-  CI --> DM[7. Core domain]
-  CI --> RT[8. Remote terminal infra]
+  AR --> CI[6. Private hosting environment: Terraform state backend]
+  CI --> DM[6. Private hosting environment: core domain]
+  AR --> RT[6. Private hosting environment: backend environment]
   RT --> BE[9. Backend deploy]
-  SB --> FI[10. Frontend infra]
+  AR --> FI[6. Private hosting environment: frontend hosting]
   FI --> WD[11. Frontend deploy]
   RP --> AWL[12. AWS login]
   AWL --> AWS[13. AWS setup]
@@ -513,7 +516,7 @@ Source reviewed 2026-11-16; none of these have been confirmed with assistive tec
 
 | # | Severity | Finding | Recommendation |
 |---|---|---|---|
-| 1 | Medium | Two cards shared the title "Private Zeninstaller Environment" (`remote_terminal_infra`, `private_frontend_infra`); screen-reader and tab users could not tell them apart. | Resolved: titles are now "Private Zeninstaller Backend Environment" and "Private hosting environment". The progress label for the latter remains "Frontend hosting environment". |
+| 1 | Medium | Two cards shared the title "Private Zeninstaller Environment" (`remote_terminal_infra`, `private_frontend_infra`); screen-reader and tab users could not tell them apart. | Resolved: both are now one block, "Private Zeninstaller environment", of the "Private hosting environment" card. |
 | 2 | Medium | Intro panel and footer panel used `sx={{ background: "background.paper" }}`. | Resolved: both now use `bgcolor: "background.paper"`. |
 | 3 | Medium | Variable/plan explanations were tooltip-only on non-focusable icons and pills. | Resolved in source: shared `InfoTip` provides focusable named triggers, input descriptions have stable `aria-describedby` links, and tooltip values retain sensitive-content markers. Focused Chromium assertions pass; real screen-reader validation remains open. |
 | 4 | Medium | Status text used `success.main`, `warning.main`, and `error.light`, which fall short of 4.5:1 on white. | Resolved: status summaries and text use dark shades; lighter shades remain on icons, borders and backgrounds. |

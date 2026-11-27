@@ -35,6 +35,15 @@ export type PrivAvdDeployCardProps = PrivAvdTarget & {
   variables: UseGithubVariables;
 };
 
+type SaveVariable = (key: string, value: string, savedValue: string | undefined) => Promise<void>;
+
+type PrivAvdDeployContentProps = Omit<PrivAvdDeployCardProps, "card"> & {
+  description: string;
+  resources: readonly PrivAvdResource[];
+  fetchLog: (account: NonNullable<PrivAvdTarget["account"]>, repoName: string, logId: number) => Promise<string | null>;
+  saveVariable: SaveVariable;
+};
+
 function ResourceRow({
   resource,
   value,
@@ -94,6 +103,46 @@ export default function PrivAvdDeployCard({
   selectedEnv,
   variables,
 }: PrivAvdDeployCardProps & { title: string; description: string; resources: readonly PrivAvdResource[] }) {
+  const saveVariable: SaveVariable = (key, value, savedValue) => {
+    if (!account || !selectedEnv) throw new Error("Select a GitHub environment before saving variables");
+    return (savedValue ? updateVariable : createVariable)(account, repoName, key, value, selectedEnv.name);
+  };
+  const contentProps = {
+    description,
+    resources,
+    privAvd,
+    account,
+    repoName,
+    selectedEnv,
+    variables,
+    fetchLog: fetchLogArtifact,
+    saveVariable,
+  };
+
+  const intro = (
+    <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+      {description}
+    </Typography>
+  );
+
+  return (
+    <Card title={title} lockedIntro={intro} {...card}>
+      <PrivAvdDeployContent {...contentProps} />
+    </Card>
+  );
+}
+
+export function PrivAvdDeployContent({
+  description,
+  resources,
+  privAvd,
+  account,
+  repoName,
+  selectedEnv,
+  variables,
+  fetchLog,
+  saveVariable,
+}: PrivAvdDeployContentProps) {
   const { report } = privAvd;
   const [deployLog, setDeployLog] = useState<{ id: number; text: string | null } | null>(null);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
@@ -103,10 +152,10 @@ export default function PrivAvdDeployCard({
   useEffect(() => {
     const id = report?.deployLogId;
     if (report?.deployStatus !== "failed" || !id || !account) return;
-    fetchLogArtifact(account, repoName, id)
+    fetchLog(account, repoName, id)
       .then((text) => setDeployLog({ id, text }))
       .catch(console.error);
-  }, [report?.deployLogId, report?.deployStatus, account, repoName]);
+  }, [report?.deployLogId, report?.deployStatus, account, repoName, fetchLog]);
 
   const valueOf = ({ key, defaultValue }: PrivAvdResource) => (overrides[key] ?? (variables.values[key] || defaultValue)).trim();
 
@@ -119,7 +168,7 @@ export default function PrivAvdDeployCard({
         const value = valueOf(resource);
         const saved = variables.values[resource.key];
         if (value === saved) continue;
-        await (saved ? updateVariable : createVariable)(account, repoName, resource.key, value, selectedEnv.name);
+        await saveVariable(resource.key, value, saved);
         variables.onConfirmed(resource.key, value);
       }
     } catch (e) {
@@ -138,67 +187,65 @@ export default function PrivAvdDeployCard({
   );
 
   return (
-    <Card title={title} lockedIntro={intro} {...card}>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {intro}
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      {intro}
 
+      <Box>
+        <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>
+          Resources
+        </Typography>
+        <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
+          {resources.map((resource) => (
+            <ResourceRow
+              key={resource.key}
+              resource={resource}
+              value={overrides[resource.key] ?? (variables.values[resource.key] || resource.defaultValue)}
+              onChange={(value) => setOverrides((prev) => ({ ...prev, [resource.key]: value }))}
+              editing={editingKeys.includes(resource.key)}
+              setEditing={(on) => setEditingKeys((keys) => (on ? [...keys, resource.key] : keys.filter((k) => k !== resource.key)))}
+            />
+          ))}
+        </Box>
+      </Box>
+
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+        <Button
+          variant="contained"
+          onClick={() => void deploy()}
+          disabled={privAvd.deploying || variables.loading || editingKeys.length > 0 || !selectedEnv}
+          sx={{ py: 0.85, px: 2.5 }}
+        >
+          {privAvd.deploying ? "Deploying..." : privAvd.done ? "Re-deploy" : "Deploy"}
+        </Button>
+        <Typography color="text.secondary">Runs with your own Azure permissions — sign in with the code the terminal shows.</Typography>
+      </Box>
+      {(saveError ?? privAvd.error) && <ErrorText>{saveError ?? privAvd.error}</ErrorText>}
+
+      <RemoteTerminal session={privAvd.terminal} />
+
+      {report?.deployStatus && (
         <Box>
           <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>
-            Resources
+            Last Deploy
           </Typography>
-          <Box sx={{ borderLeft: "2px solid", borderColor: "divider", pl: 1.5, display: "flex", flexDirection: "column", gap: 0.25 }}>
-            {resources.map((resource) => (
-              <ResourceRow
-                key={resource.key}
-                resource={resource}
-                value={overrides[resource.key] ?? (variables.values[resource.key] || resource.defaultValue)}
-                onChange={(value) => setOverrides((prev) => ({ ...prev, [resource.key]: value }))}
-                editing={editingKeys.includes(resource.key)}
-                setEditing={(on) => setEditingKeys((keys) => (on ? [...keys, resource.key] : keys.filter((k) => k !== resource.key)))}
-              />
-            ))}
-          </Box>
-        </Box>
-
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-          <Button
-            variant="contained"
-            onClick={() => void deploy()}
-            disabled={privAvd.deploying || variables.loading || editingKeys.length > 0 || !selectedEnv}
-            sx={{ py: 0.85, px: 2.5 }}
-          >
-            {privAvd.deploying ? "Deploying..." : privAvd.done ? "Re-deploy" : "Deploy"}
-          </Button>
-          <Typography color="text.secondary">Runs with your own Azure permissions — sign in with the code the terminal shows.</Typography>
-        </Box>
-        {(saveError ?? privAvd.error) && <ErrorText>{saveError ?? privAvd.error}</ErrorText>}
-
-        <RemoteTerminal session={privAvd.terminal} />
-
-        {report?.deployStatus && (
-          <Box>
-            <Typography variant="sectionLabel" sx={{ mb: 0.75 }}>
-              Last Deploy
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              {report.deployStatus === "success" ? (
-                <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main", flexShrink: 0 }} />
-              ) : report.deployStatus === "cancelled" ? (
-                <BlockIcon aria-hidden="true" sx={{ typography: "caption", color: "text.muted", flexShrink: 0 }} />
-              ) : (
-                <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "error.main", flexShrink: 0 }} />
-              )}
-              {report.deployedAt && <Typography color="text.secondary">{new Date(report.deployedAt * 1000).toLocaleString()}</Typography>}
-              {repoFullName && report.deployRunId && <ViewLink href={getWorkflowRunUrl(repoFullName, report.deployRunId)} />}
-            </Box>
-            {report.deployStatus === "failed" && (
-              <Box sx={{ pl: "21px" }}>
-                <FailureLog fetched={!!report.deployLogId && deployLog?.id === report.deployLogId} text={deployLog?.text ?? null} />
-              </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            {report.deployStatus === "success" ? (
+              <CheckCircleIcon aria-hidden="true" sx={{ typography: "caption", color: "success.main", flexShrink: 0 }} />
+            ) : report.deployStatus === "cancelled" ? (
+              <BlockIcon aria-hidden="true" sx={{ typography: "caption", color: "text.muted", flexShrink: 0 }} />
+            ) : (
+              <WarningAmberIcon aria-hidden="true" sx={{ typography: "caption", color: "error.main", flexShrink: 0 }} />
             )}
+            {report.deployedAt && <Typography color="text.secondary">{new Date(report.deployedAt * 1000).toLocaleString()}</Typography>}
+            {repoFullName && report.deployRunId && <ViewLink href={getWorkflowRunUrl(repoFullName, report.deployRunId)} />}
           </Box>
-        )}
-      </Box>
-    </Card>
+          {report.deployStatus === "failed" && (
+            <Box sx={{ pl: "21px" }}>
+              <FailureLog fetched={!!report.deployLogId && deployLog?.id === report.deployLogId} text={deployLog?.text ?? null} />
+            </Box>
+          )}
+        </Box>
+      )}
+    </Box>
   );
 }

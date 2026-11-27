@@ -12,9 +12,10 @@ const AZURE_PORTAL = "https://portal.azure.com";
 const ENTRA = "https://entra.microsoft.com";
 
 // The @tenant segment is optional; without it the portal uses whichever tenant the session is on.
-export function getAzureResourceUrl(tenantId: string | undefined, resourceId: string): string {
+// blade picks the resource's sub-page, e.g. "containersList" for a storage account's containers.
+export function getAzureResourceUrl(tenantId: string | undefined, resourceId: string, blade = "overview"): string {
   // resourceId already starts with "/", so the tenant segment carries the separator, not the literal.
-  return `${AZURE_PORTAL}/#${tenantId ? `@${tenantId}/` : ""}resource${resourceId}/overview`;
+  return `${AZURE_PORTAL}/#${tenantId ? `@${tenantId}/` : ""}resource${resourceId}/${blade}`;
 }
 
 export function getAzureSubscriptionUrl(tenantId: string | undefined, subscriptionId: string): string {
@@ -30,6 +31,7 @@ export function getAppRegistrationUrl(appId: string): string {
 export const AZURE_SUBSCRIPTIONS_URL = `${AZURE_PORTAL}/#servicemenu/Microsoft_Azure_Resources/ResourceManager/subscriptions`;
 export const AZURE_RESOURCE_GROUPS_URL = `${AZURE_PORTAL}/#servicemenu/Microsoft_Azure_Resources/ResourceManager/resourcegroups`;
 export const AZURE_DNS_ZONES_URL = `${AZURE_PORTAL}/#view/HubsExtension/AssetMenuBlade/~/PublicDnsZones/assetName/NetworkFoundation/extensionName/Microsoft_Azure_Network`;
+export const ENTRA_CUSTOM_DOMAINS_URL = `${AZURE_PORTAL}/#view/Microsoft_AAD_IAM/DomainsManagementMenuBlade/~/CustomDomainNames`;
 export const AZURE_APP_REGISTRATIONS_URL = `${AZURE_PORTAL}/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade`;
 export const AZURE_PIM_ACTIVATION_URL = `${AZURE_PORTAL}/#view/Microsoft_Azure_PIMCommon/ActivationMenuBlade/~/azurerbac`;
 

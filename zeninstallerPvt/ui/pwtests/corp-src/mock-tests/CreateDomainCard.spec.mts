@@ -1,4 +1,4 @@
-// UI component: ../../../corp-src/cards/CreateDomain/CreateDomainCard.tsx
+// UI component: ../../../corp-src/cards/CoreInfra/CreateDomainCard.tsx
 import { expect } from "@playwright/test";
 import { getViewportName, test } from "../../../../../.playwright/viewportFixture.mjs";
 import { AZURE_MANAGEMENT_URL, CORP_URL, MICROSOFT_GRAPH_URL } from "../../testInit";
@@ -13,6 +13,7 @@ import {
 	mockTenantId,
 	type CreateDomainAzureMockState,
 } from "../util/mockTestHelper.mts";
+import { hostingSection } from "../util/cardHelper.mts";
 
 const companyShortCode = "pwtests";
 const domainName = "pwtests.example";
@@ -70,8 +71,6 @@ const initialSetupStepLabels = [
 	`Create DNS zone ${domainName}`,
 	"Add custom domain to Entra ID",
 	"Create domain-verification TXT record",
-	"Set as primary domain",
-	"Grant domain permission to the pipeline",
 ];
 
 const rerunStepLabels = initialSetupStepLabels;
@@ -140,13 +139,13 @@ test("Retries setup after a temporary DNS-zone failure", async ({ page, context 
 	await card.getByRole("textbox").fill(domainName);
 	await card.getByRole("button", { name: "Save 1 variable" }).click();
 	await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
-	await card.getByRole("button", { name: "Set up core DNS domain" }).click();
+	await page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment" }).click();
 	await expect(card.getByText("Running...", { exact: true })).toBeHidden();
 	const dnsStep = card.getByText(`Create DNS zone ${domainName}`, { exact: true }).locator("../..");
 	await expect(dnsStep.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(1);
 	expect(azure.dnsZoneExists).toBe(false);
 	await card.getByRole("button", { name: "Start over" }).click();
-	await card.getByRole("button", { name: "Set up core DNS domain" }).click();
+	await page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment" }).click();
 	await expect(card.getByText("Running...", { exact: true })).toBeHidden();
 	await expectSuccessfulSteps(card, initialSetupStepLabels);
 	expect(getDnsZoneCreateAttempts()).toBe(2);
@@ -164,7 +163,7 @@ test("Stops setup when MS consent is denied", async ({ page, context }, testInfo
 	await card.getByRole("textbox").fill(domainName);
 	await card.getByRole("button", { name: "Save 1 variable" }).click();
 	await expect(card.getByRole("button", { name: /^Save variables?$/ })).toBeDisabled();
-	await card.getByRole("button", { name: "Set up core DNS domain" }).click();
+	await page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment" }).click();
 	await expect(card.getByText("Running...", { exact: true })).toBeHidden();
 	const consentStep = card.getByText("Confirm Microsoft permissions", { exact: true }).locator("../..");
 	await expect(consentStep.locator('svg[data-testid="ErrorOutlineIcon"]')).toHaveCount(1);
@@ -186,7 +185,6 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		txtRecordWrites,
 		infrastructure,
 		dnsZoneQueries,
-		adminConsentWrites,
 		getDomainVerificationAttempts,
 	} = await prepareDomainCard(page, context, viewportName, { delayDomainVerificationAttempts: 1 });
 	await expectSnapshot(page, card, testInfo, "start", viewportName);
@@ -202,7 +200,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		await expect(domainInput).toHaveValue(domainName);
 		await expect(card.getByRole("checkbox", { name: /as the tenant's primary domain/ })).toBeChecked();
 
-		const setupButton = card.getByRole("button", { name: "Set up core DNS domain" });
+		const setupButton = page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment" });
 		await expect(setupButton).toBeEnabled();
 		await expect(card.getByText("Checking whether this domain is already set up...")).toBeHidden({
 			timeout: 50_000,
@@ -230,14 +228,12 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 		await page.reload();
 		await openDomainCard(card);
 
-		const rerunButton = card.getByRole("button", { name: "Re-run" });
+		const rerunButton = page.locator("#card-core_infra").getByRole("button", { name: "Re-run" });
 		await expect(rerunButton).toBeVisible();
 		await expect(card.getByRole("button", { name: "Save variables" })).toBeDisabled();
 		await rerunButton.click();
 		await expect(card.getByText("Running...", { exact: true })).toBeHidden();
 		await expectSuccessfulSteps(card, rerunStepLabels);
-		await expect(card.getByText("Grant domain permission to the pipeline", { exact: true }).locator("../..")).toContainText("Already granted");
-		expect(adminConsentWrites).toHaveLength(1);
 		await expect(card.getByText(/Failed|Consent redirect failed|Additional consent required/i)).toHaveCount(0);
 		await expect(card.getByRole("button", { name: "Start over" })).toBeVisible();
 		await expectSnapshot(page, card, testInfo, "existing-setup", viewportName);
@@ -291,7 +287,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
 }
 
 async function openDomainCard(card: import("@playwright/test").Locator) {
-	const header = card.getByRole("button", { name: /^Core domain/ });
+	const header = card.page().locator("#card-core_infra").getByRole("button", { name: /^Private hosting environment/ });
 	await expect(header).toBeVisible();
 	if ((await header.getAttribute("aria-expanded")) !== "true") {
 		await header.click();
@@ -354,7 +350,6 @@ async function prepareDomainCard(
 	const txtRecordWrites: unknown[] = [];
 	const resourceWrites: Array<{ path: string; body: unknown }> = [];
 	const dnsZoneQueries: string[] = [];
-	const adminConsentWrites: unknown[] = [];
 	await page.route(`${AZURE_MANAGEMENT_URL}/**`, async (route) => {
 		const request = route.request();
 		const path = new URL(request.url()).pathname.toLowerCase();
@@ -380,9 +375,6 @@ async function prepareDomainCard(
 	await page.route(`${MICROSOFT_GRAPH_URL}/**`, async (route) => {
 		const request = route.request();
 		const path = new URL(request.url()).pathname;
-		if (request.method() === "POST" && path.endsWith("/appRoleAssignments")) {
-			adminConsentWrites.push(request.postDataJSON());
-		}
 		if (options.failDomainStatusCheck && request.method() === "GET" && path === `/v1.0/domains/${domainName}`) {
 			return route.fulfill({
 				status: 503,
@@ -446,7 +438,7 @@ async function prepareDomainCard(
 		subscription: mockSubscriptionId,
 	}).toString();
 	await page.goto(url.toString());
-	const card = page.locator("#card-create_domain");
+	const card = hostingSection(page);
 	await openDomainCard(card);
 	await expect(card.getByRole("textbox")).toBeVisible();
 	return {
@@ -458,7 +450,6 @@ async function prepareDomainCard(
 		txtRecordWrites,
 		resourceWrites,
 		dnsZoneQueries,
-		adminConsentWrites,
 		getDnsZoneCreateAttempts: () => dnsZoneCreateAttempts,
 		getDomainVerificationAttempts: () => domainVerificationAttempts,
 	};

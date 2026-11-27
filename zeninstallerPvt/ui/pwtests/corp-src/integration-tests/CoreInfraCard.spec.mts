@@ -60,10 +60,10 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
       await terraformCard.getByRole("button", { name: "Edit Storage account", exact: true }).click();
       const storageInput = terraformCard.getByRole("textbox", { name: "Storage account", exact: true });
       await expect(storageInput).toHaveValue(`zbcore${companyShortCode}stor`);
-      await expect(terraformCard.getByRole("button", { name: "Create core infrastructure", exact: true })).toBeDisabled();
+      await expect(terraformCard.getByRole("button", { name: "Create private hosting environment", exact: true })).toBeDisabled();
       await terraformCard.getByRole("button", { name: "Confirm Storage account", exact: true }).click();
       await expect(storageInput).toBeHidden({ timeout: 60_000 });
-      await expectVisibleWithin(terraformCard.getByText("Create core infrastructure"), "Create core infrastructure button", 50_000);
+      await expectVisibleWithin(terraformCard.getByText("Create private hosting environment"), "Create private hosting environment button", 50_000);
       await expectSnapshot(page, terraformCard, testInfo, "not-setup-start", viewportName);
     }
   });
@@ -71,7 +71,7 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
   await test.step("Provision the Terraform state backend", async () => {
     const card = page.locator("#card-core_infra");
     await card.getByRole("button", {
-      name: setupAlreadyExists ? "Re-run" : "Create core infrastructure",
+      name: setupAlreadyExists ? "Re-run" : "Create private hosting environment",
       exact: true,
     }).click();
     await expect(card.getByText("Running...", { exact: true })).toBeHidden({ timeout: 500_000 });
@@ -99,10 +99,10 @@ async function runHappyPath({ page, context }: { page: import("@playwright/test"
           .isVisible()
           .catch(() => false))
       ) {
-        await card.getByText("Terraform state backend", { exact: true }).click();
+        await card.getByText("Private hosting environment", { exact: true }).click();
       }
     }
-    await expectVisibleWithin(card.getByText("Terraform state backend"), "Terraform state backend title", 50_000);
+    await expectVisibleWithin(card.getByText("Terraform state backend", { exact: true }), "Terraform state backend title", 50_000);
     await expectVisibleWithin(card.getByText(`Resource group: zbcore-${companyShortCode}-rg`, { exact: true }), "Persisted resource-group status", 50_000);
     await expectVisibleWithin(card.getByText(`zbcore${companyShortCode}stor`, { exact: true }), "Persisted storage-account name", 50_000);
     await expectVisibleWithin(card.getByText(/^State container: terraformstate$/, { exact: true }), "Persisted state-container name", 50_000);
@@ -203,7 +203,7 @@ async function prepareExistingAzureSubscription(
 
   const appRegistrationCard = await expandAzureAppRegistrationCard(page);
   const coreInfraCard = page.locator("#card-core_infra");
-  await coreInfraCard.getByText("Terraform state backend", { exact: true }).click();
+  await coreInfraCard.getByText("Private hosting environment", { exact: true }).click();
   const appRegistrationRequirement = coreInfraCard.getByText("Complete the Azure app registration", { exact: true });
   const connectionInputs = appRegistrationCard.locator('[data-sensitive="true"] input');
   await expect(connectionInputs).toHaveCount(2, { timeout: 50_000 });

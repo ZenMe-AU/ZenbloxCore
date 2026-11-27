@@ -13,6 +13,18 @@ export async function expandCard(card: Locator) {
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
 }
 
+// These cards are parts of the Private hosting environment card (#card-core_infra), which shows their settings, resources and steps together.
+export function hostingSection(page: Page) {
+  return page.locator("#card-core_infra");
+}
+
+export async function openHostingSection(page: Page) {
+  await expandCard(page.locator("#card-core_infra"));
+  const section = hostingSection(page);
+  await expect(section).toBeVisible();
+  return section;
+}
+
 export async function expandGithubLoginCard(page: Page) {
   const githubCard = page.locator("#card-github_login");
   const introText = githubCard.getByText(
@@ -76,10 +88,14 @@ export async function expandAzureAppRegistrationCard(page: Page) {
   return appRegistrationCard;
 }
 
+// The backend and frontend deploys are sections of the Private Zeninstaller card, shown once it is open.
+export async function openDeploySection(page: Page, id: "backend_deploy" | "web_deploy") {
+  await expandCard(page.locator("#card-private_zeninstaller"));
+  return page.locator(`#card-${id}`);
+}
+
 export async function openBackendCard(page: Page) {
-  const card = page.locator("#card-backend_deploy");
-  await expect(card).toBeVisible();
-  await expandCard(card);
+  const card = await openDeploySection(page, "backend_deploy");
   await expect(card.getByText(/GitHub Actions builds the ZenInstaller backend/)).toBeVisible({ timeout: 60_000 });
   await expect(card.getByText(/checking\.\.\./)).toHaveCount(0, { timeout: 60_000 });
   return card;
@@ -90,9 +106,5 @@ export function backendStepLabels(appName: string) {
 }
 
 export async function openRemoteTerminalCard(page: Page) {
-  const card = page.locator("#card-remote_terminal_infra");
-  const description = card.getByText(/The relay behind the stage-card terminal:/);
-  await expandCard(card);
-  await expect(description).toBeVisible({ timeout: 60_000 });
-  return card;
+  return openHostingSection(page);
 }

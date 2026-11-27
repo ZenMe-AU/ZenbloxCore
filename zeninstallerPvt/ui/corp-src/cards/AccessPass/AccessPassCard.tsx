@@ -17,6 +17,8 @@ import ViewLink from "../../components/ViewLink";
 import ExternalLink from "../../components/ExternalLink";
 import ErrorText from "../../components/ErrorText";
 import StatusText from "../../components/StatusText";
+import WarningNotice from "../../components/WarningNotice";
+import AzureAccessCheck from "../../components/AzureAccessCheck";
 import { getEntraUsersUrl } from "../../logic/consoleUrls";
 import { borderTint } from "../../config/styles";
 
@@ -82,12 +84,14 @@ export default function AccessPassCard({ card, accessPass }: Props) {
     selectedManagerUserId,
     managerUsersLoading,
     managerUsersError,
+    membershipError,
+    access,
     consentRequired,
     requestAccessPassConsent,
     reset,
     runForUser,
   } = accessPass;
-  const disabled = card.locked;
+  const disabled = card.locked || access.status !== "ready" || !!membershipError;
 
   const PAGE_SIZE = 200;
   const [creatingUserId, setCreatingUserId] = useState<string | null>(null);
@@ -190,6 +194,8 @@ export default function AccessPassCard({ card, accessPass }: Props) {
     <Card title="Access pass" action={<Action />} lockedIntro={<Intro />} {...card}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
         <Intro />
+        {membershipError && <WarningNotice message={membershipError} />}
+        <AzureAccessCheck access={access} resourceAccess errorStyle />
 
         {/* Entra user selector */}
         <Box

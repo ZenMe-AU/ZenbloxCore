@@ -74,7 +74,10 @@ export default function RepoCard({ card, githubRepo, lockedByPR }: Props) {
             branchMatchError={env.branchMatchError}
             loading={env.envLoading}
             refreshFailed={env.envRefreshFailed}
-            onRefresh={env.onRefresh}
+            onRefresh={() => {
+              env.onRefresh();
+              repo.onRefresh();
+            }}
             repoFullName={repo.repoFullName}
             branches={repo.branchList}
             sourceBranch={repo.sourceBranch}

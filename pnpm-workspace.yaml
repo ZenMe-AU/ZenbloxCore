@@ -3,13 +3,24 @@ packages:
   - corpSetup/CloudFront/source/loginApp
   - selfService/web
   - selfService/backend
-  - portal/ui
   - "*/ui"
   - "*/func"
 overrides:
+  '@azure/msal-node@>=5.0.0-beta.0 <7.1.0': ^7.1.0
+  '@opentelemetry/exporter-prometheus@<0.217.0': ^0.217.0
+  '@opentelemetry/propagator-jaeger@<2.9.0': ^2.9.0
+  '@opentelemetry/sdk-node@>=0.57.0 <0.217.0': ^0.217.0
   "@playwright/test": 1.64.1
+  '@vue/server-renderer@<3.5.42': ^3.5.42
+  body-parser@>=2.0.0 <2.4.0: ^2.4.0
+  follow-redirects@>=1.16.0 <=1.16.1: ^1.16.2
+  object-path@<0.11.8: ^0.11.8
   playwright: 1.64.1
   playwright-core: 1.64.1
+  protobufjs@>=8.0.0 <=8.4.0: ^8.4.1
+  source-map-js@>=1.0.0 <1.2.2: ^1.2.2
+  undici@>=7.0.0 <7.30.1: ^7.30.1
+  vite@<=6.4.3: ^6.4.4
 injectWorkspacePackages: true
 allowBuilds:
   esbuild: true

@@ -199,6 +199,102 @@ it("restores the V2 repository chain from the initial URL params", async () => {
   }
 });
 
+it.each([
+  { branches: [{ name: "main", commit: "abc", protected: false }], source: "main" },
+  { branches: [{ name: "dev", commit: "abc", protected: false }], source: "dev" },
+  { branches: [{ name: "PROD", commit: "abc", protected: false }], source: null },
+  { branches: [], source: null },
+  { branches: [], source: null, refreshFails: true },
+])("recovers an initially empty V2 branch list before creation ($source, $refreshFails)", async ({ branches, source, refreshFails }) => {
+  api.fetchBranches.mockResolvedValue([]);
+  const store = createAppContext({ account: "v2-user", repo: "test-repo", env: "PROD" });
+  store.update("github_login_v2", {
+    title: "GitHub login 2", currentBaseCardStatus: "complete", currentStatus: "signed-in",
+    githubAccount: { login: "v2-user" }, githubToken: new SensitiveToken("token"), githubMode: "direct",
+  });
+  let latest: UseRepoV2 | undefined;
+  function Harness() {
+    const value = useRepoV2(store);
+    useEffect(() => { latest = value; }, [value]);
+    return null;
+  }
+  const root = createRoot(document.createElement("div"));
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await act(async () => root.render(<QueryClientProvider client={queryClient}><Harness /></QueryClientProvider>));
+    await waitFor(() => {
+      expect(latest?.privateContext.repo.status).toBe("complete");
+      expect(latest?.privateContext.repo.branchList).toEqual([]);
+      expect(latest?.privateContext.repo.sourceBranch).toBe("");
+    });
+    api.fetchBranches.mockResolvedValue(branches);
+    if (refreshFails) api.fetchBranches.mockRejectedValueOnce(new Error("Refresh failed"));
+    api.createBranch.mockResolvedValue({ name: "PROD", commit: "abc", protected: false });
+    await act(async () => { await latest?.privateContext.repo.onCreateBranch("PROD"); });
+    await waitFor(() => {
+      expect(latest?.privateContext.repo.branchList).toEqual(source
+        ? [...branches, { name: "PROD", commit: "abc", protected: false }] : branches);
+      expect(latest?.privateContext.repo.creatingBranch).toBe(false);
+    });
+    expect(api.fetchBranches).toHaveBeenCalledTimes(2);
+    if (source) expect(api.createBranch).toHaveBeenCalledWith(expect.objectContaining({ login: "v2-user" }), "test-repo", "PROD", source);
+    else expect(api.createBranch).not.toHaveBeenCalled();
+    expect(latest?.privateContext.repo.createBranchError).toBe(refreshFails ? "Failed to create branch" : branches.length ? null : "No source branch is available yet. Please try again.");
+  } finally {
+    await act(async () => root.unmount());
+    queryClient.clear();
+    error.mockRestore();
+  }
+});
+
+it.each(["external", "local"])("detects a %s branch through the environment Refresh button", async (creation) => {
+  const main = { name: "main", commit: "abc", protected: false };
+  const testBranch = { name: "TEST", commit: "def", protected: false };
+  api.fetchBranches.mockResolvedValue([main]);
+  api.fetchEnvs.mockResolvedValue([{ id: 3, name: "TEST", url: "https://example.test/env" }]);
+  api.createBranch.mockResolvedValue(testBranch);
+  const store = createAppContext({ account: "v2-user", repo: "test-repo", env: "TEST" });
+  store.update("github_login_v2", {
+    title: "GitHub login 2", currentBaseCardStatus: "complete", currentStatus: "signed-in",
+    githubAccount: { login: "v2-user" }, githubToken: new SensitiveToken("token"), githubMode: "direct",
+  });
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  try {
+    await act(async () => root.render(
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}><RepoV2 appCtxStore={store} /></ThemeProvider>
+      </QueryClientProvider>,
+    ));
+    await act(async () => container.querySelector<HTMLButtonElement>("#card-title-repo_v2 button")?.click());
+    await waitFor(() => expect(container.querySelector('#card-content-repo_v2 [role="status"]')?.textContent).toContain("No branch found"));
+    if (creation === "local") {
+      const create = [...container.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent?.includes("Create New Branch: TEST"));
+      expect(create).toBeDefined();
+      await act(async () => create?.click());
+      await waitFor(() => expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("complete"));
+    }
+    api.fetchBranches.mockResolvedValue([main, testBranch]);
+    const refresh = container.querySelector<HTMLButtonElement>('#card-content-repo_v2 button[aria-label="Refresh"]');
+    expect(refresh).not.toBeNull();
+    await act(async () => refresh?.click());
+    await waitFor(() => {
+      expect(api.fetchBranches).toHaveBeenCalledTimes(2);
+      expect(api.fetchEnvs).toHaveBeenCalledTimes(2);
+      expect(getPublishedRepo(store)?.currentBaseCardStatus).toBe("complete");
+      expect(container.querySelector("#card-content-repo_v2")?.textContent).not.toContain("No branch found");
+      expect(container.querySelector("#card-content-repo_v2")?.textContent).not.toContain("Multiple branches match");
+    });
+    if (creation === "external") expect(api.createBranch).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => root.unmount());
+    queryClient.clear();
+  }
+});
+
 it("ignores an old account request after switching GitHub sessions", async () => {
   let resolveOld!: (value: { id: number; login: string; type: "User" }[]) => void;
   api.fetchOrgList.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }));

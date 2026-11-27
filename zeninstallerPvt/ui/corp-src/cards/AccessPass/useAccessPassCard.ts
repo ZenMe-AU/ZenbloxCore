@@ -14,6 +14,7 @@ import {
   deleteUserAuthenticationMethod,
   createTemporaryAccessPassForUser,
   temporaryAccessPassMethodExists,
+  isSignedInUserInternalMember,
   type EntraUser,
 } from "../../api/azureGraph";
 import { isConsentError } from "../../logic/consent";
@@ -23,7 +24,9 @@ import { getAuthMethodDeletePath, toTapErrorMessage, type AccessPassResult } fro
 export type { AccessPassResult } from "../../logic/accessPass";
 import { logEvent } from "../../monitor/telemetry";
 import { useStepRunner } from "../../hooks/util/useStepRunner";
+import { useCardResourceAccess, type CardResourceAccess } from "../../hooks/util/useAzureCardAccess";
 import type { CardHook, CardRequirements, CardStatus, SetupStep, AzureAccount } from "../../types";
+import { accessPassAccess } from "./config";
 
 export type AzureSetupResult = {
   accessPassValue: string;
@@ -36,6 +39,7 @@ export type AzureSetupResult = {
 
 export type UseAccessPassCardParams = {
   azureAccount: AzureAccount | null;
+  subscriptionId: string;
   // From useAzureAccount — this card locks behind azure_login, so both are set once it renders.
   confirmedTenantId: string | null;
 };
@@ -47,6 +51,8 @@ export interface UseAccessPassCard extends CardHook {
   setSelectedManagerUserId: (id: string) => void;
   managerUsersLoading: boolean;
   managerUsersError: string | null;
+  membershipError: string | null;
+  access: CardResourceAccess;
   consentRequired: boolean;
   requestAccessPassConsent: () => Promise<void>;
   steps: SetupStep[];
@@ -69,16 +75,20 @@ const { save: saveResult, load: loadResult } = createResultStorage<AccessPassRes
  * one-hour TAP. Reuses useAzureAccount's session — this card only ever renders once a
  * tenant is confirmed, since it's locked behind "azure_login".
  */
-export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccessPassCardParams): UseAccessPassCard {
+export function useAccessPassCard({ azureAccount, subscriptionId, confirmedTenantId }: UseAccessPassCardParams): UseAccessPassCard {
   const { steps, setSteps, running, setRunning, updateStep, resetSteps } = useStepRunner();
   const [result, setResult] = useState<AccessPassResult | null>(loadResult);
   const [managerUsers, setManagerUsers] = useState<EntraUser[]>([]);
   const [selectedManagerUserId, setSelectedManagerUserId] = useState("");
   const [managerUsersLoading, setManagerUsersLoading] = useState(false);
   const [managerUsersError, setManagerUsersError] = useState<string | null>(null);
+  const [isInternalMember, setIsInternalMember] = useState<boolean | null>(null);
+  const [membershipError, setMembershipError] = useState<string | null>(null);
   const [consentRequired, setConsentRequired] = useState(false);
 
   const tenantId = confirmedTenantId || undefined;
+  const access = useCardResourceAccess({ azureAccount, subscriptionId, tenantId }, accessPassAccess());
+  const { check: checkResourceAccess } = access;
 
   // Redirects for incremental consent (User.ReadWrite.All / UserAuthenticationMethod.ReadWrite.All /
   // Policy.ReadWrite.AuthenticationMethod / etc.); user re-runs after returning.
@@ -126,6 +136,31 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
     };
   }, [azureAccount, confirmedTenantId, tenantId]);
 
+  useEffect(() => {
+    if (!azureAccount || confirmedTenantId === null) {
+      setIsInternalMember(null);
+      setMembershipError(null);
+      return;
+    }
+    let cancelled = false;
+    setIsInternalMember(null);
+    setMembershipError(null);
+    isSignedInUserInternalMember(azureAccount, tenantId)
+      .then((eligible) => {
+        if (cancelled) return;
+        setIsInternalMember(eligible);
+        if (!eligible) setMembershipError("Access Pass completion requires an internal Member account from the selected tenant.");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setIsInternalMember(false);
+        setMembershipError("Unable to verify that the signed-in account is an internal Member of the selected tenant.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [azureAccount, confirmedTenantId, tenantId]);
+
   // A persisted TAP could've been used up, revoked, or the user removed since last session —
   // confirm it still exists on Graph before trusting it, and hide it silently if not.
   useEffect(() => {
@@ -158,6 +193,7 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
       setConsentRequired(false);
 
       const initialSteps: SetupStep[] = [
+        { id: "access", label: "Check Microsoft Graph and Entra access", status: "pending" },
         { id: "policy", label: "Ensure Temporary Access Pass Is Enabled", status: "pending" },
         { id: "removeMethods", label: "Remove Existing Login Methods", status: "pending" },
         { id: "rotatePassword", label: "Randomize User Password", status: "pending" },
@@ -165,8 +201,13 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
       ];
       setSteps(initialSteps);
 
-      let currentStepId: SetupStep["id"] = "policy";
+      let currentStepId: SetupStep["id"] = "access";
       try {
+        updateStep("access", "running");
+        await checkResourceAccess();
+        updateStep("access", "done");
+
+        currentStepId = "policy";
         updateStep("policy", "running");
         const justEnabled = await ensureTemporaryAccessPassEnabled(azureAccount, tenantId);
         updateStep("policy", justEnabled ? "done" : "skipped", justEnabled ? "Enabled Temporary Access Pass for this tenant" : "Already enabled");
@@ -222,7 +263,7 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
         setRunning(false);
       }
     },
-    [azureAccount, tenantId, setSteps, setRunning, updateStep]
+    [azureAccount, tenantId, checkResourceAccess, setSteps, setRunning, updateStep]
   );
 
   const reset = useCallback(() => {
@@ -232,9 +273,14 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
   }, [resetSteps]);
 
   // Assumes prerequisites are met — App locks this card (via cardRequirements) whenever they're not.
-  const status: CardStatus = managerUsersError || managerUsers.length === 0 ? "warning" : result ? "complete" : "idle";
+  const status: CardStatus =
+    access.status === "error" ? "error" :
+      access.status === "warning" || managerUsersError || membershipError || managerUsers.length === 0 ? "warning" :
+        result && isInternalMember ? "complete" : "idle";
   const summary = result
-    ? "Access pass created"
+    ? isInternalMember
+      ? "Access pass created"
+      : "Access pass created; internal membership required"
     : managerUsersLoading
       ? "Loading users..."
       : managerUsers.length > 0
@@ -248,6 +294,8 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
     setSelectedManagerUserId,
     managerUsersLoading,
     managerUsersError,
+    membershipError,
+    access,
     consentRequired,
     requestAccessPassConsent,
     steps,
@@ -257,8 +305,8 @@ export function useAccessPassCard({ azureAccount, confirmedTenantId }: UseAccess
     reset,
     status,
     summary,
-    cardRequirements: ["azure_login"],
-    cardDependencyLabel: "Sign in to Azure",
-    done: !!result,
+    cardRequirements: ["azure_login", "azure_subscription"],
+    cardDependencyLabel: "Sign in to Azure and select a subscription",
+    done: !!result && isInternalMember === true && access.status === "ready",
   };
 }

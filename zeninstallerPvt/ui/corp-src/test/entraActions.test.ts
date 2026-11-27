@@ -5,7 +5,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AccountInfo } from "@azure/msal-browser";
-import { ensureEntraActions } from "../api/azureGraph";
+import { ensureEntraActions, isInternalTenantMember } from "../api/azureGraph";
 
 const consent = vi.hoisted(() => ({ granted: true }));
 vi.mock("../auth/msal", () => ({ getToken: async () => "token", hasScopeConsent: async () => consent.granted }));
@@ -57,5 +57,14 @@ describe("ensureEntraActions", () => {
     stubRoles({});
     await ensureEntraActions(account, []);
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("isInternalTenantMember", () => {
+  it("accepts only members without an external UPN", () => {
+    expect(isInternalTenantMember({ userType: "Member", userPrincipalName: "user@contoso.com" })).toBe(true);
+    expect(isInternalTenantMember({ userType: "Guest", userPrincipalName: "guest@contoso.com" })).toBe(false);
+    expect(isInternalTenantMember({ userType: "Member", userPrincipalName: "guest_example.com#EXT#@contoso.onmicrosoft.com" })).toBe(false);
+    expect(isInternalTenantMember({ userType: "Member", userPrincipalName: "guest_example.com#ext#@contoso.onmicrosoft.com" })).toBe(false);
   });
 });

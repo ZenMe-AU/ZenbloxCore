@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAccessPassCard, type UseAccessPassCard } from "../cards/AccessPass/useAccessPassCard";
 import type { AzureAccount } from "../types";
 
-const { apiMocks } = vi.hoisted(() => ({
+const { apiMocks, accessMock } = vi.hoisted(() => ({
   apiMocks: {
     getMsal: vi.fn(),
     listUsersManagedBySignedInUser: vi.fn(),
@@ -20,10 +20,30 @@ const { apiMocks } = vi.hoisted(() => ({
     deleteUserAuthenticationMethod: vi.fn(),
     createTemporaryAccessPassForUser: vi.fn(),
     temporaryAccessPassMethodExists: vi.fn(),
+    isSignedInUserInternalMember: vi.fn(),
     isConsentError: vi.fn(),
     generateRandomPassword: vi.fn(),
     logEvent: vi.fn(),
   },
+  accessMock: {
+    status: "ready" as const,
+    error: null,
+    failureKind: null,
+    retry: vi.fn(),
+    check: vi.fn(),
+    reportFailure: vi.fn(),
+    missingRoles: null,
+    missingEntra: null,
+    unregisteredProviders: [],
+    registeringProviders: false,
+    registerProviders: vi.fn(),
+    missingConsent: [],
+    grantConsent: vi.fn(),
+  },
+}));
+
+vi.mock("../hooks/util/useAzureCardAccess", () => ({
+  useCardResourceAccess: () => accessMock,
 }));
 
 vi.mock("../auth/msal", () => ({
@@ -38,6 +58,7 @@ vi.mock("../api/azureGraph", () => ({
   deleteUserAuthenticationMethod: apiMocks.deleteUserAuthenticationMethod,
   createTemporaryAccessPassForUser: apiMocks.createTemporaryAccessPassForUser,
   temporaryAccessPassMethodExists: apiMocks.temporaryAccessPassMethodExists,
+  isSignedInUserInternalMember: apiMocks.isSignedInUserInternalMember,
 }));
 
 vi.mock("../logic/consent", () => ({
@@ -90,6 +111,7 @@ function baseProps(overrides: Partial<Parameters<typeof useAccessPassCard>[0]> =
       name: "User",
     } as AzureAccount,
     confirmedTenantId: "tenant-a",
+    subscriptionId: "sub-a",
     ...overrides,
   };
 }
@@ -115,9 +137,11 @@ describe("useAccessPassCard", () => {
       temporaryAccessPass: "TAP-SECRET",
     });
     apiMocks.temporaryAccessPassMethodExists.mockResolvedValue(true);
+    apiMocks.isSignedInUserInternalMember.mockResolvedValue(true);
     apiMocks.isConsentError.mockReturnValue(false);
     apiMocks.generateRandomPassword.mockReturnValue("RANDOM-PASSWORD");
     apiMocks.logEvent.mockReturnValue(undefined);
+    accessMock.check.mockReset().mockResolvedValue(undefined);
   });
 
   it("requestAccessPassConsent returns early without account or msal, then redirects with tenant authority", async () => {
@@ -692,6 +716,38 @@ describe("useAccessPassCard", () => {
     });
   });
 
+  it("checks card resource access before changing the tenant or user", async () => {
+    accessMock.check.mockRejectedValueOnce(new Error("Missing Entra access"));
+    let latest: UseAccessPassCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />
+      );
+    });
+
+    await act(async () => {
+      await latest?.runForUser("u1");
+    });
+
+    expect(accessMock.check).toHaveBeenCalledOnce();
+    expect(apiMocks.ensureTemporaryAccessPassEnabled).not.toHaveBeenCalled();
+    expect(latest?.steps.find((step) => step.id === "access")).toMatchObject({
+      status: "error",
+      detail: "Missing Entra access",
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
   it("runForUser handles no-account/empty-user guard and no-removable-methods branch", async () => {
     let latest: UseAccessPassCard | null = null;
     const root = createRoot(document.createElement("div"));
@@ -966,6 +1022,40 @@ describe("useAccessPassCard", () => {
       expect(latest?.result).toBeNull();
       expect(localStorage.getItem("zeninstaller_corp_access_pass_result")).toBeNull();
     });
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("does not complete for a guest or external signed-in account", async () => {
+    apiMocks.isSignedInUserInternalMember.mockResolvedValue(false);
+    let latest: UseAccessPassCard | null = null;
+    const root = createRoot(document.createElement("div"));
+
+    await act(async () => {
+      root.render(
+        <HookHarness
+          {...baseProps()}
+          onUpdate={(value) => {
+            latest = value;
+          }}
+        />
+      );
+    });
+
+    await waitFor(() => {
+      expect(latest?.membershipError).toContain("internal Member account");
+    });
+
+    await act(async () => {
+      await latest?.runForUser("u1");
+    });
+
+    expect(latest?.result).not.toBeNull();
+    expect(latest?.status).toBe("warning");
+    expect(latest?.done).toBe(false);
+    expect(latest?.summary).toBe("Access pass created; internal membership required");
 
     await act(async () => {
       root.unmount();

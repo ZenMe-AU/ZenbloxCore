@@ -757,6 +757,46 @@ describe("useGithubRepo", () => {
     });
   });
 
+  it.each([
+    { branches: [{ name: "main", commit: "abc", protected: false }], source: "main" },
+    { branches: [{ name: "dev", commit: "abc", protected: false }], source: "dev" },
+    { branches: [{ name: "TEST", commit: "abc", protected: false }], source: null },
+    { branches: [], source: null },
+    { branches: [], source: null, refreshFails: true },
+  ])("refreshes an initially empty branch list before creation ($source, $refreshFails)", async ({ branches, source, refreshFails }) => {
+    mockApi.checkTemplate.mockResolvedValue({ templateName: "ZenMe-AU/ZenbloxCore" });
+    let latest: UseGithubRepo | null = null;
+    const root = createRoot(document.createElement("div"));
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await act(async () => root.render(<HookHarness user={baseUser()} onUpdate={(value) => { latest = value; }} />));
+      await waitFor(() => expect(latest?.selectedAccount).toEqual(accountOne));
+      await act(async () => latest?.setSelectedRepo({ id: 1, name: "repo-a" }));
+      await waitFor(() => {
+        expect(latest?.status).toBe("complete");
+        expect(latest?.branchList).toEqual([]);
+        expect(latest?.sourceBranch).toBe("");
+      });
+      mockApi.fetchBranches.mockResolvedValue(branches);
+      if (refreshFails) mockApi.fetchBranches.mockRejectedValueOnce(new Error("Refresh failed"));
+      mockApi.createBranch.mockResolvedValue({ name: "TEST", commit: "abc", protected: false });
+      await act(async () => { await latest?.onCreateBranch("TEST"); });
+      expect(mockApi.fetchBranches).toHaveBeenCalledTimes(2);
+      if (source) {
+        expect(mockApi.createBranch).toHaveBeenCalledWith(accountOne, "repo-a", "TEST", source);
+        expect(latest?.branchList.map((branch) => branch.name)).toEqual([source, "TEST"]);
+      } else {
+        expect(mockApi.createBranch).not.toHaveBeenCalled();
+        expect(latest?.branchList).toEqual(branches);
+      }
+      expect(latest?.createBranchError).toBe(refreshFails ? "Failed to create branch" : branches.length ? null : "No source branch is available yet. Please try again.");
+      expect(latest?.creatingBranch).toBe(false);
+    } finally {
+      await act(async () => root.unmount());
+      error.mockRestore();
+    }
+  });
+
   it("returns early from onCreateBranch when account or repo is missing", async () => {
     let latest: UseGithubRepo | null = null;
     const root = createRoot(document.createElement("div"));

@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-// UI component: ../../../corp-src/cards/PrivateFrontendInfra/PrivateFrontendInfraCard.tsx
+// UI component: ../../../corp-src/cards/CoreInfra/PrivateFrontendInfraCard.tsx
 import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
 import { test, getViewportName } from "../../../../../.playwright/viewportFixture.mjs";
 import { expectSnapshot } from "../../../../../.playwright/testHelper.js";
@@ -17,7 +17,7 @@ test("Happy path", async ({ page, context }, testInfo) => {
 
 test("Does not save connection details after storage configuration fails", async ({ page, context }, testInfo) => {
   const { card, state, github, unexpectedRequests } = await prepareFrontend(page, context, { denyBlob: true });
-  await card.getByRole("button", { name: "Create private hosting environment", exact: true }).click({ timeout: 30_000 });
+  await page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment", exact: true }).click({ timeout: 30_000 });
   await expect(card.getByText(/Mock storage configuration denied/)).toBeVisible();
   await expect(card.locator("h3")).toContainText("Insufficient permissions to continue");
   expect(state.appCreated).toBe(false);
@@ -31,9 +31,9 @@ test("Derives completion from existing Azure resources and saved variables", asy
   const setup = await prepareCardMocks(page, context, {}, { frontend: true });
   const card = await setup.open("private_frontend_infra");
   await expect(card.locator("h3")).toContainText("Complete");
-  await expect(card.getByRole("button", { name: "Re-run", exact: true })).toBeEnabled();
+  await expect(page.locator("#card-core_infra").getByRole("button", { name: "Re-run", exact: true })).toBeEnabled();
   await expect(card.getByRole("progressbar", { name: "Loading variables" })).toHaveCount(0);
-  const detailsToggle = card.locator('button[aria-controls="private-frontend-connection-details"]');
+  const detailsToggle = card.locator('button[aria-controls="private-hosting-connection-details"]');
   const lines = detailsToggle.locator(".connection-toggle-line");
   const label = detailsToggle.locator(".connection-toggle-label");
   const icon = detailsToggle.locator(".connection-toggle-icon");
@@ -56,16 +56,16 @@ test("Derives completion from existing Azure resources and saved variables", asy
   const toggledExpanded = initialExpanded === "true" ? "false" : "true";
   await expect(detailsToggle).toHaveAttribute("aria-expanded", toggledExpanded);
   if (toggledExpanded === "true") {
-    await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeVisible();
+    await expect(card.getByRole("region", { name: "Results saved to GitHub", exact: true })).toBeVisible();
   } else {
-    await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeHidden();
+    await expect(card.getByRole("region", { name: "Results saved to GitHub", exact: true })).toBeHidden();
   }
   await page.keyboard.press("Space");
   await expect(detailsToggle).toHaveAttribute("aria-expanded", initialExpanded!);
   if (initialExpanded === "true") {
-    await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeVisible();
+    await expect(card.getByRole("region", { name: "Results saved to GitHub", exact: true })).toBeVisible();
   } else {
-    await expect(card.getByRole("region", { name: "Connection details", exact: true })).toBeHidden();
+    await expect(card.getByRole("region", { name: "Results saved to GitHub", exact: true })).toBeHidden();
   }
   expect(await page.evaluate(() => localStorage.getItem("zeninstaller_private_env_result"))).toBeNull();
   expect(setup.unexpectedRequests).toEqual([]);
@@ -77,7 +77,7 @@ async function runHappyPath(page: Page, context: BrowserContext, testInfo: TestI
   const { card, state, github, unexpectedRequests } = await prepareFrontend(page, context);
   const viewport = getViewportName(testInfo);
   await test.step("Create the hosting environment from seeded Azure prerequisites", async () => {
-    const createHosting = card.getByRole("button", { name: "Create private hosting environment", exact: true });
+    const createHosting = page.locator("#card-core_infra").getByRole("button", { name: "Create private hosting environment", exact: true });
     await expect(card.getByText("Australia East", { exact: true })).toBeVisible();
     await expect(createHosting).toBeEnabled({ timeout: 30_000 });
     await expectSnapshot(page, card, testInfo, "start", viewport);

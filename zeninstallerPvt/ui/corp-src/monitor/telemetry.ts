@@ -9,7 +9,8 @@ import _ from "lodash";
 
 export const logPageView = (name: string, properties?: Record<string, unknown>) => {
   const appInsights = getAppInsights();
-  const operationId = appInsights.context.telemetryTrace.traceID;
+  //const operationId = appInsights.context.telemetryTrace.traceID;
+  const operationId = appInsights.getTraceCtx().getTraceId();
   const correlationId = operationId;
   name = _.camelCase(document.title) || "pageView:" + name;
   appInsights.trackPageView({
@@ -30,7 +31,7 @@ export const logEvent = (eventName: string, properties?: Record<string, unknown>
   const pageName = document.title || window.location.pathname;
   const appInsights = getAppInsights();
   const userId = appInsights.context.user.id || "anonymous";
-  const operationId = appInsights.context.telemetryTrace.traceID;
+  const operationId = appInsights.getTraceCtx().getTraceId();
   const sessionId = appInsights.context?.sessionManager?.automaticSession?.id;
   const correlationId = operationId;
 
@@ -63,7 +64,7 @@ export const clearUserContext = () => {
 export function setOperationId(operationId?: string): string {
   const appInsights = getAppInsights();
   const traceId = operationId || createRandomUuid().replace(/-/g, "");
-  appInsights.context.telemetryTrace.traceID = traceId;
+  appInsights.getTraceCtx().traceId = traceId;
   appInsights.addTelemetryInitializer((envelope) => {
     envelope.tags = envelope.tags || {};
     envelope.tags["ai.operation.id"] = traceId;
@@ -74,5 +75,5 @@ export function setOperationId(operationId?: string): string {
 
 export function getOperationId(): string | undefined {
   const appInsights = getAppInsights();
-  return appInsights.context.telemetryTrace?.traceID;
+  return appInsights.getTraceCtx().getTraceId();
 }

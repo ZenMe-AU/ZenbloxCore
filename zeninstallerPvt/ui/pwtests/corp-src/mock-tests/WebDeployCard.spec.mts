@@ -3,7 +3,7 @@
  * @license SPDX-License-Identifier: MIT
  */
 
-// UI component: ../../../corp-src/cards/WebDeploy/WebDeployCard.tsx
+// UI component: ../../../corp-src/cards/PrivateZeninstaller/PrivateZeninstallerCard.tsx
 import { expect, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
 import JSZip from "jszip";
 import { test, getViewportName } from "../../../../../.playwright/viewportFixture.mjs";

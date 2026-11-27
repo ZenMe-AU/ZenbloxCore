@@ -301,10 +301,28 @@ export function useGithubRepo(user: User | null): UseGithubRepo {
     if (!acc || !repo) return;
     setCreatingBranch(true);
     setCreateBranchError(null);
+    const sequence = repoCheckSequence.current;
     try {
-      const newBranch = await createBranch(acc, repo.name, targetName, sourceBranchRef.current);
+      let source = sourceBranchRef.current;
+      if (!source) {
+        const branches = await fetchBranches(acc, repo.name);
+        if (sequence !== repoCheckSequence.current) return;
+        setBranchList(branches);
+        source = branches.find((branch) => branch.name === "main")?.name ?? branches[0]?.name ?? "";
+        setSourceBranch(source);
+        if (branches.some((branch) => branch.name === targetName)) return;
+        if (!source) {
+          console.error("No source branch is available after refreshing repository branches.");
+          setCreateBranchError("No source branch is available yet. Please try again.");
+          return;
+        }
+      }
+      const newBranch = await createBranch(acc, repo.name, targetName, source);
+      if (sequence !== repoCheckSequence.current) return;
       setBranchList((prev) => [...prev, newBranch]);
-    } catch {
+    } catch (error) {
+      console.error("Failed to create branch:", error);
+      if (sequence !== repoCheckSequence.current) return;
       setCreateBranchError("Failed to create branch");
     } finally {
       setCreatingBranch(false);
