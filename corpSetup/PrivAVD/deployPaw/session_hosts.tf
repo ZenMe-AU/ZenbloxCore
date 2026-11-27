@@ -166,3 +166,29 @@ resource "azurerm_virtual_machine_run_command" "redirection_policy" {
     azurerm_virtual_machine_run_command.artifact_keeper_file_share,
   ]
 }
+
+# Sign-in tasks (optional, with the Artifact Keeper file share): at every user
+# sign-in, map the share (ARTIFACT_KEEPER_DRIVE_LETTER) and install the
+# developer tools listed in Installers/paw-user-tools.json on the share for
+# that user, without admin rights (PAW_USER_TOOLS). See
+# scripts/Install-PawSignIn.ps1 and scripts/paw-signin/. The two user scripts
+# travel inside the run command as base64 text, defined above the installer.
+resource "azurerm_virtual_machine_run_command" "paw_signin" {
+  count              = var.ARTIFACT_KEEPER_BLOB_HOST != "" && var.ARTIFACT_KEEPER_FILE_SHARE ? var.SESSION_HOST_COUNT : 0
+  name               = "paw-signin"
+  location           = azurerm_resource_group.avd.location
+  virtual_machine_id = azurerm_windows_virtual_machine.session_host[count.index].id
+
+  source {
+    script = join("\n", [
+      "$ZbShareRoot = '\\\\${replace(var.ARTIFACT_KEEPER_BLOB_HOST, ".blob.core.windows.net", ".file.core.windows.net")}\\${var.ARTIFACT_KEEPER_FILE_SHARE_NAME}'",
+      "$ZbDriveLetter = '${var.ARTIFACT_KEEPER_DRIVE_LETTER}'",
+      "$ZbUserTools = '${var.PAW_USER_TOOLS}'",
+      "$ZbFiles = @{ 'Invoke-PawSignIn.ps1' = '${filebase64("${path.module}/scripts/paw-signin/Invoke-PawSignIn.ps1")}'; 'Install-PawUserTools.ps1' = '${filebase64("${path.module}/scripts/paw-signin/Install-PawUserTools.ps1")}' }",
+      file("${path.module}/scripts/Install-PawSignIn.ps1"),
+    ])
+  }
+
+  # One run command at a time per VM.
+  depends_on = [azurerm_virtual_machine_run_command.redirection_policy]
+}

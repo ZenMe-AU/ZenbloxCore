@@ -113,3 +113,50 @@ the `privatelink.blob.core.windows.net` zone and outputs
 `private_endpoints_subnet_id` and `blob_private_dns_zone_id` for the AK `.env`.
 Setting `TF_VAR_ARTIFACT_KEEPER_BLOB_HOST` makes the session hosts trust the AK
 private blob host, so winget installs from it run unattended.
+
+### Sign-in tasks: drive mapping and developer tools
+
+With `TF_VAR_ARTIFACT_KEEPER_FILE_SHARE=true`, every user sign-in runs
+`scripts/paw-signin/Invoke-PawSignIn.ps1`, hidden and as the user, started by
+the HKLM Run key `ZenbloxPawSignIn`. Deployed by the `paw-signin` run command
+(`scripts/Install-PawSignIn.ps1`) into `C:\ProgramData\Zenblox\PawSignIn`,
+which users can read but not change.
+
+1. **Drive:** maps `\\<account>.file.core.windows.net\<share>` to
+   `ARTIFACT_KEEPER_DRIVE_LETTER` (default `P`), retrying while the cloud
+   Kerberos ticket arrives. Not persistent, so no stale reconnect.
+2. **Developer tools** (`PAW_USER_TOOLS`, default true): installs, for that user
+   only and without admin rights, the tools listed in
+   `Installers\paw-user-tools.json` on the share. Starting list:
+   `user-tools/paw-user-tools.json` (VS Code, Git, Node.js with npm, pnpm,
+   Terraform). Each file is copied from the share, its SHA-256 checked against
+   the list (a mismatch is refused), installed into the user's profile, and
+   smoke-tested. Later sign-ins skip tools that are already current (a few
+   seconds). The first sign-in takes about 5 minutes; tools appear in new
+   terminals once it is done.
+   Logs: `%LOCALAPPDATA%\Zenblox\logs\paw-signin.log` and `paw-user-tools.log`.
+
+**Share layout** (folders are the Artifact Keeper artifact paths; the publish
+job copies them to the share unchanged):
+
+```
+Installers\paw-user-tools.json                 the tool list
+Installers\<Tool>\<version>\<installer file>   one folder per tool and version
+Manifests\                                     winget manifests (machine installs, later)
+```
+
+**Adding or updating a tool:** upload the installer to Artifact Keeper under
+`Installers/<Tool>/<version>/`, add or change its entry in
+`paw-user-tools.json` (version, file, `sha256` = the artifact's
+`checksum_sha256`), upload the list, and run the publish job. Users get it at
+their next sign-in. Entry types: `exe` (vendor installer that installs per user,
+run with `args`), `zip` (unpacked into
+`%LOCALAPPDATA%\Programs\Zenblox\<folder>`, added to the user's PATH), `npm`
+(a package `.tgz` installed into another tool's folder, e.g. pnpm into Node.js).
+The list order is the install order.
+
+With user tools on, the session host also gets the machine policies the tools
+need without internet: VS Code updates and telemetry off, Windows long paths
+on. Tested 2026-11-27 on a throwaway VM from the same base image with
+standard (non-admin) users: first sign-in installed all five tools in about
+5 minutes, a second sign-in took 5 s, and a changed checksum was refused.

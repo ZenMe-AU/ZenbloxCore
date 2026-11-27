@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "description": "Tools installed for every PAW user at sign-in, from this share, without admin rights. Order matters: a tool is installed after the ones above it. Paths are relative to the share root. sha256 = lowercase hex of the file (Artifact Keeper shows it as checksum_sha256).",
+  "environment": {
+    "CHECKPOINT_DISABLE": "1",
+    "npm_config_update_notifier": "false",
+    "npm_config_fund": "false",
+    "npm_config_audit": "false"
+  },
+  "tools": [
+    {
+      "name": "VSCode",
+      "version": "1.148.0",
+      "file": "Installers/VSCode/1.148.0/VSCodeUserSetup-x64-1.148.0.exe",
+      "sha256": "45eaa6c8e032d0899ae0df14f65803287f682db3c306e0d9e8f66663a5d549b6",
+      "type": "exe",
+      "args": ["/VERYSILENT", "/NORESTART", "/SUPPRESSMSGBOXES", "/MERGETASKS=!runcode,addcontextmenufiles,addcontextmenufolders,associatewithfiles,addtopath"],
+      "check": "%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\bin\\code.cmd"
+    },
+    {
+      "name": "Git",
+      "version": "2.56.1",
+      "file": "Installers/Git/2.56.1/Git-2.56.1-64-bit.exe",
+      "sha256": "c330c72e10b408cc39994bfefdb63542b0d93d21699325c3e0bd874af8a5a559",
+      "type": "exe",
+      "args": ["/VERYSILENT", "/NORESTART", "/NOCANCEL", "/SP-", "/SUPPRESSMSGBOXES", "/o:PathOption=Cmd", "/o:EditorOption=VisualStudioCode", "/o:DefaultBranchOption=main", "/o:CURLOption=WinSSL"],
+      "check": "%LOCALAPPDATA%\\Programs\\Git\\cmd\\git.exe",
+      "after": [["config", "--global", "core.longpaths", "true"]]
+    },
+    {
+      "name": "NodeJS",
+      "version": "24.22.3",
+      "file": "Installers/NodeJS/24.22.3/node-v24.22.3-win-x64.zip",
+      "sha256": "e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f",
+      "type": "zip",
+      "folder": "nodejs",
+      "zipSubfolder": "node-v24.22.3-win-x64",
+      "path": ["."],
+      "check": "node.exe"
+    },
+    {
+      "name": "pnpm",
+      "version": "11.22.0",
+      "file": "Installers/pnpm/11.22.0/pnpm-11.22.0.tgz",
+      "sha256": "57a97e6f23a3faffc03153a4ef8c770a0552612b8640aebe39bfdd5754d0ebdc",
+      "type": "npm",
+      "folder": "nodejs",
+      "check": "pnpm.cmd"
+    },
+    {
+      "name": "Terraform",
+      "version": "1.17.2",
+      "file": "Installers/Terraform/1.17.2/terraform_1.17.2_windows_amd64.zip",
+      "sha256": "2244b7a379ea8c4b224a2eab411b7288f41ef36316fca27ae4b51b1cf2a53024",
+      "type": "zip",
+      "folder": "Terraform",
+      "path": ["."],
+      "check": "terraform.exe"
+    }
+  ]
+}

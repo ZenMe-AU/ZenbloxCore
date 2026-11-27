@@ -151,6 +151,34 @@ variable "ARTIFACT_KEEPER_FILE_SHARE" {
   }
 }
 
+variable "ARTIFACT_KEEPER_FILE_SHARE_NAME" {
+  description = "Name of the Artifact Keeper read-only file share; must equal the AK stack's TF_VAR_PRIVATE_FILE_SHARE_NAME. Used by the sign-in tasks (ARTIFACT_KEEPER_FILE_SHARE=true)."
+  type        = string
+  default     = "paw-approved"
+
+  validation {
+    condition     = can(regex("^[a-z0-9](?:[a-z0-9]|-[a-z0-9]){2,62}$", var.ARTIFACT_KEEPER_FILE_SHARE_NAME))
+    error_message = "ARTIFACT_KEEPER_FILE_SHARE_NAME must be a valid Azure file share name: 3-63 lowercase letters, digits and single hyphens."
+  }
+}
+
+variable "ARTIFACT_KEEPER_DRIVE_LETTER" {
+  description = "Drive letter the sign-in task maps the Artifact Keeper file share to for every user (default P). Empty = do not map a drive."
+  type        = string
+  default     = "P"
+
+  validation {
+    condition     = can(regex("^([D-Zd-z])?$", var.ARTIFACT_KEEPER_DRIVE_LETTER))
+    error_message = "ARTIFACT_KEEPER_DRIVE_LETTER must be one letter D-Z, or empty."
+  }
+}
+
+variable "PAW_USER_TOOLS" {
+  description = "true (default) = at every sign-in, install the developer tools listed in Installers/paw-user-tools.json on the Artifact Keeper file share for that user, without admin rights. Needs ARTIFACT_KEEPER_FILE_SHARE=true."
+  type        = bool
+  default     = true
+}
+
 variable "CLIPBOARD_MODE" {
   description = "Clipboard between the user's device and the PAW: \"paste-in\" (default) = plain text can be pasted INTO the session, nothing can be copied out; \"two-way\" = no restriction (testing only); \"off\" = no clipboard. Enforced on each session host by scripts/Set-PawRedirectionPolicy.ps1; takes effect after the session host's next restart."
   type        = string
