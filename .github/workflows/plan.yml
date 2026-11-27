@@ -34,9 +34,11 @@ jobs:
   plan:
     environment: ${{ inputs.github_env_name }}
     runs-on: ubuntu-latest
+    continue-on-error: true
     outputs:
       azure_signed_in: ${{ steps.plan_stage.outputs.azure_signed_in }}
       aws_signed_in: ${{ steps.plan_stage.outputs.aws_signed_in }}
+      status: ${{ steps.plan_status.outputs.status }}
     steps:
       - uses: actions/checkout@v5
       - id: plan_stage
@@ -55,6 +57,11 @@ jobs:
           azure_tenant_id: ${{ vars.AZURE_TENANT_ID }}
           azure_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
           aws_role_arn: ${{ vars.AWS_ROLE_ARN }}
+      - name: Capture plan job status
+        id: plan_status
+        if: ${{ always() }}
+        shell: bash
+        run: echo "status=${{ job.status }}" >> "$GITHUB_OUTPUT"
 
   report:
     permissions:
@@ -78,3 +85,5 @@ jobs:
           stage_status_file: ${{ env.STATUS_FILE }}
           azure_signed_in: ${{ needs.plan.outputs.azure_signed_in || 'false' }}
           aws_signed_in: ${{ needs.plan.outputs.aws_signed_in || 'false' }}
+          plan_job_status: ${{ needs.plan.outputs.status || 'failure' }}
+

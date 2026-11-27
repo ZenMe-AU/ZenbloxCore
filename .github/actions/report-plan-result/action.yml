@@ -31,6 +31,9 @@ inputs:
   stage_status_file:
     required: true
     description: "Status filename the stage wrote inside its artifact"
+  plan_job_status:
+    required: true
+    description: "Plan job status captured before continue-on-error is applied"
 
 runs:
   using: composite
@@ -154,3 +157,10 @@ runs:
         dir: ${{ inputs.dir }}
         state: ${{ steps.build.outputs.state }}
         payload: ${{ steps.build.outputs.stage_result }}
+
+    - name: Fail if the plan or plan job failed
+      if: inputs.plan_job_status != 'success' || steps.build.outputs.state != 'success'
+      shell: bash
+      run: |
+        echo "Plan failed; see the recorded result and plan log."
+        exit 1
