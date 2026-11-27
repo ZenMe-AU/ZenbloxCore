@@ -308,13 +308,16 @@ function AppDashboard() {
   }, [expandedIds]);
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "c" || !event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return;
-      if (event.target instanceof HTMLElement && (event.target.isContentEditable || event.target.matches("input, textarea, select") || event.target.closest('[role="dialog"]'))) return;
-      event.preventDefault();
-      const panel = event.target instanceof HTMLElement ? event.target.closest('[id^="card-content-"]') : null;
-      const headingId = panel?.getAttribute("aria-labelledby");
-      if (headingId) document.getElementById(headingId)?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
-      setExpandedIds(new Set());
+      // Only trigger on Shift + C without other modifier keys
+      if (event?.shiftKey && (event?.key === "c" || event?.key === "C")) {
+        if (event.ctrlKey || event.metaKey || event.altKey) return;
+        if (event.target instanceof HTMLElement && (event.target.isContentEditable || event.target.matches("input, textarea, select") || event.target.closest('[role="dialog"]'))) return;
+        event.preventDefault();
+        const panel = event.target instanceof HTMLElement ? event.target.closest('[id^="card-content-"]') : null;
+        const headingId = panel?.getAttribute("aria-labelledby");
+        if (headingId) document.getElementById(headingId)?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+        setExpandedIds(new Set());
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
