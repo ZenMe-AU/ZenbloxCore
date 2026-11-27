@@ -42,6 +42,16 @@ else {
     $TF_VAR_PACKAGE_URL = ''
 }
 
+# Developer tools (VS Code, Git, Node.js, pnpm, Terraform) are ON by default:
+# TF_VAR_INSTALL_DEV_TOOLS=false in .env leaves them out of the image.
+$installDevTools = -not ("$TF_VAR_INSTALL_DEV_TOOLS".Trim().ToLowerInvariant() -eq 'false')
+if ($installDevTools) {
+    Write-Host 'Developer tools: included (VS Code, Git, Node.js, pnpm, Terraform - see img-install-devtools.ps1).'
+}
+else {
+    Write-Host 'Developer tools: switched off (TF_VAR_INSTALL_DEV_TOOLS=false).'
+}
+
 # Pass the same values Terraform used to create the gallery/RG so Packer
 # publishes into the infra that actually exists, instead of its own defaults.
 
@@ -53,7 +63,8 @@ $packerVars = @(
     "-var", "IMAGE_NAME=$TF_VAR_IMAGE_NAME",
     "-var", "IMAGE_VERSION=$imageVersion",
     "-var", "PACKAGE_URL=$TF_VAR_PACKAGE_URL",
-    "-var", "INSTALL_WINGET_REPO=$($installWingetRepo.ToString().ToLowerInvariant())"
+    "-var", "INSTALL_WINGET_REPO=$($installWingetRepo.ToString().ToLowerInvariant())",
+    "-var", "INSTALL_DEV_TOOLS=$($installDevTools.ToString().ToLowerInvariant())"
 )
 
 Push-Location $PSScriptRoot
