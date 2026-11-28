@@ -1,4 +1,12 @@
+# Zenblox Core IT Enterprise Architecture
 
+Zenblox Core is a reference implementation for building secure, repeatable IT cloud environments designed to remain trustworthy in the presence of AI and other high-risk workloads.
+
+The project provides the infrastructure, automation and architecture patterns used to construct environments from known configuration rather than relying on the continued integrity of a long-lived environment. This makes environments reproducible and, where assurance is required, replaceable rather than dependent solely on remediation of an existing system.
+
+The implementation combines cloud infrastructure, identity, privileged access, network security and deployment automation, with architectural decisions aligned to relevant Australian Information Security Manual (ISM) controls.
+
+This repository contains the core implementation and the reusable patterns behind that architecture.
 
 
 ## Design decisions
@@ -10,6 +18,6 @@
 5. Code files should have the higher level functions at the top and the lower level support functions towards the bottom.
 6. When recording design decisions group them based on whether they relate to the final functional product, or if they relate to the SDLC delivery process. For example Product decisions, development team way of work decisions, test automation decisions, operational support and monitoring decisions, etc. You do not need to call out these headings, it should become clear from the content of the items grouped together as more decisions aggregate together. This may cause you to be considerate when adding new decisions to the list, and sometimes the list need to be re-grouped once it becomes too disorganised.
 7. Preferably maintain shared configuration in the monorepo root rather than in individual workspaces, workspaces may override where needed:  `tsconfig.json`, `eslint.config.js`, `knip.json`, `playwright.config.ts`, `vitest.config.ts`.
-8. **Workspace launch configuration.** Keep app-specific VS Code launch configurations and supporting tasks in the app’s own `.vscode` directory (`launch.json` and `tasks.json`), not in a parent folder. List each independently runnable app as an explicit folder in the repository-root `.code-workspace` file, even if it is nested under another listed folder, so VS Code discovers its local configuration. Register pnpm packages separately in the root `pnpm-workspace.yaml`; package registration does not control VS Code launcher discovery.
+8. **Workspace launch configuration.** Keep app-specific VS Code launch configurations and supporting tasks in the appâ€™s own `.vscode` directory (`launch.json` and `tasks.json`), not in a parent folder. List each independently runnable app as an explicit folder in the repository-root `.code-workspace` file, even if it is nested under another listed folder, so VS Code discovers its local configuration. Register pnpm packages separately in the root `pnpm-workspace.yaml`; package registration does not control VS Code launcher discovery.
 
 
